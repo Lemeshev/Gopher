@@ -6,7 +6,8 @@
   "scripts": {
     "build": "cd android && ./gradlew assembleRelease",
     "build:debug": "cd android && ./gradlew assembleDebug",
-    "verify": "node tools/verify.js"
+    "verify": "node tools/verify.js",
+    "apk:desktop": "npm run build && node tools/copy-apk.js"
   },
   "keywords": ["game", "android", "gopher"],
   "author": "GopherLife Team",

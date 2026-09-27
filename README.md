@@ -44,10 +44,12 @@ cd www && python3 -m http.server 8080
 ## Сборка APK
 
 ```bash
-cd android
-./gradlew assembleRelease      # подписанный релиз
-# результат: app/build/outputs/apk/release/app-release.apk
+npm run build          # подписанный release: android/app/build/outputs/apk/release/app-release.apk
+npm run apk:desktop    # собрать и выложить на рабочий стол как Gopher.apk
 ```
+
+Итоговый файл для заказчика называется **`Gopher.apk`** и лежит на рабочем столе
+(`node tools/copy-apk.js` кладёт его туда и сверяет md5 с собранным).
 
 ### Подпись
 
