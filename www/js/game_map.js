@@ -4,9 +4,7 @@ class MapScene {
     this.game = game;
     this.locationButtons = [];
     this.time = 0;
-    this.selectedBtn = null;
     this.particles = [];
-    this.showTime = '';
   }
 
   init() {
@@ -36,7 +34,7 @@ class MapScene {
     const H = this.game.height;
     this.locationButtons = [];
 
-    // Background
+    // Background gradient
     const grad = ctx.createLinearGradient(0, 0, 0, H);
     const timeColors = {
       morning: ['#87CEEB', '#B0E0E6'],
@@ -89,7 +87,6 @@ class MapScene {
     ctx.textAlign = 'right';
     ctx.fillStyle = '#FFD93D';
     ctx.fillText('🪙 ' + System.coins, W - 20, 28);
-    ctx.fillStyle = '#a0a0cc';
     const timeEmojis = { morning: '🌅', afternoon: '☀️', evening: '🌇', night: '🌙' };
     ctx.fillText(timeEmojis[System.timeOfDay] + ' ' + System.timeOfDay, W - 20, 48);
 
@@ -99,24 +96,24 @@ class MapScene {
       this.game.gopher.draw(ctx, W * 0.5, H * 0.17, Math.min(W * 0.25, 100) / this.game.gopher.size);
     }
 
-    // Location grid
+    // Locations
     const locations = [
       { id: 'home', emoji: '🏠', name: 'Дом', color: '#FF6B6B', desc: 'Еда, сон, игры' },
+      { id: 'shop', emoji: '🛒', name: 'Магазин', color: '#F39C12', desc: 'Покупки 🎁' },
       { id: 'work', emoji: '🏢', name: 'Работа', color: '#4D96FF', desc: 'Заработок 💰', req: 'energy>40' },
       { id: 'school', emoji: '🎓', name: 'Учёба', color: '#9B59B6', desc: 'Знания 📚', req: 'energy>40' },
       { id: 'restaurant', emoji: '🍽️', name: 'Ресторан', color: '#FF8C42', desc: 'Угощение 🍰', cost: 30, req: 'energy>30' },
       { id: 'pool', emoji: '🏊', name: 'Бассейн', color: '#00BCD4', desc: 'Плавание 🏊', req: 'hunger>30' },
-      { id: 'clinic', emoji: '🏥', name: 'Поликлиника', color: '#E74C3C', desc: 'Лечение 💊', req: 'health<70' },
-      { id: 'shop', emoji: '🛒', name: 'Магазин', color: '#F39C12', desc: 'Покупки 🎁' },
       { id: 'park', emoji: '🎢', name: 'Парк', color: '#2ECC71', desc: 'Аттракционы', req: 'energy>40' },
-      { id: 'museum_art', emoji: '🎨', name: 'Музей искусств', color: '#E91E63', desc: 'Карттины 🖼️', cost: 30 },
-      { id: 'museum_nature', emoji: '🦕', name: 'Музей природы', color: '#4CAF50', desc: 'Динозавры', cost: 30 },
+      { id: 'clinic', emoji: '🏥', name: 'Поликлиника', color: '#E74C3C', desc: 'Лечение 💊', req: 'health<70' },
+      { id: 'museum_art', emoji: '🎨', name: 'Искусств', color: '#E91E63', desc: 'Карттины 🖼️', cost: 30 },
+      { id: 'museum_nature', emoji: '🦕', name: 'Природы', color: '#4CAF50', desc: 'Динозавры', cost: 30 },
       { id: 'museum_space', emoji: '🚀', name: 'Космический', color: '#3F51B5', desc: 'Планеты 🌍', cost: 30 },
       { id: 'museum_history', emoji: '🏛️', name: 'Исторический', color: '#795548', desc: 'Древний Рим', cost: 30 },
       { id: 'library', emoji: '📚', name: 'Библиотека', color: '#607D8B', desc: 'Чтение 📖', cost: 10 },
-      { id: 'friend', emoji: '🧑‍🤝‍🧑', name: 'К гостям', color: '#FF5722', desc: 'Друг-гофер 🐹', req: 'energy>30' },
+      { id: 'friend', emoji: '🧑‍🤝‍🧑', name: 'К другу', color: '#FF5722', desc: 'Друг 🐹', req: 'energy>30' },
       { id: 'minigames', emoji: '🎮', name: 'Мини-игры', color: '#9C27B0', desc: 'Крестики-нолики' },
-      { id: 'stats', emoji: '📊', name: 'Статистика', color: '#607D8B', desc: 'Достижения ⭐' }
+      { id: 'stats', emoji: '📊', name: 'Инфо', color: '#607D8B', desc: 'Достижения ⭐' }
     ];
 
     const cols = 4;
@@ -205,6 +202,8 @@ class MapScene {
 
         if (loc.id === 'home') {
           this.game.transitionTo('home');
+        } else if (loc.id === 'shop') {
+          this.game.transitionTo('shop');
         } else if (loc.id === 'minigames') {
           this.game.transitionTo('minigames');
         } else if (loc.id === 'stats') {

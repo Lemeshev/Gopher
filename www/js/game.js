@@ -19,6 +19,7 @@ class Game {
       menu: MenuScene,
       map: MapScene,
       home: HomeScene,
+      shop: ShopScene,
       minigames: MinigamesScene,
       stats: StatsScene,
       clinic: ClinicScene
