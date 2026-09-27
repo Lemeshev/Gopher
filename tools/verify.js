@@ -49,7 +49,7 @@ function blockAt(src, openIdx) {
 
 /* ---------- РЕВЬЮЕР 1: статический анализ ---------- */
 function reviewerStatic() {
-  console.log('\n\uD83D\uDD0D РЕВЬЮЕР 1/4 — Статический анализ исходников');
+  console.log('\n\uD83D\uDD0D РЕВЬЮЕР 1/5 — Статический анализ исходников');
 
   let syntaxOk = true;
   for (const f of fs.readdirSync(path.join(WWW, 'js'))) {
@@ -198,7 +198,7 @@ function bootGame(sandbox) {
 
 /* ---------- РЕВЬЮЕР 2: запуск и кадры ---------- */
 function reviewerRuntime() {
-  console.log('\n\uD83D\uDD0D РЕВЬЮЕР 2/4 — Запуск в эмуляторе браузера (boot + кадры всех сцен)');
+  console.log('\n\uD83D\uDD0D РЕВЬЮЕР 2/5 — Запуск в эмуляторе браузера (boot + кадры всех сцен)');
 
   let sandbox = null, game = null, bootErr = null;
   try { sandbox = createSandbox(); game = bootGame(sandbox); }
@@ -247,7 +247,7 @@ function reviewerRuntime() {
 
 /* ---------- РЕВЬЮЕР 3: клики и навигация ---------- */
 function reviewerClicks(runtime) {
-  console.log('\n\uD83D\uDD0D РЕВЬЮЕР 3/4 — Функциональные клики и навигация');
+  console.log('\n\uD83D\uDD0D РЕВЬЮЕР 3/5 — Функциональные клики и навигация');
 
   if (!runtime) {
     check('Сценарий кликов выполнен', false, 'пропущен: игра не запустилась');
@@ -365,7 +365,7 @@ function reviewerClicks(runtime) {
 
 /* ---------- РЕВЬЮЕР 4: целостность APK ---------- */
 function reviewerApk() {
-  console.log('\n\uD83D\uDD0D РЕВЬЮЕР 4/4 — Целостность собранного APK');
+  console.log('\n\uD83D\uDD0D РЕВЬЮЕР 4/5 — Целостность собранного APK');
 
   if (!check('APK собран', fs.existsSync(APK), path.relative(ROOT, APK))) return;
 
@@ -417,17 +417,57 @@ function reviewerApk() {
   check('APK подписан релизным ключом проекта', certOk, certInfo);
 }
 
+/* ---------- РЕВЬЮЕР 5: реальный рендер в браузере ---------- */
+function reviewerRender() {
+  console.log('\n\uD83D\uDD0D РЕВЬЮЕР 5/5 — Реальный рендер в Chrome (пиксели канваса всех сцен)');
+
+  const chromePath = process.env.CHROME_BIN ||
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+  if (!fs.existsSync(chromePath)) {
+    check('Реальный рендер проверен (нужен Chrome)', false, 'Chrome не найден: ' + chromePath);
+    return;
+  }
+
+  let res = null;
+  try {
+    const out = cp.execSync('node tools/render-check.js --json',
+      { cwd: ROOT, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024, timeout: 300000 });
+    res = JSON.parse(out);
+  } catch (e) {
+    const so = e.stdout ? String(e.stdout) : '';
+    const at = so.indexOf('[');
+    try { res = JSON.parse(so.slice(at)); } catch (err) { res = null; }
+    if (!res) {
+      check('Реальный рендер в Chrome выполнен', false, String(e.message).slice(0, 90));
+      return;
+    }
+  }
+
+  check('Реальный рендер в Chrome выполнен', Array.isArray(res) && res.length > 0,
+    res ? res.length + ' сцен проверено' : 'нет данных');
+
+  for (const r of res) {
+    const rp = r.report || {};
+    const ok = r.problems.length === 0;
+    check('Сцена ' + r.hash + ' реально отрисована (' +
+      (rp.distinctColors === undefined ? '?' : rp.distinctColors) + ' цветов, нефон ' +
+      (rp.nonBackgroundPct === undefined ? '?' : rp.nonBackgroundPct) + '%)',
+      ok, ok ? 'OK' : r.problems.join('; '));
+  }
+}
+
 /* ---------- ЗАПУСК ---------- */
 console.log('\u2554\u2550\u2550\u2550\u2550\u2550\u2550 Gopher Life \u2014 приёмка качества \u2550\u2550\u2550\u2550\u2550\u2550\u2557');
 reviewerStatic();
 const rt = reviewerRuntime();
 reviewerClicks(rt);
 reviewerApk();
+reviewerRender();
 
 console.log('\n' + '\u2500'.repeat(56));
 console.log('ИТОГО: пройдено ' + passed + '  |  провалено ' + failed);
 if (failed === 0) {
-  console.log('\u2705 ВСЕ 4 РЕВЬЮЕРА ПРИНЯЛИ РЕЗУЛЬТАТ БЕЗ ЗАМЕЧАНИЙ');
+  console.log('\u2705 ВСЕ 5 РЕВЬЮЕРОВ ПРИНЯЛИ РЕЗУЛЬТАТ БЕЗ ЗАМЕЧАНИЙ');
   process.exit(0);
 } else {
   console.log('\u274C ЕСТЬ ЗАМЕЧАНИЯ \u2014 результат НЕ принимается');

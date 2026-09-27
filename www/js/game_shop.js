@@ -160,9 +160,11 @@ class ShopScene {
 
     const cols = 2;
     const itemW = (W - 40) / cols;
-    const itemH = 110;
     const startX = 20;
     const startY = 130;
+    // Карточки обязаны уместиться над кнопкой «Назад», иначе последний ряд обрезается
+    const itemRows = Math.ceil(items.length / cols);
+    const itemH = Math.min(110, (H - startY - 70) / itemRows);
 
     items.forEach((item, i) => {
       const col = i % cols;
@@ -183,26 +185,26 @@ class ShopScene {
       }
 
       // Emoji
-      ctx.font = `${Math.min(itemW * 0.35, 36)}px Arial`;
+      ctx.font = `${Math.min(itemW * 0.32, 34)}px Arial`;
       ctx.textAlign = 'left';
       ctx.fillStyle = '#333';
-      ctx.fillText(item.emoji, ix + 10, iy + 35);
+      ctx.fillText(item.emoji, ix + 10, iy + itemH * 0.36);
 
       // Name
-      ctx.font = `bold ${Math.min(itemW * 0.14, 14)}px Arial`;
+      ctx.font = `bold ${Math.min(itemW * 0.13, 14)}px Arial`;
       ctx.fillStyle = '#333';
-      ctx.fillText(item.name, ix + 50, iy + 30);
+      ctx.fillText(item.name, ix + 50, iy + itemH * 0.30);
 
       // Desc
       ctx.font = `${Math.min(itemW * 0.1, 11)}px Arial`;
       ctx.fillStyle = '#666';
-      ctx.fillText(item.desc, ix + 50, iy + 48);
+      ctx.fillText(item.desc, ix + 50, iy + itemH * 0.50);
 
       // Cost
       ctx.fillStyle = canAfford ? '#4CAF50' : '#999';
       ctx.font = `bold ${Math.min(itemW * 0.12, 13)}px Arial`;
       ctx.textAlign = 'right';
-      ctx.fillText('🪙 ' + item.cost, ix + itemW - 15, iy + itemH - 20);
+      ctx.fillText('🪙 ' + item.cost, ix + itemW - 15, iy + itemH - 14);
 
       this.buttons.push({ ...item, x: ix, y: iy, w: itemW - 4, h: itemH - 4 });
     });

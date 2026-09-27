@@ -94,15 +94,15 @@ class HomeScene {
       ctx.fill();
     }
 
-    // Floor
+    // Floor (выше, чтобы панель статов не накрывала пол целиком)
     ctx.fillStyle = isNight ? '#3a2a1a' : '#D2B48C';
-    ctx.fillRect(0, H * 0.7, W, H * 0.3);
+    ctx.fillRect(0, H * 0.56, W, H * 0.44);
     ctx.strokeStyle = isNight ? '#2a1a0a' : '#C4A882';
     ctx.lineWidth = 1;
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 6; i++) {
       ctx.beginPath();
-      ctx.moveTo(0, H * 0.7 + i * H * 0.06);
-      ctx.lineTo(W, H * 0.7 + i * H * 0.06);
+      ctx.moveTo(0, H * 0.56 + i * H * 0.055);
+      ctx.lineTo(W, H * 0.56 + i * H * 0.055);
       ctx.stroke();
     }
 
@@ -135,7 +135,7 @@ class HomeScene {
     // Rug
     ctx.fillStyle = isNight ? 'rgba(139, 69, 19, 0.3)' : 'rgba(205, 92, 92, 0.3)';
     ctx.beginPath();
-    ctx.ellipse(W * 0.5, H * 0.75, W * 0.3, H * 0.05, 0, 0, Math.PI * 2);
+    ctx.ellipse(W * 0.5, H * 0.565, W * 0.26, H * 0.038, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Furniture - shelf
@@ -189,8 +189,8 @@ class HomeScene {
                          System.stats.happiness > 60 ? 'happy' :
                          System.stats.hunger < 30 ? 'sad' : 'neutral';
       this.game.gopher.setExpression(expression, 30);
-      const gs = Math.min(W * 0.4, 160);
-      this.game.gopher.draw(ctx, W * 0.5, H * 0.55, gs / this.game.gopher.size);
+      const gs = Math.min(W * 0.34, 145);
+      this.game.gopher.draw(ctx, W * 0.5, H * 0.47, gs / this.game.gopher.size);
     }
 
     // Speech bubble
@@ -218,8 +218,8 @@ class HomeScene {
     }
 
     // Stats panel
-    const panelY = H * 0.72;
-    const panelH = H * 0.18;
+    const panelY = H * 0.63;
+    const panelH = H * 0.185;
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     roundRect(ctx, 10, panelY, W - 20, panelH, 12);
     ctx.fill();
@@ -233,18 +233,17 @@ class HomeScene {
       { key: 'cleanliness', emoji: '🧹', name: 'Чистота' }
     ];
 
-    const barW = (W - 40) / 2;
+    const barW = (W - 48) / 2;
     const barH = 18;
-    const startY = panelY + 8;
     const startX = 20;
-    const spacing = (panelH - 20) / 5;
+    const statRows = Math.ceil(stats.length / 2);
+    const rowH = (panelH - 14) / statRows;   // ровно вписываем полосы в панель
 
     stats.forEach((s, i) => {
-      const row = i;
-      const y = startY + row * spacing;
-      const col = row % 2;
-      const bx = startX + col * (barW + 10);
-      const by = y + Math.floor(row / 2) * (barH + 4);
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const bx = startX + col * (barW + 8);
+      const by = panelY + 8 + row * rowH;
 
       ctx.font = '12px Arial';
       ctx.textAlign = 'left';
@@ -271,14 +270,17 @@ class HomeScene {
       { emoji: '🗺️', text: 'Картa', action: 'map', color: '#2ECC71' }
     ];
 
-    const btnW = (W - 40) / 3;
-    const btnH = 48;
-    const btnStartY = H - 65;
+    // 8 действий в 4 колонки = 2 ряда, оба гарантированно влезают в экран
+    const ACTION_COLS = 4;
+    const btnGap = 6;
+    const btnW = (W - 40 - (ACTION_COLS - 1) * btnGap) / ACTION_COLS;
+    const btnH = 44;
+    const btnStartY = panelY + panelH + 8;
 
     actionButtons.forEach((ab, i) => {
-      const col = i % 3;
-      const row = Math.floor(i / 3);
-      const bx = 20 + col * (btnW + 5);
+      const col = i % ACTION_COLS;
+      const row = Math.floor(i / ACTION_COLS);
+      const bx = 20 + col * (btnW + btnGap);
       const by = btnStartY + row * (btnH + 8);
 
       if (ab.condition && !ab.condition()) return;

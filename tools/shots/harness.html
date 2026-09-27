@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gopher Life — стенд проверки рендера</title>
+<style>
+  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#1a1a2e; }
+  #gameCanvas { display:block; width:100%; height:100%; }
+  #report { position:fixed; left:-9999px; }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<pre id="report">{}</pre>
+<pre id="shot"></pre>
+
+<script>
+// ── ДИАГНОСТИКА: ошибки видны на самом скриншоте ──────────────────────────
+window.__log = [];
+function show(msg, bg) {
+  window.__log.push(msg);
+  var d = document.getElementById('diag');
+  if (!d) {
+    d = document.createElement('pre');
+    d.id = 'diag';
+    d.style.cssText = 'position:fixed;left:0;top:0;right:0;z-index:99999;margin:0;padding:8px;' +
+                      'background:#300;color:#ff9;font:11px/1.4 monospace;white-space:pre-wrap';
+    document.body.appendChild(d);
+  }
+  d.style.background = bg || '#300';
+  d.textContent = window.__log.slice(-10).join('\n');
+}
+window.onerror = function (m, src, line, col) {
+  show('JS ERROR: ' + m + '  @' + String(src).split('/').pop() + ':' + line + ':' + col);
+  return false;
+};
+window.addEventListener('unhandledrejection', function (e) {
+  show('PROMISE REJECT: ' + (e && e.reason && e.reason.message ? e.reason.message : e.reason));
+});
+// Game.loop() глушит ошибки кадров через console.error — перехватываем
+var origErr = console.error.bind(console);
+console.error = function () {
+  var parts = [];
+  for (var i = 0; i < arguments.length; i++) {
+    var a = arguments[i];
+    parts.push(a && a.message ? (a.message + ' @' + (a.stack || '').split('\n')[1]) : String(a));
+  }
+  show('console.error: ' + parts.join(' '));
+  origErr.apply(null, arguments);
+};
+</script>
+
+<script src="../../www/js/helpers.js"></script>
+<script src="../../www/js/gopher.js"></script>
+<script src="../../www/js/system.js"></script>
+<script src="../../www/js/audio.js"></script>
+<script src="../../www/js/game_menu.js"></script>
+<script src="../../www/js/game_map.js"></script>
+<script src="../../www/js/game_home.js"></script>
+<script src="../../www/js/game_shop.js"></script>
+<script src="../../www/js/game_minigames.js"></script>
+<script src="../../www/js/game_stats.js"></script>
+<script src="../../www/js/game_clinic.js"></script>
+<script src="../../www/js/game.js"></script>
+
+<script>
+// Стенд: синхронно (до первой отрисовки браузера) открывает сцену из hash,
+// при необходимости «нажимает» кнопку и снимает статистику пикселей.
+// Формат: #сцена[@действие][@tutorial]   пример: #home@feed
+(function () {
+  function report(obj) { document.getElementById('report').textContent = JSON.stringify(obj); }
+
+  function pixelStats(g) {
+    var data = g.ctx.getImageData(0, 0, g.width, g.height).data;
+    var colors = {}, distinct = 0, sum = 0, samples = 0, max = 0;
+    for (var i = 0; i < data.length; i += 4 * 7) {
+      var r = data[i], gg = data[i + 1], b = data[i + 2];
+      var key = (r >> 4) + ',' + (gg >> 4) + ',' + (b >> 4);
+      if (!colors[key]) { colors[key] = 0; distinct++; }
+      colors[key]++;
+      sum += r * 0.299 + gg * 0.587 + b * 0.114;
+      samples++;
+    }
+    for (var k in colors) if (colors[k] > max) max = colors[k];
+    var bg = Math.round(max / samples * 100);
+    return {
+      scene: g.currentScene,
+      distinctColors: distinct,
+      meanLuminance: Math.round(sum / samples),
+      dominantSharePct: bg,
+      nonBackgroundPct: 100 - bg,
+      samples: samples
+    };
+  }
+
+  var hash = decodeURIComponent(location.hash.slice(1)) || 'menu';
+  var parts = hash.split('@');
+  var g;
+
+  try {
+    window.setInterval = function () { return 0; };   // чтобы страница стала idle
+    g = new Game();
+    window.__game = g;
+    g.tryFullscreen = function () {};
+    AudioSys.init = function () {};
+    AudioSys.play = function () {};
+    g.init();                                          // реальный запуск игры
+    g.loop = function () {};                           // гасим анимационный цикл
+  } catch (e) {
+    show('BOOT FAIL: ' + e.message + '\n' + (e.stack || '').split('\n').slice(1, 4).join('\n'));
+    report({ bootFail: e.message, hash: hash });
+    return;
+  }
+
+  try {
+    if (parts[0]) g.transitionTo(parts[0]);
+    var scene = g.scenes[g.currentScene];
+    for (var i = 0; i < 60; i++) scene.update(16);
+
+    if (parts[1]) {
+      scene.draw(g.ctx);
+      var all = (scene.locationButtons || []).concat(scene.buttons || []);
+      var target = all.filter(function (b) {
+        return b.action === parts[1] || (b.text || '').indexOf(parts[1]) !== -1;
+      })[0];
+      if (target) g.handleClick(target.x + target.w / 2, target.y + target.h / 2);
+      else show('кнопка "' + parts[1] + '" не найдена в сцене ' + g.currentScene, '#330');
+    }
+    if (parts[2] === 'tutorial') g.showTutorial();
+
+    g.ctx.clearRect(0, 0, g.width, g.height);
+    g.scenes[g.currentScene].draw(g.ctx);
+    if (g.tutorialVisible) g.drawTutorial();
+
+    var stats = pixelStats(g);
+    stats.hash = hash;
+    stats.canvas = g.width + 'x' + g.height;
+    stats.errors = window.__log.slice();
+    report(stats);
+    document.getElementById('shot').textContent = g.canvas.toDataURL('image/png');
+  } catch (e) {
+    show('DRAW FAIL: ' + e.message + '\n' + (e.stack || '').split('\n').slice(0, 5).join('\n'), '#500');
+    report({ drawFail: e.message, hash: hash });
+  }
+})();
+</script>
+</body>
+</html>
