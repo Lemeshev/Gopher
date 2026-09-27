@@ -13,8 +13,16 @@ class Game {
     this.isFullscreen = false;
     this.tutorialVisible = false;
     this.tutorialPage = 0;
+    this.buttons = [];
 
-    // Scenes map
+    this.tutorialPages = [
+      '🐹 Добро пожаловать в Gopher Life!\nЭто ваш виртуальный питомец.',
+      '❤️ Следите за статами гофера:\nсчастье, сытость, энергия, здоровье.',
+      '🏠 Посещайте разные места:\nдом, магазин, парк, работу.',
+      '🛒 Покупайте еду и игрушки,\nчтобы повысить статы.',
+      '🎮 Играйте в мини-игры,\nчтобы заработать монеты!'
+    ];
+
     this.sceneClasses = {
       menu: MenuScene,
       map: MapScene,
@@ -30,202 +38,108 @@ class Game {
     this.resize();
     window.addEventListener('resize', () => this.resize());
 
-    // Touch events
+    // Единая система ввода: touch + mouse -> координаты канваса
+    const onPointer = (clientX, clientY) => {
+      const rect = this.canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const mx = (clientX - rect.left) / rect.width * this.width;
+      const my = (clientY - rect.top) / rect.height * this.height;
+      this.handleClick(mx, my);
+    };
+
     this.canvas.addEventListener('touchstart', (e) => {
       e.preventDefault();
-      const touch = e.touches[0];
-      const rect = this.canvas.getBoundingClientRect();
-      const mx = (touch.clientX - rect.left) * (this.width / rect.width);
-      const my = (touch.clientY - rect.top) * (this.height / rect.height);
-      this.handleClick(mx, my);
+      const t = e.changedTouches[0];
+      if (t) onPointer(t.clientX, t.clientY);
     }, { passive: false });
 
-    // Mouse events
     this.canvas.addEventListener('mousedown', (e) => {
-      const rect = this.canvas.getBoundingClientRect();
-      const mx = (e.clientX - rect.left) * (this.width / rect.width);
-      const my = (e.clientY - rect.top) * (this.height / rect.height);
-      this.handleClick(mx, my);
+      e.preventDefault();
+      onPointer(e.clientX, e.clientY);
     });
 
-    // Init audio on first touch
-    let audioInit = false;
-    const initAudio = () => {
-      if (!audioInit) {
-        AudioSys.init();
-        audioInit = true;
-      }
-    };
-    this.canvas.addEventListener('touchstart', initAudio, { once: false });
-    this.canvas.addEventListener('mousedown', initAudio, { once: false });
+    // Аудио инициализируется по первому касанию пользователя
+    this.canvas.addEventListener('touchstart', () => AudioSys.init(), { once: true });
+    this.canvas.addEventListener('mousedown', () => AudioSys.init(), { once: true });
 
-    // Create scenes
+    // Создаём сцены
     for (const [name, cls] of Object.entries(this.sceneClasses)) {
       this.scenes[name] = new cls(this);
     }
 
     this.currentScene = 'menu';
     this.scenes.menu.init();
-    this.gopher.setExpression('excited', 9999);
+    this.gopher.setExpression('excited', 999999);
 
-    // Start loop
     this.lastTime = performance.now();
     this.loop();
 
-    // Auto-save every 30 seconds
     setInterval(() => System.saveGame(), 30000);
-    // Play time counter
     setInterval(() => { System.totalPlayTime++; }, 60000);
 
-    // Fullscreen
-    this.tryFullscreen();
     document.addEventListener('click', () => this.tryFullscreen(), { once: true });
     document.addEventListener('touchstart', () => this.tryFullscreen(), { once: true });
   }
 
   tryFullscreen() {
     try {
-      if (document.documentElement.requestFullscreen) {
-        document.documentElement.requestFullscreen();
+      const el = document.documentElement;
+      if (el.requestFullscreen) {
+        const p = el.requestFullscreen();
+        if (p && p.catch) p.catch(() => {});
       }
-    } catch(e) {}
+    } catch (e) {}
   }
 
   resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    this.width = window.innerWidth;
-    this.height = window.innerHeight;
-    this.canvas.width = this.width * dpr;
-    this.canvas.height = this.height * dpr;
-    this.canvas.style.width = this.width + 'px';
-    this.canvas.style.height = this.height + 'px';
-    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const w = window.innerWidth || 360;
+    const h = window.innerHeight || 640;
+    this.width = w;
+    this.height = h;
+    this.canvas.width = w;
+    this.canvas.height = h;
+    this.canvas.style.width = w + 'px';
+    this.canvas.style.height = h + 'px';
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
   transitionTo(sceneName) {
-    this.currentScene = sceneName;
     if (this.scenes[sceneName]) {
       this.scenes[sceneName].init();
+      this.currentScene = sceneName;
     }
   }
 
   showTutorial() {
     this.tutorialVisible = !this.tutorialVisible;
-    this.tutorialPage = 0;
+    if (this.tutorialVisible) this.tutorialPage = 0;
   }
 
   handleClick(mx, my) {
-    AudioSys.resume();
-    if (this.tutorialVisible) {
-      this.handleTutorialClick(mx, my);
-      return;
-    }
+    if (this.tutorialVisible) return this.handleTutorialClick(mx, my);
     const scene = this.scenes[this.currentScene];
     if (scene && scene.handleClick) {
-      scene.handleClick(mx, my);
+      return scene.handleClick(mx, my);
     }
+    return false;
   }
 
   handleTutorialClick(mx, my) {
-    const W = this.width;
-    const H = this.height;
-    const pages = [
-      { title: '🐹 Добро пожаловать!', text: 'Это Gopher Life — ваш виртуальный питомец!\n\nУхаживайте за гофером, кормите, купайте, играйте с ним!' },
-      { title: '📍 Локации', text: 'Исследуйте мир! Водите гофера в:\n• Бассейн 🏊\n• Поликлинику 🏥\n• Музеи 🎨🦕🚀🏛️\n• Магазин 🛒\n• Ресторан 🍽️\n• Работу 💼 и учёбу 🎓' },
-      { title: '📊 Характеристики', text: 'Следите за статами:\n❤️ Счастье 🍗 Сытость 😴 Энергия\n🏥 Здоровье 🧹 Чистота\n\nВсе статы падают со временем!' },
-      { title: '🎮 Мини-игры', text: 'Играйте в:\n❌⭕ Крестики-нолики\n🧠 Memory\n🪙 Бросай монету\n\nЗа победы получаете монеты и XP!' },
-      { title: '💡 Советы', text: '💡 Сохранение автоматическое\n💡 Статы падают даже когда не играете\n💡 Посещайте разные места\n💡 Копите монеты для покупок\n💡 Лечите гофера вовремя!\n\nПриятной игры! 🎉' }
-    ];
-
-    const page = pages[this.tutorialPage] || pages[pages.length - 1];
-
-    // Draw tutorial overlay
-    this.ctx.fillStyle = 'rgba(0,0,0,0.7)';
-    this.ctx.fillRect(0, 0, W, H);
-
-    this.ctx.fillStyle = '#fff';
-    roundRect(this.ctx, W * 0.05, H * 0.1, W * 0.9, H * 0.8, 20);
-    this.ctx.fill();
-
-    this.ctx.fillStyle = '#FFD93D';
-    this.ctx.font = `bold ${Math.min(W * 0.05, 24)}px Arial`;
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText(page.title, W / 2, H * 0.18);
-
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = `${Math.min(W * 0.035, 16)}px Arial`;
-    const lines = page.text.split('\n');
-    lines.forEach((line, i) => {
-      this.ctx.fillText(line, W / 2, H * 0.28 + i * 28);
-    });
-
-    // Page dots
-    const dotY = H * 0.88;
-    const dotSpacing = 30;
-    const startX = W / 2 - (pages.length - 1) * dotSpacing / 2;
-    pages.forEach((_, i) => {
-      this.ctx.fillStyle = i === this.tutorialPage ? '#FFD93D' : 'rgba(255,255,255,0.3)';
-      this.ctx.beginPath();
-      this.ctx.arc(startX + i * dotSpacing, dotY, 6, 0, Math.PI * 2);
-      this.ctx.fill();
-    });
-
-    // Next/Prev buttons
-    const btnW = 100;
-    const btnH = 40;
-    if (this.tutorialPage > 0) {
-      createButton(this.ctx, W * 0.15, H * 0.8, btnW, btnH, '◀ Назад', { bgColor: 'rgba(255,255,255,0.3)', fgColor: '#fff', fontSize: 14 });
-    }
-    if (this.tutorialPage < pages.length - 1) {
-      createButton(this.ctx, W * 0.55, H * 0.8, btnW, btnH, 'Далее ▶', { bgColor: '#4D96FF', fgColor: '#fff', fontSize: 14 });
-    } else {
-      createButton(this.ctx, W * 0.4, H * 0.8, btnW * 1.6, btnH, '🎉 Понятно!', { bgColor: '#6BCB77', fgColor: '#fff', fontSize: 16 });
-    }
-
-    // Handle click
-    if (this.tutorialPage < pages.length - 1) {
-      if (isPointInRect(mx, my, W * 0.55, H * 0.8, btnW, btnH)) {
-        AudioSys.play('click');
-        this.tutorialPage++;
-      } else if (this.tutorialPage > 0 && isPointInRect(mx, my, W * 0.15, H * 0.8, btnW, btnH)) {
-        AudioSys.play('click');
-        this.tutorialPage--;
+    for (const btn of this.buttons) {
+      if (!isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) continue;
+      AudioSys.play('click');
+      if (btn.action === 'tutorial-next') {
+        if (this.tutorialPage >= this.tutorialPages.length - 1) {
+          this.tutorialVisible = false;
+        } else {
+          this.tutorialPage++;
+        }
+      } else if (btn.action === 'tutorial-prev') {
+        this.tutorialPage = Math.max(0, this.tutorialPage - 1);
       }
-    } else {
-      if (isPointInRect(mx, my, W * 0.4, H * 0.8, btnW * 1.6, btnH)) {
-        AudioSys.play('click');
-        this.tutorialVisible = false;
-      }
+      return true;
     }
-  }
-
-  drawAchievementPopup() {
-    const W = this.width;
-    const H = this.height;
-
-    // Check for achievement popup
-    const popup = document.getElementById('achievement-popup');
-    if (popup && popup.style.display === 'flex') {
-      // Draw custom overlay for achievement
-      this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
-      this.ctx.fillRect(0, 0, W, H);
-
-      this.ctx.fillStyle = 'rgba(255,255,255,0.95)';
-      roundRect(this.ctx, W * 0.15, H * 0.35, W * 0.7, 100, 20);
-      this.ctx.fill();
-
-      this.ctx.font = '40px Arial';
-      this.ctx.textAlign = 'center';
-      this.ctx.textBaseline = 'middle';
-      const emoji = popup.querySelector('.ach-emoji');
-      const text = popup.querySelector('.ach-text');
-      if (emoji) this.ctx.fillText(emoji.textContent, W / 2, H * 0.35 + 35);
-      if (text) {
-        this.ctx.font = `bold ${Math.min(W * 0.04, 18)}px Arial`;
-        this.ctx.fillStyle = '#333';
-        this.ctx.fillText(text.textContent, W / 2, H * 0.35 + 75);
-      }
-    }
+    return false;
   }
 
   loop() {
@@ -234,29 +148,83 @@ class Game {
     this.lastTime = now;
 
     const scene = this.scenes[this.currentScene];
-    if (scene) {
+    try {
       scene.update(this.dt);
-    }
-
-    // Draw
-    this.ctx.clearRect(0, 0, this.width, this.height);
-    if (scene) {
+      this.ctx.clearRect(0, 0, this.width, this.height);
       scene.draw(this.ctx);
+      if (this.tutorialVisible) this.drawTutorial();
+    } catch (err) {
+      // Один сбойный кадр не должен останавливать игру
+      if (typeof console !== 'undefined') console.error('frame error:', err);
     }
-    this.drawAchievementPopup();
 
     requestAnimationFrame(() => this.loop());
   }
-}
 
-// ============ INIT ============
-let game;
-document.addEventListener('DOMContentLoaded', () => {
-  game = new Game();
-  game.init();
-});
-// Also init immediately if DOM already loaded
-if (document.readyState !== 'loading') {
-  game = new Game();
-  game.init();
+  drawTutorial() {
+    const W = this.width;
+    const H = this.height;
+    const pages = this.tutorialPages;
+    this.buttons = [];
+
+    // Затемнение
+    this.ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    roundRect(this.ctx, 0, 0, W, H, 0);
+    this.ctx.fill();
+
+    // Карточка
+    this.ctx.fillStyle = '#16213e';
+    roundRect(this.ctx, W * 0.05, H * 0.15, W * 0.9, H * 0.7, 20);
+    this.ctx.fill();
+    this.ctx.strokeStyle = '#FFD93D';
+    this.ctx.lineWidth = 2;
+    roundRect(this.ctx, W * 0.05, H * 0.15, W * 0.9, H * 0.7, 20);
+    this.ctx.stroke();
+
+    this.ctx.fillStyle = '#FFF';
+    this.ctx.font = `bold ${Math.min(W * 0.05, 24)}px Arial`;
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    this.ctx.fillText('📖 Как играть', W / 2, H * 0.24);
+
+    // Текст страницы (с переносами по \n)
+    this.ctx.font = `${Math.min(W * 0.038, 17)}px Arial`;
+    this.ctx.fillStyle = '#E4E4F0';
+    const lines = pages[this.tutorialPage].split('\n');
+    const lineH = Math.min(H * 0.045, 28);
+    lines.forEach((line, i) => {
+      this.ctx.fillText(line, W / 2, H * 0.38 + i * lineH);
+    });
+
+    // Точки-индикаторы
+    const dotsY = H * 0.70;
+    const dotsW = (pages.length - 1) * 18;
+    for (let i = 0; i < pages.length; i++) {
+      this.ctx.fillStyle = i === this.tutorialPage ? '#FFD93D' : 'rgba(255,255,255,0.3)';
+      this.ctx.beginPath();
+      this.ctx.arc(W / 2 - dotsW / 2 + i * 18, dotsY, 5, 0, Math.PI * 2);
+      this.ctx.fill();
+    }
+
+    // Кнопки
+    const btnW = Math.min(W * 0.32, 150);
+    const btnH = 46;
+    const btnY = H * 0.78;
+    const isLast = this.tutorialPage >= pages.length - 1;
+
+    if (this.tutorialPage > 0) {
+      const prevX = W / 2 - btnW - 8;
+      createButton(this.ctx, prevX, btnY, btnW, btnH, '← Назад', {
+        bgColor: 'rgba(255,255,255,0.25)', fgColor: '#fff', fontSize: 15
+      });
+      this.buttons.push({ x: prevX, y: btnY, w: btnW, h: btnH, action: 'tutorial-prev' });
+    }
+
+    const nextX = this.tutorialPage > 0 ? W / 2 + 8 : W / 2 - btnW / 2;
+    createButton(this.ctx, nextX, btnY, btnW, btnH, isLast ? 'Закрыть' : 'Далее →', {
+      bgColor: '#4D96FF', fgColor: '#fff', fontSize: 15
+    });
+    this.buttons.push({ x: nextX, y: btnY, w: btnW, h: btnH, action: 'tutorial-next' });
+  }
 }
+window.Game = Game;

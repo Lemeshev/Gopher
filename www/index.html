@@ -27,10 +27,36 @@ html, body {
   width: 100%;
   height: 100%;
 }
+#achievement-popup {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(46, 204, 113, 0.96);
+  color: #fff;
+  padding: 14px 26px;
+  border-radius: 14px;
+  font-size: 17px;
+  font-weight: bold;
+  z-index: 1000;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+#achievement-popup.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+#achievement-popup .ach-emoji { font-size: 22px; }
 </style>
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
+<div id="achievement-popup"><span class="ach-emoji">🎉</span><span class="ach-text"></span></div>
 
 <!-- Базовые утилиты -->
 <script src="js/helpers.js"></script>
@@ -55,5 +81,13 @@ html, body {
 
 <!-- Главный файл игры -->
 <script src="js/game.js"></script>
+
+<!-- ЗАПУСК ИГРЫ -->
+<script>
+  window.addEventListener('load', function() {
+    const game = new Game();
+    game.init();
+  });
+</script>
 </body>
 </html>

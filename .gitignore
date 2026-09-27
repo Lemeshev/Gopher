@@ -4,6 +4,10 @@ android/app/build/
 *.apk
 *.aab
 
+# Секреты подписи — НИКОГДА не коммитим
+android/keystore.properties
+*.keystore
+
 # Gradle
 .gradle/
 !gradle/wrapper/gradle-wrapper.jar

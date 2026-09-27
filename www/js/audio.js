@@ -97,3 +97,24 @@ const AudioSys = {
   }
 };
 window.AudioSys = AudioSys;
+
+// Инициализация аудио по первому касанию
+let audioInitialized = false;
+function initAudioOnTouch() {
+    if (!audioInitialized) {
+        AudioSys.init();
+        audioInitialized = true;
+    }
+}
+
+// Автоматическая инициализация при touchstart
+document.addEventListener('touchstart', function autoInitAudio() {
+    initAudioOnTouch();
+    document.removeEventListener('touchstart', autoInitAudio);
+}, { once: true });
+
+// Также при первом клике (для десктопа)
+document.addEventListener('click', function autoInitAudioClick() {
+    initAudioOnTouch();
+    document.removeEventListener('click', autoInitAudioClick);
+}, { once: true });

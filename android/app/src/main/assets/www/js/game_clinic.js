@@ -27,6 +27,7 @@ class ClinicScene {
   }
 
   draw(ctx) {
+    this.buttons = [];
     const W = this.game.width;
     const H = this.game.height;
     this.buttons = [];
@@ -54,6 +55,32 @@ class ClinicScene {
     ctx.font = `bold ${Math.min(W * 0.055, 26)}px Arial`;
     ctx.textAlign = 'center';
     ctx.fillText('🏥 Поликлиника', W / 2, H * 0.1);
+
+    // === XP ПРОГРЕСС-БАР В КЛИНИКЕ ===
+    const clinicXpPct = System.xp / System.xpToNext;
+    const clinicXpBarY = H * 0.12;
+    const clinicXpBarW = W - 20;
+    const clinicXpBarH = 12;
+
+    ctx.font = `bold ${Math.min(W * 0.025, 11)}px Arial`;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#E74C3C';
+    ctx.fillText('⭐ Ур.' + System.level, 10, clinicXpBarY);
+
+    ctx.font = `${Math.min(W * 0.02, 9)}px Arial`;
+    ctx.textAlign = 'right';
+    ctx.fillStyle = 'rgba(231,76,60,0.6)';
+    ctx.fillText(System.xp + '/' + System.xpToNext, W - 10, clinicXpBarY);
+
+    ctx.fillStyle = 'rgba(231,76,60,0.1)';
+    roundRect(ctx, 10, clinicXpBarY + 4, clinicXpBarW, clinicXpBarH, 6);
+    ctx.fill();
+
+    if (clinicXpPct > 0) {
+      ctx.fillStyle = '#E74C3C';
+      roundRect(ctx, 10, clinicXpBarY + 4, clinicXpBarW * clinicXpPct, clinicXpBarH, 6);
+      ctx.fill();
+    }
 
     // Doctor
     const doctorY = H * 0.25;

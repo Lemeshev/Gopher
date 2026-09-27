@@ -3,22 +3,24 @@ class MenuScene {
   constructor(game) {
     this.game = game;
     this.buttons = [];
-    this.bgColor = '#1a1a2e';
-    this.titleAlpha = 0;
-    this.gopherExpression = 'excited';
     this.particles = [];
     this.time = 0;
+    this.titleAlpha = 0;
+    this.hasSave = false;
   }
 
   init() {
     this.time = 0;
     this.titleAlpha = 0;
+    this.buttons = [];
+    this.particles = [];
+    this.hasSave = System.hasSave();
+    if (this.game.gopher) this.game.gopher.setExpression('excited', 999999);
   }
 
   update(dt) {
     this.time += dt;
     this.titleAlpha = Math.min(1, this.titleAlpha + dt * 0.002);
-    // Create particles
     if (Math.random() < 0.1) {
       this.particles.push({
         x: Math.random() * this.game.width,
@@ -45,7 +47,7 @@ class MenuScene {
     const H = this.game.height;
     this.buttons = [];
 
-    // Background gradient
+    // Фон
     const grad = ctx.createLinearGradient(0, 0, 0, H);
     grad.addColorStop(0, '#1a1a2e');
     grad.addColorStop(0.5, '#16213e');
@@ -54,7 +56,7 @@ class MenuScene {
     roundRect(ctx, 0, 0, W, H, 0);
     ctx.fill();
 
-    // Animated background circles
+    // Круги на фоне
     ctx.globalAlpha = 0.05;
     for (let i = 0; i < 8; i++) {
       const cx = W * 0.5 + Math.cos(this.time * 0.0005 + i) * W * 0.35;
@@ -66,7 +68,7 @@ class MenuScene {
     }
     ctx.globalAlpha = 1;
 
-    // Particles
+    // Частицы
     this.particles.forEach(p => {
       ctx.globalAlpha = p.alpha;
       ctx.fillStyle = p.color;
@@ -76,120 +78,104 @@ class MenuScene {
     });
     ctx.globalAlpha = 1;
 
-    // Title
+    // Заголовок
     ctx.globalAlpha = this.titleAlpha;
-    const titleY = H * 0.15;
-    ctx.fillStyle = '#FFD93D';
-    ctx.font = `bold ${Math.min(W * 0.1, 52)}px Arial`;
+    const titleY = H * 0.10;
+    const titleSize = Math.min(W * 0.085, 42);
+
+    ctx.font = `bold ${titleSize}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Title shadow
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.fillText('🐹 Gopher Life', W / 2 + 2, titleY + 2);
+    ctx.fillText('Gopher Life', W / 2 + 2, titleY + 2);
     ctx.fillStyle = '#FFD93D';
-    ctx.fillText('🐹 Gopher Life', W / 2, titleY);
+    ctx.fillText('Gopher Life', W / 2, titleY);
 
-    // Subtitle
+    // Подзаголовок
+    const subSize = Math.min(W * 0.032, 15);
+    ctx.font = `${subSize}px Arial`;
     ctx.fillStyle = '#a0a0cc';
-    ctx.font = `${Math.min(W * 0.035, 16)}px Arial`;
-    ctx.fillText('Интерактивный питомец', W / 2, titleY + 40);
+    ctx.fillText('Интерактивный питомец', W / 2, titleY + subSize + 10);
     ctx.globalAlpha = 1;
 
-    // Draw gopher
-    if (this.game.gopher) {
-      const gs = Math.min(W * 0.45, 180);
-      this.game.gopher.setExpression(this.gopherExpression, 30);
-      this.game.gopher.draw(ctx, W / 2, H * 0.38, gs / this.game.gopher.size);
-    }
+    // === XP ПРОГРЕСС-БАР ===
+    const xpBarY = titleY + subSize + 34;
+    const xpBarW = Math.min(W * 0.6, 220);
+    const xpBarH = 16;
+    const xpBarX = (W - xpBarW) / 2;
 
-    // Stats preview at menu
-    const previewY = H * 0.6;
-    const previewW = Math.min(W * 0.85, 350);
-    const previewX = (W - previewW) / 2;
+    ctx.font = `bold ${Math.min(W * 0.034, 14)}px Arial`;
+    ctx.fillStyle = '#FFD93D';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('⭐ Уровень ' + System.level, W / 2, xpBarY);
 
-    ctx.fillStyle = 'rgba(255,255,255,0.08)';
-    roundRect(ctx, previewX, previewY, previewW, H * 0.15, 15);
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    roundRect(ctx, xpBarX, xpBarY + 12, xpBarW, xpBarH, 8);
     ctx.fill();
 
-    ctx.font = `${Math.min(W * 0.035, 15)}px Arial`;
-    ctx.textAlign = 'left';
-    const statList = [
-      { emoji: '❤️', val: System.stats.happiness },
-      { emoji: '🍗', val: System.stats.hunger },
-      { emoji: '😴', val: System.stats.energy },
-      { emoji: '🏥', val: System.stats.health },
-      { emoji: '🧹', val: System.stats.cleanliness }
-    ];
-    const cols = 5;
-    const cw = previewW / cols;
-    statList.forEach((s, i) => {
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-      const sx = previewX + col * cw + cw / 2;
-      const sy = previewY + 15 + row * 25;
-      ctx.font = '14px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = System.getStatColor(s.val);
-      ctx.fillText(s.emoji + Math.floor(s.val) + '%', sx, sy);
-    });
+    const xpPercent = clamp(System.xp / System.xpToNext, 0, 1);
+    if (xpPercent > 0.01) {
+      ctx.fillStyle = '#FFD93D';
+      roundRect(ctx, xpBarX + 1, xpBarY + 13, (xpBarW - 2) * xpPercent, xpBarH - 2, 7);
+      ctx.fill();
+    }
 
-    // Level and coins
-    ctx.fillStyle = '#FFD93D';
-    ctx.font = `bold ${Math.min(W * 0.04, 17)}px Arial`;
-    ctx.textAlign = 'right';
-    ctx.fillText('⭐ Ур. ' + System.level + '    🪙 ' + System.coins, W - 20, previewY + 8);
+    ctx.font = `${Math.min(W * 0.024, 11)}px Arial`;
+    ctx.fillStyle = '#fff';
+    ctx.fillText(System.xp + ' / ' + System.xpToNext + ' XP', W / 2, xpBarY + 12 + xpBarH / 2);
 
-    // Buttons
-    const btnW = Math.min(W * 0.6, 240);
-    const btnH = 52;
+    // Гофер
+    if (this.game.gopher) {
+      const gs = Math.min(W * 0.36, 150);
+      this.game.gopher.draw(ctx, W / 2, H * 0.30, gs / this.game.gopher.size);
+    }
+
+    // === КНОПКИ ===
+    const btnW = Math.min(W * 0.72, 270);
+    const btnH = 50;
+    const gap = 12;
     const btnX = (W - btnW) / 2;
 
-    // New Game button
-    if (!System.loadGame()) {
-      this.buttons.push(createButton(ctx, btnX, H * 0.78, btnW, btnH, '🎮 Новая игра', {
-        bgColor: '#6BCB77',
-        fontSize: 18
-      }));
+    const list = [];
+    if (this.hasSave) {
+      list.push({ text: '▶️ Продолжить', color: '#4D96FF', size: 18 });
+      list.push({ text: '🎮 Новая игра', color: '#6BCB77', size: 18 });
+    } else {
+      list.push({ text: '🎮 Новая игра', color: '#6BCB77', size: 18 });
     }
+    list.push({ text: '📖 Как играть', color: '#FF8C42', size: 16 });
 
-    // Continue button
-    if (System.loadGame()) {
-      this.buttons.push(createButton(ctx, btnX, H * 0.78, btnW, btnH, '▶️ Продолжить', {
-        bgColor: '#4D96FF',
-        fontSize: 18
+    const totalH = list.length * btnH + (list.length - 1) * gap;
+    let by = Math.max(H * 0.52, H - totalH - 40);
+    if (by + totalH > H - 12) by = H - totalH - 12;
+
+    list.forEach(item => {
+      this.buttons.push(createButton(ctx, btnX, by, btnW, btnH, item.text, {
+        bgColor: item.color, fontSize: item.size
       }));
-    }
-
-    // How to play button
-    this.buttons.push(createButton(ctx, btnX, H * 0.87, btnW, btnH, '📖 Как играть', {
-      bgColor: '#FF8C42',
-      fontSize: 16
-    }));
-
-    // Credits
-    ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    ctx.font = '11px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('v1.0 | Сделано с ❤️', W / 2, H - 15);
+      by += btnH + gap;
+    });
   }
 
   handleClick(mx, my) {
-    AudioSys.play('click');
-    this.gopherExpression = 'excited';
     for (const btn of this.buttons) {
-      if (isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) {
-        if (btn.text.includes('Новая игра')) {
-          System.saveGame();
-          this.game.transitionTo('map');
-        } else if (btn.text.includes('Продолжить')) {
-          System.loadGame();
-          this.game.transitionTo('map');
-        } else if (btn.text.includes('Как играть')) {
-          this.game.showTutorial();
-        }
-        return true;
+      if (!isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) continue;
+      AudioSys.play('click');
+      const t = btn.text || '';
+      if (t.indexOf('Новая игра') !== -1) {
+        System.resetProgress();
+        System.saveGame();
+        this.hasSave = true;
+        this.game.transitionTo('map');
+      } else if (t.indexOf('Продолжить') !== -1) {
+        System.loadGame();
+        this.game.transitionTo('map');
+      } else if (t.indexOf('Как играть') !== -1) {
+        this.game.showTutorial();
       }
+      return true;
     }
     return false;
   }

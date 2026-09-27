@@ -1,8 +1,8 @@
-// ============ ГОФЕР - ГЛАВНЫЙ ПЕРСОНАЖ ============
+// ============ ГОФЕР - ГЛАВНЫЙ ПЕРСОНАЖ (классический маскот) ============
 class Gopher {
   constructor(canvas, size) {
     this.size = size || 100;
-    this.expression = 'happy';  // happy, sad, eating, sleeping, sick, surprised, excited, angry
+    this.expression = 'happy';
     this.expressionTimer = 0;
     this.bobY = 0;
     this.blinkTimer = 0;
@@ -13,7 +13,6 @@ class Gopher {
     this.glasses = null;
     this.bowtie = false;
     this.animationTime = 0;
-    this.waveTimer = 0;
     this.zzz = [];
     this.sparks = [];
     this.canvas = canvas;
@@ -31,394 +30,283 @@ class Gopher {
 
     if (this.expressionTimer > 0) {
       this.expressionTimer--;
-      if (this.expressionTimer <= 0) {
-        this.expression = 'happy';
-      }
+      if (this.expressionTimer <= 0) this.expression = 'happy';
     }
 
     if (this.expression === 'sleeping') {
       this.zzz.push({
-        x: x + s * 0.4,
-        y: y - s * 0.3 - this.zzz.length * 20,
-        alpha: 1,
-        size: 14 + this.zzz.length * 2
+        x: x + s * 0.5, y: y - s * 0.45 - this.zzz.length * 15,
+        alpha: 1, size: 12 + this.zzz.length * 2
       });
-      if (this.zzz.length > 5) this.zzz.shift();
-      this.zzz.forEach(z => { z.alpha -= 0.01; z.y -= 0.5; });
+      if (this.zzz.length > 4) this.zzz.shift();
+      this.zzz.forEach(z => { z.alpha -= 0.012; z.y -= 0.4; });
       this.zzz = this.zzz.filter(z => z.alpha > 0);
     }
 
     if (this.expression === 'excited') {
-      if (Math.random() < 0.3) {
+      if (Math.random() < 0.2) {
         this.sparks.push({
-          x: x + (Math.random() - 0.5) * s,
-          y: y + (Math.random() - 0.5) * s,
-          alpha: 1,
-          size: Math.random() * 5 + 2
+          x: (Math.random() - 0.5) * s * 0.8,
+          y: (Math.random() - 0.5) * s * 0.8,
+          alpha: 1, size: Math.random() * 4 + 2
         });
       }
       this.sparks.forEach(sp => { sp.alpha -= 0.03; sp.y -= 1; });
       this.sparks = this.sparks.filter(sp => sp.alpha > 0);
     }
 
-    // Save context
     ctx.save();
     ctx.translate(x, y + this.bobY);
 
-    // Draw sparks (behind gopher)
+    // NOSE
     if (this.sparks.length > 0) {
       this.sparks.forEach(sp => {
         ctx.globalAlpha = sp.alpha;
         ctx.fillStyle = '#FFD700';
         ctx.beginPath();
-        for (let i = 0; i < 5; i++) {
-          const angle = (i * Math.PI * 2) / 5 - Math.PI / 2;
-          const outerX = Math.cos(angle) * sp.size;
-          const outerY = Math.sin(angle) * sp.size;
-          const innerAngle = angle + Math.PI / 5;
-          const innerX = Math.cos(innerAngle) * sp.size * 0.5;
-          const innerY = Math.sin(innerAngle) * sp.size * 0.5;
-          if (i === 0) ctx.moveTo(sp.x, sp.y);
-          else ctx.lineTo(sp.x, sp.y);
-          ctx.lineTo(sp.x + outerX, sp.y + outerY);
-          ctx.lineTo(sp.x + innerX * 0.4, sp.y + innerY * 0.4);
-        }
+        ctx.arc(sp.x, sp.y, sp.size, 0, Math.PI * 2);
         ctx.fill();
       });
       ctx.globalAlpha = 1;
     }
 
-    // Legs
-    ctx.fillStyle = '#4A90D9';
-    const legW = s * 0.12;
-    const legH = s * 0.22;
-    const legY = s * 0.3;
-    // Left leg
-    ctx.save();
-    ctx.translate(-s * 0.2, legY);
-    ctx.rotate(this.legAnim * 0.2);
-    ctx.fillRect(-legW / 2, 0, legW, legH);
-    // Foot
-    ctx.fillStyle = '#D4A574';
-    ctx.beginPath();
-    ctx.ellipse(0, legH, legW * 1.2, legH * 0.3, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-    // Right leg
-    ctx.save();
-    ctx.fillStyle = '#4A90D9';
-    ctx.translate(s * 0.2, legY);
-    ctx.rotate(-this.legAnim * 0.2);
-    ctx.fillRect(-legW / 2, 0, legW, legH);
-    ctx.fillStyle = '#D4A574';
-    ctx.beginPath();
-    ctx.ellipse(0, legH, legW * 1.2, legH * 0.3, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    // ============ НОЖКИ (маленькие, тёмные с розовыми ступнями) ============
+    const legW = s * 0.08, legH = s * 0.16, footR = legW * 0.8;
+    [1, -1].forEach(dir => {
+      ctx.save();
+      ctx.translate(dir * s * 0.16, s * 0.30);
+      ctx.rotate(this.legAnim * 0.2 * dir);
+      ctx.fillStyle = '#7EC8E3';
+      ctx.beginPath();
+      ctx.roundRect(-legW/2, -legH/2, legW, legH, legW * 0.5);
+      ctx.fill();
+      ctx.fillStyle = '#F8A4B8';
+      ctx.beginPath();
+      ctx.ellipse(0, legH/2 + 1, footR, footR*0.7, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    });
 
-    // Body
-    ctx.fillStyle = '#4A90D9';
+    // ============ ТЕЛО (тёмно-серое, овальное) ============
+    ctx.fillStyle = '#7EC8E3';
     ctx.beginPath();
-    ctx.ellipse(0, s * 0.05, s * 0.38, s * 0.42, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, s * 0.05, s * 0.34, s * 0.36, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Belly
-    ctx.fillStyle = '#7EC0EE';
+    // ============ ГОЛУБОЙ ЖИВОТ (отличный от головы цвет — бежевый как у оригинального Go гопера) ============
+    ctx.fillStyle = '#FFF8DC';
     ctx.beginPath();
-    ctx.ellipse(0, s * 0.08, s * 0.25, s * 0.3, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, s * 0.08, s * 0.26, s * 0.28, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Arms
-    ctx.save();
-    ctx.fillStyle = '#4A90D9';
-    ctx.translate(-s * 0.38, s * 0.0);
-    ctx.rotate(-0.3 + this.armAngle);
-    ctx.fillRect(-s * 0.06, -s * 0.05, s * 0.12, s * 0.28);
-    ctx.fillStyle = '#D4A574';
-    ctx.beginPath();
-    ctx.arc(0, s * 0.23, s * 0.08, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    // ============ РУЧКИ (маленькие, тёмные с розовыми лапками) ============
+    const armW = s * 0.06, armH = s * 0.18;
+    [1, -1].forEach(dir => {
+      ctx.save();
+      ctx.translate(dir * s * 0.31, s * 0.05);
+      ctx.rotate(0.3 * dir - this.armAngle * dir);
+      ctx.fillStyle = '#7EC8E3';
+      ctx.beginPath();
+      ctx.roundRect(-armW/2, -armH/2, armW, armH, armW * 0.5);
+      ctx.fill();
+      ctx.fillStyle = '#F8A4B8';
+      ctx.beginPath();
+      ctx.arc(0, armH/2 + 2, armW * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
 
-    ctx.save();
-    ctx.fillStyle = '#4A90D9';
-    ctx.translate(s * 0.38, s * 0.0);
-    ctx.rotate(0.3 - this.armAngle);
-    ctx.fillRect(-s * 0.06, -s * 0.05, s * 0.12, s * 0.28);
-    ctx.fillStyle = '#D4A574';
+    // ============ ГОЛОВА (голубая, круглая — МОРДОЧКА + ГОЛОВА) ============
+    ctx.fillStyle = '#5DADE2';
     ctx.beginPath();
-    ctx.arc(0, s * 0.23, s * 0.08, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    // Head
-    ctx.fillStyle = '#4A90D9';
-    ctx.beginPath();
-    ctx.ellipse(0, -s * 0.22, s * 0.32, s * 0.3, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, -s * 0.22, s * 0.28, s * 0.25, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Ears
-    ctx.fillStyle = '#4A90D9';
+    // ============ УШКИ (маленькие, тёмные) ============
+    ctx.fillStyle = '#7EC8E3';
+    // Левое ухо
     ctx.beginPath();
-    ctx.ellipse(-s * 0.28, -s * 0.42, s * 0.08, s * 0.08, 0, 0, Math.PI * 2);
+    ctx.ellipse(-s * 0.22, -s * 0.44, s * 0.07, s * 0.09, -0.2, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#7EC0EE';
+    ctx.fillStyle = '#F8A4B8';
     ctx.beginPath();
-    ctx.ellipse(-s * 0.28, -s * 0.42, s * 0.04, s * 0.04, 0, 0, Math.PI * 2);
+    ctx.ellipse(-s * 0.22, -s * 0.44, s * 0.04, s * 0.055, -0.2, 0, Math.PI * 2);
     ctx.fill();
-
-    ctx.fillStyle = '#4A90D9';
+    // Правое ухо
+    ctx.fillStyle = '#7EC8E3';
     ctx.beginPath();
-    ctx.ellipse(s * 0.28, -s * 0.42, s * 0.08, s * 0.08, 0, 0, Math.PI * 2);
+    ctx.ellipse(s * 0.22, -s * 0.44, s * 0.07, s * 0.09, 0.2, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#7EC0EE';
+    ctx.fillStyle = '#F8A4B8';
     ctx.beginPath();
-    ctx.ellipse(s * 0.28, -s * 0.42, s * 0.04, s * 0.04, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Cheeks (blush)
-    ctx.fillStyle = 'rgba(255, 150, 150, 0.3)';
-    ctx.beginPath();
-    ctx.ellipse(-s * 0.18, -s * 0.18, s * 0.06, s * 0.04, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(s * 0.18, -s * 0.18, s * 0.06, s * 0.04, 0, 0, Math.PI * 2);
+    ctx.ellipse(s * 0.22, -s * 0.44, s * 0.04, s * 0.055, 0.2, 0, Math.PI * 2);
     ctx.fill();
 
-    // Snout/muzzle
-    ctx.fillStyle = '#D4A574';
-    ctx.beginPath();
-    ctx.ellipse(0, -s * 0.14, s * 0.14, s * 0.1, 0, 0, Math.PI * 2);
-    ctx.fill();
+    // ============ ЩЁЧКИ (розовый румянец) ============
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = '#F5A9B8';
+    ctx.beginPath(); ctx.ellipse(-s * 0.19, -s * 0.17, s * 0.055, s * 0.035, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(s * 0.19, -s * 0.17, s * 0.055, s * 0.035, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
 
-    // Nose
-    ctx.fillStyle = '#FF6B8A';
-    ctx.beginPath();
-    ctx.ellipse(0, -s * 0.17, s * 0.04, s * 0.03, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Eyes
+    // ============ ГЛАЗА (большие, круглые) ============
     if (this.expression === 'sleeping') {
-      // Closed eyes
       ctx.strokeStyle = '#1a1a2e';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(-s * 0.12, -s * 0.28, s * 0.05, 0, Math.PI);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(s * 0.12, -s * 0.28, s * 0.05, 0, Math.PI);
-      ctx.stroke();
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(-s * 0.13, -s * 0.28, s * 0.05, 0.2, Math.PI - 0.2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(s * 0.13, -s * 0.28, s * 0.05, 0.2, Math.PI - 0.2); ctx.stroke();
     } else {
-      // Eye whites
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.ellipse(-s * 0.12, -s * 0.28, s * 0.08, s * 0.09, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(s * 0.12, -s * 0.28, s * 0.08, s * 0.09, 0, 0, Math.PI * 2);
-      ctx.fill();
+      // Белки
+      ctx.fillStyle = '#FFF';
+      ctx.beginPath(); ctx.ellipse(-s * 0.13, -s * 0.28, s * 0.11, s * 0.12, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.1)'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(s * 0.13, -s * 0.28, s * 0.11, s * 0.12, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.1)'; ctx.lineWidth = 1; ctx.stroke();
 
-      // Pupils
-      let pupilY = 0;
+      // Зрачки
+      ctx.fillStyle = '#1a1a2e';
       if (this.expression === 'surprised') {
-        ctx.fillStyle = '#1a1a2e';
-        ctx.beginPath();
-        ctx.arc(-s * 0.12, -s * 0.28, s * 0.05, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(s * 0.12, -s * 0.28, s * 0.05, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(-s * 0.13, -s * 0.28, s * 0.07, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(s * 0.13, -s * 0.28, s * 0.07, 0, Math.PI * 2); ctx.fill();
       } else {
-        ctx.fillStyle = '#1a1a2e';
-        ctx.beginPath();
-        ctx.arc(-s * 0.12, -s * 0.28 + pupilY, s * 0.04, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(s * 0.12, -s * 0.28 + pupilY, s * 0.04, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Eye shine
-        ctx.fillStyle = '#fff';
-        ctx.beginPath();
-        ctx.arc(-s * 0.1, -s * 0.3, s * 0.015, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(s * 0.14, -s * 0.3, s * 0.015, 0, Math.PI * 2);
-        ctx.fill();
+        let po = (this.expression === 'happy' || this.expression === 'excited') ? 2 : 0;
+        ctx.beginPath(); ctx.arc(-s * 0.13, -s * 0.28 + po, s * 0.055, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(s * 0.13, -s * 0.28 + po, s * 0.055, 0, Math.PI * 2); ctx.fill();
+        // Блики
+        ctx.fillStyle = '#FFF';
+        ctx.beginPath(); ctx.arc(-s * 0.10, -s * 0.33, s * 0.025, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(s * 0.17, -s * 0.33, s * 0.02, 0, Math.PI * 2); ctx.fill();
       }
     }
 
-    // Mouth
-    ctx.strokeStyle = '#1a1a2e';
-    ctx.lineWidth = 2;
+    // ============ НОС ============
+    ctx.fillStyle = '#F8A4B8';
+    ctx.beginPath();
+    ctx.ellipse(0, -s * 0.22, s * 0.05, s * 0.038, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ============ ПЕРЕДНИЕ ЗУБЫ (фирменная черта гофера) ============
+    ctx.fillStyle = '#FFFFFF';
+    ctx.strokeStyle = '#2C7A9C';
+    ctx.lineWidth = 1.2;
+    [-1, 1].forEach(dir => {
+      const x0 = dir > 0 ? s * 0.008 : -s * 0.052;
+      ctx.beginPath();
+      ctx.roundRect(x0, -s * 0.155, s * 0.044, s * 0.09, s * 0.014);
+      ctx.fill();
+      ctx.stroke();
+    });
+
+    // ============ РОТ ============
     ctx.lineCap = 'round';
-    switch (this.expression) {
-      case 'happy':
-      case 'excited':
-        ctx.beginPath();
-        ctx.arc(0, -s * 0.1, s * 0.06, 0.1, Math.PI - 0.1);
-        ctx.stroke();
-        break;
-      case 'eating':
-        ctx.fillStyle = '#FF6B8A';
-        ctx.beginPath();
-        ctx.arc(0, -s * 0.1, s * 0.05, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#1a1a2e';
-        ctx.beginPath();
-        ctx.arc(0, -s * 0.1, s * 0.05, 0, Math.PI * 2);
-        ctx.stroke();
-        break;
-      case 'sad':
-        ctx.beginPath();
-        ctx.arc(0, -s * 0.04, s * 0.05, Math.PI + 0.3, -0.3);
-        ctx.stroke();
-        break;
-      case 'sick':
-        ctx.beginPath();
-        ctx.moveTo(-s * 0.04, -s * 0.1);
-        ctx.quadraticCurveTo(0, -s * 0.13, s * 0.04, -s * 0.1);
-        ctx.stroke();
-        break;
-      case 'surprised':
-        ctx.fillStyle = '#1a1a2e';
-        ctx.beginPath();
-        ctx.ellipse(0, -s * 0.08, s * 0.03, s * 0.04, 0, 0, Math.PI * 2);
-        ctx.fill();
-        break;
-      case 'angry':
-        ctx.beginPath();
-        ctx.moveTo(-s * 0.04, -s * 0.09);
-        ctx.lineTo(s * 0.04, -s * 0.09);
-        ctx.stroke();
-        // Angry eyebrows
-        ctx.strokeStyle = '#1a1a2e';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(-s * 0.18, -s * 0.38);
-        ctx.lineTo(-s * 0.06, -s * 0.34);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(s * 0.18, -s * 0.38);
-        ctx.lineTo(s * 0.06, -s * 0.34);
-        ctx.stroke();
-        break;
-      default:
-        ctx.beginPath();
-        ctx.arc(0, -s * 0.1, s * 0.06, 0.1, Math.PI - 0.1);
-        ctx.stroke();
+    if (this.expression === 'sad') {
+      ctx.strokeStyle = '#1a1a2e'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, -s * 0.185, s * 0.05, Math.PI + 0.35, -0.35); ctx.stroke();
+    } else if (this.expression === 'surprised') {
+      ctx.fillStyle = '#1a1a2e';
+      ctx.beginPath(); ctx.ellipse(0, -s * 0.185, s * 0.022, s * 0.03, 0, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.strokeStyle = '#1a1a2e'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, -s * 0.20, s * 0.045, 0.25, Math.PI - 0.25); ctx.stroke();
     }
 
-    // Hat
+    // ============ УСЫ (две тонкие линии у мордочки) ============
+    ctx.strokeStyle = 'rgba(70,110,130,0.35)';
+    ctx.lineWidth = Math.max(1, s * 0.009);
+    [-1, 1].forEach(dir => {
+      [-0.02, 0.02].forEach(dy => {
+        ctx.beginPath();
+        ctx.moveTo(dir * s * 0.16, -s * 0.19 + s * dy);
+        ctx.lineTo(dir * s * 0.255, -s * 0.20 + s * dy * 2.2);
+        ctx.stroke();
+      });
+    });
+
+    // ACCESSORIES
     if (this.hat === 'chef') {
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = '#FFF';
       ctx.beginPath();
-      ctx.roundRect(-s * 0.15, -s * 0.55, s * 0.3, s * 0.2, 10);
+      ctx.roundRect(-s*0.18, -s*0.55, s*0.36, s*0.22, 10);
       ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(0, -s * 0.55, s * 0.2, s * 0.08, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(0, -s * 0.62, s * 0.1, s * 0.06, 0, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.ellipse(0, -s*0.55, s*0.22, s*0.08, 0, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(0, -s*0.62, s*0.12, s*0.06, 0, 0, Math.PI*2); ctx.fill();
     } else if (this.hat === 'scientist') {
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = '#FFF';
       ctx.beginPath();
-      ctx.roundRect(-s * 0.18, -s * 0.5, s * 0.36, s * 0.15, 5);
+      ctx.roundRect(-s*0.2, -s*0.5, s*0.4, s*0.16, 6);
       ctx.fill();
-      ctx.fillStyle = '#4A90D9';
-      ctx.font = `bold ${s * 0.06}px Arial`;
+      ctx.fillStyle = '#1F3B4D';
+      ctx.font = `bold ${s*0.07}px Arial`;
       ctx.textAlign = 'center';
-      ctx.fillText('Go', 0, -s * 0.41);
+      ctx.fillText('Go', 0, -s*0.4);
     } else if (this.hat === 'crown') {
       ctx.fillStyle = '#FFD700';
       ctx.beginPath();
-      ctx.moveTo(-s * 0.15, -s * 0.48);
-      ctx.lineTo(-s * 0.15, -s * 0.62);
-      ctx.lineTo(-s * 0.05, -s * 0.55);
-      ctx.lineTo(0, -s * 0.65);
-      ctx.lineTo(s * 0.05, -s * 0.55);
-      ctx.lineTo(s * 0.15, -s * 0.62);
-      ctx.lineTo(s * 0.15, -s * 0.48);
+      ctx.moveTo(-s*0.18, -s*0.5);
+      ctx.lineTo(-s*0.18, -s*0.65);
+      ctx.lineTo(-s*0.07, -s*0.58);
+      ctx.lineTo(0, -s*0.68);
+      ctx.lineTo(s*0.07, -s*0.58);
+      ctx.lineTo(s*0.18, -s*0.65);
+      ctx.lineTo(s*0.18, -s*0.5);
       ctx.closePath();
       ctx.fill();
+      ctx.strokeStyle = '#B8860B'; ctx.lineWidth = 1; ctx.stroke();
       ctx.fillStyle = '#FF0000';
-      ctx.beginPath();
-      ctx.arc(0, -s * 0.55, s * 0.015, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(0, -s*0.58, s*0.02, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#0066FF';
+      ctx.beginPath(); ctx.arc(-s*0.1, -s*0.55, s*0.015, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#00CC00';
+      ctx.beginPath(); ctx.arc(s*0.1, -s*0.55, s*0.015, 0, Math.PI*2); ctx.fill();
     }
 
-    // Glasses
     if (this.glasses === 'nerd') {
-      ctx.strokeStyle = '#333';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(-s * 0.12, -s * 0.28, s * 0.1, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(s * 0.12, -s * 0.28, s * 0.1, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(-s * 0.02, -s * 0.28);
-      ctx.lineTo(s * 0.02, -s * 0.28);
-      ctx.stroke();
+      ctx.strokeStyle = '#333'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(-s*0.13, -s*0.28, s*0.12, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(s*0.13, -s*0.28, s*0.12, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-s*0.01, -s*0.28); ctx.lineTo(s*0.01, -s*0.28); ctx.stroke();
+      ctx.fillStyle = 'rgba(200,230,255,0.2)';
+      ctx.beginPath(); ctx.arc(-s*0.13, -s*0.28, s*0.11, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(s*0.13, -s*0.28, s*0.11, 0, Math.PI*2); ctx.fill();
     } else if (this.glasses === 'cool') {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.beginPath();
-      ctx.roundRect(-s * 0.22, -s * 0.36, s * 0.18, s * 0.12, 8);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.roundRect(s * 0.04, -s * 0.36, s * 0.18, s * 0.12, 8);
-      ctx.fill();
-      ctx.fillStyle = 'rgba(100, 200, 255, 0.3)';
-      ctx.beginPath();
-      ctx.roundRect(-s * 0.2, -s * 0.34, s * 0.14, s * 0.06, 5);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.roundRect(s * 0.06, -s * 0.34, s * 0.14, s * 0.06, 5);
-      ctx.fill();
+      ctx.fillStyle = 'rgba(30,30,30,0.85)';
+      ctx.beginPath(); ctx.roundRect(-s*0.24, -s*0.37, s*0.2, s*0.14, 8); ctx.fill();
+      ctx.beginPath(); ctx.roundRect(s*0.04, -s*0.37, s*0.2, s*0.14, 8); ctx.fill();
+      ctx.fillStyle = 'rgba(150,220,255,0.25)';
+      ctx.beginPath(); ctx.roundRect(-s*0.22, -s*0.35, s*0.15, s*0.06, 5); ctx.fill();
+      ctx.beginPath(); ctx.roundRect(s*0.06, -s*0.35, s*0.15, s*0.06, 5); ctx.fill();
     }
 
-    // Bowtie
     if (this.bowtie) {
       ctx.fillStyle = '#FF4444';
       ctx.beginPath();
-      ctx.moveTo(0, -s * 0.02);
-      ctx.lineTo(-s * 0.08, -s * 0.06);
-      ctx.lineTo(-s * 0.08, s * 0.02);
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-s*0.1, -s*0.08);
+      ctx.lineTo(-s*0.1, s*0.08);
       ctx.closePath();
       ctx.fill();
       ctx.beginPath();
-      ctx.moveTo(0, -s * 0.02);
-      ctx.lineTo(s * 0.08, -s * 0.06);
-      ctx.lineTo(s * 0.08, s * 0.02);
+      ctx.moveTo(0, 0);
+      ctx.lineTo(s*0.1, -s*0.08);
+      ctx.lineTo(s*0.1, s*0.08);
       ctx.closePath();
       ctx.fill();
       ctx.fillStyle = '#CC0000';
-      ctx.beginPath();
-      ctx.arc(0, -s * 0.02, s * 0.02, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(0, 0, s*0.025, 0, Math.PI*2); ctx.fill();
     }
 
-    // Zzz
-    if (this.expression === 'sleeping') {
-      this.zzz.forEach(z => {
-        ctx.globalAlpha = z.alpha;
-        ctx.fillStyle = '#87CEEB';
-        ctx.font = `bold ${z.size}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.fillText('Z', z.x - x, z.y - y - this.bobY);
-      });
-      ctx.globalAlpha = 1;
-    }
+    // Outline (мягкая тень-обводка только по контуру, без колец)
+    ctx.lineJoin = 'round';
 
     ctx.restore();
   }
 
   setExpression(expr, duration) {
     this.expression = expr;
-    if (duration) this.expressionTimer = duration;
+    this.expressionTimer = duration || 30;
   }
-}
 
+  getExpression() { return this.expression; }
+}
 window.Gopher = Gopher;

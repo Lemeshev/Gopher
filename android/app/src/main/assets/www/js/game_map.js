@@ -75,7 +75,7 @@ class MapScene {
 
     // Header with stats
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    roundRect(ctx, 10, 10, W - 20, 55, 12);
+    roundRect(ctx, 10, 10, W - 20, 70, 12);
     ctx.fill();
 
     ctx.font = `bold ${Math.min(W * 0.045, 20)}px Arial`;
@@ -89,6 +89,32 @@ class MapScene {
     ctx.fillText('🪙 ' + System.coins, W - 20, 28);
     const timeEmojis = { morning: '🌅', afternoon: '☀️', evening: '🌇', night: '🌙' };
     ctx.fillText(timeEmojis[System.timeOfDay] + ' ' + System.timeOfDay, W - 20, 48);
+
+    // === XP ПРОГРЕСС-БАР НА КАРТЕ ===
+    const mapXpPct = System.xp / System.xpToNext;
+    const mapXpBarY = 55;
+    const mapXpBarW = (W - 40);
+    const mapXpBarH = 12;
+    
+    ctx.font = `bold ${Math.min(W * 0.025, 11)}px Arial`;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#FFD93D';
+    ctx.fillText('⭐ Ур.' + System.level, 25, mapXpBarY - 2);
+    
+    ctx.font = `${Math.min(W * 0.02, 9)}px Arial`;
+    ctx.textAlign = 'right';
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fillText(System.xp + '/' + System.xpToNext, W - 25, mapXpBarY - 2);
+    
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    roundRect(ctx, 20, mapXpBarY + 2, mapXpBarW, mapXpBarH, 6);
+    ctx.fill();
+    
+    if (mapXpPct > 0) {
+      ctx.fillStyle = '#FFD93D';
+      roundRect(ctx, 20, mapXpBarY + 2, mapXpBarW * mapXpPct, mapXpBarH, 6);
+      ctx.fill();
+    }
 
     // Draw gopher
     if (this.game.gopher) {
