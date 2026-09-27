@@ -1,0 +1,12 @@
+{
+  "name": "gopher-life",
+  "version": "1.0.0",
+  "description": "Interactive pet game with Go gopher mascot",
+  "main": "index.js",
+  "scripts": {
+    "build": "echo See README for build instructions"
+  },
+  "keywords": ["game", "android", "gopher"],
+  "author": "GopherLife Team",
+  "license": "MIT"
+}
