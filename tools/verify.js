@@ -13,7 +13,12 @@ const cp = require('child_process');
 const ROOT = path.resolve(__dirname, '..');
 const WWW = path.join(ROOT, 'www');
 const ASSETS = path.join(ROOT, 'android', 'app', 'src', 'main', 'assets', 'www');
-const ICON = path.join(ROOT, 'android', 'app', 'src', 'main', 'res', 'drawable', 'ic_launcher.xml');
+const ICON_FG = path.join(ROOT, 'android', 'app', 'src', 'main', 'res', 'drawable', 'ic_launcher_foreground.xml');
+const ICON_BG = path.join(ROOT, 'android', 'app', 'src', 'main', 'res', 'drawable', 'ic_launcher_background.xml');
+const ICON_ADAPTIVE = path.join(ROOT, 'android', 'app', 'src', 'main', 'res', 'mipmap-anydpi-v26', 'ic_launcher.xml');
+const RES_DIR = path.join(ROOT, 'android', 'app', 'src', 'main', 'res');
+const MIPMAP_DENSITIES = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi'];
+const MANIFEST = path.join(ROOT, 'android', 'app', 'src', 'main', 'AndroidManifest.xml');
 const APK_DEBUG = path.join(ROOT, 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
 const APK_RELEASE = path.join(ROOT, 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk');
 const APK = fs.existsSync(APK_RELEASE) ? APK_RELEASE : APK_DEBUG;
@@ -81,10 +86,24 @@ function reviewerStatic() {
         hbBody === null ? 'правило html, body не разобрано' : 'правило html, body корректно');
   check('В разметке есть элемент #achievement-popup', /id="achievement-popup"/.test(idx));
 
-  const icon = fs.readFileSync(ICON, 'utf8');
-  check('ic_launcher.xml — валидный vector drawable', icon.indexOf('<vector') !== -1 && icon.indexOf('viewportWidth') !== -1);
-  check('Иконка в палитре Go-гофера', icon.indexOf('#00ADD8') !== -1 && /#BFE6F2/i.test(icon));
-  check('Иконка без чёрного "жукоподобного" тела', icon.indexOf('#2C3E50') === -1);
+  const iconFg = fs.readFileSync(ICON_FG, 'utf8');
+  const iconBg = fs.readFileSync(ICON_BG, 'utf8');
+  const adaptive = fs.readFileSync(ICON_ADAPTIVE, 'utf8');
+  const manifest = fs.readFileSync(MANIFEST, 'utf8');
+
+  check('Adaptive icon для Android 8+ (API 26)', adaptive.indexOf('<adaptive-icon') !== -1 &&
+        adaptive.indexOf('@drawable/ic_launcher_foreground') !== -1 &&
+        adaptive.indexOf('@drawable/ic_launcher_background') !== -1);
+  check('Иконка: foreground — vector drawable с гофером', iconFg.indexOf('<vector') !== -1 && /#BFE6F2/i.test(iconFg));
+  check('Иконка: background — фирменный Go-синий', iconBg.indexOf('#00ADD8') !== -1);
+  check('Иконка без чёрного "жукоподобного" тела',
+        iconFg.indexOf('#2C3E50') === -1 && iconBg.indexOf('#2C3E50') === -1);
+
+  const pngMissing = MIPMAP_DENSITIES.filter(d => !fs.existsSync(path.join(RES_DIR, 'mipmap-' + d, 'ic_launcher.png')));
+  check('PNG-иконки для Android 5–7 (все 5 плотностей)', pngMissing.length === 0,
+        pngMissing.length ? 'нет: ' + pngMissing.join(', ') : MIPMAP_DENSITIES.length + ' плотности');
+  check('Manifest: иконка через @mipmap (vector-иконки не работают на API<26)',
+        /android:icon="@mipmap\/ic_launcher"/.test(manifest) && !/android:icon="@drawable\//.test(manifest));
 
   const gopherSrc = fs.readFileSync(path.join(WWW, 'js/gopher.js'), 'utf8');
   check('Маскот в игре — светлая палитра гофера (не "жук")',
