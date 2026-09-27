@@ -88,7 +88,8 @@ class MapScene {
     ctx.fillStyle = '#FFD93D';
     ctx.fillText('🪙 ' + System.coins, W - 20, 28);
     const timeEmojis = { morning: '🌅', afternoon: '☀️', evening: '🌇', night: '🌙' };
-    ctx.fillText(timeEmojis[System.timeOfDay] + ' ' + System.timeOfDay, W - 20, 48);
+    const timeNames = { morning: 'Утро', afternoon: 'День', evening: 'Вечер', night: 'Ночь' };
+    ctx.fillText(timeEmojis[System.timeOfDay] + ' ' + (timeNames[System.timeOfDay] || ''), W - 20, 48);
 
     // === XP ПРОГРЕСС-БАР НА КАРТЕ ===
     const mapXpPct = System.xp / System.xpToNext;
@@ -135,7 +136,7 @@ class MapScene {
       { id: 'museum_art', emoji: '🎨', name: 'Искусств', color: '#E91E63', desc: 'Карттины 🖼️', cost: 30 },
       { id: 'museum_nature', emoji: '🦕', name: 'Природы', color: '#4CAF50', desc: 'Динозавры', cost: 30 },
       { id: 'museum_space', emoji: '🚀', name: 'Космический', color: '#3F51B5', desc: 'Планеты 🌍', cost: 30 },
-      { id: 'museum_history', emoji: '🏛️', name: 'Исторический', color: '#795548', desc: 'Древний Рим', cost: 30 },
+      { id: 'museum_history', emoji: '🏛️', name: 'История', color: '#795548', desc: 'Древний Рим', cost: 30 },
       { id: 'library', emoji: '📚', name: 'Библиотека', color: '#607D8B', desc: 'Чтение 📖', cost: 10 },
       { id: 'friend', emoji: '🧑‍🤝‍🧑', name: 'К другу', color: '#FF5722', desc: 'Друг 🐹', req: 'energy>30' },
       { id: 'minigames', emoji: '🎮', name: 'Мини-игры', color: '#9C27B0', desc: 'Крестики-нолики' },
@@ -177,31 +178,33 @@ class MapScene {
         ctx.fill();
       }
 
-      // Emoji
-      ctx.font = `${Math.min(btnW * 0.3, 28)}px Arial`;
-      ctx.textAlign = 'center';
+      // Emoji — слева, отдельно от названия
+      ctx.font = `${Math.min(btnW * 0.24, 22)}px Arial`;
+      ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#fff';
-      ctx.fillText(loc.emoji, bx + btnW / 2 - 10, by + 22);
+      ctx.fillText(loc.emoji, bx + 10, by + 24);
 
-      // Name
-      ctx.font = `bold ${Math.min(btnW * 0.15, 13)}px Arial`;
+      // Name — справа от эмодзи, чтобы не наезжали друг на друга
+      ctx.font = `bold ${Math.min(btnW * 0.115, 11)}px Arial`;
       ctx.fillStyle = '#fff';
-      ctx.fillText(loc.name, bx + btnW / 2 + 8, by + 22);
+      ctx.fillText(loc.name, bx + 34, by + 24);
 
-      // Desc
+      // Desc — выравнен влево, чтобы не пересекаться с бейджем цены
       ctx.font = `${Math.min(btnW * 0.1, 10)}px Arial`;
       ctx.fillStyle = 'rgba(255,255,255,0.8)';
-      ctx.fillText(loc.desc, bx + btnW / 2, by + 44);
+      ctx.textAlign = 'left';
+      ctx.fillText(loc.desc, bx + 12, by + 44);
+      ctx.textAlign = 'center';
 
-      // Cost badge
+      // Cost badge — в правом нижнем углу карточки, название не перекрывает
       if (loc.cost) {
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        roundRect(ctx, bx + btnW - 35, by + 4, 28, 16, 8);
+        roundRect(ctx, bx + btnW - 36, by + btnH - 24, 30, 16, 8);
         ctx.fill();
         ctx.font = 'bold 10px Arial';
         ctx.fillStyle = '#FFD93D';
-        ctx.fillText('🪙' + loc.cost, bx + btnW - 21, by + 14);
+        ctx.fillText('🪙' + loc.cost, bx + btnW - 21, by + btnH - 14);
       }
 
       ctx.globalAlpha = 1;
