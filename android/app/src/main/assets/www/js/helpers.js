@@ -72,7 +72,8 @@ function createButton(ctx, x, y, w, h, text, opts = {}) {
   ctx.textBaseline = 'middle';
   ctx.fillText(text, x + w / 2, y + h / 2);
 
-  return { x, y, w, h };
+  // ВАЖНО: возвращаем text — сцены используют btn.text для определения действия
+  return { x, y, w, h, text };
 }
 
 function isPointInRect(px, py, rx, ry, rw, rh) {

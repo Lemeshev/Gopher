@@ -45,6 +45,7 @@ class HomeScene {
   }
 
   draw(ctx) {
+    this.buttons = [];
     const W = this.game.width;
     const H = this.game.height;
     this.buttons = [];
@@ -103,6 +104,32 @@ class HomeScene {
       ctx.moveTo(0, H * 0.7 + i * H * 0.06);
       ctx.lineTo(W, H * 0.7 + i * H * 0.06);
       ctx.stroke();
+    }
+
+    // === XP ПРОГРЕСС-БАР НА ДОМЕ ===
+    const homeXpPct = System.xp / System.xpToNext;
+    const homeXpBarY = 10;
+    const homeXpBarW = W - 20;
+    const homeXpBarH = 12;
+    
+    ctx.font = `bold ${Math.min(W * 0.025, 11)}px Arial`;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#8B4513';
+    ctx.fillText('⭐ Ур.' + System.level, 15, homeXpBarY + 2);
+    
+    ctx.font = `${Math.min(W * 0.02, 9)}px Arial`;
+    ctx.textAlign = 'right';
+    ctx.fillStyle = 'rgba(139, 69, 19, 0.7)';
+    ctx.fillText(System.xp + '/' + System.xpToNext, W - 15, homeXpBarY + 2);
+    
+    ctx.fillStyle = 'rgba(139, 69, 19, 0.15)';
+    roundRect(ctx, 10, homeXpBarY + 5, homeXpBarW, homeXpBarH, 6);
+    ctx.fill();
+    
+    if (homeXpPct > 0) {
+      ctx.fillStyle = '#FFD93D';
+      roundRect(ctx, 10, homeXpBarY + 5, homeXpBarW * homeXpPct, homeXpBarH, 6);
+      ctx.fill();
     }
 
     // Rug

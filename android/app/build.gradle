@@ -1,5 +1,14 @@
 apply plugin: 'com.android.application'
 
+// Данные для подписи хранятся ВНЕ репозитория: android/keystore.properties
+// Шаблон для новых машин — android/keystore.properties.example
+def keystorePropsFile = rootProject.file('keystore.properties')
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+def hasSigning = keystorePropsFile.exists() && keystoreProps['storeFile']
+
 android {
     namespace 'com.gopherlife.app'
     compileSdkVersion 34
@@ -12,9 +21,21 @@ android {
         versionName "1.0"
     }
 
+    signingConfigs {
+        release {
+            if (hasSigning) {
+                storeFile rootProject.file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
+            if (hasSigning) signingConfig signingConfigs.release
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {
@@ -23,8 +44,8 @@ android {
     }
     
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 }
 

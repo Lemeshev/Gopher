@@ -71,13 +71,20 @@ const System = {
   },
 
   showAchievement(emoji, text) {
-    const el = document.getElementById('achievement-popup');
-    if (el) {
-      el.querySelector('.ach-emoji').textContent = emoji;
-      el.querySelector('.ach-text').textContent = text;
-      el.style.display = 'flex';
-      setTimeout(() => { el.style.display = 'none'; }, 2500);
+    let el = document.getElementById('achievement-popup');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'achievement-popup';
+      el.innerHTML = '<span class="ach-emoji"></span><span class="ach-text"></span>';
+      document.body.appendChild(el);
     }
+    const emojiEl = el.querySelector('.ach-emoji');
+    const textEl = el.querySelector('.ach-text');
+    if (emojiEl) emojiEl.textContent = emoji;
+    if (textEl) textEl.textContent = text;
+    el.classList.add('show');
+    clearTimeout(this._achTimer);
+    this._achTimer = setTimeout(() => el.classList.remove('show'), 2500);
   },
 
   isLocationAvailable(loc) {
@@ -172,7 +179,7 @@ const System = {
       this.visitedLocations = new Set(data.visitedLocations || []);
       this.totalPlayTime = data.totalPlayTime || 0;
       this.isSick = data.isSick || false;
-      // Учтём время离线ного изменения статов
+      // Учёт офлайн-изменения статов
       if (data.savedAt) {
         const elapsed = (Date.now() - data.savedAt) / 1000 / 60; // minutes
         const hours = Math.min(elapsed / 60, 24);
@@ -182,6 +189,36 @@ const System = {
     } catch (e) {
       return false;
     }
+  },
+
+  hasSave() {
+    try {
+      return !!localStorage.getItem('gopherlife_save');
+    } catch (e) {
+      return false;
+    }
+  },
+
+  resetProgress() {
+    this.stats = {
+      happiness: 70, hunger: 70, energy: 80, health: 85, cleanliness: 80,
+      intelligence: 30, workSkill: 10, schoolSkill: 10, stress: 20
+    };
+    this.coins = 100;
+    this.level = 1;
+    this.xp = 0;
+    this.xpToNext = 100;
+    this.inventory = [];
+    this.achievements = [];
+    this.knowledge = {
+      artMuseum: 0, natureMuseum: 0, spaceMuseum: 0, historyMuseum: 0, library: 0
+    };
+    this.timeOfDay = 'morning';
+    this.currentLocation = 'home';
+    this.isSleeping = false;
+    this.isSick = false;
+    this.visitedLocations = new Set();
+    this.totalPlayTime = 0;
   },
 
   addAch(id) {

@@ -43,6 +43,7 @@ class ShopScene {
   }
 
   draw(ctx) {
+    this.buttons = [];
     const W = this.game.width;
     const H = this.game.height;
     this.buttons = [];
@@ -79,6 +80,32 @@ class ShopScene {
     ctx.font = `bold ${Math.min(W * 0.035, 16)}px Arial`;
     ctx.textAlign = 'right';
     ctx.fillText('🪙 ' + System.coins, W - 30, 35);
+
+    // === XP ПРОГРЕСС-БАР В МАГАЗИНЕ ===
+    const shopXpPct = System.xp / System.xpToNext;
+    const shopXpBarY = 50;
+    const shopXpBarW = (W - 40);
+    const shopXpBarH = 12;
+
+    ctx.font = `bold ${Math.min(W * 0.025, 11)}px Arial`;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#333';
+    ctx.fillText('⭐ Ур.' + System.level, 20, shopXpBarY - 1);
+
+    ctx.font = `${Math.min(W * 0.02, 9)}px Arial`;
+    ctx.textAlign = 'right';
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillText(System.xp + '/' + System.xpToNext, W - 20, shopXpBarY - 1);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    roundRect(ctx, 20, shopXpBarY + 2, shopXpBarW, shopXpBarH, 6);
+    ctx.fill();
+
+    if (shopXpPct > 0) {
+      ctx.fillStyle = '#FFD93D';
+      roundRect(ctx, 20, shopXpBarY + 2, shopXpBarW * shopXpPct, shopXpBarH, 6);
+      ctx.fill();
+    }
 
     // Shop tabs
     const tabs = [

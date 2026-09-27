@@ -17,6 +17,7 @@ class StatsScene {
   }
 
   draw(ctx) {
+    this.buttons = [];
     const W = this.game.width;
     const H = this.game.height;
     this.buttons = [];

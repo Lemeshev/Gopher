@@ -4,7 +4,9 @@
   "description": "Interactive pet game with Go gopher mascot",
   "main": "index.js",
   "scripts": {
-    "build": "echo See README for build instructions"
+    "build": "cd android && ./gradlew assembleRelease",
+    "build:debug": "cd android && ./gradlew assembleDebug",
+    "verify": "node tools/verify.js"
   },
   "keywords": ["game", "android", "gopher"],
   "author": "GopherLife Team",

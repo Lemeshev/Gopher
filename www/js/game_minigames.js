@@ -60,6 +60,7 @@ class MinigamesScene {
   }
 
   draw(ctx) {
+    this.buttons = [];
     const W = this.game.width;
     const H = this.game.height;
     this.buttons = [];
@@ -78,6 +79,32 @@ class MinigamesScene {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('🎮 Мини-игры', W / 2, H * 0.05);
+
+    // === XP ПРОГРЕСС-БАР В МИНИ-ИГРАХ ===
+    const miniXpPct = System.xp / System.xpToNext;
+    const miniXpBarY = H * 0.07;
+    const miniXpBarW = W - 20;
+    const miniXpBarH = 12;
+
+    ctx.font = `bold ${Math.min(W * 0.025, 11)}px Arial`;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#FFD93D';
+    ctx.fillText('⭐ Ур.' + System.level, 10, miniXpBarY);
+
+    ctx.font = `${Math.min(W * 0.02, 9)}px Arial`;
+    ctx.textAlign = 'right';
+    ctx.fillStyle = 'rgba(255,215,0,0.5)';
+    ctx.fillText(System.xp + '/' + System.xpToNext, W - 10, miniXpBarY);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    roundRect(ctx, 10, miniXpBarY + 4, miniXpBarW, miniXpBarH, 6);
+    ctx.fill();
+
+    if (miniXpPct > 0) {
+      ctx.fillStyle = '#FFD93D';
+      roundRect(ctx, 10, miniXpBarY + 4, miniXpBarW * miniXpPct, miniXpBarH, 6);
+      ctx.fill();
+    }
 
     // Back button
     this.buttons.push(createButton(ctx, 10, 10, 80, 36, '← Назад', {
