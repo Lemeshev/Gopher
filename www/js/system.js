@@ -155,6 +155,8 @@ const System = {
       visitedLocations: [...this.visitedLocations],
       totalPlayTime: this.totalPlayTime,
       isSick: this.isSick,
+      homeDecor: [...this.homeDecor],
+      friends: [...this.friends],
       savedAt: Date.now()
     };
     try {
@@ -179,6 +181,8 @@ const System = {
       this.visitedLocations = new Set(data.visitedLocations || []);
       this.totalPlayTime = data.totalPlayTime || 0;
       this.isSick = data.isSick || false;
+      this.homeDecor = data.homeDecor || [];
+      this.friends = data.friends || [];
       // Учёт офлайн-изменения статов
       if (data.savedAt) {
         const elapsed = (Date.now() - data.savedAt) / 1000 / 60; // minutes
@@ -219,6 +223,39 @@ const System = {
     this.isSick = false;
     this.visitedLocations = new Set();
     this.totalPlayTime = 0;
+    this.homeDecor = [];
+    this.friends = [];
+  },
+
+  addDecor(id, emoji, name) {
+    if (!this.homeDecor.find(d => d.id === id)) {
+      this.homeDecor.push({ id, emoji, name, x: 0.5, y: 0.5 });
+      this.saveGame();
+    }
+  },
+
+  addFriend(code) {
+    try {
+      const data = JSON.parse(atob(code));
+      if (data && data.name && !this.friends.find(f => f.name === data.name)) {
+        this.friends.push(data);
+        this.saveGame();
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  },
+
+  getMyCode() {
+    const data = {
+      name: 'Гофер',
+      stats: { ...this.stats },
+      level: this.level,
+      coins: this.coins,
+      homeDecor: this.homeDecor.map(d => ({ id: d.id, emoji: d.emoji, name: d.name })),
+      hat: null, glasses: null, bowtie: false
+    };
+    return btoa(JSON.stringify(data));
   },
 
   addAch(id) {

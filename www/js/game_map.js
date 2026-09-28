@@ -138,7 +138,7 @@ class MapScene {
       { id: 'museum_space', emoji: '🚀', name: 'Космический', color: '#3F51B5', desc: 'Планеты 🌍', cost: 30 },
       { id: 'museum_history', emoji: '🏛️', name: 'История', color: '#795548', desc: 'Древний Рим', cost: 30 },
       { id: 'library', emoji: '📚', name: 'Библиотека', color: '#607D8B', desc: 'Чтение 📖', cost: 10 },
-      { id: 'friend', emoji: '🧑‍🤝‍🧑', name: 'К другу', color: '#FF5722', desc: 'Друг 🐹', req: 'energy>30' },
+      { id: 'friend', emoji: '🧑‍🤝‍🧑', name: 'Друзья', color: '#FF5722', desc: 'В гости 🐹' },
       { id: 'minigames', emoji: '🎮', name: 'Мини-игры', color: '#9C27B0', desc: 'Крестики-нолики' },
       { id: 'stats', emoji: '📊', name: 'Инфо', color: '#607D8B', desc: 'Достижения ⭐' }
     ];
@@ -257,7 +257,21 @@ class MapScene {
             System.showAchievement(event.emoji, event.text);
           }
 
-          if (loc.id === 'work') {
+          // Map location IDs to visit scene data keys
+          const visitMap = {
+            museum_art: 'art_museum', museum_nature: 'nature_museum',
+            museum_space: 'space_museum', museum_history: 'history_museum',
+            library: 'library', restaurant: 'restaurant',
+            pool: 'pool', park: 'park', work: 'work',
+            school: 'school', cinema: 'cinema'
+          };
+
+          if (loc.id === 'clinic') {
+            this.game.transitionTo('clinic');
+          } else if (visitMap[loc.id]) {
+            this.game.scenes.visit.init(visitMap[loc.id]);
+            this.game.transitionTo('visit');
+          } else if (loc.id === 'work') {
             const earn = Math.floor(10 + System.stats.workSkill * 0.5 + System.level * 2);
             System.earnCoins(earn);
             System.stats.energy = Math.max(0, System.stats.energy - 20);
@@ -271,41 +285,8 @@ class MapScene {
             System.stats.intelligence = Math.min(100, System.stats.intelligence + 2);
             System.showAchievement('🎓', 'Учёба продвигается!');
             AudioSys.play('success');
-          } else if (loc.id === 'restaurant') {
-            System.stats.hunger = Math.min(100, System.stats.hunger + 40);
-            System.stats.happiness = Math.min(100, System.stats.happiness + 10);
-            System.showAchievement('🍽️', 'Вкусно покушали!');
-            AudioSys.play('eat');
-          } else if (loc.id === 'pool') {
-            System.stats.happiness = Math.min(100, System.stats.happiness + 15);
-            System.stats.energy = Math.max(0, System.stats.energy - 15);
-            System.stats.stress = Math.max(0, System.stats.stress - 10);
-            System.showAchievement('🏊', 'Отличная тренировка!');
-            AudioSys.play('success');
-          } else if (loc.id === 'park') {
-            System.stats.happiness = Math.min(100, System.stats.happiness + 20);
-            System.stats.energy = Math.max(0, System.stats.energy - 15);
-            System.stats.stress = Math.max(0, System.stats.stress - 15);
-            System.showAchievement('🎢', 'Веселились!');
-            AudioSys.play('success');
           } else if (loc.id === 'friend') {
-            System.stats.happiness = Math.min(100, System.stats.happiness + 15);
-            System.showAchievement('🧑‍🤝‍🧑', 'В гости к другу!');
-            AudioSys.play('success');
-          } else if (loc.id.startsWith('museum_')) {
-            const key = loc.id.replace('museum_', '') + 'Museum';
-            System.knowledge[key] = Math.min(100, System.knowledge[key] + randInt(5, 15));
-            System.stats.intelligence = Math.min(100, System.stats.intelligence + 3);
-            System.stats.happiness = Math.min(100, System.stats.happiness + 5);
-            System.showAchievement(loc.emoji, loc.name + ' посещён!');
-            AudioSys.play('success');
-          } else if (loc.id === 'library') {
-            System.stats.intelligence = Math.min(100, System.stats.intelligence + 5);
-            System.stats.stress = Math.max(0, System.stats.stress - 5);
-            System.showAchievement('📚', 'Прочитали книгу!');
-            AudioSys.play('success');
-          } else if (loc.id === 'clinic') {
-            this.game.transitionTo('clinic');
+            this.game.transitionTo('friends');
           } else {
             System.showAchievement(loc.emoji, loc.name);
             this.game.transitionTo('home');
