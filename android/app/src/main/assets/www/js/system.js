@@ -246,14 +246,17 @@ const System = {
     return false;
   },
 
-  getMyCode() {
+  getMyCode(game) {
+    const g = game && game.gopher;
     const data = {
-      name: 'Гофер',
+      name: 'Гофер#' + (this.level * 100 + Math.floor(this.coins / 10)).toString(36),
       stats: { ...this.stats },
       level: this.level,
       coins: this.coins,
       homeDecor: this.homeDecor.map(d => ({ id: d.id, emoji: d.emoji, name: d.name })),
-      hat: null, glasses: null, bowtie: false
+      hat: g ? g.hat : null,
+      glasses: g ? g.glasses : null,
+      bowtie: g ? g.bowtie : false
     };
     return btoa(JSON.stringify(data));
   },

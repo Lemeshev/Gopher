@@ -103,7 +103,7 @@ const VISIT_DATA = {
       { emoji: '☕', name: 'Кофе-брейк', fact: 'Финляндия — #1 по потреблению кофе: 12 кг/чел/год.' },
       { emoji: '📝', name: 'Планёрка', fact: 'Средний сотрудник проводит 31 час в месяц на совещаниях.' }
     ],
-    reward: { stat: 'money', amount: 30, label: 'Монеты +30' }
+    reward: { stat: 'money', amount: 30, label: 'Монеты +30', energyCost: 25 }
   },
   school: {
     name: 'Школа', bg: '#2a2a4a',
@@ -114,7 +114,7 @@ const VISIT_DATA = {
       { emoji: '🌍', name: 'География', fact: 'Марианская впадина: 10 994 м. Эверест: 8 849 м.' },
       { emoji: '🔢', name: 'Арифметика', fact: '1729 — число Рамануджана: сумма кубов двумя способами.' }
     ],
-    reward: { stat: 'intelligence', amount: 6, label: 'Интеллект +6' }
+    reward: { stat: 'intelligence', amount: 6, label: 'Интеллект +6', energyCost: 20 }
   },
   cinema: {
     name: 'Кинотеатр', bg: '#0a0a1a',
@@ -161,7 +161,8 @@ class VisitScene {
 
   update(dt) { this.animTime += dt; }
 
-  draw(ctx, W, H) {
+  draw(ctx) {
+    const W = this.game.width, H = this.game.height;
     this.buttons = [];
     const d = this.data;
     ctx.fillStyle = d.bg; ctx.fillRect(0, 0, W, H);
@@ -188,9 +189,9 @@ class VisitScene {
       const cx = startX + col * (cellW + 10), cy = startY + row * (cellH + 10);
       const isViewed = this.viewedItems.includes(i);
       ctx.fillStyle = isViewed ? 'rgba(107,203,119,0.2)' : 'rgba(255,255,255,0.1)';
-      ctx.beginPath(); ctx.roundRect(cx, cy, cellW, cellH, 12); ctx.fill();
+      roundRect(ctx, cx, cy, cellW, cellH, 12); ctx.fill();
       ctx.strokeStyle = isViewed ? '#6BCB77' : 'rgba(255,255,255,0.2)'; ctx.lineWidth = isViewed ? 2 : 1;
-      ctx.beginPath(); ctx.roundRect(cx, cy, cellW, cellH, 12); ctx.stroke();
+      roundRect(ctx, cx, cy, cellW, cellH, 12); ctx.stroke();
       ctx.font = `${Math.min(cellW * 0.35, 36)}px Arial`; ctx.textAlign = 'center';
       ctx.fillText(item.emoji, cx + cellW / 2, cy + cellH * 0.45);
       ctx.fillStyle = isViewed ? '#6BCB77' : '#fff'; ctx.font = `${Math.min(cellW * 0.09, 11)}px Arial`;
@@ -212,8 +213,8 @@ class VisitScene {
     ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
     const panelW = Math.min(W * 0.85, 300), panelH = 200;
     const px = (W - panelW) / 2, py = (H - panelH) / 2;
-    ctx.fillStyle = '#1e2a4a'; ctx.beginPath(); ctx.roundRect(px, py, panelW, panelH, 16); ctx.fill();
-    ctx.strokeStyle = '#FFD93D'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(px, py, panelW, panelH, 16); ctx.stroke();
+    ctx.fillStyle = '#1e2a4a'; roundRect(ctx, px, py, panelW, panelH, 16); ctx.fill();
+    ctx.strokeStyle = '#FFD93D'; ctx.lineWidth = 2; roundRect(ctx, px, py, panelW, panelH, 16); ctx.stroke();
     ctx.textAlign = 'center'; ctx.font = `${Math.min(panelW * 0.15, 40)}px Arial`;
     ctx.fillText(item.emoji, W / 2, py + 45);
     ctx.fillStyle = '#FFD93D'; ctx.font = `bold ${Math.min(panelW * 0.06, 18)}px Arial`;
@@ -242,7 +243,9 @@ class VisitScene {
       if (t.indexOf('Понятно') !== -1) { this.showFact = false; this.selectedItem = null; return true; }
       if (t.indexOf(this.data.reward.label) !== -1 && !this.rewardClaimed) {
         this.rewardClaimed = true; const r = this.data.reward;
-        if (r.stat === 'money') { System.money += r.amount; } else if (System.stats[r.stat] !== undefined) { System.stats[r.stat] = Math.min(100, System.stats[r.stat] + r.amount); }
+        if (r.stat === 'money') { System.earnCoins(r.amount); } else if (System.stats[r.stat] !== undefined) { System.stats[r.stat] = Math.min(100, System.stats[r.stat] + r.amount); }
+        if (r.energyCost) { System.stats.energy = Math.max(0, System.stats.energy - r.energyCost); }
+        System.addXP(3);
         System.saveGame(); return true;
       }
       return true;

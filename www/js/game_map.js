@@ -269,8 +269,7 @@ class MapScene {
           if (loc.id === 'clinic') {
             this.game.transitionTo('clinic');
           } else if (visitMap[loc.id]) {
-            this.game.scenes.visit.init(visitMap[loc.id]);
-            this.game.transitionTo('visit');
+            this.game.transitionTo('visit', visitMap[loc.id]);
           } else if (loc.id === 'work') {
             const earn = Math.floor(10 + System.stats.workSkill * 0.5 + System.level * 2);
             System.earnCoins(earn);

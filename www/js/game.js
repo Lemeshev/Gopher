@@ -105,9 +105,9 @@ class Game {
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
-  transitionTo(sceneName) {
+  transitionTo(sceneName, initArgs) {
     if (this.scenes[sceneName]) {
-      this.scenes[sceneName].init();
+      this.scenes[sceneName].init(initArgs);
       this.currentScene = sceneName;
     }
   }
