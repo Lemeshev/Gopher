@@ -27,7 +27,7 @@ class MinigamesScene {
       const j = Math.floor(Math.random() * (i + 1));
       [emojis[i], emojis[j]] = [emojis[j], emojis[i]];
     }
-    this.memory = { cards: emojis, flipped: [null, null], matched: Array(16).fill(false), moves: 0, ready: false };
+    this.memory = { cards: emojis, flipped: [], matched: Array(16).fill(false), moves: 0, ready: false };
     this.mode = 'memory';
   }
 
@@ -356,7 +356,11 @@ class MinigamesScene {
 
     // Back button
     if (this.buttons[0] && isPointInRect(mx, my, this.buttons[0].x, this.buttons[0].y, this.buttons[0].w, this.buttons[0].h)) {
-      this.mode = 'select';
+      if (this.mode === 'select') {
+        this.game.transitionTo('map');
+      } else {
+        this.mode = 'select';
+      }
       return true;
     }
 

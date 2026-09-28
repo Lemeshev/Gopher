@@ -112,10 +112,11 @@ class ShopScene {
       { id: 'food', emoji: '🍕', name: 'Еда' },
       { id: 'toys', emoji: '🧸', name: 'Игрушки' },
       { id: 'clothes', emoji: '👔', name: 'Одежда' },
+      { id: 'decor', emoji: '🛋️', name: 'Мебель' },
       { id: 'fun', emoji: '🎉', name: 'Веселье' }
     ];
 
-    const tabW = (W - 40) / 4;
+    const tabW = (W - 40) / 5;
     const tabH = 40;
     const tabStartY = 75;
 
@@ -150,6 +151,20 @@ class ShopScene {
       { id: 'bowtie', emoji: '🎀', name: 'Бабочка', desc: 'Визуальный аксессуар', cost: 30, category: 'clothes', effect: () => { this.game.gopher.bowtie = true; } },
       { id: 'cool_shades', emoji: '😎', name: 'Крутые очки', desc: 'Визуальный аксессуар', cost: 45, category: 'clothes', effect: () => { this.game.gopher.glasses = 'cool'; } },
       { id: 'crown', emoji: '👑', name: 'Корона', desc: '+20 счастья!', cost: 100, category: 'clothes', effect: () => { System.stats.happiness = Math.min(100, System.stats.happiness + 20); } },
+
+      // Decor / Furniture (persisted in System.homeDecor)
+      { id: 'sofa', emoji: '🛋️', name: 'Диван', desc: 'Уют в дом', cost: 40, category: 'decor', effect: () => { System.addDecor('sofa', '🛋️', 'Диван'); } },
+      { id: 'carpet', emoji: '🟫', name: 'Ковёр', desc: 'Тепло полу', cost: 25, category: 'decor', effect: () => { System.addDecor('carpet', '🟫', 'Ковёр'); } },
+      { id: 'painting', emoji: '🖼️', name: 'Картина', desc: 'Красота стен', cost: 35, category: 'decor', effect: () => { System.addDecor('painting', '🖼️', 'Картина'); } },
+      { id: 'bookshelf', emoji: '📚', name: 'Книжная полка', desc: 'Знания дома', cost: 30, category: 'decor', effect: () => { System.addDecor('bookshelf', '📚', 'Полка'); } },
+      { id: 'aquarium', emoji: '🐠', name: 'Аквариум', desc: 'Рыбки!', cost: 50, category: 'decor', effect: () => { System.addDecor('aquarium', '🐠', 'Аквариум'); } },
+      { id: 'plant', emoji: '🪴', name: 'Растение', desc: 'Свежий воздух', cost: 15, category: 'decor', effect: () => { System.addDecor('plant', '🪴', 'Растение'); } },
+      { id: 'lamp', emoji: '💡', name: 'Лампа', desc: 'Свет и уют', cost: 20, category: 'decor', effect: () => { System.addDecor('lamp', '💡', 'Лампа'); } },
+      { id: 'tv', emoji: '📺', name: 'Телевизор', desc: 'Развлечения', cost: 60, category: 'decor', effect: () => { System.addDecor('tv', '📺', 'ТВ'); } },
+      { id: 'piano', emoji: '🎹', name: 'Пианино', desc: 'Музыка!', cost: 80, category: 'decor', effect: () => { System.addDecor('piano', '🎹', 'Пианино'); } },
+      { id: 'clock', emoji: '🕐', name: 'Часы', desc: 'Пунктуальность', cost: 18, category: 'decor', effect: () => { System.addDecor('clock', '🕐', 'Часы'); } },
+      { id: 'bed', emoji: '🛏️', name: 'Кровать', desc: 'Лучший сон', cost: 45, category: 'decor', effect: () => { System.addDecor('bed', '🛏️', 'Кровать'); } },
+      { id: 'fridge', emoji: '🧊', name: 'Холодильник', desc: 'Еда под рукой', cost: 55, category: 'decor', effect: () => { System.addDecor('fridge', '🧊', 'Холодильник'); } },
 
       // Fun
       { id: 'party', emoji: '🎉', name: 'Вечеринка', desc: '+30 счастья!', cost: 60, category: 'fun', effect: () => { System.stats.happiness = Math.min(100, System.stats.happiness + 30); this.game.gopher.setExpression('excited', 999); } },

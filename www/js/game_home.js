@@ -106,6 +106,28 @@ class HomeScene {
       ctx.stroke();
     }
 
+    // === МЕБЕЛЬ (из System.homeDecor) ===
+    if (System.homeDecor && System.homeDecor.length > 0) {
+      const floorY = H * 0.56;
+      const floorH = H * 0.44;
+      const cols = Math.ceil(Math.sqrt(System.homeDecor.length));
+      const rows = Math.ceil(System.homeDecor.length / cols);
+      const cellW = W / cols;
+      const cellH = floorH / rows;
+      System.homeDecor.forEach((d, i) => {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const cx = col * cellW + cellW / 2;
+        const cy = floorY + row * cellH + cellH / 2;
+        ctx.font = `${Math.min(cellW * 0.5, cellH * 0.5, 32)}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.fillText(d.emoji, cx, cy + 6);
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.font = `${Math.min(cellW * 0.12, 9)}px Arial`;
+        ctx.fillText(d.name, cx, cy + 20);
+      });
+    }
+
     // === XP ПРОГРЕСС-БАР НА ДОМЕ ===
     const homeXpPct = System.xp / System.xpToNext;
     const homeXpBarY = 10;

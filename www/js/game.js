@@ -30,7 +30,9 @@ class Game {
       shop: ShopScene,
       minigames: MinigamesScene,
       stats: StatsScene,
-      clinic: ClinicScene
+      clinic: ClinicScene,
+      visit: VisitScene,
+      friends: FriendsScene
     };
   }
 

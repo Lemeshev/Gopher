@@ -7,6 +7,8 @@ class MenuScene {
     this.time = 0;
     this.titleAlpha = 0;
     this.hasSave = false;
+    this.showSettings = false;
+    this.confirmReset = false;
   }
 
   init() {
@@ -15,6 +17,8 @@ class MenuScene {
     this.buttons = [];
     this.particles = [];
     this.hasSave = System.hasSave();
+    this.showSettings = false;
+    this.confirmReset = false;
     if (this.game.gopher) this.game.gopher.setExpression('excited', 999999);
   }
 
@@ -138,25 +142,76 @@ class MenuScene {
     const gap = 12;
     const btnX = (W - btnW) / 2;
 
-    const list = [];
-    if (this.hasSave) {
-      list.push({ text: '▶️ Продолжить', color: '#4D96FF', size: 18 });
-      list.push({ text: '🎮 Новая игра', color: '#6BCB77', size: 18 });
-    } else {
-      list.push({ text: '🎮 Новая игра', color: '#6BCB77', size: 18 });
-    }
-    list.push({ text: '📖 Как играть', color: '#FF8C42', size: 16 });
+    if (this.showSettings) {
+      // === ПАНЕЛЬ НАСТРОЕК ===
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      roundRect(ctx, 0, 0, W, H, 0);
+      ctx.fill();
 
-    const totalH = list.length * btnH + (list.length - 1) * gap;
-    let by = Math.max(H * 0.52, H - totalH - 40);
-    if (by + totalH > H - 12) by = H - totalH - 12;
+      const panelW = Math.min(W * 0.85, 320);
+      const panelH = 220;
+      const panelX = (W - panelW) / 2;
+      const panelY = (H - panelH) / 2;
 
-    list.forEach(item => {
-      this.buttons.push(createButton(ctx, btnX, by, btnW, btnH, item.text, {
-        bgColor: item.color, fontSize: item.size
+      ctx.fillStyle = '#1e2a4a';
+      roundRect(ctx, panelX, panelY, panelW, panelH, 20);
+      ctx.fill();
+      ctx.strokeStyle = '#FFD93D';
+      ctx.lineWidth = 2;
+      roundRect(ctx, panelX, panelY, panelW, panelH, 20);
+      ctx.stroke();
+
+      ctx.fillStyle = '#FFD93D';
+      ctx.font = `bold ${Math.min(W * 0.05, 22)}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.fillText('⚙️ Настройки', W / 2, panelY + 35);
+
+      if (!this.confirmReset) {
+        ctx.fillStyle = '#aaa';
+        ctx.font = `${Math.min(W * 0.03, 13)}px Arial`;
+        ctx.fillText('Сбросить весь прогресс?', W / 2, panelY + 70);
+
+        this.buttons.push(createButton(ctx, panelX + 20, panelY + 90, panelW - 40, 45, '🗑️ Сбросить прогресс', {
+          bgColor: '#E74C3C', fgColor: '#fff', fontSize: 16, radius: 12
+        }));
+      } else {
+        ctx.fillStyle = '#E74C3C';
+        ctx.font = `bold ${Math.min(W * 0.035, 15)}px Arial`;
+        ctx.fillText('Вы уверены? Это необратимо!', W / 2, panelY + 70);
+
+        const halfW = (panelW - 50) / 2;
+        this.buttons.push(createButton(ctx, panelX + 20, panelY + 95, halfW, 40, '✅ Да, сбросить', {
+          bgColor: '#E74C3C', fgColor: '#fff', fontSize: 14, radius: 10
+        }));
+        this.buttons.push(createButton(ctx, panelX + 30 + halfW, panelY + 95, halfW, 40, '❌ Отмена', {
+          bgColor: '#6BCB77', fgColor: '#fff', fontSize: 14, radius: 10
+        }));
+      }
+
+      this.buttons.push(createButton(ctx, panelX + 20, panelY + panelH - 55, panelW - 40, 40, '← Закрыть', {
+        bgColor: 'rgba(255,255,255,0.2)', fgColor: '#fff', fontSize: 15, radius: 10
       }));
-      by += btnH + gap;
-    });
+    } else {
+      const list = [];
+      if (this.hasSave) {
+        list.push({ text: '▶️ Продолжить', color: '#4D96FF', size: 18 });
+      } else {
+        list.push({ text: '🎮 Начать игру', color: '#6BCB77', size: 18 });
+      }
+      list.push({ text: '📖 Как играть', color: '#FF8C42', size: 16 });
+      list.push({ text: '⚙️ Настройки', color: '#888', size: 16 });
+
+      const totalH = list.length * btnH + (list.length - 1) * gap;
+      let by = Math.max(H * 0.52, H - totalH - 40);
+      if (by + totalH > H - 12) by = H - totalH - 12;
+
+      list.forEach(item => {
+        this.buttons.push(createButton(ctx, btnX, by, btnW, btnH, item.text, {
+          bgColor: item.color, fontSize: item.size
+        }));
+        by += btnH + gap;
+      });
+    }
   }
 
   handleClick(mx, my) {
@@ -164,7 +219,29 @@ class MenuScene {
       if (!isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) continue;
       AudioSys.play('click');
       const t = btn.text || '';
-      if (t.indexOf('Новая игра') !== -1) {
+
+      if (this.showSettings) {
+        if (t.indexOf('Сбросить прогресс') !== -1) {
+          this.confirmReset = false;
+          // first click — show confirmation
+          this.confirmReset = true;
+        } else if (t.indexOf('Да, сбросить') !== -1) {
+          System.resetProgress();
+          System.saveGame();
+          this.hasSave = false;
+          this.showSettings = false;
+          this.confirmReset = false;
+          this.game.transitionTo('map');
+        } else if (t.indexOf('Отмена') !== -1) {
+          this.confirmReset = false;
+        } else if (t.indexOf('Закрыть') !== -1) {
+          this.showSettings = false;
+          this.confirmReset = false;
+        }
+        return true;
+      }
+
+      if (t.indexOf('Начать игру') !== -1) {
         System.resetProgress();
         System.saveGame();
         this.hasSave = true;
@@ -174,6 +251,8 @@ class MenuScene {
         this.game.transitionTo('map');
       } else if (t.indexOf('Как играть') !== -1) {
         this.game.showTutorial();
+      } else if (t.indexOf('Настройки') !== -1) {
+        this.showSettings = true;
       }
       return true;
     }
