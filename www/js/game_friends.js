@@ -26,7 +26,8 @@ class FriendsScene {
 
   showNotif(text) { this.notification = text; this.notifTimer = 2000; }
 
-  draw(ctx, W, H) {
+  draw(ctx) {
+    const W = this.game.width, H = this.game.height;
     this.buttons = [];
 
     // Background
@@ -66,26 +67,26 @@ class FriendsScene {
       friends.forEach((f, i) => {
         if (fy + 45 > H - 20) return;
         ctx.fillStyle = 'rgba(255,255,255,0.1)';
-        ctx.beginPath(); ctx.roundRect(btnX, fy, btnW, 40, 10); ctx.fill();
+        roundRect(ctx, btnX, fy, btnW, 40, 10); ctx.fill();
         ctx.fillStyle = '#fff'; ctx.font = `${Math.min(W * 0.035, 14)}px Arial`; ctx.textAlign = 'left';
         ctx.fillText(`🐹 ${f.name || 'Гофер'} (Ур.${f.level || 1})`, btnX + 12, fy + 25);
         // Visit button
-        this.buttons.push(createButton(ctx, btnX + btnW - 80, fy + 5, 70, 30, '🏠 В гости', { bgColor: '#FF8C42', fgColor: '#fff', fontSize: 11, radius: 8 }));
+        this.buttons.push(createButton(ctx, btnX + btnW - 80, fy + 5, 70, 30, '🏠 В гости#' + i, { bgColor: '#FF8C42', fgColor: '#fff', fontSize: 11, radius: 8 }));
         fy += 48;
       });
     }
   }
 
   drawMyCode(ctx, W, H) {
-    const code = System.getMyCode();
+    const code = System.getMyCode(this.game);
     const panelW = Math.min(W * 0.85, 300);
     const panelH = 200;
     const px = (W - panelW) / 2;
     const py = (H - panelH) / 2;
 
     ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#1e2a4a'; ctx.beginPath(); ctx.roundRect(px, py, panelW, panelH, 16); ctx.fill();
-    ctx.strokeStyle = '#4D96FF'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(px, py, panelW, panelH, 16); ctx.stroke();
+    ctx.fillStyle = '#1e2a4a'; roundRect(ctx, px, py, panelW, panelH, 16); ctx.fill();
+    ctx.strokeStyle = '#4D96FF'; ctx.lineWidth = 2; roundRect(ctx, px, py, panelW, panelH, 16); ctx.stroke();
 
     ctx.fillStyle = '#4D96FF'; ctx.font = `bold ${Math.min(W * 0.045, 18)}px Arial`; ctx.textAlign = 'center';
     ctx.fillText('📋 Ваш код', W / 2, py + 35);
@@ -109,14 +110,14 @@ class FriendsScene {
     const py = (H - panelH) / 2;
 
     ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#1e2a4a'; ctx.beginPath(); ctx.roundRect(px, py, panelW, panelH, 16); ctx.fill();
-    ctx.strokeStyle = '#6BCB77'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(px, py, panelW, panelH, 16); ctx.stroke();
+    ctx.fillStyle = '#1e2a4a'; roundRect(ctx, px, py, panelW, panelH, 16); ctx.fill();
+    ctx.strokeStyle = '#6BCB77'; ctx.lineWidth = 2; roundRect(ctx, px, py, panelW, panelH, 16); ctx.stroke();
 
     ctx.fillStyle = '#6BCB77'; ctx.font = `bold ${Math.min(W * 0.045, 18)}px Arial`; ctx.textAlign = 'center';
     ctx.fillText('➕ Введите код друга', W / 2, py + 35);
 
     // Input field
-    ctx.fillStyle = '#0a0a1a'; ctx.beginPath(); ctx.roundRect(px + 20, py + 50, panelW - 40, 36, 8); ctx.fill();
+    ctx.fillStyle = '#0a0a1a'; roundRect(ctx, px + 20, py + 50, panelW - 40, 36, 8); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.font = `${Math.min(W * 0.025, 11)}px Arial`; ctx.textAlign = 'left';
     const displayText = this.inputText.length > 30 ? '...' + this.inputText.slice(-27) : this.inputText;
     ctx.fillText(displayText || 'Вставьте код здесь...', px + 28, py + 73);
@@ -154,8 +155,8 @@ class FriendsScene {
       ];
       statLabels.forEach(s => {
         const val = f.stats[s.key] || 0;
-        ctx.fillStyle = '#555'; ctx.beginPath(); ctx.roundRect(barX, sy, barW, 14, 7); ctx.fill();
-        ctx.fillStyle = s.color; ctx.beginPath(); ctx.roundRect(barX, sy, barW * val / 100, 14, 7); ctx.fill();
+        ctx.fillStyle = '#555'; roundRect(ctx, barX, sy, barW, 14, 7); ctx.fill();
+        ctx.fillStyle = s.color; roundRect(ctx, barX, sy, barW * val / 100, 14, 7); ctx.fill();
         ctx.fillStyle = '#fff'; ctx.font = '11px Arial'; ctx.textAlign = 'left';
         ctx.fillText(`${s.label} ${Math.round(val)}`, barX + 4, sy + 11);
         sy += 20;
@@ -208,7 +209,7 @@ class FriendsScene {
       if (t === '📋 Мой код') { this.tab = 'mycode'; return true; }
       if (t === '➕ Добавить друга') { this.tab = 'add'; this.inputText = ''; return true; }
       if (t === '📋 Копировать') {
-        const code = System.getMyCode();
+        const code = System.getMyCode(this.game);
         if (navigator.clipboard) { navigator.clipboard.writeText(code).then(() => this.showNotif('Скопировано!')); }
         else { this.showNotif('Код: скопируйте вручную'); }
         return true;
@@ -225,19 +226,12 @@ class FriendsScene {
         }
         return true;
       }
-      if (t === '🏠 В гости') {
-        // Find which friend by button position
+      if (t.startsWith('🏠 В гости')) {
+        const idx = parseInt(t.split('#')[1]);
         const friends = System.friends || [];
-        const btnW = Math.min(this.game.width * 0.8, 260);
-        const btnX = (this.game.width - btnW) / 2;
-        let fy = 170;
-        for (let i = 0; i < friends.length; i++) {
-          if (Math.abs(btn.y - (fy + 5)) < 5 && Math.abs(btn.x - (btnX + btnW - 80)) < 5) {
-            this.friendVisitData = friends[i];
-            this.tab = 'visit';
-            break;
-          }
-          fy += 48;
+        if (idx >= 0 && idx < friends.length) {
+          this.friendVisitData = friends[idx];
+          this.tab = 'visit';
         }
         return true;
       }

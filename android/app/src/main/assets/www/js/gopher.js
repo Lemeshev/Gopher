@@ -146,7 +146,7 @@ class Gopher {
       ctx.beginPath(); ctx.moveTo(-s * 0.08, mouthY); ctx.quadraticCurveTo(0, mouthY + s * 0.08, s * 0.08, mouthY); ctx.stroke();
       ctx.fillStyle = '#fff'; ctx.strokeStyle = '#ddd'; ctx.lineWidth = 0.5;
       const toothW = s * 0.032, toothH = s * 0.04;
-      [-1, 1].forEach(dir => { ctx.beginPath(); ctx.roundRect(dir * toothW * 0.3 - toothW / 2, mouthY, toothW, toothH, 1); ctx.fill(); ctx.stroke(); });
+      [-1, 1].forEach(dir => { roundRect(ctx, dir * toothW * 0.3 - toothW / 2, mouthY, toothW, toothH, 1); ctx.fill(); ctx.stroke(); });
     } else if (this.expression === 'eating') {
       ctx.fillStyle = '#8B0000'; ctx.beginPath(); ctx.ellipse(0, mouthY + s * 0.02, s * 0.06, s * 0.04, 0, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(0, mouthY, s * 0.06, s * 0.015, 0, 0, Math.PI); ctx.fill();
@@ -154,14 +154,14 @@ class Gopher {
       ctx.strokeStyle = '#333'; ctx.lineWidth = Math.max(1.5, s * 0.015);
       ctx.beginPath(); ctx.moveTo(-s * 0.06, mouthY + s * 0.02); ctx.quadraticCurveTo(0, mouthY - s * 0.04, s * 0.06, mouthY + s * 0.02); ctx.stroke();
       ctx.fillStyle = '#fff'; const toothW = s * 0.032, toothH = s * 0.035;
-      [-1, 1].forEach(dir => { ctx.beginPath(); ctx.roundRect(dir * toothW * 0.3 - toothW / 2, mouthY - s * 0.01, toothW, toothH, 1); ctx.fill(); });
+      [-1, 1].forEach(dir => { roundRect(ctx, dir * toothW * 0.3 - toothW / 2, mouthY - s * 0.01, toothW, toothH, 1); ctx.fill(); });
     } else if (this.expression === 'sleeping') {
       ctx.fillStyle = '#333'; ctx.beginPath(); ctx.ellipse(0, mouthY + s * 0.02, s * 0.025, s * 0.02, 0, 0, Math.PI * 2); ctx.fill();
     } else {
       ctx.strokeStyle = '#333'; ctx.lineWidth = Math.max(1.5, s * 0.015);
       ctx.beginPath(); ctx.moveTo(-s * 0.06, mouthY); ctx.quadraticCurveTo(0, mouthY + s * 0.05, s * 0.06, mouthY); ctx.stroke();
       ctx.fillStyle = '#fff'; const toothW = s * 0.032, toothH = s * 0.035;
-      [-1, 1].forEach(dir => { ctx.beginPath(); ctx.roundRect(dir * toothW * 0.3 - toothW / 2, mouthY, toothW, toothH, 1); ctx.fill(); });
+      [-1, 1].forEach(dir => { roundRect(ctx, dir * toothW * 0.3 - toothW / 2, mouthY, toothW, toothH, 1); ctx.fill(); });
     }
 
     // Cheeks for happy/excited
@@ -180,12 +180,12 @@ class Gopher {
     // ============ АКСЕССУАРЫ ============
     if (this.hat === 'chef') {
       ctx.fillStyle = '#FFF';
-      ctx.beginPath(); ctx.roundRect(-s * 0.18, -s * 0.42, s * 0.36, s * 0.18, 8); ctx.fill();
+      roundRect(ctx, -s * 0.18, -s * 0.42, s * 0.36, s * 0.18, 8); ctx.fill();
       ctx.beginPath(); ctx.ellipse(0, -s * 0.42, s * 0.22, s * 0.07, 0, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.ellipse(0, -s * 0.48, s * 0.12, s * 0.05, 0, 0, Math.PI * 2); ctx.fill();
     } else if (this.hat === 'scientist') {
       ctx.fillStyle = '#FFF';
-      ctx.beginPath(); ctx.roundRect(-s * 0.2, -s * 0.38, s * 0.4, s * 0.14, 5); ctx.fill();
+      roundRect(ctx, -s * 0.2, -s * 0.38, s * 0.4, s * 0.14, 5); ctx.fill();
       ctx.fillStyle = '#1F3B4D'; ctx.font = `bold ${s * 0.06}px Arial`; ctx.textAlign = 'center'; ctx.fillText('Go', 0, -s * 0.30);
     } else if (this.hat === 'crown') {
       ctx.fillStyle = '#FFD700'; ctx.beginPath();
@@ -201,8 +201,8 @@ class Gopher {
       ctx.beginPath(); ctx.moveTo(-eyeSpacing + eyeR * 1.2, eyeY); ctx.lineTo(eyeSpacing - eyeR * 1.2, eyeY); ctx.stroke();
     } else if (this.glasses === 'cool') {
       ctx.fillStyle = 'rgba(30,30,30,0.85)';
-      ctx.beginPath(); ctx.roundRect(-eyeSpacing - eyeR * 1.1, eyeY - eyeR * 0.6, eyeR * 2.2, eyeR * 1.2, 6); ctx.fill();
-      ctx.beginPath(); ctx.roundRect(eyeSpacing - eyeR * 1.1, eyeY - eyeR * 0.6, eyeR * 2.2, eyeR * 1.2, 6); ctx.fill();
+      roundRect(ctx, -eyeSpacing - eyeR * 1.1, eyeY - eyeR * 0.6, eyeR * 2.2, eyeR * 1.2, 6); ctx.fill();
+      roundRect(ctx, eyeSpacing - eyeR * 1.1, eyeY - eyeR * 0.6, eyeR * 2.2, eyeR * 1.2, 6); ctx.fill();
     }
 
     if (this.bowtie) {

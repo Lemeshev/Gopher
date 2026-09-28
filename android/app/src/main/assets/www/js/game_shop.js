@@ -8,6 +8,7 @@ class ShopScene {
     this.cartItems = [];
     this.notification = null;
     this.notificationTimer = 0;
+    this.currentTab = 'food';
   }
 
   init() {
@@ -15,6 +16,7 @@ class ShopScene {
     this.shakeItems = [];
     this.notification = null;
     this.notificationTimer = 0;
+    this.currentTab = this.currentTab || 'food';
   }
 
   update(dt) {
@@ -122,13 +124,19 @@ class ShopScene {
 
     tabs.forEach((t, i) => {
       const tx = 20 + i * tabW;
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      const isActive = t.id === this.currentTab;
+      ctx.fillStyle = isActive ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.4)';
       roundRect(ctx, tx + 2, tabStartY + 2, tabW - 4, tabH - 4, 10);
       ctx.fill();
-      ctx.fillStyle = '#333';
-      ctx.font = '13px Arial';
+      if (isActive) {
+        ctx.strokeStyle = '#FF8C42'; ctx.lineWidth = 2;
+        roundRect(ctx, tx + 2, tabStartY + 2, tabW - 4, tabH - 4, 10); ctx.stroke();
+      }
+      ctx.fillStyle = isActive ? '#333' : '#777';
+      ctx.font = `${isActive ? 'bold ' : ''}12px Arial`;
       ctx.textAlign = 'center';
-      ctx.fillText(t.emoji + ' ' + t.name, tx + tabW / 2, tabStartY + 25);
+      ctx.fillText(t.emoji, tx + tabW / 2, tabStartY + 18);
+      ctx.fillText(t.name, tx + tabW / 2, tabStartY + 32);
     });
 
     // Items grid
@@ -177,11 +185,12 @@ class ShopScene {
     const itemW = (W - 40) / cols;
     const startX = 20;
     const startY = 130;
+    const filteredItems = items.filter(it => it.category === this.currentTab);
     // Карточки обязаны уместиться над кнопкой «Назад», иначе последний ряд обрезается
-    const itemRows = Math.ceil(items.length / cols);
-    const itemH = Math.min(110, (H - startY - 70) / itemRows);
+    const itemRows = Math.ceil(filteredItems.length / cols);
+    const itemH = Math.min(110, (H - startY - 70) / Math.max(itemRows, 1));
 
-    items.forEach((item, i) => {
+    filteredItems.forEach((item, i) => {
       const col = i % cols;
       const row = Math.floor(i / cols);
       const ix = startX + col * itemW;
@@ -246,6 +255,20 @@ class ShopScene {
   }
 
   handleClick(mx, my) {
+    // Check tab clicks
+    const W = this.game.width;
+    const tabW = (W - 40) / 5;
+    const tabStartY = 75;
+    const tabIds = ['food', 'toys', 'clothes', 'decor', 'fun'];
+    for (let i = 0; i < 5; i++) {
+      const tx = 20 + i * tabW;
+      if (isPointInRect(mx, my, tx + 2, tabStartY + 2, tabW - 4, 36)) {
+        this.currentTab = tabIds[i];
+        AudioSys.play('click');
+        return true;
+      }
+    }
+
     AudioSys.play('click');
 
     // Check item buttons
