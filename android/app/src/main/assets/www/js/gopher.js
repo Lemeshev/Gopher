@@ -74,20 +74,20 @@ class Gopher {
     const legW = s * 0.07, legH = s * 0.13, footR = legW * 0.9;
     [1, -1].forEach(dir => {
       ctx.save(); ctx.translate(dir * s * 0.18, s * 0.32); ctx.rotate(this.legAnim * 0.3 * dir);
-      ctx.fillStyle = '#6BCB77'; ctx.beginPath(); ctx.ellipse(0, 0, legW, legH * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#6DC8E8'; ctx.beginPath(); ctx.ellipse(0, 0, legW, legH * 0.6, 0, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#F8A4B8'; ctx.beginPath(); ctx.ellipse(0, legH * 0.5, footR, footR * 0.65, 0, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     });
 
     // ============ ТЕЛО — единый широкий овал (картофелина Go-гофера) ============
-    ctx.fillStyle = '#6BCB77'; ctx.beginPath(); ctx.ellipse(0, s * 0.05, s * 0.38, s * 0.34, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#6DC8E8'; ctx.beginPath(); ctx.ellipse(0, s * 0.05, s * 0.42, s * 0.30, 0, 0, Math.PI * 2); ctx.fill();
 
     // ============ ЖИВОТ — светлый оверлей ============
-    ctx.fillStyle = '#A8E6A3'; ctx.beginPath(); ctx.ellipse(0, s * 0.10, s * 0.28, s * 0.24, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#BFE6F2'; ctx.beginPath(); ctx.ellipse(0, s * 0.10, s * 0.30, s * 0.20, 0, 0, Math.PI * 2); ctx.fill();
 
     // ============ УШИ (круглые) ============
     [1, -1].forEach(dir => {
-      ctx.fillStyle = '#6BCB77'; ctx.beginPath(); ctx.arc(dir * s * 0.30, -s * 0.22, s * 0.10, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#6DC8E8'; ctx.beginPath(); ctx.arc(dir * s * 0.30, -s * 0.22, s * 0.10, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#F8A4B8'; ctx.beginPath(); ctx.arc(dir * s * 0.30, -s * 0.22, s * 0.06, 0, Math.PI * 2); ctx.fill();
     });
 
@@ -96,7 +96,7 @@ class Gopher {
     [1, -1].forEach(dir => {
       ctx.save(); ctx.translate(dir * s * 0.34, s * 0.05); ctx.rotate(dir * (0.3 + this.armAngle));
       if (this.expression === 'excited') { ctx.rotate(dir * 0.3); }
-      ctx.fillStyle = '#6BCB77'; ctx.beginPath(); ctx.ellipse(0, armH * 0.3, armW, armH * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#6DC8E8'; ctx.beginPath(); ctx.ellipse(0, armH * 0.3, armW, armH * 0.6, 0, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#F8A4B8'; ctx.beginPath(); ctx.ellipse(0, armH * 0.8, armW * 1.1, armW * 0.9, 0, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     });
