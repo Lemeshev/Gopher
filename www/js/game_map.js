@@ -11,9 +11,9 @@ const MAP_LOCATIONS = [
   { id: 'museums', emoji: '🏛️', name: 'Музеи', color: '#E91E63', desc: '4 музея', cost: 0, req: 'energy>20' },
   { id: 'library', emoji: '📚', name: 'Библиотека', color: '#607D8B', desc: '100 книг', cost: 10 },
   { id: 'cinema', emoji: '🎬', name: 'Кино', color: '#8E44AD', desc: 'Фильмы', cost: 20, req: 'energy>30' },
-  { id: 'gym', emoji: '🏋️', name: 'Спортзал', color: '#16A085', desc: 'Тренировки', cost: 15, req: 'energy>30' },
+  { id: 'gym', emoji: '🏋️', name: 'Спортзал', color: '#16A085', desc: 'Зал и воздушная гимнастика', cost: 15, req: 'energy>30' },
   { id: 'friend', emoji: '👥', name: 'Друзья', color: '#FF5722', desc: 'В гости' },
-  { id: 'minigames', emoji: '🎮', name: 'Мини-игры', color: '#9C27B0', desc: '3 игры' },
+  { id: 'minigames', emoji: '🎮', name: 'Мини-игры', color: '#9C27B0', desc: 'Игры и тихие занятия' },
   { id: 'stats', emoji: '📊', name: 'Инфо', color: '#546E7A', desc: 'Достижения' }
 ];
 
@@ -246,7 +246,9 @@ class MapScene {
     if (loc.id === 'stats') { this.game.transitionTo('stats'); return true; }
 
     if (!System.isLocationAvailable(loc.id)) {
-      System.showAchievement('🔒', 'Пока нельзя: нужна энергия или другое условие');
+      // Говорим причину по-человечески: «устал — поспи», «голодный — покорми»
+      const why = (System.locationLockReason && System.locationLockReason(loc.id)) || 'Сейчас сюда нельзя';
+      System.showAchievement('🔒', why);
       AudioSys.play('fail');
       return true;
     }
@@ -261,7 +263,9 @@ class MapScene {
     }
     System.visitedLocations.add(loc.id);
     System.addXP(10);
-    System.advanceTime(1);
+    // Энергия за поход: 2–8 (см. System.VISIT_ENERGY). Время идёт мягко.
+    System.spendEnergy(System.visitCost(loc.id));
+    System.advanceTime(0.5);
 
     const event = System.getRandomEvent();
     if (event) System.showAchievement(event.emoji, event.text);
