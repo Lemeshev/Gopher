@@ -948,38 +948,168 @@ const CONTENT = {
 
 // ============ КАТАЛОГ МЕБЕЛИ И ОТДЕЛКИ КОМНАТЫ ============
 // Цены намеренно разные: дешёвое можно взять сразу, дорогое — копить.
-const FURNITURE = [
-  { id: 'plant',     emoji: '🪴', name: 'Растение',    cost: 12,  desc: 'Свежий воздух', zone: 'floor', k: 1.0 },
-  { id: 'clock',     emoji: '🕐', name: 'Часы',        cost: 15,  desc: 'Пунктуальность', zone: 'wall',  k: 0.9 },
-  { id: 'lamp',      emoji: '💡', name: 'Лампа',       cost: 25,  desc: 'Свет и уют', zone: 'floor', k: 1.0 },
-  { id: 'carpet',    emoji: '🟫', name: 'Ковёр',       cost: 45,  desc: 'Тепло полу', zone: 'floor', k: 1.9 },
-  { id: 'painting',  emoji: '🖼️', name: 'Картина',     cost: 60,  desc: 'Красота стен', zone: 'wall',  k: 1.5 },
-  { id: 'shelf',     emoji: '📚', name: 'Полка',       cost: 75,  desc: 'Знания дома', zone: 'floor', k: 1.2 },
-  { id: 'sofa',      emoji: '🛋️', name: 'Диван',       cost: 130, desc: 'Мягко сидеть', zone: 'floor', k: 1.5 },
-  { id: 'aquarium',  emoji: '🐠', name: 'Аквариум',    cost: 160, desc: 'Живые рыбки', zone: 'floor', k: 1.1 },
-  { id: 'bed',       emoji: '🛏️', name: 'Кровать',     cost: 190, desc: 'Лучший сон', zone: 'floor', k: 1.6 },
-  { id: 'tv',        emoji: '📺', name: 'Телевизор',   cost: 210, desc: 'Развлечения', zone: 'floor', k: 1.3 },
-  { id: 'fridge',    emoji: '🧊', name: 'Холодильник', cost: 240, desc: 'Еда под рукой', zone: 'floor', k: 1.5 },
-  { id: 'piano',     emoji: '🎹', name: 'Пианино',     cost: 320, desc: 'Живая музыка', zone: 'floor', k: 1.6 }
+// ============ МЕБЕЛЬ v1.2 ============
+// Каждый предмет: 
+//   id, name, emoji, cost, desc — как в магазине;
+//   zone: 'floor' (стоит на полу) | 'wall' (висит на стене);
+//   rooms: в каких комнатах уместен (живая зона: living/bedroom/kitchen/bathroom);
+//   k: «истинный» размер предмета — задаёт соразмерность (шкаф выше лампы);
+//   shape: как рисуется (свои формы в game_room.js), иначе — эмодзи;
+//   palette: цвета для перекраски (первая — «родная»).
+// Глубина: чем дальше предмет стоит (меньше y), тем он меньше — перспектива.
+// Поэтому «маленькая раскладушка» в глубине комнаты выглядит далёкой, а не
+// крошечной на переднем плане.
+const WOOD_PAL   = ['#B98B57', '#8B5A2B', '#E0C097', '#6B4F34', '#C9A227', '#9E7B5A'];
+const FABRIC_PAL = ['#7FB3D5', '#F5B7B1', '#AED6A2', '#F7DC6F', '#C39BD3', '#E59866', '#5D6D7E', '#D98880'];
+const WHITE_PAL  = ['#F2F4F7', '#C9D6E3', '#F5C6A5', '#B8E0D2', '#D6C7F0', '#F7DC6F'];
+
+const FURNITURE = [];
+function addFurniture(list) { for (const f of list) FURNITURE.push(f); }
+
+// ---------- ГОСТИНАЯ: диваны, телевизоры, ковры ----------
+addFurniture([
+  { id: 'plant',        emoji: '🪴', name: 'Фикус',             cost: 12,   desc: 'Свежий воздух', zone: 'floor', rooms: ['living', 'bedroom', 'kitchen'], k: 0.90, shape: 'plant',   palette: FABRIC_PAL },
+  { id: 'clock',        emoji: '🕐', name: 'Часы',              cost: 15,   desc: 'Пунктуальность', zone: 'wall', rooms: ['living', 'bedroom', 'kitchen'], k: 0.50, shape: 'clock',   palette: WOOD_PAL },
+  { id: 'rug',          emoji: '🧶', name: 'Коврик',            cost: 25,   desc: 'Тепло ногам',   zone: 'floor', rooms: ['living', 'bedroom', 'bathroom'], k: 1.15, shape: 'carpet', palette: FABRIC_PAL },
+  { id: 'stool',        emoji: '🪑', name: 'Табурет',           cost: 10,   desc: 'Сойдёт для начала', zone: 'floor', rooms: ['living', 'kitchen'], k: 0.72, shape: 'chair', palette: WOOD_PAL },
+  { id: 'chair',        emoji: '🪑', name: 'Стул',              cost: 35,   desc: 'Сидеть удобно', zone: 'floor', rooms: ['living', 'kitchen', 'bedroom'], k: 0.92, shape: 'chair', palette: WOOD_PAL },
+  { id: 'lamp',         emoji: '💡', name: 'Торшер',            cost: 40,   desc: 'Свет и уют',    zone: 'floor', rooms: ['living', 'bedroom'], k: 1.05, shape: 'lamp', palette: FABRIC_PAL },
+  { id: 'carpet',       emoji: '🟫', name: 'Ковёр',             cost: 90,   desc: 'Мягкий и тёплый', zone: 'floor', rooms: ['living', 'bedroom'], k: 1.60, shape: 'carpet', palette: FABRIC_PAL },
+  { id: 'painting',     emoji: '🖼️', name: 'Картина',           cost: 60,   desc: 'Красота стен',  zone: 'wall', rooms: ['living', 'bedroom', 'kitchen'], k: 0.90, shape: 'painting', palette: WOOD_PAL },
+  { id: 'paintingBig',  emoji: '🖼️', name: 'Картина в раме',    cost: 220,  desc: 'Как в музее',   zone: 'wall', rooms: ['living', 'bedroom'], k: 1.25, shape: 'painting', palette: WOOD_PAL },
+  { id: 'shelf',        emoji: '📚', name: 'Полка',             cost: 75,   desc: 'Знания дома',   zone: 'floor', rooms: ['living', 'bedroom'], k: 1.15, shape: 'shelf', palette: WOOD_PAL },
+  { id: 'sofa',         emoji: '🛋️', name: 'Диван',             cost: 130,  desc: 'Мягко сидеть',  zone: 'floor', rooms: ['living'], k: 1.60, shape: 'sofa', palette: FABRIC_PAL },
+  { id: 'aquarium',     emoji: '🐠', name: 'Аквариум',          cost: 160,  desc: 'Живые рыбки',   zone: 'floor', rooms: ['living', 'bedroom'], k: 1.00, shape: 'aquarium', palette: WHITE_PAL },
+  { id: 'armchair',     emoji: '🪑', name: 'Кресло',            cost: 180,  desc: 'Своё место',    zone: 'floor', rooms: ['living', 'bedroom'], k: 1.15, shape: 'chair', palette: FABRIC_PAL },
+  { id: 'tv',           emoji: '📺', name: 'Телевизор',         cost: 210,  desc: 'Развлечения',   zone: 'floor', rooms: ['living'], k: 1.25, shape: 'tv', palette: WHITE_PAL },
+  { id: 'palm',         emoji: '🌴', name: 'Пальма',            cost: 260,  desc: 'Почти как в парке', zone: 'floor', rooms: ['living', 'bedroom'], k: 1.35, shape: 'plant', palette: FABRIC_PAL },
+  { id: 'bookshelf',    emoji: '📚', name: 'Книжный шкаф',      cost: 260,  desc: 'Целая библиотека', zone: 'wall', rooms: ['living', 'bedroom'], k: 1.50, shape: 'shelf', palette: WOOD_PAL },
+  { id: 'piano',        emoji: '🎹', name: 'Пианино',           cost: 320,  desc: 'Живая музыка',  zone: 'floor', rooms: ['living'], k: 1.50, shape: 'piano', palette: WOOD_PAL },
+  { id: 'sofaSoft',     emoji: '🛋️', name: 'Мягкий диван',      cost: 420,  desc: 'Так и тянет поспать', zone: 'floor', rooms: ['living'], k: 1.75, shape: 'sofa', palette: FABRIC_PAL },
+  { id: 'tvBig',        emoji: '📺', name: 'Большой телевизор', cost: 650,  desc: 'Как в кино',    zone: 'floor', rooms: ['living'], k: 1.50, shape: 'tv', palette: WHITE_PAL },
+  { id: 'aquariumBig',  emoji: '🐠', name: 'Большой аквариум',  cost: 700,  desc: 'Целый риф',     zone: 'floor', rooms: ['living'], k: 1.35, shape: 'aquarium', palette: WHITE_PAL },
+  { id: 'persian',      emoji: '🟥', name: 'Персидский ковёр',  cost: 900,  desc: 'Роскошь для лап', zone: 'floor', rooms: ['living', 'bedroom'], k: 1.95, shape: 'carpet', palette: FABRIC_PAL },
+  { id: 'sofaLeather',  emoji: '🛋️', name: 'Кожаный диван',     cost: 1200, desc: 'Дорого и солидно', zone: 'floor', rooms: ['living'], k: 1.90, shape: 'sofa', palette: WOOD_PAL },
+  { id: 'floorClock',   emoji: '🕰️', name: 'Напольные часы',    cost: 1500, desc: 'С боем, как у бабушки', zone: 'floor', rooms: ['living'], k: 1.30, shape: 'clock', palette: WOOD_PAL },
+  { id: 'grandPiano',   emoji: '🎹', name: 'Рояль',             cost: 2500, desc: 'Мечта музыканта', zone: 'floor', rooms: ['living'], k: 1.85, shape: 'piano', palette: WOOD_PAL },
+  { id: 'fireplace',    emoji: '🔥', name: 'Камин',             cost: 3500, desc: 'Настоящий огонь', zone: 'wall', rooms: ['living'], k: 1.60, shape: 'fireplace', palette: WOOD_PAL }
+]);
+
+// ---------- СПАЛЬНЯ: кровати от раскладушки до балдахина ----------
+addFurniture([
+  { id: 'cot',          emoji: '🛏️', name: 'Раскладушка',       cost: 45,   desc: 'Спать можно, но скромно', zone: 'floor', rooms: ['bedroom'], k: 1.05, shape: 'bed', palette: FABRIC_PAL },
+  { id: 'toybox',       emoji: '🧸', name: 'Ящик игрушек',      cost: 60,   desc: 'Всё под рукой', zone: 'floor', rooms: ['bedroom', 'living'], k: 0.85, shape: 'chest', palette: FABRIC_PAL },
+  { id: 'nightstand',   emoji: '🗄️', name: 'Тумбочка',          cost: 70,   desc: 'Для книжки и будильника', zone: 'floor', rooms: ['bedroom'], k: 0.80, shape: 'nightstand', palette: WOOD_PAL },
+  { id: 'mirror',       emoji: '🪞', name: 'Зеркало',           cost: 110,  desc: 'Умываться веселее', zone: 'wall', rooms: ['bedroom', 'bathroom'], k: 0.95, shape: 'mirror', palette: WOOD_PAL },
+  { id: 'bed',          emoji: '🛏️', name: 'Кровать',           cost: 190,  desc: 'Лучший сон',    zone: 'floor', rooms: ['bedroom'], k: 1.60, shape: 'bed', palette: FABRIC_PAL },
+  { id: 'wardrobe',     emoji: '🚪', name: 'Шкаф',              cost: 240,  desc: 'Для одежды',    zone: 'floor', rooms: ['bedroom'], k: 1.60, shape: 'wardrobe', palette: WOOD_PAL },
+  { id: 'dresser',      emoji: '🗄️', name: 'Комод',             cost: 300,  desc: 'Много ящиков',  zone: 'floor', rooms: ['bedroom'], k: 1.30, shape: 'nightstand', palette: WOOD_PAL },
+  { id: 'wardrobeBig',  emoji: '🚪', name: 'Большой шкаф',      cost: 800,  desc: 'Вся одежда влезет', zone: 'floor', rooms: ['bedroom'], k: 1.85, shape: 'wardrobe', palette: WOOD_PAL },
+  { id: 'bedBig',       emoji: '🛏️', name: 'Двуспальная кровать', cost: 900, desc: 'Простор!',      zone: 'floor', rooms: ['bedroom'], k: 2.00, shape: 'bed', palette: FABRIC_PAL },
+  { id: 'bedRoyal',     emoji: '👑', name: 'Кровать с балдахином', cost: 3000, desc: 'Сон как в сказке', zone: 'floor', rooms: ['bedroom'], k: 2.15, shape: 'bed', palette: FABRIC_PAL }
+]);
+
+// ---------- КУХНЯ: столы, холодильники, плита ----------
+addFurniture([
+  { id: 'herb',         emoji: '🌿', name: 'Травка на окне',    cost: 20,   desc: 'Свежая зелень', zone: 'wall', rooms: ['kitchen'], k: 0.50, shape: 'plant', palette: FABRIC_PAL },
+  { id: 'tabK',         emoji: '🪑', name: 'Табурет кухонный',  cost: 25,   desc: 'К столу',       zone: 'floor', rooms: ['kitchen'], k: 0.80, shape: 'chair', palette: WOOD_PAL },
+  { id: 'samovar',      emoji: '🫖', name: 'Самовар',           cost: 60,   desc: 'Чай для всех',  zone: 'floor', rooms: ['kitchen'], k: 0.65, shape: 'samovar', palette: WOOD_PAL },
+  { id: 'table',        emoji: '🍽️', name: 'Стол',              cost: 90,   desc: 'Есть где поесть', zone: 'floor', rooms: ['kitchen'], k: 1.20, shape: 'table', palette: WOOD_PAL },
+  { id: 'microwave',    emoji: '📻', name: 'Микроволновка',     cost: 150,  desc: 'Разогреть быстро', zone: 'floor', rooms: ['kitchen'], k: 0.75, shape: 'microwave', palette: WHITE_PAL },
+  { id: 'stove',        emoji: '🍳', name: 'Плита',             cost: 200,  desc: 'Готовить вкусно', zone: 'floor', rooms: ['kitchen'], k: 1.35, shape: 'stove', palette: WHITE_PAL },
+  { id: 'fridge',       emoji: '🧊', name: 'Холодильник',       cost: 240,  desc: 'Еда под рукой', zone: 'floor', rooms: ['kitchen'], k: 1.55, shape: 'fridge', palette: WHITE_PAL },
+  { id: 'cupboard',     emoji: '🗄️', name: 'Кухонный шкаф',     cost: 320,  desc: 'Посуда и крупы', zone: 'wall', rooms: ['kitchen'], k: 1.40, shape: 'cupboard', palette: WOOD_PAL },
+  { id: 'tableBig',     emoji: '🍽️', name: 'Большой стол',      cost: 400,  desc: 'Для гостей',    zone: 'floor', rooms: ['kitchen'], k: 1.55, shape: 'table', palette: WOOD_PAL },
+  { id: 'dishwasher',   emoji: '🧽', name: 'Посудомойка',       cost: 600,  desc: 'Мыть не надо',  zone: 'floor', rooms: ['kitchen'], k: 1.30, shape: 'washer', palette: WHITE_PAL },
+  { id: 'fridgeBig',    emoji: '🧊', name: 'Двухдверный холодильник', cost: 780, desc: 'Два отсека', zone: 'floor', rooms: ['kitchen'], k: 1.75, shape: 'fridge', palette: WHITE_PAL }
+]);
+
+// ---------- ВАННАЯ: сантехника и мелочи ----------
+addFurniture([
+  { id: 'duck',         emoji: '🦆', name: 'Резиновая уточка',  cost: 15,   desc: 'Крякает в воде', zone: 'floor', rooms: ['bathroom'], k: 0.40, shape: 'duck', palette: FABRIC_PAL },
+  { id: 'towel',        emoji: '🧻', name: 'Полотенце',         cost: 25,   desc: 'Сухо и тепло',  zone: 'wall', rooms: ['bathroom'], k: 0.55, shape: 'towel', palette: FABRIC_PAL },
+  { id: 'bathMat',      emoji: '🟦', name: 'Коврик в ванную',   cost: 30,   desc: 'Не поскользнуться', zone: 'floor', rooms: ['bathroom'], k: 1.05, shape: 'carpet', palette: FABRIC_PAL },
+  { id: 'basin',        emoji: '🚰', name: 'Умывальник',        cost: 80,   desc: 'Мыть лапы',     zone: 'wall', rooms: ['bathroom'], k: 1.00, shape: 'basin', palette: WHITE_PAL },
+  { id: 'toilet',       emoji: '🚽', name: 'Унитаз',            cost: 150,  desc: 'Самый нужный',  zone: 'floor', rooms: ['bathroom'], k: 0.95, shape: 'toilet', palette: WHITE_PAL },
+  { id: 'mirrorCab',    emoji: '🪞', name: 'Зеркальный шкаф',   cost: 180,  desc: 'И зеркало, и полка', zone: 'wall', rooms: ['bathroom'], k: 1.00, shape: 'mirror', palette: WHITE_PAL },
+  { id: 'bath',         emoji: '🛁', name: 'Ванна',             cost: 260,  desc: 'Много пены',    zone: 'floor', rooms: ['bathroom'], k: 1.60, shape: 'bathtub', palette: WHITE_PAL },
+  { id: 'washer',       emoji: '🌀', name: 'Стиральная машина', cost: 300,  desc: 'Чистые вещи',   zone: 'floor', rooms: ['bathroom'], k: 1.25, shape: 'washer', palette: WHITE_PAL },
+  { id: 'shower',       emoji: '🚿', name: 'Душевая кабина',    cost: 340,  desc: 'Быстро и бодро', zone: 'floor', rooms: ['bathroom'], k: 1.55, shape: 'shower', palette: WHITE_PAL },
+  { id: 'jacuzzi',      emoji: '🛁', name: 'Джакузи',           cost: 1400, desc: 'Пузырьки и роскошь', zone: 'floor', rooms: ['bathroom'], k: 1.80, shape: 'bathtub', palette: WHITE_PAL }
+]);
+
+// ============ КОМНАТЫ ДОМА ============
+// У каждой комнаты свои обои, пол и мебель. Переход — кнопками над комнатой.
+const HOME_ROOMS = [
+  { id: 'living',   emoji: '🛋️', name: 'Гостиная', desc: 'Диван, ковёр, телевизор', free: { wall: 'warm', floor: 'wood' } },
+  { id: 'bedroom',  emoji: '🛏️', name: 'Спальня',  desc: 'Кровать и шкаф',          free: { wall: 'peach', floor: 'rose' } },
+  { id: 'kitchen',  emoji: '🍳', name: 'Кухня',    desc: 'Стол и холодильник',      free: { wall: 'sand', floor: 'tile' } },
+  { id: 'bathroom', emoji: '🛁', name: 'Ванная',   desc: 'Ванна и умывальник',      free: { wall: 'sky', floor: 'blue' } }
 ];
 
-// Отделка: обои и пол. Перекраска — бесплатная, это творчество, а не покупка.
+function findRoom(id) { return HOME_ROOMS.find(r => r.id === id) || HOME_ROOMS[0]; }
+
+// Какие комнаты подходят для предмета
+function furnitureRooms(id) {
+  const f = findFurniture(id);
+  return (f && f.rooms) ? f.rooms.slice() : HOME_ROOMS.map(r => r.id);
+}
+
+// Мебель, которую можно поставить в конкретной комнате
+function furnitureForRoom(roomId, zone) {
+  return FURNITURE.filter(f => f.rooms.indexOf(roomId) !== -1 && (!zone || f.zone === zone));
+}
+
+// «Уровень» предмета — для магазина и мотивации копить
+function tierOf(cost) {
+  if (cost < 60) return 'дёшево';
+  if (cost < 260) return 'средне';
+  if (cost < 900) return 'дорого';
+  return 'роскошь';
+}
+
+// Перекраска предмета: цена растёт вместе со стоимостью вещи
+function recolorCost(id) {
+  const f = findFurniture(id);
+  const base = f ? f.cost : 20;
+  return Math.max(8, Math.round(base * 0.10));
+}
+
+window.HOME_ROOMS = HOME_ROOMS;
+window.findRoom = findRoom;
+window.furnitureRooms = furnitureRooms;
+window.furnitureForRoom = furnitureForRoom;
+window.tierOf = tierOf;
+window.recolorCost = recolorCost;
+
+
+// ============ ОТДЕЛКА: ОБОИ И ПОЛ ============
+// Дефолтные варианты бесплатны, остальные покупаются один раз и потом
+// применяются бесплатно (платить за каждую смену — обидно).
 const WALLS = [
-  { id: 'warm',   name: 'Тёплые',   c1: '#FFF8E7', c2: '#FFE4C4', night1: '#1a1a3e', night2: '#2a2a4e' },
-  { id: 'mint',   name: 'Мятные',   c1: '#E9FBF3', c2: '#C9F2E0', night1: '#12303a', night2: '#1b4550' },
-  { id: 'sky',    name: 'Небесные', c1: '#E8F3FF', c2: '#C9E2FF', night1: '#141c3a', night2: '#1d2a52' },
-  { id: 'peach',  name: 'Персик',   c1: '#FFF1EC', c2: '#FFD9CB', night1: '#3a1c22', night2: '#54262f' },
-  { id: 'lilac',  name: 'Сирень',   c1: '#F4ECFF', c2: '#E0D0FF', night1: '#251a3a', night2: '#352552' },
-  { id: 'sand',   name: 'Песок',    c1: '#FFF9E8', c2: '#F3E5BE', night1: '#332b14', night2: '#4a3f20' }
+  { id: 'warm',   name: 'Тёплые',    cost: 0,    c1: '#FFF8E7', c2: '#FFE4C4', night1: '#1a1a3e', night2: '#2a2a4e' },
+  { id: 'mint',   name: 'Мятные',    cost: 120,  c1: '#E9FBF3', c2: '#C9F2E0', night1: '#12303a', night2: '#1b4550' },
+  { id: 'sky',    name: 'Небесные',  cost: 150,  c1: '#E8F3FF', c2: '#C9E2FF', night1: '#141c3a', night2: '#1d2a52' },
+  { id: 'peach',  name: 'Персик',    cost: 180,  c1: '#FFF1EC', c2: '#FFD9CB', night1: '#3a1c22', night2: '#54262f' },
+  { id: 'sand',   name: 'Песок',     cost: 160,  c1: '#FFF9E8', c2: '#F3E5BE', night1: '#332b14', night2: '#4a3f20' },
+  { id: 'lilac',  name: 'Сирень',    cost: 220,  c1: '#F4ECFF', c2: '#E0D0FF', night1: '#251a3a', night2: '#352552' },
+  { id: 'flower', name: 'В цветочек', cost: 400, c1: '#FFF5FA', c2: '#FFD9EC', night1: '#33182a', night2: '#4a2439' },
+  { id: 'brick',  name: 'Кирпич',    cost: 500,  c1: '#E8C4A8', c2: '#D08D6A', night1: '#3a2218', night2: '#4d2e20' },
+  { id: 'space',  name: 'Ночное небо', cost: 900, c1: '#2a2a6a', c2: '#141438', night1: '#101030', night2: '#1c1c48' },
+  { id: 'marble', name: 'Мрамор',    cost: 1500, c1: '#FAFAFF', c2: '#DCE0EC', night1: '#22232e', night2: '#2e3040' }
 ];
 
 const FLOORS = [
-  { id: 'wood',   name: 'Дерево',  c1: '#D2B48C', c2: '#C4A882', night1: '#3a2a1a', night2: '#2a1a0a' },
-  { id: 'tile',   name: 'Плитка',  c1: '#E7E7E7', c2: '#CFCFCF', night1: '#33343a', night2: '#24252a' },
-  { id: 'grass',  name: 'Ковролин', c1: '#C9E7C0', c2: '#B2D9A6', night1: '#243322', night2: '#1a2618' },
-  { id: 'blue',   name: 'Синий',   c1: '#CFE3F5', c2: '#B4D1EC', night1: '#1e2a3a', night2: '#16202c' },
-  { id: 'rose',   name: 'Розовый', c1: '#F7D9E3', c2: '#EAC0CF', night1: '#33202a', night2: '#261821' }
+  { id: 'wood',   name: 'Дерево',    cost: 0,    c1: '#D2B48C', c2: '#C4A882', night1: '#3a2a1a', night2: '#2a1a0a' },
+  { id: 'tile',   name: 'Плитка',    cost: 100,  c1: '#E7E7E7', c2: '#CFCFCF', night1: '#33343a', night2: '#24252a' },
+  { id: 'grass',  name: 'Ковролин',  cost: 140,  c1: '#C9E7C0', c2: '#B2D9A6', night1: '#243322', night2: '#1a2618' },
+  { id: 'blue',   name: 'Синий',     cost: 180,  c1: '#CFE3F5', c2: '#B4D1EC', night1: '#1e2a3a', night2: '#16202c' },
+  { id: 'rose',   name: 'Розовый',   cost: 200,  c1: '#F7D9E3', c2: '#EAC0CF', night1: '#33202a', night2: '#261821' },
+  { id: 'parquet', name: 'Паркет',   cost: 450,  c1: '#E3B877', c2: '#C9954E', night1: '#3a2a12', night2: '#2a1e0c' },
+  { id: 'stone',  name: 'Камень',    cost: 600,  c1: '#C9C6BE', c2: '#A9A69E', night1: '#2b2a27', night2: '#1f1e1c' },
+  { id: 'gold',   name: 'Золотой',   cost: 2000, c1: '#F7E08A', c2: '#D9B841', night1: '#3a3010', night2: '#2a2308' }
 ];
+
 
 function findFurniture(id) { return FURNITURE.find(f => f.id === id) || null; }
 function findWall(id) { return WALLS.find(w => w.id === id) || WALLS[0]; }
@@ -1054,3 +1184,90 @@ window.CONTENT = CONTENT;
 window.getRandomItems = getRandomItems;
 window.contentId = contentId;
 window.contentSize = contentSize;
+
+// ============ ПОЛИКЛИНИКА: ЧТО ИМЕННО ДЕЛАЮТ С ГОФЕРОМ ============
+// Лечение видно на экране: каждая процедура — свой набор шагов и своя анимация
+// (рецепт, укол, проверка зрения, рентген, перевязка, зубы, витамины, градусник).
+const CLINIC_PROCEDURES = [
+  { id: 'recipe', name: 'Выписывают рецепт', anim: 'recipe', emoji: '📝',
+    steps: ['Слушает дыхание', 'Пишет рецепт', 'Отдаёт рецепт в лапы'] },
+  { id: 'injection', name: 'Ставят укол', anim: 'injection', emoji: '💉',
+    steps: ['Готовит шприц', 'Быстрый укол в лапу', 'Наклеивает пластырь'] },
+  { id: 'eyes', name: 'Проверяют зрение', anim: 'eyes', emoji: '👁️',
+    steps: ['Гофер садится к таблице', 'Закрывает лапой глаз', 'Читает буквы вслух'] },
+  { id: 'xray', name: 'Делают снимок', anim: 'xray', emoji: '🦴',
+    steps: ['Встаёт за экран', 'Аппарат щёлкает', 'Врач смотрит снимок'] },
+  { id: 'bandage', name: 'Перевязывают лапу', anim: 'bandage', emoji: '🩹',
+    steps: ['Обрабатывает царапину', 'Накладывает бинт', 'Завязывает бантик'] },
+  { id: 'teeth', name: 'Смотрят зубы', anim: 'teeth', emoji: '🦷',
+    steps: ['Открывает рот', 'Врач светит фонариком', 'Полирует резцы'] },
+  { id: 'vitamins', name: 'Дают витамины', anim: 'vitamins', emoji: '🍊',
+    steps: ['Достаёт баночку', 'Отсчитывает витаминки', 'Гофер съедает одну'] },
+  { id: 'thermo', name: 'Меряют температуру', anim: 'thermo', emoji: '🌡️',
+    steps: ['Ставит градусник', 'Ждёт и смотрит на шкалу', 'Температура нормальная'] }
+];
+
+function findProcedure(id) { return CLINIC_PROCEDURES.find(p => p.id === id) || CLINIC_PROCEDURES[0]; }
+
+window.CLINIC_PROCEDURES = CLINIC_PROCEDURES;
+window.findProcedure = findProcedure;
+
+// ============ ТИХИЕ ИГРЫ (пока гофер спит) ============
+// Спокойные занятия: без таймеров, без затрат энергии, с маленькой наградой.
+const QUIET_GAMES = [
+  { id: 'stars', name: 'Созвездие', emoji: '✨', desc: 'Соедини звёзды по порядку', reward: 8 },
+  { id: 'color', name: 'Раскраска', emoji: '🎨', desc: 'Раскрась картинку цветами', reward: 10 },
+  { id: 'fish',  name: 'Тихая рыбалка', emoji: '🎣', desc: 'Подожди поклёвку и тяни', reward: 12 }
+];
+
+window.QUIET_GAMES = QUIET_GAMES;
+
+// ============ ВОЗДУШНАЯ ГИМНАСТИКА (в спортзале) ============
+// Гофер качается на кольцах и перелетает на следующее. Награда — за точность.
+const AERIAL = {
+  name: '🎪 Воздушная гимнастика',
+  energy: 5,          // сколько энергии тратит одна тренировка
+  cost: 10,           // вход в спортзал уже оплачен, это за снаряд
+  attempts: 5,        // пять перелётов
+  perfectCoins: 12,   // за точное попадание в центр
+  goodCoins: 6,       // за попадание в «зону»
+  xp: 10
+};
+
+window.AERIAL = AERIAL;
+
+// ============ СПРАВКА ПО ХАРАКТЕРИСТИКАМ ============
+// Прямой ответ на вопрос «а как сделать стресс нормальным?»: в игре есть
+// отдельный экран помощи, где для каждой шкалы написано, что её двигает.
+const STAT_HELP = [
+  { key: 'happiness', emoji: '❤️', name: 'Счастье', what: 'Насколько гоферу весело.',
+    up: ['🎮 играть дома (+15)', '🎢 парк и кино (+15)', '🎁 подарки друзей', '🎵 музыка дома (+8)'],
+    down: ['😴 голодный гофер', '😰 высокий стресс'] },
+  { key: 'hunger', emoji: '🍗', name: 'Сытость', what: 'Насколько гофер сыт.',
+    up: ['🍕 Покормить дома (+25)', '🍽️ ресторан (+25)', '🍎 еда из магазина'],
+    down: ['⏰ время (около −2.5 в час)'] },
+  { key: 'energy', emoji: '⚡', name: 'Энергия', what: 'Силы на походы и дела.',
+    up: ['😴 сон: +10% за минуту (полный сон — 10 минут)', '🍕 еда (+5)', '🌙 сон с закрытым приложением — энергия копится'],
+    down: ['🚶 поход в локацию (−2…−8)', '🎮 играть (−8)', '💼 работа (−8 за смену)', '⏰ время (около −1.5 в час)'] },
+  { key: 'health', emoji: '🏥', name: 'Здоровье', what: 'Не болеет ли гофер.',
+    up: ['🏥 поликлиника (+30)', '😴 сон (медленно)', '🏋️ спортзал (+10)', '🍊 витамины'],
+    down: ['🍽️ долгий голод', '🤒 случайная простуда'] },
+  { key: 'cleanliness', emoji: '🧼', name: 'Чистота', what: 'Пора ли в ванную.',
+    up: ['🛁 Искупать дома (+30)', '🏊 бассейн (+20)', '🚿 душевая кабина в ванной'],
+    down: ['⏰ время (около −0.8 в час)'] },
+  { key: 'stress', emoji: '😰', name: 'Стресс', what: 'Чем МЕНЬШЕ, тем лучше. Если много — гофер нервничает и хуже учится.',
+    up: ['🏃 много походов подряд без отдыха', '🍽️ голод', '⏰ время (около +0.6 в час)'],
+    down: ['😴 сон (−15 за полный сон)', '🎵 музыка дома (−8)', '🛁 купание (−5)', '🎮 играть (−5)', '🤫 тихие игры (−4)', '🏥 поликлиника (−15)', '🍽️ ресторан (−6)'] }
+];
+
+window.STAT_HELP = STAT_HELP;
+
+// Правила «спокойной» игры: без таймеров и без проигрышей — это детская игра.
+const QUIET_RULES = [
+  'Тихие игры не тратят энергию: пока гофер спит, можно играть спокойно.',
+  'В тихих играх нельзя проиграть — только заработать монетки.',
+  'Награда за тихую игру: 8–12 монет и немного опыта.'
+];
+
+window.QUIET_RULES = QUIET_RULES;
+
