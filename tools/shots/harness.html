@@ -53,6 +53,7 @@ console.error = function () {
 
 <script src="../../www/js/helpers.js"></script>
 <script src="../../www/js/gopher.js"></script>
+<script src="../../www/js/characters.js"></script>
 <script src="../../www/js/system.js"></script>
 <script src="../../www/js/game_content.js"></script>
 <script src="../../www/js/game_room.js"></script>
@@ -63,6 +64,8 @@ console.error = function () {
 <script src="../../www/js/game_home.js"></script>
 <script src="../../www/js/game_shop.js"></script>
 <script src="../../www/js/game_minigames.js"></script>
+<script src="../../www/js/game_quiet.js"></script>
+<script src="../../www/js/game_aerial.js"></script>
 <script src="../../www/js/game_stats.js"></script>
 <script src="../../www/js/game_clinic.js"></script>
 <script src="../../www/js/game_visit.js"></script>
@@ -121,12 +124,18 @@ console.error = function () {
     return;
   }
 
-  // Демо-данные: комната с мебелью и пара друзей, чтобы проверять эти сцены
+  // Демо-данные: комната с мебелью и пара друзей, чтобы проверять эти сцены.
+  // Важно: в комнатах должны быть ВСЕ формы мебели (иначе новая вещь уедет в
+  // релиз невидимой), но без свалки — иначе по кадру не понять, что нарисовано.
   try {
-    System.coins = 900;
-    ['plant', 'clock', 'lamp', 'carpet', 'painting', 'shelf', 'sofa', 'tv'].forEach(function (id) {
-      System.buyFurniture(id);
+    System.coins = 9000;
+    ['plant', 'clock', 'lamp', 'carpet', 'painting', 'sofa', 'tv', 'piano', 'fireplace'].forEach(function (id) {
+      System.buyFurniture(id, 'living');
     });
+    // Мебель в других комнатах — чтобы проверять все четыре
+    ['bed', 'toybox', 'wardrobe', 'nightstand', 'mirror', 'shelf', 'aquarium'].forEach(function (id) { System.buyFurniture(id, 'bedroom'); });
+    ['table', 'fridge', 'stove', 'microwave', 'stool', 'cupboard', 'samovar'].forEach(function (id) { System.buyFurniture(id, 'kitchen'); });
+    ['bath', 'basin', 'toilet', 'duck', 'washer', 'shower', 'towel'].forEach(function (id) { System.buyFurniture(id, 'bathroom'); });
     System.setWall('mint');
     System.setFloor('blue');
     System.setFur('rose');
@@ -144,19 +153,44 @@ console.error = function () {
     var scene = g.scenes[g.currentScene];
     for (var i = 0; i < 60; i++) scene.update(16);
 
-    // Магазин: вкладку можно открыть прямо из hash (#shop@decor)
+    // Магазин: вкладка из hash (#shop@decor) + вид товара (#shop@decor:walls)
     var isShopTab = parts[0] === 'shop' &&
-      ['food', 'toys', 'clothes', 'decor', 'fun'].indexOf(parts[1]) !== -1;
-    if (isShopTab) scene.currentTab = parts[1];
+      ['food', 'toys', 'clothes', 'decor', 'fun'].indexOf((parts[1] || '').split(':')[0]) !== -1;
+    if (isShopTab) {
+      scene.currentTab = (parts[1] || '').split(':')[0];
+      var sub = (parts[1] || '').split(':')[1];
+      if (sub && (sub === 'walls' || sub === 'floors' || sub === 'furniture')) scene.decorKind = sub;
+    }
+
+    // Тихие игры: сразу открыть конкретную (#quiet@stars)
+    if (parts[0] === 'quiet' && ['stars', 'color', 'fish'].indexOf(parts[1]) !== -1) {
+      scene.startGame(parts[1]);
+      parts[1] = null;
+    }
+
+    // Воздушная гимнастика: сразу тренировка (#aerial@swing)
+    if (parts[0] === 'aerial' && parts[1] === 'swing') {
+      scene.payEntry();
+      scene.power = 0.5;
+      parts[1] = null;
+    }
 
     if (parts[1] && !isShopTab) {
-      scene.draw(g.ctx);
-      var all = (scene.locationButtons || []).concat(scene.buttons || []);
-      var target = all.filter(function (b) {
-        return b.action === parts[1] || (b.text || '').indexOf(parts[1]) !== -1;
-      })[0];
-      if (target) g.handleClick(target.x + target.w / 2, target.y + target.h / 2);
-      else show('кнопка "' + parts[1] + '" не найдена в сцене ' + g.currentScene, '#330');
+      // Можно нажать несколько кнопок подряд: #friends@codes+open_add
+      var clicks = String(parts[1]).split('+');
+      for (var ci = 0; ci < clicks.length; ci++) {
+        var want = clicks[ci];
+        scene = g.scenes[g.currentScene];
+        scene.draw(g.ctx);
+        var all = (scene.locationButtons || []).concat(scene.buttons || []).concat(scene.roomTabs || []);
+        var target = all.filter(function (b) {
+          if (b.action === want) return true;
+          if ((b.action || '').indexOf(want) !== -1) return true;
+          return (b.text || '').indexOf(want) !== -1;
+        })[0];
+        if (target) g.handleClick(target.x + target.w / 2, target.y + target.h / 2);
+        else show('кнопка "' + want + '" не найдена в сцене ' + g.currentScene, '#330');
+      }
     }
     if (parts[2] === 'tutorial') g.showTutorial();
 

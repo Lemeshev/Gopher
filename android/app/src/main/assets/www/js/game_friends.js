@@ -48,7 +48,8 @@ function createNPC(existingIds) {
     const wall = item.zone === 'wall';
     let x = 0.5, y = 0.5, tries = 0;
     do {
-      x = 0.16 + Math.random() * 0.68;
+      // Настенные вещи не ставим в правую часть стены: там окно
+      x = wall ? (0.16 + Math.random() * 0.52) : (0.16 + Math.random() * 0.68);
       y = wall ? (0.08 + Math.random() * 0.72) : (0.10 + Math.random() * 0.72);
       tries++;
     } while (spots.some(sp => Math.abs(sp.x - x) < 0.18 && Math.abs(sp.y - y) < 0.24) && tries < 24);
@@ -425,22 +426,25 @@ class FriendsScene {
     if (typeof RoomView !== 'undefined') {
       RoomView.drawAll(ctx, rect, room, furniture, {});
 
-      // Хозяин комнаты стоит у себя
-      if (this.game.gopher) {
-        const g = this.game.gopher;
-        const savedHat = g.hat, savedGlasses = g.glasses, savedBow = g.bowtie, savedFur = g.bodyColor;
-        g.hat = f.hat || null;
-        g.glasses = f.glasses || null;
-        g.bowtie = !!f.bowtie;
-        g.bodyColor = (f.fur && f.fur !== 'classic' && typeof findFur === 'function') ? findFur(f.fur).color : null;
-        g.outfit = null;
-        g.heldEmoji = null;
-        g.shower = 0;
-        g.setExpression('happy', 40);
+      // Хозяин комнаты — со своим окрасом и своим персонажем (гофер, мишка...)
+      let host = null;
+      try {
+        host = (typeof createCharacter === 'function')
+          ? createCharacter(f.char || 'gopher', 100)
+          : this.game.gopher;
+      } catch (e) { host = this.game.gopher; }
+      if (host) {
+        host.hat = f.hat || null;
+        host.glasses = f.glasses || null;
+        host.bowtie = !!f.bowtie;
+        host.bodyColor = (f.fur && f.fur !== 'classic' && typeof findFur === 'function') ? findFur(f.fur).color : null;
+        host.outfit = null;
+        host.heldEmoji = null;
+        host.shower = 0;
+        host.setExpression('happy', 40);
         const floorTop = rect.y + rect.h * 0.52;
         const gs = Math.min(W * 0.30, rect.h * 0.42);
-        g.draw(ctx, W * 0.5, floorTop + rect.h * 0.16 - gs * 0.52, gs / g.size);
-        g.hat = savedHat; g.glasses = savedGlasses; g.bowtie = savedBow; g.bodyColor = savedFur;
+        host.draw(ctx, W * 0.5, floorTop + rect.h * 0.16 - gs * 0.52, gs / host.size);
       }
     }
 
@@ -484,12 +488,16 @@ class FriendsScene {
     return found ? found.id : 'plant';
   }
 
+  // ---- Мой код: короткий (диктуем) + полный (копируем кнопкой) ----
+  // Жалоба «код огромный, руками не введёшь» решена двумя форматами:
+  //   * короткий — 16 знаков: обои, пол, окрас, персонаж и 6 предметов;
+  //   * полный — весь дом: его не набирают, а копируют/отправляют кнопкой.
   drawMyCode(ctx, W, H) {
-    const code = System.getMyCode(this.game);
-    const panelW = Math.min(W * 0.9, 320);
-    const panelH = 210;
+    const short = System.getShortCode();
+    const panelW = Math.min(W * 0.94, 340);
+    const panelH = 268;
     const px = (W - panelW) / 2;
-    const py = (H - panelH) / 2 - 20;
+    const py = (H - panelH) / 2 - 16;
 
     ctx.fillStyle = '#1e2a4a';
     roundRect(ctx, px, py, panelW, panelH, 16);
@@ -503,36 +511,49 @@ class FriendsScene {
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = '#4D96FF';
     ctx.font = `bold ${Math.min(W * 0.045, 18)}px Arial`;
-    ctx.fillText('📋 Ваш код', W / 2, py + 30);
+    ctx.fillText('📋 Мой код друга', W / 2, py + 28);
+
+    ctx.fillStyle = '#c9cfe0';
+    ctx.font = `${Math.min(W * 0.026, 11.5)}px Arial`;
+    ctx.fillText('Короткий код — его можно продиктовать или набрать руками:', W / 2, py + 50);
+
+    // Короткий код крупно
+    ctx.fillStyle = '#FFD93D';
+    const size = fitFontSize(ctx, short, panelW - 40, Math.min(W * 0.058, 26), 12, true);
+    ctx.font = `bold ${size}px monospace`;
+    ctx.fillText(short, W / 2, py + 84);
+
+    ctx.fillStyle = '#9be3b0';
+    ctx.font = `${Math.min(W * 0.024, 10.5)}px Arial`;
+    ctx.fillText('в нём: обои, пол, окрас, персонаж и 6 предметов', W / 2, py + 104);
 
     ctx.fillStyle = '#aaa';
-    ctx.font = `${Math.min(W * 0.026, 11)}px Arial`;
-    ctx.fillText('Отправьте его другу — он добавит вас', W / 2, py + 50);
+    ctx.font = `${Math.min(W * 0.024, 10.5)}px Arial`;
+    ctx.fillText('Полный код (весь дом) копируется и вставляется кнопкой', W / 2, py + 126);
 
-    ctx.fillStyle = '#FFD93D';
-    ctx.font = `${Math.min(W * 0.026, 11)}px monospace`;
-    const chunk = 32;
-    for (let i = 0; i < code.length; i += chunk) {
-      const row = Math.floor(i / chunk);
-      if (py + 74 + row * 14 < py + panelH - 60) {
-        ctx.fillText(code.substring(i, i + chunk), W / 2, py + 74 + row * 14);
-      }
-    }
-
-    createButton(ctx, px + 16, py + panelH - 50, panelW / 2 - 24, 36, '📋 Копировать', {
-      bgColor: '#6BCB77', fgColor: '#fff', fontSize: 12, radius: 10
+    const bw = panelW - 32, bh = 38;
+    createButton(ctx, px + 16, py + 140, bw, bh, '📋 Скопировать полный код', {
+      bgColor: '#6BCB77', fgColor: '#fff', fontSize: 13, radius: 10
     });
-    this.buttons.push({ x: px + 16, y: py + panelH - 50, w: panelW / 2 - 24, h: 36, text: 'copy' });
+    this.buttons.push({ x: px + 16, y: py + 140, w: bw, h: bh, text: 'copy' });
 
-    createButton(ctx, px + panelW / 2 + 8, py + panelH - 50, panelW / 2 - 24, 36, '➕ Ввести чужой', {
-      bgColor: '#FF8C42', fgColor: '#fff', fontSize: 12, radius: 10
+    createButton(ctx, px + 16, py + 184, bw, bh, '🅰 Ввести мой короткий код вручную', {
+      bgColor: 'rgba(255,255,255,0.16)', fgColor: '#fff', fontSize: 12, radius: 10
     });
-    this.buttons.push({ x: px + panelW / 2 + 8, y: py + panelH - 50, w: panelW / 2 - 24, h: 36, text: 'open_add' });
+    this.buttons.push({ x: px + 16, y: py + 184, w: bw, h: bh, text: 'show_short' });
+
+    createButton(ctx, px + 16, py + 228, bw, bh, '➕ Ввести чужой код', {
+      bgColor: '#FF8C42', fgColor: '#fff', fontSize: 13, radius: 10
+    });
+    this.buttons.push({ x: px + 16, y: py + 228, w: bw, h: bh, text: 'open_add' });
+
+    this.drawNotif(ctx, W, H);
   }
 
+  // ---- Добавить друга: настоящие поля ввода (в WebView работает вставка) ----
   drawAddFriend(ctx, W, H) {
-    const panelW = Math.min(W * 0.9, 320);
-    const panelH = 220;
+    const panelW = Math.min(W * 0.94, 340);
+    const panelH = 260;
     const px = (W - panelW) / 2;
     const py = (H - panelH) / 2 - 10;
 
@@ -548,30 +569,44 @@ class FriendsScene {
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = '#6BCB77';
     ctx.font = `bold ${Math.min(W * 0.045, 18)}px Arial`;
-    ctx.fillText('➕ Код друга', W / 2, py + 30);
+    ctx.fillText('➕ Код друга', W / 2, py + 28);
 
-    ctx.fillStyle = '#aaa';
-    ctx.font = `${Math.min(W * 0.026, 11)}px Arial`;
-    ctx.fillText('Вставьте код, который прислал друг', W / 2, py + 50);
+    ctx.fillStyle = '#c9cfe0';
+    ctx.font = `${Math.min(W * 0.026, 11.5)}px Arial`;
+    ctx.fillText('Короткие 16 знаков можно просто набрать:', W / 2, py + 50);
 
+    // Что уже введено (из панели ввода или с клавиатуры)
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    roundRect(ctx, px + 16, py + 64, panelW - 32, 40, 10);
+    roundRect(ctx, px + 16, py + 62, panelW - 32, 38, 10);
     ctx.fill();
     ctx.fillStyle = '#fff';
-    ctx.font = `${Math.min(W * 0.028, 12)}px Arial`;
+    ctx.font = `${Math.min(W * 0.032, 14)}px monospace`;
     ctx.textAlign = 'left';
-    const shown = this.inputText ? this.inputText.substring(0, 34) + (this.inputText.length > 34 ? '…' : '') : '— пусто —';
-    ctx.fillText(shown, px + 26, py + 89);
+    const shown = this.inputText
+      ? this.inputText.substring(0, 22) + (this.inputText.length > 22 ? '…' : '')
+      : '— код пока пустой —';
+    ctx.fillText(shown, px + 26, py + 87);
 
-    createButton(ctx, px + 16, py + 112, panelW - 32, 34, '📋 Вставить из буфера', {
-      bgColor: 'rgba(255,255,255,0.18)', fgColor: '#fff', fontSize: 12, radius: 10
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#aaa';
+    ctx.font = `${Math.min(W * 0.024, 10.5)}px Arial`;
+    ctx.fillText('Имя друга: ' + (this.friendName || '—'), px + 20, py + 118);
+
+    const bw = panelW - 32, bh = 38;
+    createButton(ctx, px + 16, py + 128, bw, bh, '⌨ Открыть поле ввода и вставить', {
+      bgColor: '#4D96FF', fgColor: '#fff', fontSize: 13, radius: 10
     });
-    this.buttons.push({ x: px + 16, y: py + 112, w: panelW - 32, h: 34, text: 'paste' });
+    this.buttons.push({ x: px + 16, y: py + 128, w: bw, h: bh, text: 'paste' });
 
-    createButton(ctx, px + 16, py + panelH - 50, panelW - 32, 38, '✅ Добавить друга', {
+    createButton(ctx, px + 16, py + 172, bw, bh, '✅ Добавить друга', {
       bgColor: '#6BCB77', fgColor: '#fff', fontSize: 14, radius: 10
     });
-    this.buttons.push({ x: px + 16, y: py + panelH - 50, w: panelW - 32, h: 38, text: 'addcode' });
+    this.buttons.push({ x: px + 16, y: py + 172, w: bw, h: bh, text: 'addcode' });
+
+    createButton(ctx, px + 16, py + 216, bw, bh - 4, '← Назад к друзьям', {
+      bgColor: 'rgba(255,255,255,0.16)', fgColor: '#fff', fontSize: 12, radius: 10
+    });
+    this.buttons.push({ x: px + 16, y: py + 216, w: bw, h: bh - 4, text: 'to_list' });
 
     this.drawNotif(ctx, W, H);
   }
@@ -586,6 +621,47 @@ class FriendsScene {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(this.notification, W / 2, H - 45);
+  }
+
+  // Добавить друга по коду (короткому или полному) с понятным сообщением
+  doAddFriend(rawCode, name) {
+    const code = String(rawCode || '').trim();
+    this.friendName = String(name || '').trim().slice(0, 16);
+    if (!code) {
+      this.showNotif('Сначала введи или вставь код');
+      AudioSys.play('fail');
+      return false;
+    }
+    const res = System.addFriendCode(code, this.friendName);
+    if (res.ok) {
+      AudioSys.play('success');
+      this.showNotif('Друг добавлен: ' + res.name);
+      this.inputText = '';
+      this.friendName = '';
+      this.tab = 'list';
+      if (typeof ClipBridge !== 'undefined') ClipBridge.hide();
+    } else if (res.reason === 'exists') {
+      AudioSys.play('fail');
+      this.showNotif('Такой друг уже есть в списке');
+    } else if (res.reason === 'bad-short') {
+      AudioSys.play('fail');
+      this.showNotif('В коротком коде опечатка — проверь знаки');
+    } else {
+      AudioSys.play('fail');
+      this.showNotif('Код не подошёл. Проверь, что скопировано целиком');
+    }
+    return res.ok;
+  }
+
+  // Кнопка «Добавить» в панели полей (имя, код) — приходит из ClipBridge
+  handlePanelSubmit(name, code) {
+    this.doAddFriend(code, name);
+    return true;
+  }
+
+  // Панель закрыли — просто перерисовываем сцену
+  onPanelClosed() {
+    this.showNotif('Панель закрыта');
   }
 
   // ================= ОБРАБОТКА НАЖАТИЙ =================
@@ -627,29 +703,66 @@ class FriendsScene {
       if (t === 'page_next') { AudioSys.play('click'); this.page = this.page + 1; return true; }
 
       if (t === 'copy') {
-        const code = System.getMyCode(this.game);
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(code).then(() => this.showNotif('Код скопирован!')).catch(() => this.showNotif('Скопируйте вручную'));
-        } else { this.showNotif('Скопируйте код вручную'); }
-        return true;
-      }
-      if (t === 'paste') {
-        if (navigator.clipboard && navigator.clipboard.readText) {
-          navigator.clipboard.readText().then(txt => { this.inputText = (txt || '').trim(); this.showNotif('Вставлено'); }).catch(() => this.showNotif('Нет доступа к буферу'));
-        } else { this.showNotif('Буфер недоступен'); }
-        return true;
-      }
-      if (t === 'addcode') {
-        if (!this.inputText.trim()) { this.showNotif('Сначала вставьте код'); return true; }
-        if (System.addFriend(this.inputText.trim())) {
-          AudioSys.play('success');
-          this.showNotif('Друг добавлен!');
-          this.inputText = '';
-          this.tab = 'list';
+        // Полный код: открываем настоящие поля — WebView сам умеет копировать
+        const full = System.getMyCode(this.game);
+        if (typeof ClipBridge !== 'undefined' && ClipBridge.available()) {
+          ClipBridge.show({
+            mode: 'copy',
+            title: '📋 Полный код (весь дом)',
+            value: full,
+            readonly: true,
+            hint: 'Нажми «Скопировать» — код уйдёт в буфер. «Отправить» — сразу другу (SMS, мессенджер). Вставить потом можно кнопкой «Открыть поле ввода».'
+          });
+          this.showNotif('Открыл код: скопируй или отправь');
         } else {
-          AudioSys.play('fail');
-          this.showNotif('Неверный код или уже добавлен');
+          // Запасной путь без панели: выделить и скопировать
+          this.inputText = full;
+          this.showNotif('Код выделен — скопируй его из поля «Ввести чужой»');
         }
+        return true;
+      }
+
+      if (t === 'show_short') {
+        // Короткий код тоже даём выделить и переписать руками
+        const short = System.getShortCode();
+        this.inputText = short;
+        if (typeof ClipBridge !== 'undefined' && ClipBridge.available()) {
+          ClipBridge.show({
+            mode: 'copy',
+            title: '🅰 Короткий код (16 знаков)',
+            value: short,
+            hint: 'Его можно продиктовать голосом или переписать руками — 16 знаков, ничего лишнего.'
+          });
+        }
+        this.showNotif('Короткий код: ' + short);
+        return true;
+      }
+
+      if (t === 'paste') {
+        if (typeof ClipBridge !== 'undefined' && ClipBridge.available()) {
+          ClipBridge.show({
+            mode: 'paste',
+            title: '➕ Добавить друга',
+            value: this.friendName || '',
+            placeholder: 'Имя друга (латиницей или по-русски)',
+            value2: this.inputText || '',
+            value2Label: 'Код: короткие 16 знаков или длинный',
+            submitLabel: '✅ Добавить',
+            hint: 'Нажми на поле кода и удерживай палец — появится меню Android, выбери «Вставить». Короткий код можно просто набрать руками.'
+          });
+          this.showNotif('Поля открыты — вставь код');
+        } else if (navigator.clipboard && navigator.clipboard.readText) {
+          navigator.clipboard.readText()
+            .then(txt => { this.inputText = (txt || '').trim(); this.showNotif('Вставлено'); })
+            .catch(() => this.showNotif('Нет доступа к буферу — набери код руками'));
+        } else {
+          this.showNotif('Набери короткий код руками — он всего из 16 знаков');
+        }
+        return true;
+      }
+
+      if (t === 'addcode') {
+        this.doAddFriend(this.inputText, this.friendName);
         return true;
       }
       return true;

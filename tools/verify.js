@@ -24,11 +24,11 @@ const APK_RELEASE = path.join(ROOT, 'android', 'app', 'build', 'outputs', 'apk',
 const APK = fs.existsSync(APK_RELEASE) ? APK_RELEASE : APK_DEBUG;
 
 const SCRIPT_ORDER = [
-  'js/helpers.js', 'js/gopher.js', 'js/system.js', 'js/game_content.js',
+  'js/helpers.js', 'js/gopher.js', 'js/characters.js', 'js/system.js', 'js/game_content.js',
   'js/game_room.js', 'js/game_scenery.js', 'js/audio.js',
   'js/game_menu.js', 'js/game_map.js', 'js/game_home.js', 'js/game_shop.js',
-  'js/game_minigames.js', 'js/game_stats.js', 'js/game_clinic.js',
-  'js/game_visit.js', 'js/game_friends.js', 'js/game.js'
+  'js/game_minigames.js', 'js/game_quiet.js', 'js/game_aerial.js', 'js/game_stats.js',
+  'js/game_clinic.js', 'js/game_visit.js', 'js/game_friends.js', 'js/game.js'
 ];
 
 let passed = 0, failed = 0;
@@ -197,7 +197,11 @@ function createSandbox() {
     innerWidth: 360,
     innerHeight: 640,
     addEventListener() {}, removeEventListener() {},
-    navigator: { userAgent: 'verify-harness' }
+    navigator: { userAgent: 'verify-harness' },
+    // base64 нужен кодам друзей (getMyCode / addFriendCode)
+    atob: s => Buffer.from(String(s), 'base64').toString('binary'),
+    btoa: s => Buffer.from(String(s), 'binary').toString('base64'),
+    escape: global.escape, unescape: global.unescape
   };
   sandbox.window = sandbox;
   sandbox.__ctxStub = ctxStub;
@@ -222,7 +226,7 @@ function reviewerRuntime() {
   catch (e) { bootErr = e; }
   if (!check('Игра стартует без исключений (new Game().init())', !bootErr, bootErr ? bootErr.message : 'OK')) return null;
 
-  const EXPECTED_SCENES = ['menu', 'map', 'home', 'shop', 'minigames', 'stats', 'clinic', 'visit', 'friends'];
+  const EXPECTED_SCENES = ['menu', 'map', 'home', 'shop', 'minigames', 'quiet', 'aerial', 'stats', 'clinic', 'visit', 'friends'];
   const missingScenes = EXPECTED_SCENES.filter(s => !game.scenes[s]);
   check('Созданы все ' + EXPECTED_SCENES.length + ' игровых сцен', missingScenes.length === 0,
     missingScenes.length ? ('нет: ' + missingScenes.join(', ')) : Object.keys(game.scenes).join(', '));
@@ -243,7 +247,8 @@ function reviewerRuntime() {
       }
     })();`, sandbox);
   } catch (e) { frameErr = e; }
-  check('630 кадров (7 сцен x 90) отрисованы без ошибок', !frameErr, frameErr ? frameErr.message : 'OK');
+  const frameLabel = (EXPECTED_SCENES.length * 90) + ' кадров (' + EXPECTED_SCENES.length + ' сцен x 90) отрисованы без ошибок';
+  check(frameLabel, !frameErr, frameErr ? frameErr.message : 'OK');
 
   let leak = { max: -1, worst: '' };
   try {
@@ -253,7 +258,7 @@ function reviewerRuntime() {
         __game.currentScene = n;
         __game.scenes[n].init();
         for (let i = 0; i < 300; i++) __game.scenes[n].draw(__game.ctx);
-        const c = (__game.scenes[n].buttons || []).length + (__game.scenes[n].locationButtons || []).length;
+        const c = (__game.scenes[n].buttons || []).length + (__game.scenes[n].locationButtons || []).length + (__game.scenes[n].roomTabs || []).length;
         if (c > max) { max = c; worst = n; }
       }
       return { max: max, worst: worst };
@@ -542,7 +547,7 @@ function reviewerRender() {
   let res = null;
   try {
     const out = cp.execSync('node tools/render-check.js --json',
-      { cwd: ROOT, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024, timeout: 900000 });
+      { cwd: ROOT, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024, timeout: 1800000 });
     res = JSON.parse(out);
   } catch (e) {
     const so = e.stdout ? String(e.stdout) : '';
@@ -567,11 +572,212 @@ function reviewerRender() {
   }
 }
 
+/* ---------- РЕВЬЮЕР 1/5b: требования v1.2 (статика по исходникам) ---------- */
+function reviewerV12Static() {
+  console.log('\n\uD83D\uDD0D РЕВЬЮЕР 1/5 (доп.) — требования v1.2 по исходникам');
+  const read = f => fs.readFileSync(path.join(WWW, 'js', f), 'utf8');
+  const html = fs.readFileSync(path.join(WWW, 'index.html'), 'utf8');
+  const helpers = read('helpers.js');
+  const system = read('system.js');
+  const content = read('game_content.js');
+  const home = read('game_home.js');
+  const friends = read('game_friends.js');
+  const clinic = read('game_clinic.js');
+  const shop = read('game_shop.js');
+  const menu = read('game_menu.js');
+  const stats = read('game_stats.js');
+
+  // --- 1. Код друга: копирование и вставка ---
+  check('Панель кода друга есть в разметке (настоящие поля ввода)',
+    html.indexOf('id="clipPanel"') !== -1 && html.indexOf('id="clipField"') !== -1 &&
+    html.indexOf('id="clipField2"') !== -1 && html.indexOf('id="clipCopyBtn"') !== -1 &&
+    html.indexOf('id="clipSubmitBtn"') !== -1);
+  check('Поля панели разрешают выделение текста (user-select: text)',
+    /#clipPanel textarea[\s\S]{0,400}user-select: text/.test(html));
+  check('Копирование: execCommand + запасной navigator.clipboard',
+    helpers.indexOf("document.execCommand('copy')") !== -1 && helpers.indexOf('navigator.clipboard.writeText') !== -1);
+  check('Вставка: navigator.clipboard.readText + подсказка про меню Android',
+    helpers.indexOf('navigator.clipboard.readText') !== -1 && helpers.indexOf('Вставить') !== -1);
+  check('Короткий код друга — 16 символов (можно набрать руками)',
+    system.indexOf('getShortCode()') !== -1 && system.indexOf('unpackShortCode(') !== -1 &&
+    system.indexOf('CODE32') !== -1 && system.indexOf('code32Checksum') !== -1);
+  check('Полный код (весь дом) и короткий разбираются автоматически',
+    system.indexOf('addFriendCode(') !== -1 && friends.indexOf('Или коротк') !== -1 || friends.indexOf('короткие 16 знаков') !== -1);
+  check('В друзьях есть кнопка копирования и поле вставки',
+    friends.indexOf('ClipBridge') !== -1 && friends.indexOf('doAddFriend') !== -1);
+
+  // --- 2. Стресс: объяснение в игре ---
+  check('Есть справка по шкалам (что повышает, что понижает)',
+    content.indexOf('STAT_HELP') !== -1 && content.indexOf("'stress'") !== -1 || content.indexOf('key: \'stress\'') !== -1);
+  check('Справка про стресс перечисляет способы снижения',
+    /stress[\s\S]{0,700}сон/.test(content) && /stress[\s\S]{0,900}музыка/.test(content));
+  check('В доме есть кнопка «?» и музыка (снижает стресс)',
+    home.indexOf("action: 'help'") !== -1 && home.indexOf("action: 'music'") !== -1);
+  check('В статистике есть вкладка справки',
+    stats.indexOf("id: 'help'") !== -1 && stats.indexOf('drawHelpTab') !== -1);
+
+  // --- 3. Сон и офлайн ---
+  check('Энергия копится, пока приложение закрыто (офлайн-сон)',
+    system.indexOf('applyOfflineProgress') !== -1 && system.indexOf('offlineMessage') !== -1);
+  check('Офлайн не опускает питомца ниже «пола»',
+    system.indexOf('OFFLINE_FLOOR') !== -1);
+  check('Сон: 10% энергии в минуту (полный сон 10 минут)',
+    system.indexOf('SLEEP_FULL_MINUTES: 10') !== -1);
+  check('Быстрая трата энергии убрана (поход 2–8, пассивно 1.5/час)',
+    system.indexOf('VISIT_ENERGY') !== -1 && system.indexOf('ENERGY_PER_HOUR: 1.5') !== -1);
+  check('Игра сохраняется при сворачивании (visibilitychange/pagehide)',
+    read('game.js').indexOf('visibilitychange') !== -1 && read('game.js').indexOf('pagehide') !== -1);
+
+  // --- 4. Тихие игры и спорт ---
+  check('Есть сцена тихих игр с тремя занятиями',
+    fs.existsSync(path.join(WWW, 'js/game_quiet.js')) && content.indexOf('QUIET_GAMES') !== -1 &&
+    (content.match(/id: '(stars|color|fish)'/g) || []).length === 3);
+  check('Есть воздушная гимнастика в спортзале',
+    fs.existsSync(path.join(WWW, 'js/game_aerial.js')) && content.indexOf('AERIAL') !== -1 &&
+    read('game_visit.js').indexOf('Воздушная гимнастика') !== -1);
+
+  // --- 5. Комнаты, мебель, цвета ---
+  check('В доме четыре комнаты',
+    (content.match(/\{ id: '(living|bedroom|kitchen|bathroom)'/g) || []).length === 4 &&
+    content.indexOf('HOME_ROOMS') !== -1);
+  const furnitureCount = (content.match(/\{ id: '[a-zA-Z]+',\s+emoji:/g) || []).length;
+  check('Мебели в каталоге не меньше 45 предметов', furnitureCount >= 45, 'их ' + furnitureCount);
+  check('У мебели есть уровень цены: от дешёвой до роскоши',
+    content.indexOf('function tierOf') !== -1 && /cost: 3500/.test(content) && /cost: 10,/.test(content));
+  check('Перекраска мебели платная (recolorCost)',
+    content.indexOf('function recolorCost') !== -1 && system.indexOf('paintFurniture(') !== -1);
+  check('Обои и пол покупаются (у наборов есть цена)',
+    /WALLS = \[[\s\S]{0,2600}cost: 1500/.test(content) && /FLOORS = \[[\s\S]{0,1600}cost: 2000/.test(content));
+  check('Мебель рисуется соразмерно (перспектива по глубине)',
+    read('game_room.js').indexOf('depthScale') !== -1 && read('game_room.js').indexOf('DEPTH_MIN') !== -1);
+  check('Магазин: вкладка «Дом» фильтрует по комнатам и товару',
+    shop.indexOf('decorItems()') !== -1 && shop.indexOf('drawDecorFilters') !== -1 && shop.indexOf("decorKind") !== -1);
+
+  // --- 6. Поликлиника ---
+  const procs = (content.match(/anim: '(recipe|injection|eyes|xray|bandage|teeth|vitamins|thermo)'/g) || []).length;
+  check('В поликлинике 8 видимых процедур (рецепт, укол, зрение, снимок...)', procs === 8, 'их ' + procs);
+  check('Процедура показывается пошагово с подписями',
+    clinic.indexOf('drawProcedure') !== -1 && clinic.indexOf('drawSteps') !== -1 && clinic.indexOf('.steps') !== -1);
+
+  // --- 7. Персонаж (задел: герой не только гофер) ---
+  const chars = (read('characters.js').match(/id: '(gopher|bear|bunny|cat|robot)'/g) || []).length;
+  check('Персонажей минимум 4 (гофер и другие игрушки)', chars >= 4, 'их ' + chars);
+  check('Персонаж выбирается в меню и сохраняется',
+    menu.indexOf('drawCharacters') !== -1 && system.indexOf('setCharacter(') !== -1 && system.indexOf("char: 'gopher'") !== -1);
+}
+
+/* ---------- РЕВЬЮЕР 3/5b: механика v1.2 в песочнице ---------- */
+function reviewerV12Runtime(rt) {
+  console.log('\n\uD83D\uDD0D РЕВЬЮЕР 3/5 (доп.) — механика v1.2 в эмуляторе');
+  if (!rt) { check('Механика v1.2 проверена', false, 'игра не запустилась'); return; }
+  const { sandbox, game } = rt;
+  const vmRes = (code) => vm.runInContext(code, sandbox);
+  const ok = (name, cond, detail) => check(name, cond, detail);
+
+  try {
+    // Комнаты: покупка вещи кладёт её в нужную комнату
+    vmRes(`System.resetProgress(); System.rooms = null; System.ensureRooms(); System.coins = 5000;`);
+    vmRes(`System.buyFurniture('sofa'); System.buyFurniture('bed'); System.buyFurniture('fridge'); System.buyFurniture('bath');`);
+    ok('Мебель сама попадает в свою комнату',
+      vmRes(`System.roomOfItem('sofa')`) === 'living' &&
+      vmRes(`System.roomOfItem('bed')`) === 'bedroom' &&
+      vmRes(`System.roomOfItem('fridge')`) === 'kitchen' &&
+      vmRes(`System.roomOfItem('bath')`) === 'bathroom');
+    ok('Комната переключается и отдаёт свою мебель',
+      vmRes(`System.setActiveRoom('bedroom') && System.furniture.length === 1 && System.furniture[0].id === 'bed'`) === true);
+
+    // Код друга: короткий и полный
+    const short = vmRes(`System.setActiveRoom('living'); System.getShortCode()`);
+    ok('Короткий код — 16 знаков группами', /^[0-9A-Z]{4}(-[0-9A-Z]{4}){3}$/.test(short), short);
+    const parsed = vmRes(`System.unpackShortCode('${short.replace(/-/g, '')}')`);
+    ok('Короткий код разбирается (персонаж и обои совпадают)',
+      parsed && parsed.look && parsed.room, parsed ? parsed.room.wall : 'нет данных');
+    vmRes(`System.friends = [];`);
+    const addedShort = vmRes(`System.addFriendCode('${short}', 'Тест').ok`);
+    const longCode = vmRes(`System.getMyCode(null)`);
+    vmRes(`System.friends = [];`);
+    const addedLong = vmRes('System.addFriendCode(' + JSON.stringify(longCode) + ", 'Полный').ok");
+    ok('Друг добавляется и по короткому, и по полному коду', addedShort === true && addedLong === true);
+    ok('Испорченный короткий код не принимается',
+      vmRes(`System.unpackShortCode('AAAAAAAAAAAAAAAA')`) === null);
+
+    // Офлайн-сон: закрыли приложение — энергия копится
+    vmRes(`System.stats.energy = 20; System.isSleeping = true; System.applyOfflineProgress(Date.now() - 10*60000);`);
+    const eAfter = vmRes(`Math.round(System.stats.energy)`);
+    ok('С закрытым приложением сон доводит энергию до 100%', eAfter >= 99, eAfter + '%');
+    ok('После полного сна питомец просыпается сам', vmRes(`System.isSleeping`) === false);
+    vmRes(`System.stats.energy = 100; System.stats.hunger = 100; System.stats.cleanness = 100; System.stats.stress = 0;`);
+    vmRes(`System.applyOfflineProgress(Date.now() - 48*3600000);`);
+    ok('Двое суток без игры не убивают питомца',
+      vmRes(`System.stats.energy >= 25`), vmRes(`Math.round(System.stats.energy)`) + '% энергии');
+
+    // Энергия: семь походов не опустошают шкалу
+    vmRes(`System.resetProgress(); System.stats.energy = 100;`);
+    vmRes(`['museum_any','library','pool','gym','park','cinema','restaurant'].forEach(v => { System.spendEnergy(System.visitCost(v)); System.advanceTime(0.5); });`);
+    ok('7 походов оставляют больше половины энергии', vmRes(`System.stats.energy > 50`),
+      vmRes(`Math.round(System.stats.energy)`) + '%');
+
+    // Соразмерность мебели
+    const rect = `{x:0,y:0,w:400,h:300}`;
+    ok('Мебель на переднем плане крупнее',
+      vmRes(`RoomView.sizeFor('bed', ${rect}, 1) > RoomView.sizeFor('bed', ${rect}, 0) * 1.5`) === true);
+    ok('Шкаф заметно больше часов',
+      vmRes(`RoomView.sizeFor('wardrobe', ${rect}, 1) > RoomView.sizeFor('clock', ${rect}, 1) * 2`) === true);
+
+    // Тихие игры: награда и отсутствие трат энергии
+    vmRes(`System.resetProgress(); System.coins = 0; System.stats.energy = 60; System.stats.stress = 50;`);
+    vmRes(`const qs = __game.scenes.quiet; qs.init(); qs.startGame('color');` +
+          ` const pa = { x: __game.width * 0.12, y: __game.height * 0.14, w: __game.width * 0.76, h: __game.height * 0.54 };` +
+          ` let guard = 0;` +
+          ` while (!qs.paint.done && guard++ < 40) {` +
+          `   const part = qs.paint.parts.find(p => !p.fill) || qs.paint.parts[0];` +
+          `   const cx = part.kind === 'rect' ? pa.x + pa.w * (part.x + part.w / 2) : pa.x + pa.w * part.cx;` +
+          `   const cy = part.kind === 'rect' ? pa.y + pa.h * (part.y + part.h / 2) : pa.y + pa.h * part.cy;` +
+          `   qs.paint.picked = 0; qs.clickColor(cx, cy); }` +
+          ` if (!qs.paint.done) throw new Error('раскраску нельзя закончить за 40 тапов');`);
+    ok('Тихая игра даёт монеты и НЕ тратит энергию',
+      vmRes(`System.coins > 0 && System.stats.energy === 60`),
+      vmRes(`System.coins`) + ' монет, энергия ' + vmRes(`System.stats.energy`));
+    ok('Тихая игра снижает стресс', vmRes(`System.stats.stress < 50`), vmRes(`System.stats.stress`));
+
+    // Воздушная гимнастика
+    vmRes(`System.stats.energy = 90; const ae = __game.scenes.aerial; ae.init(); ae.payEntry();`);
+    ok('Воздушная гимнастика тратит немного энергии',
+      vmRes(`System.stats.energy <= 86`), vmRes(`Math.round(System.stats.energy)`) + '%');
+    vmRes(`ae.power = 0.5; ae.jump();`);
+    ok('Прыжок в зелёной зоне даёт награду',
+      vmRes(`ae.perfect === 1 && ae.coinsWon > 0`), vmRes(`ae.coinsWon`) + ' монет');
+
+    // Поликлиника: процедуры разные и с шагами
+    ok('Процедуры поликлиники пронумерованы и имеют шаги',
+      vmRes(`CLINIC_PROCEDURES.every(p => p.steps.length === 3 && p.anim)`) === true);
+    vmRes(`const cl = __game.scenes.clinic; cl.init(); cl.status='treating'; cl.examProgress=0.7;`);
+    ok('Врач показывает текущий шаг процедуры',
+      vmRes(`typeof cl.stepIndex() === 'number' && cl.stepIndex() >= 0 && cl.stepIndex() <= 2`) === true,
+      'шаг ' + vmRes(`cl.stepIndex()`));
+
+    // Персонажи
+    let charsOk = true;
+    try {
+      vmRes(`CHARACTERS.forEach(c => { const g2 = createCharacter(c.id, 100);` +
+            ` g2.setExpression('happy', 5); g2.draw(__ctxStub, 50, 50, 1); });`);
+    } catch (e) { charsOk = false; }
+    ok('Все персонажи рисуются кодом (не только гофер)', charsOk);
+    vmRes(`System.setCharacter('bear'); __game.ensureCharacter();`);
+    ok('Смена персонажа пересоздаёт фигурку героя', vmRes(`__game.gopher.charId`) === 'bear', vmRes(`__game.gopher.charId`));
+    vmRes(`System.setCharacter('gopher'); __game.ensureCharacter();`);
+  } catch (e) {
+    check('Механика v1.2 проверена без ошибок', false, e.message);
+  }
+}
+
 /* ---------- ЗАПУСК ---------- */
 console.log('\u2554\u2550\u2550\u2550\u2550\u2550\u2550 Gopher Life \u2014 приёмка качества \u2550\u2550\u2550\u2550\u2550\u2550\u2557');
 reviewerStatic();
+reviewerV12Static();
 const rt = reviewerRuntime();
 reviewerClicks(rt);
+reviewerV12Runtime(rt);
 reviewerApk();
 reviewerRender();
 

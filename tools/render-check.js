@@ -39,6 +39,24 @@ const SCENES = [
   { hash: 'visit~gym',          minColors: 20, minNonBg: 3 },
   { hash: 'visit~school',       minColors: 20, minNonBg: 3 },
   { hash: 'visit~cinema',       minColors: 20, minNonBg: 3 },
+  { hash: 'home@bedroom',       minColors: 25, minNonBg: 3 },
+  { hash: 'home@kitchen',       minColors: 25, minNonBg: 3 },
+  { hash: 'home@bathroom',      minColors: 25, minNonBg: 3 },
+  { hash: 'home@decorToggle',         minColors: 25, minNonBg: 3 },
+  { hash: 'home@help',          minColors: 20, minNonBg: 3 },
+  { hash: 'home@music',         minColors: 25, minNonBg: 3 },
+  { hash: 'quiet',              minColors: 20, minNonBg: 3 },
+  { hash: 'quiet@stars',        minColors: 20, minNonBg: 3 },
+  { hash: 'quiet@color',        minColors: 20, minNonBg: 3 },
+  { hash: 'quiet@fish',         minColors: 20, minNonBg: 3 },
+  { hash: 'aerial',             minColors: 20, minNonBg: 3 },
+  { hash: 'aerial@swing',       minColors: 20, minNonBg: 3 },
+  { hash: 'clinic@врачу',       minColors: 20, minNonBg: 3 },
+  { hash: 'shop@decor:walls',   minColors: 20, minNonBg: 3 },
+  { hash: 'shop@decor:floors',  minColors: 20, minNonBg: 3 },
+  { hash: 'menu@Персонаж',     minColors: 20, minNonBg: 3 },
+  { hash: 'friends@codes',     minColors: 20, minNonBg: 3 },
+  { hash: 'friends@codes+open_add',        minColors: 20, minNonBg: 3 },
   { hash: 'friends@visit_0',    minColors: 20, minNonBg: 3 },
   { hash: 'menu@profiles',      minColors: 20, minNonBg: 3 },
   { hash: 'menu@settings',      minColors: 20, minNonBg: 3 },
@@ -142,7 +160,7 @@ function chrome(hash, port, shotPath, timeoutMs) {
   const only = onlyArg ? onlyArg.split('=')[1].split(',') : null;
   const scenes = only ? SCENES.filter(s => only.indexOf(s.hash) !== -1) : SCENES;
 
-  const CONCURRENCY = 2;
+  const CONCURRENCY = 3;
   const queue = scenes.slice();
   const out = [];
   await Promise.all(Array.from({ length: CONCURRENCY }, async () => {

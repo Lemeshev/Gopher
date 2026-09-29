@@ -48,7 +48,8 @@ function createNPC(existingIds) {
     const wall = item.zone === 'wall';
     let x = 0.5, y = 0.5, tries = 0;
     do {
-      x = 0.16 + Math.random() * 0.68;
+      // Настенные вещи не ставим в правую часть стены: там окно
+      x = wall ? (0.16 + Math.random() * 0.52) : (0.16 + Math.random() * 0.68);
       y = wall ? (0.08 + Math.random() * 0.72) : (0.10 + Math.random() * 0.72);
       tries++;
     } while (spots.some(sp => Math.abs(sp.x - x) < 0.18 && Math.abs(sp.y - y) < 0.24) && tries < 24);

@@ -11,7 +11,7 @@ const MAP_LOCATIONS = [
   { id: 'museums', emoji: '🏛️', name: 'Музеи', color: '#E91E63', desc: '4 музея', cost: 0, req: 'energy>20' },
   { id: 'library', emoji: '📚', name: 'Библиотека', color: '#607D8B', desc: '100 книг', cost: 10 },
   { id: 'cinema', emoji: '🎬', name: 'Кино', color: '#8E44AD', desc: 'Фильмы', cost: 20, req: 'energy>30' },
-  { id: 'gym', emoji: '🏋️', name: 'Спортзал', color: '#16A085', desc: 'Зал и воздушная гимнастика', cost: 15, req: 'energy>30' },
+  { id: 'gym', emoji: '🏋️', name: 'Спортзал', color: '#16A085', desc: 'Сила и ловкость', cost: 15, req: 'energy>30' },
   { id: 'friend', emoji: '👥', name: 'Друзья', color: '#FF5722', desc: 'В гости' },
   { id: 'minigames', emoji: '🎮', name: 'Мини-игры', color: '#9C27B0', desc: 'Игры и тихие занятия' },
   { id: 'stats', emoji: '📊', name: 'Инфо', color: '#546E7A', desc: 'Достижения' }
@@ -197,8 +197,10 @@ class MapScene {
       const firstY = by + tileH * (lines.length > 1 ? 0.55 : 0.62);
       lines.forEach((line, li) => ctx.fillText(line, cx, firstY + li * lineH));
 
-      // Подпись мелким шрифтом
-      ctx.font = `${Math.min(tileW * 0.115, 8.5)}px Arial`;
+      // Подпись мелким шрифтом (подгоняем размер: длинная подпись не должна
+      // вылезать за плитку — так уже было с «Зал и воздушная гимнастика»)
+      const descSize = fitFontSize(ctx, loc.desc, tileW - 8, Math.min(tileW * 0.115, 8.5), 6.5, false);
+      ctx.font = `${descSize}px Arial`;
       ctx.globalAlpha = active ? 0.85 : 0.45;
       ctx.fillText(loc.desc, cx, by + tileH - 9);
       ctx.globalAlpha = active ? 1 : 0.45;
@@ -212,6 +214,18 @@ class MapScene {
         ctx.font = 'bold 9px Arial';
         ctx.fillStyle = '#FFD93D';
         ctx.fillText('🪙' + loc.cost, bx + tileW - bw2 / 2 - 3, by + 3 + bh2 / 2 + 0.5);
+      }
+
+      // Сколько энергии стоит поход — видно ДО нажатия (не сюрприз)
+      const ev = System.visitCost ? System.visitCost(loc.id) : 0;
+      if (active && ev > 0) {
+        const ew = 26, eh = 15;
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        roundRect(ctx, bx + 3, by + 3, ew, eh, 7);
+        ctx.fill();
+        ctx.font = 'bold 9px Arial';
+        ctx.fillStyle = '#9BE3A5';
+        ctx.fillText('⚡' + ev, bx + 3 + ew / 2, by + 3 + eh / 2 + 0.5);
       }
 
       // Замок, если сейчас нельзя

@@ -166,18 +166,25 @@ class ClinicScene {
     g.hat = 'scientist';
     g.outfit = null;
     g.setExpression('happy', 8);
-    g.draw(ctx, x, y, (W * 0.22) / g.size);
-    // халат поверх — белая накидка
-    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    g.draw(ctx, x, y, (W * 0.24) / g.size);
+
+    // Халат ложится на нижнюю часть тела (а не висит отдельной коробкой)
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
     ctx.strokeStyle = '#9DBECD';
     ctx.lineWidth = 1.5;
-    roundRect(ctx, x - W * 0.085, y + W * 0.03, W * 0.17, W * 0.15, W * 0.02);
+    roundRect(ctx, x - W * 0.075, y + W * 0.004, W * 0.15, W * 0.072, W * 0.018);
     ctx.fill(); ctx.stroke();
+    // воротник и стетоскоп
     ctx.strokeStyle = '#C9DEE9';
     ctx.beginPath();
-    ctx.moveTo(x, y + W * 0.035);
-    ctx.lineTo(x, y + W * 0.175);
+    ctx.moveTo(x, y + W * 0.008);
+    ctx.lineTo(x, y + W * 0.072);
     ctx.stroke();
+    ctx.font = `${Math.min(W * 0.045, 20)}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🩺', x + W * 0.045, y + W * 0.045);
+    ctx.textBaseline = 'alphabetic';
     g.hat = prevHat;
     g.outfit = prevOutfit;
   }
@@ -359,7 +366,7 @@ class ClinicScene {
     g.setExpression((System.isSick || this.status !== 'done') ? 'sick' : 'happy', 8);
     g.outfit = null;
     g.heldEmoji = this.status === 'done' ? null : '🤒';
-    g.draw(ctx, x, y, (W * 0.26) / g.size);
+    g.draw(ctx, x, y, (W * 0.24) / g.size);
     g.heldEmoji = null;
   }
 

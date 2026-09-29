@@ -31,18 +31,39 @@ const System = {
   friends: [],
   localFriendship: {},   // дружба с гоферами этого же устройства
 
-  // ---- Комната: обои, пол и расставленная мебель ----
-  room: { wall: 'warm', floor: 'wood' },
-  furniture: [],   // [{ id, x, y }] — доли 0..1 внутри зоны предмета
-  inventory: [],   // куплено, но убрано в инвентарь
+  // ---- ДОМ: КОМНАТЫ (v1.2) ---------------------------------------------
+  // Комнат четыре: гостиная, спальня, кухня, ванная. У каждой свои обои, пол
+  // и своя мебель — ребёнок сам решает, что где стоит.
+  rooms: null,           // создаётся ensureRooms(): { living: {wall,floor,furniture:[]}, ... }
+  activeRoom: 'living',
+  inventory: [],         // куплено, но убрано в инвентарь
+  paint: { walls: ['warm'], floors: ['wood'] },  // купленная отделка (после покупки — бесплатно)
+  furnitureColors: {},   // { sofa: 2 } — выбранный цвет предмета (индекс палитры)
 
-  // ---- Внешний вид гофера (для гостей и кода друга) ----
-  look: { hat: null, glasses: null, bowtie: false, fur: 'classic' },
+  // ---- Внешний вид (для гостей и кода друга) ----
+  // char — персонаж: 'gopher' | 'bear' | 'bunny' | 'cat' | 'robot'
+  look: { hat: null, glasses: null, bowtie: false, fur: 'classic', char: 'gopher' },
 
-  // ---- Сон ----
-  SLEEP_FULL_MINUTES: 10,   // с 0 до 100 энергии — за 10 минут сна
+  // ---- СОН, ЭНЕРГИЯ И ОФЛАЙН (v1.2) ----
+  SLEEP_FULL_MINUTES: 10,       // 0 → 100 энергии за 10 минут сна (требование заказчика)
+  ENERGY_PER_HOUR: 1.5,         // пассивная трата, пока гофер бодр
+  HUNGER_PER_HOUR: 2.5,
+  CLEAN_PER_HOUR: 0.8,
+  STRESS_PER_HOUR: 0.6,
+  // «Пол» офлайн-изменений: ребёнок не должен возвращаться к измученному питомцу
+  OFFLINE_FLOOR: { energy: 25, hunger: 25, cleanliness: 30, health: 40, happiness: 35 },
+  OFFLINE_STRESS_MAX: 25,
+  OFFLINE_MAX_HOURS: 24,
+  // Сколько энергии стоит поход. Специально немного: 2–3 похода не «съедают» день.
+  VISIT_ENERGY: {
+    pool: 5, gym: 6, work: 8, school: 5, museum_any: 3, museums: 3, library: 2,
+    cinema: 4, park: 5, restaurant: 2, beach: 6, friend: 3, clinic: 0, shop: 0,
+    home: 0, stats: 0, minigames: 0, quiet: 0
+  },
+  offlineReport: null,          // что случилось, пока приложение было закрыто
   lastTick: 0,
   sleptMinutes: 0,
+
 
   // ---- Профиль (несколько детей на одном устройстве) ----
   profileId: 'p1',
@@ -77,6 +98,93 @@ const System = {
     };
     return map[stat] || '📊';
   },
+
+  // ================= КОМНАТЫ (v1.2) =================
+  // Создать дом со всеми комнатами. У каждой — свои бесплатные обои и пол.
+  ensureRooms() {
+    const def = () => {
+      const out = {};
+      const list = (typeof HOME_ROOMS !== 'undefined') ? HOME_ROOMS : [{ id: 'living', free: { wall: 'warm', floor: 'wood' } }];
+      for (const r of list) {
+        out[r.id] = {
+          wall: (r.free && r.free.wall) || 'warm',
+          floor: (r.free && r.free.floor) || 'wood',
+          furniture: []
+        };
+      }
+      return out;
+    };
+    if (!this.rooms) this.rooms = def();
+    // На всякий случай дополняем недостающие комнаты (миграция со старых версий)
+    const fresh = def();
+    for (const id of Object.keys(fresh)) {
+      if (!this.rooms[id]) this.rooms[id] = fresh[id];
+      else if (!Array.isArray(this.rooms[id].furniture)) this.rooms[id].furniture = [];
+    }
+    if (HOME_ROOMS.findIndex(r => r.id === this.activeRoom) === -1) this.activeRoom = 'living';
+    return this.rooms;
+  },
+
+  // Данные активной комнаты: обои, пол и мебель
+  currentRoomData() {
+    this.ensureRooms();
+    return this.rooms[this.activeRoom];
+  },
+
+  setActiveRoom(id) {
+    this.ensureRooms();
+    if (!this.rooms[id]) return false;
+    this.activeRoom = id;
+    this.saveGame();
+    return true;
+  },
+
+  roomTitle() {
+    return (typeof findRoom === 'function') ? findRoom(this.activeRoom).name : 'Комната';
+  },
+
+  // В какой комнате стоит предмет (или null)
+  roomOfItem(id) {
+    this.ensureRooms();
+    for (const key of Object.keys(this.rooms)) {
+      if (this.rooms[key].furniture.some(f => f.id === id)) return key;
+    }
+    return null;
+  },
+
+  // Цвет предмета: свой или «родной» из палитры
+  colorOf(id) {
+    const f = (typeof findFurniture === 'function') ? findFurniture(id) : null;
+    const idx = this.furnitureColors[id];
+    if (f && f.palette && f.palette.length) {
+      return f.palette[(idx === undefined || idx === null) ? 0 : (idx % f.palette.length)];
+    }
+    return null;
+  },
+
+  colorIndex(id) {
+    const idx = this.furnitureColors[id];
+    return (idx === undefined || idx === null) ? 0 : idx;
+  },
+
+  // Дом целиком → для сохранения и кода друга
+  serializedRooms() {
+    this.ensureRooms();
+    const out = {};
+    for (const id of Object.keys(this.rooms)) {
+      const r = this.rooms[id];
+      out[id] = {
+        wall: r.wall,
+        floor: r.floor,
+        furniture: (r.furniture || []).map(f => ({ id: f.id, x: f.x, y: f.y }))
+      };
+    }
+    return out;
+  },
+
+  // Обратная совместимость: System.room и System.furniture — это активная комната
+  get room() { return this.currentRoomData(); },
+  get furniture() { return this.currentRoomData().furniture; },
 
   canAfford(cost) {
     return this.coins >= cost;
@@ -139,34 +247,89 @@ const System = {
     this._achTimer = setTimeout(() => el.classList.remove('show'), 2500);
   },
 
+  // Куда можно пойти. Блокируем только то, что реально не по силам:
+  // устал — поспи, голоден — поешь. Всё остальное открыто (v1.2: мягче к ребёнку).
   isLocationAvailable(loc) {
-    const time = this.timeOfDay;
     const energy = this.stats.energy;
     const hunger = this.stats.hunger;
-    const health = this.stats.health;
-
     switch (loc) {
-      case 'pool': return hunger > 30 && energy > 20;
-      case 'clinic': return health < 70;
+      case 'pool': return hunger > 15 && energy >= 5;
+      case 'clinic': return true;                 // к врачу пускаем всегда
       case 'shop': return true;
-      case 'restaurant': return energy > 30 && hunger < 90;
-      case 'park': return energy > 40;
-      case 'gym': return energy > 30;
-      case 'work': return energy > 40;
-      case 'school': return energy > 40;
-      case 'cinema': return energy > 30 && this.canAfford(20);
-      case 'friend': return energy > 30;
-      case 'beach': return energy > 40 && hunger > 30;
-      case 'museums': return energy > 20;
+      case 'restaurant': return hunger < 95;
+      case 'park': return energy >= 5;
+      case 'gym': return energy >= 5;
+      case 'work': return energy >= 15;
+      case 'school': return energy >= 10;
+      case 'cinema': return energy >= 5 && this.canAfford(20);
+      case 'friend': return energy >= 5;
+      case 'beach': return energy >= 5 && hunger > 15;
+      case 'museums': return energy >= 3;
       case 'museum_art': return this.canAfford(30);
       case 'museum_nature': return this.canAfford(30);
       case 'museum_space': return this.canAfford(30);
       case 'museum_history': return this.canAfford(30);
       case 'library': return this.canAfford(10);
-      case 'home': return true;
+      case 'minigames': case 'quiet': case 'home': case 'stats': return true;
       default: return true;
     }
   },
+
+  // Человеческая причина отказа — вместо сухого «нельзя».
+  // Причина всегда та, из-за которой isLocationAvailable вернул false.
+  locationLockReason(loc) {
+    const energy = this.stats.energy;
+    const hunger = this.stats.hunger;
+    if (this.isLocationAvailable(loc)) return 'Сюда можно идти 🙂';
+
+    const price = {
+      cinema: 20, library: 10, museum_art: 30, museum_nature: 30,
+      museum_space: 30, museum_history: 30
+    }[loc];
+    if (price && !this.canAfford(price)) {
+      return 'Нужно ' + price + ' \ud83e\ude99 — загляни в магазин или на работу';
+    }
+    if ((loc === 'pool' || loc === 'beach') && hunger <= 15) return 'Гофер голодный — сначала покорми 🍕';
+    if (loc === 'restaurant' && hunger >= 95) return 'Гофер сыт — сначала погуляй 🚶';
+
+    const need = {
+      work: 15, school: 10, pool: 5, park: 5, gym: 5,
+      cinema: 5, friend: 5, beach: 5, museums: 3
+    }[loc];
+    if (need && energy < need) {
+      return 'Гофер устал (⚡' + Math.round(energy) + '%) — поспи, сон даёт +10% в минуту 😴';
+    }
+    return 'Сейчас сюда нельзя';
+  },
+
+  // Сколько энергии стоит поход (немного: игра не должна наказывать)
+  visitCost(loc) {
+    const v = this.VISIT_ENERGY[loc];
+    return (v === undefined) ? 2 : v;
+  },
+
+  spendEnergy(amount) {
+    this.stats.energy = Math.max(0, this.stats.energy - amount);
+  },
+
+  addStress(amount) {
+    this.stats.stress = Math.min(100, this.stats.stress + amount);
+  },
+
+  // Снять стресс (сон, музыка, купание, тихие игры...)
+  relax(amount) {
+    const before = this.stats.stress;
+    this.stats.stress = Math.max(0, this.stats.stress - amount);
+    return before - this.stats.stress;
+  },
+
+  // Если стресс высокий — об этом надо сказать прямым текстом
+  stressHint() {
+    if (this.stats.stress >= 70) return 'Гофер очень нервничает 😰 Поспи с ним или поиграй тихо';
+    if (this.stats.stress >= 40) return 'Гофер немного напряжён 😟 Помогут сон, музыка или тихие игры';
+    return '';
+  },
+
 
   getTimePeriod(hour) {
     if (hour >= 6 && hour < 12) return 'morning';
@@ -175,23 +338,73 @@ const System = {
     return 'night';
   },
 
+  // Время в игре. Траты мягкие: поход ≈ час, и это всего −1.5 энергии.
   advanceTime(hours) {
-    const now = new Date();
-    const h = now.getHours() + hours;
-    this.timeOfDay = this.getTimePeriod(h);
-    // Пассивное изменение статов со временем
-    this.stats.hunger = Math.max(0, this.stats.hunger - hours * 3);
-    this.stats.energy = Math.max(0, this.stats.energy - hours * 2);
-    this.stats.cleanliness = Math.max(0, this.stats.cleanliness - hours * 1);
-    this.stats.stress = Math.min(100, this.stats.stress + hours * 1);
-
+    const h = Math.max(0, hours);
+    this.stats.hunger = Math.max(0, this.stats.hunger - h * this.HUNGER_PER_HOUR);
+    this.stats.energy = Math.max(0, this.stats.energy - h * this.ENERGY_PER_HOUR);
+    this.stats.cleanliness = Math.max(0, this.stats.cleanliness - h * this.CLEAN_PER_HOUR);
+    this.stats.stress = Math.min(100, this.stats.stress + h * this.STRESS_PER_HOUR);
     if (this.stats.hunger < 10) {
-      this.stats.health = Math.max(0, this.stats.health - hours * 2);
+      this.stats.health = Math.max(0, this.stats.health - h * 2);
       this.isSick = this.stats.health < 20;
     }
     if (this.stats.energy < 10) {
-      this.stats.happiness = Math.max(0, this.stats.happiness - hours * 2);
+      this.stats.happiness = Math.max(0, this.stats.happiness - h * 2);
     }
+    this.timeOfDay = this.getTimePeriod(new Date().getHours());
+  },
+
+  // ============ ОФЛАЙН-ПРОГРЕСС ============
+  // Что случилось, пока приложение было закрыто.
+  // Если гофера уложили спать и ЗАКРЫЛИ приложение — энергия честно копится
+  // (те же +10% в минуту), и через 10 минут он просыпается бодрым.
+  // Если бодрствовал — траты мягкие и не опускаются ниже «пола»: ребёнок
+  // не должен возвращаться к измученному питомцу.
+  applyOfflineProgress(savedAt) {
+    const now = Date.now();
+    const awayMs = Math.max(0, now - (savedAt || now));
+    this.ensureRooms();
+    if (awayMs < 5000) return null;                  // меньше 5 секунд не считаем
+    const slept = Math.min(awayMs, this.OFFLINE_MAX_HOURS * 3600000);
+    const report = { awayMinutes: Math.round(awayMs / 60000), sleptMinutes: 0, wokeUp: false, slept: false };
+
+    if (this.isSleeping) {
+      report.slept = true;
+      const perMs = 100 / (this.SLEEP_FULL_MINUTES * 60000);
+      const needMs = Math.max(0, 100 - this.stats.energy) / perMs;
+      const effective = Math.min(slept, needMs);
+      this.tick(effective);
+      const sleptH = effective / 3600000;
+      // Во сне гофер не ест — но и тут не проваливаемся ниже «пола»
+      this.stats.hunger = Math.max(this.OFFLINE_FLOOR.hunger, this.stats.hunger - sleptH * 1.2);
+      report.sleptMinutes = Math.round(effective / 60000);
+      if (this.stats.energy >= 99.5) { this.isSleeping = false; report.wokeUp = true; }
+      this.addXP(Math.min(20, Math.round(report.sleptMinutes / 2)));
+    } else {
+      const hours = slept / 3600000;
+      this.stats.energy = Math.max(this.OFFLINE_FLOOR.energy, this.stats.energy - hours * this.ENERGY_PER_HOUR);
+      this.stats.hunger = Math.max(this.OFFLINE_FLOOR.hunger, this.stats.hunger - hours * this.HUNGER_PER_HOUR);
+      this.stats.cleanliness = Math.max(this.OFFLINE_FLOOR.cleanliness, this.stats.cleanliness - hours * this.CLEAN_PER_HOUR);
+      this.stats.stress = Math.min(this.OFFLINE_STRESS_MAX, this.stats.stress + hours * this.STRESS_PER_HOUR);
+      this.stats.health = Math.max(this.OFFLINE_FLOOR.health, this.stats.health);
+      this.stats.happiness = Math.max(this.OFFLINE_FLOOR.happiness, this.stats.happiness);
+      this.timeOfDay = this.getTimePeriod(new Date().getHours());
+    }
+
+    this.offlineReport = report;
+    return report;
+  },
+
+  // Текст для игрока: «Пока тебя не было...»
+  offlineMessage() {
+    const r = this.offlineReport;
+    if (!r) return '';
+    const mins = r.awayMinutes;
+    const human = mins < 60 ? (mins + ' мин') : (Math.floor(mins / 60) + ' ч ' + (mins % 60) + ' мин');
+    if (r.wokeUp) return 'Пока тебя не было (' + human + '), гофер выспался и полон сил! ⚡';
+    if (r.sleptMinutes > 0) return 'Гофер спал ' + r.sleptMinutes + ' мин без тебя: энергия ' + Math.round(this.stats.energy) + '% ⚡';
+    return 'Тебя не было ' + human + ' — гофер скучал, но держится 🐹';
   },
 
   saveGame() {
@@ -212,8 +425,13 @@ const System = {
       homeDecor: [...this.homeDecor],
       friends: [...this.friends],
       localFriendship: { ...(this.localFriendship || {}) },
-      room: { ...this.room },
-      furniture: this.furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
+      rooms: this.serializedRooms(),
+      activeRoom: this.activeRoom,
+      paint: { walls: this.paint.walls.slice(), floors: this.paint.floors.slice() },
+      furnitureColors: { ...this.furnitureColors },
+      // legacy-поля: их читают старые коды друзей и сторонние проверки
+      room: { wall: this.currentRoomData().wall, floor: this.currentRoomData().floor },
+      furniture: this.currentRoomData().furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
       look: { ...this.look },
       isSleeping: this.isSleeping,
       sleptMinutes: this.sleptMinutes,
@@ -247,33 +465,49 @@ const System = {
       this.homeDecor = data.homeDecor || [];
       this.friends = data.friends || [];
       this.localFriendship = data.localFriendship || {};
-      this.room = data.room || { wall: 'warm', floor: 'wood' };
-      this.furniture = (data.furniture || []).map(f => ({ id: f.id, x: f.x, y: f.y }));
-      this.look = Object.assign({ hat: null, glasses: null, bowtie: false, fur: 'classic' }, data.look || {});
-      this.isSleeping = !!data.isSleeping;
-      this.sleptMinutes = data.sleptMinutes || 0;
-      if (data.profileName) this.profileName = data.profileName;
-      // Миграция старой мебели (homeDecor без координат) в новую систему
-      if (this.furniture.length === 0 && this.homeDecor.length > 0) {
-        const known = { sofa: 'sofa', carpet: 'carpet', painting: 'painting', bookshelf: 'shelf', aquarium: 'aquarium', plant: 'plant', lamp: 'lamp', tv: 'tv', piano: 'piano', clock: 'clock', bed: 'bed', fridge: 'fridge' };
+      this.rooms = data.rooms || null;
+      this.activeRoom = data.activeRoom || 'living';
+      this.ensureRooms();
+      // Миграция v1.0/v1.1: одна комната + плоский список мебели → по комнатам
+      this.rooms.living.wall = (data.room && data.room.wall) || this.rooms.living.wall;
+      this.rooms.living.floor = (data.room && data.room.floor) || this.rooms.living.floor;
+      this.paint = {
+        walls: (data.paint && data.paint.walls) ? data.paint.walls.slice() : ['warm'],
+        floors: (data.paint && data.paint.floors) ? data.paint.floors.slice() : ['wood']
+      };
+      this.furnitureColors = data.furnitureColors || {};
+      const legacyFurniture = (data.furniture || []);
+      for (const f of legacyFurniture) {
+        const roomId = (typeof furnitureRooms === 'function') ? (furnitureRooms(f.id)[0] || 'living') : 'living';
+        const target = this.rooms[roomId] || this.rooms.living;
+        if (target.furniture.some(x => x.id === f.id)) continue;
+        target.furniture.push({ id: f.id, x: f.x, y: f.y });
+      }
+      // Отделка, которая уже стоит в комнатах, считается купленной
+      for (const rk of Object.keys(this.rooms)) {
+        if (this.paint.walls.indexOf(this.rooms[rk].wall) === -1) this.paint.walls.push(this.rooms[rk].wall);
+        if (this.paint.floors.indexOf(this.rooms[rk].floor) === -1) this.paint.floors.push(this.rooms[rk].floor);
+      }
+      // Миграция старой мебели (homeDecor без координат) — сразу в подходящую комнату
+      if (legacyFurniture.length === 0 && this.homeDecor.length > 0) {
+        const known = { sofa: 'sofa', carpet: 'carpet', painting: 'painting', bookshelf: 'bookshelf', aquarium: 'aquarium', plant: 'plant', lamp: 'lamp', tv: 'tv', piano: 'piano', clock: 'clock', bed: 'bed', fridge: 'fridge' };
         this.homeDecor.forEach((d, i) => {
           const id = known[d.id];
           if (!id || !findFurniture(id)) return;
-          if (this.furniture.some(f => f.id === id)) return;
-          this.furniture.push({ id: id, x: 0.22 + (i % 4) * 0.19, y: 0.74 + Math.floor(i / 4) * 0.11 });
+          const roomId = (typeof furnitureRooms === 'function') ? (furnitureRooms(id)[0] || 'living') : 'living';
+          const target = this.rooms[roomId] || this.rooms.living;
+          if (target.furniture.some(f => f.id === id)) return;
+          target.furniture.push({ id: id, x: 0.22 + (i % 4) * 0.19, y: 0.30 + Math.floor(i / 4) * 0.26 });
         });
       }
-      // Пока приложение было закрыто, гофер мог продолжать спать
-      if (this.isSleeping && data.savedAt) {
-        const sleptMs = Math.min(Date.now() - data.savedAt, this.SLEEP_FULL_MINUTES * 60000);
-        if (sleptMs > 0) this.tick(sleptMs);
-      }
-      // Учёт офлайн-изменения статов
-      if (data.savedAt) {
-        const elapsed = (Date.now() - data.savedAt) / 1000 / 60; // minutes
-        const hours = Math.min(elapsed / 60, 24);
-        this.advanceTime(hours);
-      }
+      this.look = Object.assign({ hat: null, glasses: null, bowtie: false, fur: 'classic', char: 'gopher' }, data.look || {});
+      this.isSleeping = !!data.isSleeping;
+      this.sleptMinutes = data.sleptMinutes || 0;
+      if (data.profileName) this.profileName = data.profileName;
+      // Пока приложение было закрыто: сон ЧЕСТНО копит энергию, бодрствование
+      // тратит мягко и не ниже «пола» (см. applyOfflineProgress).
+      this.offlineReport = null;
+      if (data.savedAt) this.applyOfflineProgress(data.savedAt);
       return true;
     } catch (e) {
       return false;
@@ -312,11 +546,18 @@ const System = {
     this.homeDecor = [];
     this.friends = [];
     this.localFriendship = {};
-    this.room = { wall: 'warm', floor: 'wood' };
-    this.furniture = [];
+    // Дом: 4 комнаты с бесплатной отделкой, мебель начинается с пустой
+    this.rooms = null;
+    this.ensureRooms();
+    this.activeRoom = 'living';
+    this.paint = { walls: ['warm'], floors: ['wood'] };
+    this.furnitureColors = {};
     this.inventory = [];
-    this.look = { hat: null, glasses: null, bowtie: false, fur: 'classic' };
+    // Персонаж — это «кто играет», он сохраняется между сбросами прогресса
+    this.look = { hat: null, glasses: null, bowtie: false, fur: 'classic', char: (this.look && this.look.char) || 'gopher' };
     this.isSleeping = false;
+    this.offlineReport = null;
+    this.sleptItems = null;
     this.sleptMinutes = 0;
     this.lastTick = Date.now();
   },
@@ -351,13 +592,33 @@ const System = {
     this.saveGame();
   },
 
-  // Применить внешний вид к гоферу (единственный источник правды)
+  // Выбрать персонажа: гофер или другая игрушка (мишка, зайка, котёнок, робот)
+  setCharacter(id) {
+    if (typeof findCharacter !== 'function') return false;
+    const c = findCharacter(id);
+    this.look.char = c.id;
+    this.saveGame();
+    return true;
+  },
+
+  characterName() {
+    if (typeof findCharacter !== 'function') return 'Питомец';
+    return findCharacter(this.look.char).name;
+  },
+
+  // Применить внешний вид к фигурке (единственный источник правды)
   applyLookTo(g) {
     if (!g) return;
     g.hat = this.look.hat || null;
     g.glasses = this.look.glasses || null;
     g.bowtie = !!this.look.bowtie;
     g.bodyColor = (this.look.fur && this.look.fur !== 'classic') ? findFur(this.look.fur).color : null;
+  },
+
+  // Создать фигурку нужного персонажа с уже применённым внешним видом
+  makeCharacter(size) {
+    if (typeof createCharacter !== 'function') return new Gopher(null, size || 100);
+    return createCharacter(this.look.char, size || 100);
   },
 
   // ================= ВРЕМЯ И СОН =================
@@ -399,53 +660,121 @@ const System = {
     return true;
   },
 
-  // ================= МЕБЕЛЬ И КОМНАТА =================
-  buyFurniture(id) {
+  // ================= МЕБЕЛЬ, КОМНАТЫ И ОТДЕЛКА =================
+  // Купить вещь: она сразу появляется в подходящей комнате (там, где ей место).
+  // roomId можно задать явно — тогда ставим именно в эту комнату.
+  buyFurniture(id, roomId) {
     const f = findFurniture(id);
     if (!f) return false;
-    // Вещь сразу появляется в комнате — ребёнок видит результат покупки
-    if (!this.furniture.some(it => it.id === id)) {
-      const spot = this.findFreeSpot(id);
-      this.furniture.push({ id: id, x: spot.x, y: spot.y });
-    }
+    if (this.ownsFurniture(id)) return false;
+    this.ensureRooms();
+    const allowed = (typeof furnitureRooms === 'function') ? furnitureRooms(id) : ['living'];
+    let room = roomId && allowed.indexOf(roomId) !== -1 ? roomId : allowed[0];
+    if (!this.rooms[room]) room = 'living';
+    const spot = this.findFreeSpot(id, room);
+    this.rooms[room].furniture.push({ id: id, x: spot.x, y: spot.y });
     this.saveGame();
     return true;
   },
 
-  // Свободное место в комнате для новой вещи
-  findFreeSpot(id) {
+  // Свободное место в комнате для новой вещи.
+  // Стена — три яруса, пол — три «глубины»: чем дальше, тем выше по экрану.
+  findFreeSpot(id, roomId) {
     const f = findFurniture(id);
     const wall = f && f.zone === 'wall';
-    for (let row = 0; row < 3; row++) {
-      for (let col = 0; col < 4; col++) {
-        const x = 0.16 + col * 0.225;
-        const y = wall ? (0.18 + row * 0.30) : (0.16 + row * 0.32);
-        const busy = this.furniture.some(it => Math.abs(it.x - x) < 0.14 && Math.abs(it.y - y) < 0.22);
-        if (!busy) return { x: x, y: y };
+    const room = this.rooms[roomId || this.activeRoom] || this.currentRoomData();
+    // Ряды: сначала середина комнаты (видно и не мешает герою), потом передний
+    // план, и только затем глубина. В центре (x = 0.5) места нет: там стоит герой.
+    // Крупную мебель (рояль, камин, шкаф) ставим сразу вперёд: у стены она
+    // читается как висящая на стене картина.
+    const big = f && (f.k || 1) >= 1.5;
+    const rowsFloor = big ? [0.86, 0.55, 0.28] : [0.55, 0.28, 0.86];
+    const rowsWall = [0.35, 0.70, 0.12];
+    const colsWall = [0.16, 0.385, 0.61, 0.835];
+    // Впереди, по центру, стоит сам герой: крупную вещь туда не ставим,
+    // иначе она закрывает ему лапы и мордочку.
+    const colsFront = [0.16, 0.84];
+    // Окно нарисовано в правой части стены: там место не занимаем
+    const colsWallTop = [0.16, 0.385, 0.61];
+    const rows = wall ? rowsWall : rowsFloor;
+    const colsFor = (row) => {
+      if (wall) return rows[row] < 0.6 ? colsWallTop : colsWall;
+      return rows[row] >= 0.8 ? colsFront : [0.16, 0.385, 0.61, 0.835];
+    };
+    // Из свободных мест берём то, что дальше всего от уже стоящих вещей, но
+    // сначала заполняем самый пустой ряд — иначе вся мебель сбивается вперёд,
+    // а верх комнаты остаётся голым.
+    let best = null, bestScore = -1;
+    for (let row = 0; row < rows.length; row++) {
+      const y = rows[row];
+      const rowCols = colsFor(row);
+      const inRow = room.furniture.filter(it => Math.abs(it.y - y) < 0.13).length;
+      for (let col = 0; col < rowCols.length; col++) {
+        const x = rowCols[col];
+        let nearest = 9, busy = false;
+        for (const it of room.furniture) {
+          const dx = Math.abs(it.x - x), dy = Math.abs(it.y - y);
+          if (dx < 0.14 && dy < 0.20) busy = true;
+          const d = dx + dy;
+          if (d < nearest) nearest = d;
+        }
+        if (busy) continue;
+        const score = (4 - inRow) * 10 + nearest;
+        if (score > bestScore) { bestScore = score; best = { x: x, y: y }; }
       }
     }
-    return { x: 0.5, y: 0.5 };
+    if (best) return best;
+    // Комната забита под завязку: не сваливаем всё в одну точку, а ищем самое
+    // свободное место — иначе мебель встаёт стопкой в центре комнаты.
+    const fineCols = [0.12, 0.20, 0.29, 0.38, 0.47, 0.56, 0.65, 0.74, 0.83, 0.90];
+    const fineRows = wall ? [0.06, 0.14, 0.22, 0.30, 0.38, 0.46]
+                          : [0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90];
+    for (const y of fineRows) {
+      for (const x of fineCols) {
+        // Те же запреты, что и в сетке: окно и место героя
+        if (wall && x > 0.7 && y < 0.6) continue;
+        if (!wall && y >= 0.8 && Math.abs(x - 0.5) < 0.2) continue;
+        let nearest = 9;
+        for (const it of room.furniture) {
+          const d = Math.abs(it.x - x) + Math.abs(it.y - y);
+          if (d < nearest) nearest = d;
+        }
+        if (nearest > bestScore) { bestScore = nearest; best = { x: x, y: y }; }
+      }
+    }
+    return best || { x: 0.5, y: 0.5 };
   },
 
   ownsFurniture(id) {
-    return this.inventory.includes(id) || this.furniture.some(f => f.id === id);
+    return this.inventory.indexOf(id) !== -1 || this.roomOfItem(id) !== null;
   },
 
   // Поставить предмет из инвентаря (или переставить уже стоящий)
   placeFurniture(id, x, y) {
-    if (!findFurniture(id)) return false;
+    const f = findFurniture(id);
+    if (!f) return false;
+    this.ensureRooms();
+    const allowed = (typeof furnitureRooms === 'function') ? furnitureRooms(id) : ['living'];
+    let room = this.activeRoom;
+    if (allowed.indexOf(room) === -1) room = allowed[0];       // вещь уходит туда, где ей место
     const idx = this.inventory.indexOf(id);
     if (idx !== -1) this.inventory.splice(idx, 1);
-    const existing = this.furniture.find(it => it.id === id);
-    if (existing) { existing.x = x; existing.y = y; }
-    else this.furniture.push({ id: id, x: x, y: y });
+    const was = this.roomOfItem(id);
+    if (was) {
+      // переносим между комнатами, если понадобилось
+      const i0 = this.rooms[was].furniture.findIndex(it => it.id === id);
+      if (i0 !== -1) this.rooms[was].furniture.splice(i0, 1);
+    }
+    this.rooms[room].furniture.push({ id: id, x: x, y: y });
     this.saveGame();
     return true;
   },
 
   // x, y — доли 0..1 внутри зоны предмета (стена или пол)
   moveFurniture(id, x, y) {
-    const it = this.furniture.find(f => f.id === id);
+    const roomId = this.roomOfItem(id);
+    if (!roomId) return;
+    const it = this.rooms[roomId].furniture.find(f => f.id === id);
     if (!it) return;
     it.x = Math.max(0.06, Math.min(0.94, x));
     it.y = Math.max(0, Math.min(1, y));
@@ -454,19 +783,90 @@ const System = {
 
   // Убрать в инвентарь
   removeFurniture(id) {
-    const idx = this.furniture.findIndex(f => f.id === id);
+    const roomId = this.roomOfItem(id);
+    if (!roomId) return false;
+    const idx = this.rooms[roomId].furniture.findIndex(f => f.id === id);
     if (idx === -1) return false;
-    this.furniture.splice(idx, 1);
-    if (!this.inventory.includes(id)) this.inventory.push(id);
+    this.rooms[roomId].furniture.splice(idx, 1);
+    if (this.inventory.indexOf(id) === -1) this.inventory.push(id);
     this.saveGame();
     return true;
   },
 
-  setWall(id) { if (findWall(id)) { this.room.wall = id; this.saveGame(); } },
-  setFloor(id) { if (findFloor(id)) { this.room.floor = id; this.saveGame(); } },
+  // ---- Перекраска мебели: платная услуга ----
+  // Цена зависит от стоимости вещи (см. recolorCost).
+  paintFurniture(id, colorIdx) {
+    const f = findFurniture(id);
+    if (!f || !f.palette) return { ok: false, reason: 'no-palette' };
+    if (this.colorIndex(id) === colorIdx) return { ok: false, reason: 'same' };
+    const price = recolorCost(id);
+    if (!this.canAfford(price)) return { ok: false, reason: 'money', price: price };
+    this.spendCoins(price);
+    this.furnitureColors[id] = colorIdx;
+    this.saveGame();
+    return { ok: true, price: price, color: f.palette[colorIdx % f.palette.length] };
+  },
+
+  // ---- Обои и пол: покупка набора, применение бесплатное ----
+  ownsWall(id) { return this.paint.walls.indexOf(id) !== -1; },
+  ownsFloor(id) { return this.paint.floors.indexOf(id) !== -1; },
+
+  buyWall(id) {
+    const w = (typeof WALLS !== 'undefined') ? WALLS.find(x => x.id === id) : null;
+    if (!w) return { ok: false, reason: 'none' };
+    if (this.ownsWall(id)) return { ok: false, reason: 'owned' };
+    if (!this.canAfford(w.cost)) return { ok: false, reason: 'money', price: w.cost };
+    this.spendCoins(w.cost);
+    this.paint.walls.push(id);
+    this.saveGame();
+    return { ok: true, price: w.cost };
+  },
+
+  buyFloor(id) {
+    const fl = (typeof FLOORS !== 'undefined') ? FLOORS.find(x => x.id === id) : null;
+    if (!fl) return { ok: false, reason: 'none' };
+    if (this.ownsFloor(id)) return { ok: false, reason: 'owned' };
+    if (!this.canAfford(fl.cost)) return { ok: false, reason: 'money', price: fl.cost };
+    this.spendCoins(fl.cost);
+    this.paint.floors.push(id);
+    this.saveGame();
+    return { ok: true, price: fl.cost };
+  },
+
+  // Применить обои/пол в активной комнате. Владельцу — бесплатно,
+  // некупленный набор сначала нужно купить (это и есть «перекраска за деньги»).
+  setWall(id) {
+    if (!findWall(id)) return false;
+    const w = (typeof WALLS !== 'undefined') ? WALLS.find(x => x.id === id) : null;
+    if (w && w.cost > 0 && !this.ownsWall(id)) {
+      const res = this.buyWall(id);
+      if (!res.ok) return false;
+    }
+    if (!this.ownsWall(id)) this.paint.walls.push(id);
+    this.currentRoomData().wall = id;
+    this.saveGame();
+    return true;
+  },
+
+  setFloor(id) {
+    if (!findFloor(id)) return false;
+    const fl = (typeof FLOORS !== 'undefined') ? FLOORS.find(x => x.id === id) : null;
+    if (fl && fl.cost > 0 && !this.ownsFloor(id)) {
+      const res = this.buyFloor(id);
+      if (!res.ok) return false;
+    }
+    if (!this.ownsFloor(id)) this.paint.floors.push(id);
+    this.currentRoomData().floor = id;
+    this.saveGame();
+    return true;
+  },
 
   // Сколько мебели всего куплено
-  furnitureCount() { return this.furniture.length + this.inventory.length; },
+  furnitureCount() {
+    let n = this.inventory.length;
+    for (const id of Object.keys(this.rooms || {})) n += this.rooms[id].furniture.length;
+    return n;
+  },
 
   // ================= ПРОФИЛИ (несколько гоферов на устройстве) =================
   saveKeyFor(profileId) {
@@ -534,55 +934,189 @@ const System = {
     }
   },
 
-  addFriend(code) {
-    const decode = (raw) => {
-      const bin = atob(raw);
-      try { return JSON.parse(decodeURIComponent(escape(bin))); }
-      catch (e) { return JSON.parse(bin); }
-    };
+  // ================= КОДЫ ДРУЗЕЙ =================
+  // Два формата:
+  //  1) КОРОТКИЙ код (16 символов вида A3KF-9M2P-QR7T-VB5G) — его можно
+  //     надиктовать голосом или набрать руками: в нём обои, пол, окрас,
+  //     персонаж и 6 предметов гостиной.
+  //  2) ПОЛНЫЙ код (длинный) — копируется и вставляется одной кнопкой:
+  //     в нём весь дом со всеми комнатами.
+  // Разбираем сами: короткий — если 16 символов из нашего алфавита,
+  // иначе пробуем длинный.
+  addFriendCode(raw, name) {
+    const code = String(raw || '').trim();
+    if (!code) return { ok: false, reason: 'empty' };
+    // Пробелы и дефисы не мешают: код можно набирать группами
+    const compact = code.replace(/[\s\-–—]/g, '');
+    const upper = compact.toUpperCase();
+    // Короткий код: ровно 16 символов нашего алфавита (без I и O)
+    if (compact.length === 16 && /^[0-9A-Z]+$/.test(upper) && /^[0-9A-HJ-NP-Z]+$/.test(upper)) {
+      const data = this.unpackShortCode(upper);
+      if (!data) return { ok: false, reason: 'bad-short' };
+      return this.addFriendData(data, name);
+    }
+    // Длинный код: base64 с JSON внутри (регистр букв важен!)
     try {
-      const data = decode(code);
-      if (data && data.name) {
-        if (this.friends.find(f => f.name === data.name)) return false;
-        const look = data.look || { hat: data.hat, glasses: data.glasses, bowtie: data.bowtie };
-        this.friends.push({
-          id: 'code_' + data.name + '_' + Date.now().toString(36),
-          name: data.name,
-          emoji: '🐹',
-          trait: 'друг по переписке',
-          level: data.level || 1,
-          friendship: 20,
-          decor: (data.homeDecor || []).map(d => ({ emoji: d.emoji, name: d.name })),
-          room: data.room || { wall: 'warm', floor: 'wood' },
-          furniture: (data.furniture || []).map(f => ({ id: f.id, x: f.x, y: f.y })),
-          hat: look.hat || null,
-          glasses: look.glasses || null,
-          bowtie: !!look.bowtie
-        });
-        this.saveGame();
-        return true;
-      }
+      const bin = atob(compact);
+      let data;
+      try { data = JSON.parse(decodeURIComponent(escape(bin))); }
+      catch (e) { data = JSON.parse(bin); }
+      if (data && data.name) return this.addFriendData(data, name);
     } catch (e) {}
-    return false;
+    return { ok: false, reason: 'bad-code' };
   },
 
+  // Добавить друга из разобранных данных (короткий или полный код)
+  addFriendData(data, name) {
+    const fname = String(data.name || name || 'Друг').trim().slice(0, 16) || 'Друг';
+    if (this.friends.find(f => f.name === fname)) return { ok: false, reason: 'exists', name: fname };
+    const look = data.look || { hat: data.hat, glasses: data.glasses, bowtie: data.bowtie, fur: data.fur, char: data.char };
+    const rooms = data.rooms || null;
+    let room = data.room || { wall: 'warm', floor: 'wood' };
+    let furniture = (data.furniture || []).map(f => ({ id: f.id, x: f.x, y: f.y }));
+    if (rooms && rooms.living) {
+      room = { wall: rooms.living.wall || room.wall, floor: rooms.living.floor || room.floor };
+      furniture = (rooms.living.furniture || []).map(f => ({ id: f.id, x: f.x, y: f.y }));
+    }
+    // вещи, которых нет в каталоге этой версии, тихо выкидываем
+    furniture = furniture.filter(f => typeof findFurniture !== 'function' || findFurniture(f.id));
+    this.friends.push({
+      id: 'code_' + fname + '_' + Date.now().toString(36),
+      name: fname,
+      emoji: '🐹',
+      trait: data.trait || 'друг по переписке',
+      level: data.level || 1,
+      friendship: 20,
+      decor: [],
+      room: room,
+      furniture: furniture,
+      rooms: rooms,
+      hat: (look && look.hat) || null,
+      glasses: (look && look.glasses) || null,
+      bowtie: !!(look && look.bowtie),
+      fur: (look && look.fur) || 'classic',
+      char: (look && look.char) || 'gopher'
+    });
+    this.saveGame();
+    return { ok: true, name: fname };
+  },
+
+  // Совместимость: старый вызов возвращает true/false
+  addFriend(code) {
+    return this.addFriendCode(code).ok;
+  },
+
+  // ПОЛНЫЙ код: весь дом со всеми комнатами (копируется кнопкой)
   getMyCode(game) {
     const name = this.profileName && this.profileName !== 'Гофер'
       ? this.profileName
-      : 'Гофер#' + (this.level * 100 + Math.floor(this.coins / 10)).toString(36);
+      : this.characterName() + '#' + (this.level * 100 + Math.floor(this.coins / 10)).toString(36);
     const data = {
-      v: 2,
+      v: 3,
       name: name,
-      stats: { ...this.stats },
       level: this.level,
       coins: this.coins,
-      room: { ...this.room },
-      furniture: this.furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
-      homeDecor: this.homeDecor.map(d => ({ id: d.id, emoji: d.emoji, name: d.name })),
+      rooms: this.serializedRooms(),
+      room: { wall: this.currentRoomData().wall, floor: this.currentRoomData().floor },
+      furniture: this.currentRoomData().furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
+      furnitureColors: { ...this.furnitureColors },
       look: { ...this.look }
     };
     try { return btoa(unescape(encodeURIComponent(JSON.stringify(data)))); }
     catch (e) { return btoa(JSON.stringify(data)); }
+  },
+
+  // КОРОТКИЙ код: 16 символов группами по 4 — можно надиктовать по телефону
+  // или набрать руками (длинный код руками не набрать, поэтому он и не нужен).
+  getShortCode() {
+    const bits = [];
+    const room = this.currentRoomData();
+    const idxOf = (arr, id) => {
+      const i = (arr || []).findIndex(x => x.id === id);
+      return i < 0 ? 0 : i;
+    };
+    const charIdx = (typeof CHARACTERS !== 'undefined') ? idxOf(CHARACTERS, this.look.char) : 0;
+    const furIdx = (typeof FURS !== 'undefined') ? idxOf(FURS, this.look.fur) : 0;
+    const wallIdx = (typeof WALLS !== 'undefined') ? idxOf(WALLS, room.wall) : 0;
+    const floorIdx = (typeof FLOORS !== 'undefined') ? idxOf(FLOORS, room.floor) : 0;
+    const hatIdx = SHORT_HATS.indexOf(this.look.hat || null);
+    const glassIdx = SHORT_GLASSES.indexOf(this.look.glasses || null);
+    pushBits(bits, 1, 2);                                       // версия формата
+    pushBits(bits, charIdx & 7, 3);                             // персонаж
+    pushBits(bits, furIdx & 15, 4);                             // окрас
+    pushBits(bits, (wallIdx & 15), 4);                          // обои
+    pushBits(bits, (floorIdx & 15), 4);                         // пол
+    pushBits(bits, hatIdx < 0 ? 0 : hatIdx, 2);                 // шляпа
+    pushBits(bits, glassIdx < 0 ? 0 : glassIdx, 2);             // очки
+    pushBits(bits, this.look.bowtie ? 1 : 0, 1);                // бабочка
+    pushBits(bits, Math.max(0, Math.min(31, this.level - 1)), 5); // уровень
+    const items = (room.furniture || []).slice(0, 6);
+    for (let i = 0; i < 6; i++) {
+      const it = items[i];
+      const fi = it ? FURNITURE.findIndex(f => f.id === it.id) : -1;
+      pushBits(bits, (fi >= 0 && fi < 31) ? (fi + 1) : 0, 5);   // предмет (0 = пусто)
+      let pos = 0;
+      if (it) {
+        const col = Math.max(0, Math.min(3, Math.round((it.x - 0.16) / 0.215)));
+        const row = (it.y >= 0.5) ? 1 : 0;
+        pos = row * 4 + col;
+      }
+      pushBits(bits, pos, 3);                                   // место в сетке 4×2
+    }
+    const body = bitsToCode32(bits);                            // 15 символов
+    const full = body + code32Checksum(body);                   // + контрольный
+    return full.replace(/(.{4})(?=.)/g, '$1-');
+  },
+
+  // Разбор короткого кода: строгая проверка контрольной суммы
+  unpackShortCode(raw) {
+    const clean = String(raw || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
+    if (clean.length !== 16) return null;
+    const body = clean.slice(0, 15), sum = clean.slice(15);
+    if (code32Checksum(body) !== sum) return null;
+    const bits = code32ToBits(clean);
+    if (!bits) return null;
+    let p = 0;
+    const ver = readBits(bits, p, 2); p += 2;
+    if (ver !== 1) return null;
+    const charIdx = readBits(bits, p, 3); p += 3;
+    const furIdx = readBits(bits, p, 4); p += 4;
+    const wallIdx = readBits(bits, p, 4); p += 4;
+    const floorIdx = readBits(bits, p, 4); p += 4;
+    const hatIdx = readBits(bits, p, 2); p += 2;
+    const glassIdx = readBits(bits, p, 2); p += 2;
+    const bowtie = readBits(bits, p, 1); p += 1;
+    const level = readBits(bits, p, 5) + 1; p += 5;
+    const furniture = [];
+    for (let i = 0; i < 6; i++) {
+      const itemIdx = readBits(bits, p, 5); p += 5;
+      const pos = readBits(bits, p, 3); p += 3;
+      if (!itemIdx) continue;
+      const f = FURNITURE[itemIdx - 1];
+      if (!f) continue;
+      const col = pos % 4, row = Math.floor(pos / 4);
+      furniture.push({ id: f.id, x: 0.16 + col * 0.215, y: row ? 0.62 : 0.25 });
+    }
+    const chars = (typeof CHARACTERS !== 'undefined') ? CHARACTERS : [{ id: 'gopher' }];
+    const furs = (typeof FURS !== 'undefined') ? FURS : [{ id: 'classic' }];
+    return {
+      name: null,
+      level: level,
+      trait: 'друг по короткому коду',
+      room: {
+        wall: ((typeof WALLS !== 'undefined' ? WALLS[wallIdx] : null) || {}).id || 'warm',
+        floor: ((typeof FLOORS !== 'undefined' ? FLOORS[floorIdx] : null) || {}).id || 'wood',
+        furniture: furniture
+      },
+      furniture: furniture,
+      look: {
+        char: (chars[charIdx] || chars[0]).id,
+        fur: (furs[furIdx] || furs[0]).id,
+        hat: SHORT_HATS[hatIdx] || null,
+        glasses: SHORT_GLASSES[glassIdx] || null,
+        bowtie: !!bowtie
+      }
+    };
   },
 
   addAch(id) {
@@ -615,4 +1149,52 @@ const System = {
   }
 };
 
+// ============ КОРОТКИЙ КОД ДРУГА: КОДИРОВАНИЕ ============
+// 5 бит на символ, алфавит без похожих букв (нет I и O — их путают с 1 и 0).
+// Длинный код руками не набрать, поэтому для диктовки есть короткий: 16
+// символов группами по 4 + контрольный символ (защита от опечатки).
+const CODE32 = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+const SHORT_HATS = [null, 'scientist', 'chef', 'crown'];
+const SHORT_GLASSES = [null, 'nerd', 'cool'];
+
+function pushBits(bits, value, n) {
+  for (let i = n - 1; i >= 0; i--) bits.push((value >> i) & 1);
+}
+
+function readBits(bits, pos, n) {
+  let v = 0;
+  for (let i = 0; i < n; i++) v = (v << 1) | (bits[pos + i] || 0);
+  return v;
+}
+
+function bitsToCode32(bits) {
+  let out = '';
+  for (let i = 0; i < bits.length; i += 5) {
+    let v = 0;
+    for (let j = 0; j < 5; j++) v = (v << 1) | (bits[i + j] || 0);
+    out += CODE32[v];
+  }
+  return out;
+}
+
+function code32ToBits(str) {
+  const bits = [];
+  for (const ch of String(str)) {
+    const v = CODE32.indexOf(ch);
+    if (v === -1) return null;
+    for (let j = 4; j >= 0; j--) bits.push((v >> j) & 1);
+  }
+  return bits;
+}
+
+function code32Checksum(body) {
+  let sum = 7;
+  for (let i = 0; i < body.length; i++) {
+    sum = (sum * 31 + CODE32.indexOf(body[i])) % 32;
+  }
+  return CODE32[sum < 0 ? 0 : sum];
+}
+
+window.CODE32 = CODE32;
 window.System = System;
+

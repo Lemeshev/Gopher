@@ -25,6 +25,7 @@ class ShopScene {
     this.decorRoom = this.decorRoom || 'living';
     this.decorKind = this.decorKind || 'furniture';
     this.decorPage = 0;
+    this.page = 0;
     // Пришли из дома за мебелью — сразу открываем нужную комнату
     if (this.currentTab === 'decor' && typeof System !== 'undefined' && System.activeRoom) {
       this.decorRoom = System.activeRoom;
@@ -199,7 +200,8 @@ class ShopScene {
     const cols = 2;
     const itemW = (W - 40) / cols;
     const startX = 20;
-    const startY = 130;
+    // Вкладка «Дом»: над сеткой стоят фильтры комнат и вида товара
+    const startY = this.currentTab === 'decor' ? 182 : 130;
     // Дом — отдельная логика: комнаты, обои, пол и страницы каталога
     let filteredItems;
     if (this.currentTab === 'decor') {
@@ -213,19 +215,54 @@ class ShopScene {
 
     if (this.currentTab === 'decor') this.drawDecorFilters(ctx, W, H, filteredItems);
 
-    filteredItems.forEach((item, i) => {
+    // Во вкладках без фильтров тоже нужны страницы: иначе 7-й и следующие
+    // товары уезжают за нижний край экрана и их нельзя купить.
+    const perPage = itemRows * cols;
+    const pages = Math.max(1, Math.ceil(filteredItems.length / perPage));
+    this.pages = pages;
+    if ((this.page || 0) >= pages) this.page = 0;
+    const shownItems = (this.currentTab === 'decor')
+      ? filteredItems
+      : filteredItems.slice((this.page || 0) * perPage, (this.page || 0) * perPage + perPage);
+
+    if (this.currentTab !== 'decor' && pages > 1) {
+      const py = H - 100;
+      ctx.fillStyle = '#4a4a4a';
+      ctx.font = 'bold 12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('стр. ' + ((this.page || 0) + 1) + ' / ' + pages, W / 2, py + 15);
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      roundRect(ctx, W / 2 - 96, py, 44, 24, 8); ctx.fill();
+      roundRect(ctx, W / 2 + 52, py, 44, 24, 8); ctx.fill();
+      ctx.fillStyle = '#333';
+      ctx.font = 'bold 14px Arial';
+      ctx.fillText('\u25c0', W / 2 - 74, py + 17);
+      ctx.fillText('\u25b6', W / 2 + 74, py + 17);
+      this.buttons.push({ x: W / 2 - 96, y: py, w: 44, h: 24, action: 'shopPage:-1' });
+      this.buttons.push({ x: W / 2 + 52, y: py, w: 44, h: 24, action: 'shopPage:1' });
+    }
+
+    shownItems.forEach((item, i) => {
       const col = i % cols;
       const row = Math.floor(i / cols);
       const ix = startX + col * itemW;
       const iy = startY + row * itemH;
       const owned = item.furniture ? System.ownsFurniture(item.id)
-        : (item.fur ? System.look.fur === item.fur : false);
+        : (item.fur ? System.look.fur === item.fur : !!item.owned);
+      const active = !!item.active;
       const canAfford = System.canAfford(item.cost) && !owned;
 
       // Item card
-      ctx.fillStyle = owned ? 'rgba(107,203,119,0.28)' : (canAfford ? 'rgba(255,255,255,0.9)' : 'rgba(200,200,200,0.7)');
+      ctx.fillStyle = active ? 'rgba(107,203,119,0.55)'
+        : (owned ? 'rgba(107,203,119,0.28)' : (canAfford ? 'rgba(255,255,255,0.9)' : 'rgba(200,200,200,0.7)'));
       roundRect(ctx, ix, iy, itemW - 4, itemH - 4, 15);
       ctx.fill();
+      if (active) {
+        ctx.strokeStyle = '#2E7D32';
+        ctx.lineWidth = 2.5;
+        roundRect(ctx, ix, iy, itemW - 4, itemH - 4, 15);
+        ctx.stroke();
+      }
 
       if (!canAfford) {
         ctx.fillStyle = 'rgba(0,0,0,0.15)';
@@ -233,35 +270,77 @@ class ShopScene {
         ctx.fill();
       }
 
-      // Emoji
-      ctx.font = `${Math.min(itemW * 0.32, 34)}px Arial`;
-      ctx.textAlign = 'left';
-      ctx.fillStyle = '#333';
-      ctx.fillText(item.emoji, ix + 10, iy + itemH * 0.36);
+      // Плашка с настоящим цветом обоев/пола — видно, что покупаешь.
+      // Она же заменяет эмодзи: две картинки в одном углу налезали друг на друга.
+      let swatch = null;
+      if (item.wallId || item.floorId) {
+        const src = item.wallId
+          ? (typeof WALLS !== 'undefined' ? WALLS.find(x => x.id === item.wallId) : null)
+          : (typeof FLOORS !== 'undefined' ? FLOORS.find(x => x.id === item.floorId) : null);
+        if (src) {
+          swatch = src;
+          const sw = Math.min(itemW * 0.24, 38);
+          const sy2 = iy + itemH * 0.30 - sw * 0.4;
+          // Верх — светлый оттенок, низ — основной цвет: плашку видно даже
+          // у самых бледных обоев («Мятные», «Плитка»)
+          ctx.fillStyle = src.c2;
+          roundRect(ctx, ix + 10, sy2, sw, sw, 6);
+          ctx.fill();
+          ctx.save();
+          roundRect(ctx, ix + 10, sy2, sw, sw, 6);
+          ctx.clip();
+          ctx.fillStyle = src.c1;
+          ctx.fillRect(ix + 10, sy2, sw, sw * 0.5);
+          ctx.restore();
+          ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+          ctx.lineWidth = 1.5;
+          roundRect(ctx, ix + 10, sy2, sw, sw, 6);
+          ctx.stroke();
+        }
+      }
+
+      // Emoji (у обоев и пола вместо него — цветовая плашка)
+      if (!swatch) {
+        ctx.font = `${Math.min(itemW * 0.32, 34)}px Arial`;
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#333';
+        ctx.fillText(item.emoji, ix + 10, iy + itemH * 0.36);
+      }
 
       // Name
-      ctx.font = `bold ${Math.min(itemW * 0.13, 14)}px Arial`;
+      ctx.textAlign = 'left';   // обязательно: предыдущая карточка могла оставить 'right'
+      const nameSize = fitFontSize(ctx, item.name, itemW - 62, Math.min(itemW * 0.13, 14), 9, true);
+      ctx.font = `bold ${nameSize}px Arial`;
       ctx.fillStyle = '#333';
       ctx.fillText(item.name, ix + 50, iy + itemH * 0.30);
 
       // Desc
-      ctx.font = `${Math.min(itemW * 0.1, 11)}px Arial`;
+      const descSize = fitFontSize(ctx, item.desc, itemW - 62, Math.min(itemW * 0.1, 11), 8, false);
+      ctx.font = `${descSize}px Arial`;
       ctx.fillStyle = '#666';
       ctx.fillText(item.desc, ix + 50, iy + itemH * 0.50);
 
       // Для мебели — подсказка: комната и уровень цены
       if (item.roomLabel) {
         ctx.fillStyle = '#8B6B3D';
-        ctx.font = `${Math.min(itemW * 0.095, 10)}px Arial`;
-        ctx.fillText(item.roomLabel + (item.tier ? ' \u00b7 ' + item.tier : ''), ix + 50, iy + itemH * 0.68);
+        const label = item.roomLabel + (item.tier ? ' \u00b7 ' + item.tier : '');
+        const labelSize = fitFontSize(ctx, label, itemW - 62, Math.min(itemW * 0.095, 10), 7.5, false);
+        ctx.font = `${labelSize}px Arial`;
+        ctx.fillText(label, ix + 50, iy + itemH * 0.68);
       }
 
       // Цена / состояние
       ctx.textAlign = 'right';
       ctx.font = `bold ${Math.min(itemW * 0.12, 13)}px Arial`;
-      if (owned) {
+      if (active) {
+        ctx.fillStyle = '#1B5E20';
+        ctx.fillText('✓ Сейчас тут', ix + itemW - 15, iy + itemH - 14);
+      } else if (owned) {
         ctx.fillStyle = '#2E7D32';
-        ctx.fillText('✓ Куплено', ix + itemW - 15, iy + itemH - 14);
+        ctx.fillText((item.wallId || item.floorId) ? 'Применить' : '✓ Куплено', ix + itemW - 15, iy + itemH - 14);
+      } else if (item.cost === 0) {
+        ctx.fillStyle = '#2E7D32';
+        ctx.fillText('Бесплатно', ix + itemW - 15, iy + itemH - 14);
       } else {
         ctx.fillStyle = canAfford ? '#4CAF50' : '#999';
         ctx.fillText('🪙 ' + item.cost, ix + itemW - 15, iy + itemH - 14);
@@ -311,18 +390,18 @@ class ShopScene {
     } else if (kind === 'walls') {
       list = ((typeof WALLS !== 'undefined') ? WALLS : []).map(w => ({
         id: 'wall_' + w.id, emoji: '\ud83c\udfa8', name: w.name,
-        desc: w.cost === 0 ? 'Бесплатно' : ('Обои за ' + w.cost),
+        desc: w.cost === 0 ? 'Стартовые обои' : 'Покупается один раз',
         cost: w.cost, category: 'decor', wallId: w.id,
         owned: System.ownsWall(w.id), active: System.currentRoomData().wall === w.id,
-        roomLabel: 'Все комнаты', tier: ''
+        roomLabel: 'Ставь в любой комнате', tier: ''
       }));
     } else {
       list = ((typeof FLOORS !== 'undefined') ? FLOORS : []).map(fl => ({
         id: 'floor_' + fl.id, emoji: '\ud83e\uddf1', name: fl.name,
-        desc: fl.cost === 0 ? 'Бесплатно' : ('Пол за ' + fl.cost),
+        desc: fl.cost === 0 ? 'Стартовый пол' : 'Покупается один раз',
         cost: fl.cost, category: 'decor', floorId: fl.id,
         owned: System.ownsFloor(fl.id), active: System.currentRoomData().floor === fl.id,
-        roomLabel: 'Все комнаты', tier: ''
+        roomLabel: 'Ставь в любой комнате', tier: ''
       }));
     }
 
@@ -376,23 +455,25 @@ class ShopScene {
       this.buttons.push({ x: x, y: y + 28, w: kw, h: 24, action: 'decorKind:' + k.id });
     });
 
-    // страницы каталога
+    // Листание каталога — внизу, над кнопкой «Назад» (иначе налезает на карточки)
     if ((this.decorPages || 1) > 1) {
+      const py2 = H - 100;
       ctx.fillStyle = '#4a4a4a';
       ctx.font = 'bold 12px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText('\u0441\u0442\u0440. ' + ((this.decorPage || 0) + 1) + ' / ' + this.decorPages, W / 2, y + 66);
-      this.buttons.push({ x: W / 2 - 70, y: y + 52, w: 44, h: 22, action: 'decorPage:-1' });
-      this.buttons.push({ x: W / 2 + 26, y: y + 52, w: 44, h: 22, action: 'decorPage:1' });
-      ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      roundRect(ctx, W / 2 - 70, y + 52, 44, 22, 6); ctx.fill();
-      roundRect(ctx, W / 2 + 26, y + 52, 44, 22, 6); ctx.fill();
+      ctx.fillText('стр. ' + ((this.decorPage || 0) + 1) + ' / ' + this.decorPages, W / 2, py2 + 15);
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      roundRect(ctx, W / 2 - 96, py2, 44, 24, 8); ctx.fill();
+      roundRect(ctx, W / 2 + 52, py2, 44, 24, 8); ctx.fill();
       ctx.fillStyle = '#333';
-      ctx.font = 'bold 13px Arial';
+      ctx.font = 'bold 14px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText('\u25c0', W / 2 - 48, y + 67);
-      ctx.fillText('\u25b6', W / 2 + 48, y + 67);
+      ctx.fillText('\u25c0', W / 2 - 74, py2 + 17);
+      ctx.fillText('\u25b6', W / 2 + 74, py2 + 17);
+      this.buttons.push({ x: W / 2 - 96, y: py2, w: 44, h: 24, action: 'decorPage:-1' });
+      this.buttons.push({ x: W / 2 + 52, y: py2, w: 44, h: 24, action: 'decorPage:1' });
     }
+
   }
 
   handleClick(mx, my) {
@@ -405,6 +486,7 @@ class ShopScene {
       const tx = 20 + i * tabW;
       if (isPointInRect(mx, my, tx + 2, tabStartY + 2, tabW - 4, 36)) {
         this.currentTab = tabIds[i];
+        this.page = 0;
         if (this.currentTab === 'decor') {
           this.decorPage = 0;
           if (typeof System !== 'undefined' && System.activeRoom) this.decorRoom = System.activeRoom;
@@ -421,6 +503,13 @@ class ShopScene {
       if (!btn.action) continue;
       if (!isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) continue;
       const a = btn.action;
+      if (a.indexOf('shopPage:') === 0) {
+        const d = parseInt(a.slice(9), 10) || 1;
+        const p = this.pages || 1;
+        this.page = ((this.page || 0) + d + p) % p;
+        AudioSys.play('click');
+        return true;
+      }
       if (a.indexOf('decorRoom:') === 0) {
         this.decorRoom = a.slice(10);
         this.decorKind = 'furniture';

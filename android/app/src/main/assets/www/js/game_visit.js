@@ -332,7 +332,10 @@ class VisitScene {
     const cols = 3;
     const rows = Math.ceil(pageItems.length / cols);
     const gap = 8;
-    const gridTop = stageTop + stageH + 10;
+    // В спортзале есть особая тренировка — воздушная гимнастика
+    const hasAerial = this.locationId === 'gym';
+    const aerialH = hasAerial ? 36 : 0;
+    const gridTop = stageTop + stageH + 10 + aerialH;
     // Внизу всегда живут кнопка награды, «другая подборка» и листание —
     // сетка не должна залезать на них (иначе клик открывает предмет вместо кнопки)
     const gridBottom = H - 140;
@@ -343,6 +346,16 @@ class VisitScene {
     const gridY = gridTop + Math.max(0, (gridBottom - gridTop - gridH) / 2);
     const gridW = cols * cellW + (cols - 1) * gap;
     const startX = (W - gridW) / 2;
+
+    // Кнопка особой тренировки — над сеткой
+    if (hasAerial) {
+      const aw = Math.min(W - 32, 300), ah = 30;
+      const ax = (W - aw) / 2, ay = stageTop + stageH + 8;
+      createButton(ctx, ax, ay, aw, ah, '🎪 Воздушная гимнастика', {
+        bgColor: '#9B59B6', fgColor: '#fff', fontSize: 13, radius: 10
+      });
+      this.buttons.push({ x: ax, y: ay, w: aw, h: ah, text: 'aerial' });
+    }
 
     pageItems.forEach((item, i) => {
       const gi = from + i;
@@ -542,6 +555,14 @@ class VisitScene {
         AudioSys.play('click');
         if (this.backTarget === 'museums') this.game.transitionTo('visit', 'museums');
         else this.game.transitionTo('map');
+        return true;
+      }
+
+      // Воздушная гимнастика (спортзал)
+      if (t === 'aerial') {
+        AudioSys.play('click');
+        System.saveGame();
+        this.game.transitionTo('aerial');
         return true;
       }
 

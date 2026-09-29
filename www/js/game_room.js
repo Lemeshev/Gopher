@@ -18,8 +18,13 @@ const RoomView = {
   // Экранная точка предмета внутри rect комнаты
   posFor(item, rect) {
     const z = this.yRange(item.id);
+    const size = this.sizeFor(item.id, rect, item.y);
+    // Крупную вещь у самой стены не должно обрезать краем кадра: чуть сдвигаем
+    // внутрь, если она не влезает.
+    const half = size * 0.52;
+    const x = clamp(rect.x + rect.w * item.x, rect.x + half, rect.x + rect.w - half);
     return {
-      x: rect.x + rect.w * item.x,
+      x: x,
       y: rect.y + rect.h * (z.top + item.y * (z.bottom - z.top))
     };
   },
@@ -28,8 +33,8 @@ const RoomView = {
   // Чем дальше предмет (меньше y), тем он меньше: маленькая вещь в глубине
   // комнаты читается как «стоит далеко», а не как «крошечная впереди».
   // Плюс у каждого предмета свой «истинный» размер k (шкаф выше лампы).
-  DEPTH_MIN: 0.60,
-  DEPTH_MAX: 1.20,
+  DEPTH_MIN: 0.66,
+  DEPTH_MAX: 1.22,
 
   depthScale(rect, zone, y) {
     const t = clamp((y - zone.top) / Math.max(0.0001, zone.bottom - zone.top), 0, 1);
@@ -40,7 +45,7 @@ const RoomView = {
     const f = (typeof findFurniture === 'function') ? findFurniture(id) : null;
     const zone = this.yRange(id);
     const yy = (y === undefined || y === null) ? (zone.top + zone.bottom) / 2 : y;
-    return rect.w * 0.150 * ((f && f.k) || 1) * this.depthScale(rect, zone, yy);
+    return rect.w * 0.158 * ((f && f.k) || 1) * this.depthScale(rect, zone, yy);
   },
 
   isNight() {
@@ -279,6 +284,38 @@ const RoomView = {
     ctx.beginPath(); ctx.arc(x + w * 0.10, y - h * 0.48, s * 0.026, 0, Math.PI * 2); ctx.fill();
   },
 
+  // Ящик игрушек: сундук с откинутой крышкой и защёлкой
+  shape_chest(ctx, x, y, s, col) {
+    const w = s * 0.74, h = s * 0.42, lid = s * 0.17;
+    ctx.fillStyle = col; ctx.strokeStyle = this.furnitureLine; ctx.lineWidth = Math.max(1.2, s * 0.014);
+    roundRect(ctx, x - w / 2, y - h, w, h, s * 0.05); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#F7DC6F';
+    roundRect(ctx, x - w / 2, y - h * 0.62, w, h * 0.16, s * 0.03); ctx.fill(); ctx.stroke();
+    // крышка чуть шире корпуса — узнаваемый сундук
+    ctx.fillStyle = col;
+    roundRect(ctx, x - w * 0.54, y - h - lid, w * 1.08, lid, s * 0.05); ctx.fill(); ctx.stroke();
+    // защёлка
+    ctx.fillStyle = '#D4AF37';
+    roundRect(ctx, x - s * 0.05, y - h - lid * 0.35, s * 0.10, lid * 0.9, s * 0.02); ctx.fill(); ctx.stroke();
+  },
+
+  // Кухонный шкаф: витрина с двумя дверцами и полкой
+  shape_cupboard(ctx, x, y, s, col) {
+    const w = s * 0.72, h = s * 0.86;
+    ctx.fillStyle = col; ctx.strokeStyle = this.furnitureLine; ctx.lineWidth = Math.max(1.2, s * 0.014);
+    roundRect(ctx, x - w / 2, y - h, w, h, s * 0.05); ctx.fill(); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x, y - h + s * 0.05); ctx.lineTo(x, y - s * 0.05); ctx.stroke();
+    ctx.lineWidth = Math.max(1, s * 0.010);
+    ctx.beginPath();
+    ctx.moveTo(x - w / 2 + s * 0.03, y - h * 0.42); ctx.lineTo(x + w / 2 - s * 0.03, y - h * 0.42); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x - w / 2 + s * 0.03, y - h * 0.14); ctx.lineTo(x + w / 2 - s * 0.03, y - h * 0.14); ctx.stroke();
+    ctx.fillStyle = '#FFD93D';
+    ctx.beginPath(); ctx.arc(x - w * 0.08, y - h * 0.55, s * 0.022, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + w * 0.08, y - h * 0.55, s * 0.022, 0, Math.PI * 2); ctx.fill();
+  },
+
   shape_nightstand(ctx, x, y, s, col) {
     const w = s * 0.52, h = s * 0.48;
     ctx.fillStyle = col; ctx.strokeStyle = this.furnitureLine; ctx.lineWidth = Math.max(1.1, s * 0.014);
@@ -369,18 +406,28 @@ const RoomView = {
 
   shape_shower(ctx, x, y, s, col) {
     const w = s * 0.70, h = s * 0.98;
-    ctx.fillStyle = 'rgba(190,225,240,0.55)'; ctx.strokeStyle = col; ctx.lineWidth = Math.max(1.4, s * 0.018);
+    // Стекло кабины: контур обязан быть тёмным — цвет палитры бывает почти
+    // белым, и кабина пропадала на светлой стене ванной
+    ctx.fillStyle = 'rgba(185,222,238,0.7)';
+    ctx.strokeStyle = '#4E7C97';
+    ctx.lineWidth = Math.max(1.6, s * 0.02);
     roundRect(ctx, x - w / 2, y - h, w, h, s * 0.06); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    roundRect(ctx, x - w * 0.42, y - h * 0.92, w * 0.20, h * 0.84, s * 0.03); ctx.fill();
-    ctx.fillStyle = col;
-    roundRect(ctx, x - w / 2, y - h, w, s * 0.06, s * 0.03); ctx.fill();
-    ctx.fillStyle = 'rgba(120,205,240,0.9)';
+    // лейка сверху
+    ctx.fillStyle = '#8FA9B8';
+    roundRect(ctx, x - w * 0.52, y - h - s * 0.03, w * 1.04, s * 0.055, s * 0.02); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, y - h); ctx.lineTo(x, y - h + s * 0.07); ctx.stroke();
+    // струи
+    ctx.fillStyle = 'rgba(90,180,225,0.95)';
     for (let i = 0; i < 6; i++) {
       ctx.beginPath();
-      ctx.arc(x - w * 0.2 + (i % 3) * w * 0.2, y - h * 0.72 + Math.floor(i / 3) * s * 0.09, s * 0.018, 0, Math.PI * 2);
+      ctx.arc(x - w * 0.2 + (i % 3) * w * 0.2, y - h * 0.72 + Math.floor(i / 3) * s * 0.09, s * 0.019, 0, Math.PI * 2);
       ctx.fill();
     }
+    // поддон и ручка
+    ctx.fillStyle = col;
+    roundRect(ctx, x - w * 0.62, y - s * 0.13, w * 1.24, s * 0.10, s * 0.03); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#4E7C97';
+    roundRect(ctx, x + w * 0.26, y - h * 0.55, s * 0.035, h * 0.22, s * 0.02); ctx.fill();
   },
 
   shape_basin(ctx, x, y, s, col) {
@@ -687,11 +734,16 @@ const RoomView = {
   // Мебель без фона (чтобы рисовать её слоями вокруг фигурки)
   drawItems(ctx, rect, furniture, opts) {
     const o = opts || {};
-    const list = (furniture || []).slice().sort((a, b) => a.y - b.y);
+    const isWall = (it) => this.zoneOf(it.id) === 'wall';
+    const isCarpet = (it) => { const f = findFurniture(it.id); return f && f.shape === 'carpet'; };
+    // Ковры — это пол: они всегда лежат под всем остальным
+    const list = (furniture || []).slice().sort((a, b) => (isCarpet(a) ? 0 : 1) - (isCarpet(b) ? 0 : 1) || a.y - b.y);
     for (const it of list) {
       if (o.skipId && it.id === o.skipId) continue;
-      if (o.behind !== undefined && it.y > o.behind) continue;
-      if (o.front !== undefined && it.y <= o.front) continue;
+      // Настенное (часы, картина, зеркало) всегда за героем: оно на стене
+      const back = isWall(it) || isCarpet(it);
+      if (o.behind !== undefined && !back && it.y > o.behind) continue;
+      if (o.front !== undefined && (back || it.y <= o.front)) continue;
       this.drawItem(ctx, it, rect, o);
     }
   },

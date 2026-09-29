@@ -207,7 +207,7 @@ class MenuScene {
   // Задел заказчика: герой — не только гофер. Здесь это уже работает:
   // можно играть гофером, мишкой, зайкой, котёнком или роботом.
   drawCharacters(ctx, W, H) {
-    ctx.fillStyle = 'rgba(0,0,0,0.72)';
+    ctx.fillStyle = 'rgba(8,10,24,0.95)';
     ctx.fillRect(0, 0, W, H);
 
     ctx.textAlign = 'center';
