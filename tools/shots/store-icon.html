@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Gopher Life — иконка для магазинов</title>
+<style>
+  html, body { margin:0; padding:0; background:#00ADD8; overflow:hidden; }
+  canvas { display:block; }
+  #out { position:fixed; left:-9999px; }
+</style>
+</head>
+<body>
+<!-- Иконка 512×512 для карточек RuStore и Google Play:
+     тот же Go-синий круг и тот же маскот, что и у иконки приложения. -->
+<canvas id="icon" width="512" height="512"></canvas>
+<pre id="out"></pre>
+<pre id="diag"></pre>
+
+<script src="../../www/js/helpers.js"></script>
+<script src="../../www/js/gopher.js"></script>
+<script src="../../www/js/characters.js"></script>
+<script>
+(function () {
+  try {
+    var cv = document.getElementById('icon');
+    var ctx = cv.getContext('2d');
+    var S = 512;
+    var cx = S / 2, cy = S / 2, r = S / 2 - 6;
+
+    // Фон: глубокий синий — светлый гофер на нём читается (на светлом фоне
+    // маскот сливался с подложкой, это ловилось только глазами)
+    var grad = ctx.createLinearGradient(0, 0, 0, S);
+    grad.addColorStop(0, '#0d5f7d');
+    grad.addColorStop(1, '#0a2f45');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Мягкий свет за маскотом, чтобы фигурка не «тонула»
+    var spot = ctx.createRadialGradient(cx, cy - 20, 20, cx, cy - 20, r);
+    spot.addColorStop(0, 'rgba(255,255,255,0.22)');
+    spot.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = spot;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Маскот: тот же код, что рисует гофера в игре
+    var g = new Gopher(null, 100);
+    g.expression = 'happy';
+    g.blinking = false;
+    for (var i = 0; i < 20; i++) g.draw(ctx, cx, cy + 8, 1);   // разогрев анимации
+    g.draw(ctx, cx, cy + 8, 3.05);                             // крупно и по центру
+
+    // Диагностика для генератора: иконка не должна быть «пустой»
+    var box = ctx.getImageData(0, 0, S, S).data;
+    var nonBg = 0, samples = 0;
+    for (var j = 0; j < box.length; j += 4 * 37) {
+      samples++;
+      // считаем «не фоном» светлые пиксели маскота
+      if (box[j] > 150 && box[j + 1] > 150 && box[j + 2] > 150) nonBg++;
+    }
+    document.getElementById('diag').textContent = 'OK маскот ' +
+      Math.round(nonBg / samples * 100) + '% светлых пикселей';
+    document.getElementById('out').textContent = cv.toDataURL('image/png');
+  } catch (e) {
+    document.getElementById('diag').textContent = 'ОШИБКА: ' + e.message;
+    document.getElementById('out').textContent = '';
+  }
+})();
+</script>
+</body>
+</html>

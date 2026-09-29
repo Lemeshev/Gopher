@@ -42,6 +42,20 @@ const CHARACTERS = [
     body: '#B8C6D9', limb: '#DCE6F2', nose: '#33475C',
     ears: { style: 'antenna', spread: 0.16, dy: -0.40, ball: '#FF6B6B' },
     tail: 'none', muzzle: false, teeth: 'none', shape: 'capsule', visor: true, antenna: true
+  },
+  {
+    // Милка — плюшевая игрушка заказчика: белая, с длинными ушами и зелёной
+    // подкладкой, зелёными вышитыми глазами, румянцем, крылышками с зелёными
+    // подушечками и розовыми подушечками на лапах.
+    id: 'milka', name: 'Милка', emoji: '🐇', toy: 'плюшевая милка',
+    desc: 'Белая, зелёные ушки',
+    body: '#FFFFFF', limb: '#FFFFFF', nose: '#F09BA8',
+    ears: { style: 'long', w: 0.100, h: 0.320, spread: 0.108, dy: -0.418, tilt: 0.20, inner: '#2BB24C' },
+    tail: 'plush', belly: '#F3EFE6', muzzle: false, teeth: 'none', shape: 'oval',
+    eyeStyle: 'oval', eyeColor: '#2E8B57', cheeks: '#F7B7C4',
+    mouth: '#E8637A', noseScale: 0.55, tuft: true,
+    wings: { spread: 0.455, dy: 0.055, rx: 0.138, ry: 0.082, tilt: 0.30, pad: '#2FA84F' },
+    pads: '#F58CA0'
   }
 ];
 
@@ -86,9 +100,13 @@ class ToyCharacter extends Gopher {
     this.drawAura(ctx, x, y, s);
 
     this.drawTail(ctx, s, C, lw);
+    this.drawWings(ctx, s, C, lw);      // крылышки (Милка) — за телом
     this.drawEars(ctx, s, C, lw);
+    this.drawTuft(ctx, s, C, lw);       // хохолок между ушами
     this.drawFeet(ctx, s, C, lw);
+    this.drawFootPads(ctx, s, C, lw);   // розовые подушечки на ступнях
     this.drawArms(ctx, s, C, lw);
+    this.drawHandPads(ctx, s, C, lw);   // и на ладошках
 
     // Тело
     this.bodyPath(ctx, s);
@@ -125,6 +143,21 @@ class ToyCharacter extends Gopher {
       ctx.strokeStyle = C.line; ctx.lineWidth = lw; ctx.stroke();
       return;
     }
+    if (style === 'plush') {
+      // Пушистый мягкий хвост (Милка): толстый, с обводкой и «мехом».
+      // Ведём его вниз-влево, чтобы он не спорил с крылышком.
+      const p0 = { x: -s * 0.24, y: s * 0.34 };
+      const p1 = { x: -s * 0.54, y: s * 0.46 };
+      const p2 = { x: -s * 0.46, y: s * 0.20 };
+      ctx.beginPath();
+      ctx.moveTo(p0.x, p0.y);
+      ctx.quadraticCurveTo(p1.x, p1.y, p2.x, p2.y);
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.strokeStyle = C.line; ctx.lineWidth = Math.max(3, s * 0.098); ctx.stroke();
+      ctx.strokeStyle = C.body; ctx.lineWidth = Math.max(2, s * 0.080); ctx.stroke();
+      ctx.lineCap = 'butt';
+      return;
+    }
     ctx.beginPath();
     ctx.moveTo(-s * 0.27, s * 0.30);
     ctx.quadraticCurveTo(-s * 0.50, s * 0.22, -s * 0.44, -s * 0.02);
@@ -155,10 +188,12 @@ class ToyCharacter extends Gopher {
         }
       });
     } else if (style === 'long') {
+      // tilt — наклон ушей в стороны (у игрушек бывает больше, чем у зайки)
+      const tilt = (e.tilt === undefined) ? 0.15 : e.tilt;
       [-1, 1].forEach(dir => {
         ctx.save();
         ctx.translate(dir * s * e.spread, s * e.dy);
-        ctx.rotate(dir * 0.15);
+        ctx.rotate(dir * tilt);
         roundRect(ctx, -s * e.w / 2, -s * e.h, s * e.w, s * e.h, s * e.w * 0.5);
         paint(C.body);
         roundRect(ctx, -s * e.w * 0.26, -s * e.h * 0.84, s * e.w * 0.52, s * e.h * 0.70, s * e.w * 0.28);
@@ -225,7 +260,17 @@ class ToyCharacter extends Gopher {
     });
   }
   // ---------- ЛИЦО: глаза, морда, нос, рот, усы ----------
+  // ---------- ЛИЦО ИГРУШКИ ----------
+  // Разные игрушки «вышиты» по-разному: у большинства — глазки-бусины,
+  // у Милки — крупные зелёные вышитые глаза (eyeStyle: 'oval').
   drawFace(ctx, s, C, lw, ch) {
+    if (ch.eyeStyle === 'oval') return this.drawFaceOval(ctx, s, C, lw, ch);
+    const r = this.drawFaceBeads(ctx, s, C, lw, ch);
+    this.drawCheeks(ctx, s, ch);
+    return r;
+  }
+
+  drawFaceBeads(ctx, s, C, lw, ch) {
     const eyeY = -s * 0.272;
     const eyeSpacing = s * 0.097;
     const eyeR = s * 0.098;
@@ -310,12 +355,16 @@ class ToyCharacter extends Gopher {
       ctx.fillStyle = C.limb; ctx.fill();
       ctx.strokeStyle = C.line; ctx.lineWidth = lw; ctx.stroke();
     }
+    // Нос. У плюшевых игрушек он бывает совсем маленьким (noseScale)
+    const ns = ch.noseScale || 1;
     ctx.beginPath();
-    ctx.ellipse(0, -s * 0.198, s * 0.049, s * 0.033, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, -s * 0.198, s * 0.049 * ns, s * 0.033 * ns, 0, 0, Math.PI * 2);
     ctx.fillStyle = C.nose; ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(-s * 0.011, -s * 0.207, s * 0.022, s * 0.009, -0.4, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.fill();
+    if (ns > 0.6) {
+      ctx.beginPath();
+      ctx.ellipse(-s * 0.011 * ns, -s * 0.207, s * 0.022 * ns, s * 0.009 * ns, -0.4, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.fill();
+    }
 
     const toothW = s * 0.040, toothH = s * 0.062, toothTop = -s * 0.152, toothGap = s * 0.022;
     const teeth = ch.teeth || 'none';
@@ -358,7 +407,8 @@ class ToyCharacter extends Gopher {
         ctx.closePath(); ctx.fill(); ctx.stroke();
       });
     } else {
-      ctx.strokeStyle = C.line; ctx.lineWidth = lw;
+      // Рот-улыбка. У плюшевых игрушек он своего цвета (Милка — розовый)
+      ctx.strokeStyle = ch.mouth || C.line; ctx.lineWidth = lw;
       ctx.beginPath();
       ctx.moveTo(-s * 0.040, -s * 0.132);
       ctx.quadraticCurveTo(0, -s * 0.095, s * 0.040, -s * 0.132);
@@ -387,6 +437,153 @@ class ToyCharacter extends Gopher {
       ctx.quadraticCurveTo(s * 0.195, -s * 0.235, s * 0.235, -s * 0.30);
       ctx.fill();
     }
+  }
+
+  // ---------- КРЫЛЫШКИ (Милка) ----------
+  // У плюшевой Милки по бокам мягкие крылышки, а на них — зелёные подушечки
+  // (как на фотографии игрушки, по которой рисовался герой).
+  drawWings(ctx, s, C, lw) {
+    const w = (this.char && this.char.wings) || null;
+    if (!w) return;
+    [1, -1].forEach(dir => {
+      ctx.save();
+      ctx.translate(dir * s * w.spread, s * w.dy);
+      ctx.rotate(dir * w.tilt);
+
+      ctx.beginPath();
+      ctx.ellipse(0, 0, s * w.rx, s * w.ry, 0, 0, Math.PI * 2);
+      ctx.fillStyle = C.body; ctx.fill();
+      ctx.strokeStyle = C.line; ctx.lineWidth = lw; ctx.stroke();
+
+      // пушистый край: мягкие «пёрышки» по верхнему краю крыла
+      [0.24, 0.52, 0.80].forEach((t, i) => {
+        ctx.beginPath();
+        ctx.arc(dir * s * w.rx * t, -s * w.ry * (0.62 - i * 0.05), s * 0.023, 0, Math.PI * 2);
+        ctx.fillStyle = C.body; ctx.fill();
+        ctx.strokeStyle = C.line; ctx.lineWidth = lw * 0.85; ctx.stroke();
+      });
+
+      // зелёная подушечка на крыле — как на фотографии игрушки
+      if (w.pad) {
+        ctx.fillStyle = w.pad;
+        ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+        ctx.lineWidth = Math.max(0.6, lw * 0.5);
+        ctx.beginPath();
+        ctx.ellipse(dir * s * w.rx * 0.46, s * w.ry * 0.22, s * 0.034, s * 0.026, 0, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+        [-1, 0, 1].forEach(k => {
+          ctx.beginPath();
+          ctx.arc(dir * s * w.rx * 0.46 + k * s * 0.024, -s * 0.012, s * 0.011, 0, Math.PI * 2);
+          ctx.fill(); ctx.stroke();
+        });
+      }
+      ctx.restore();
+    });
+  }
+
+  // ---------- ХОХОЛОК МЕЖДУ УШАМИ ----------
+  drawTuft(ctx, s, C, lw) {
+    if (!(this.char && this.char.tuft)) return;
+    ctx.fillStyle = C.body; ctx.strokeStyle = C.line; ctx.lineWidth = lw * 0.8;
+    [[-0.048, -0.398, 0.030], [0, -0.424, 0.034], [0.048, -0.398, 0.030]].forEach(b => {
+      ctx.beginPath();
+      ctx.arc(s * b[0], s * b[1], s * b[2], 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+    });
+  }
+
+  // ---------- ПОДУШЕЧКИ НА ЛАПАХ ----------
+  pawPad(ctx, s, lw, spread) {
+    const ch = this.char || {};
+    ctx.fillStyle = ch.pads;
+    ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+    ctx.lineWidth = Math.max(0.6, lw * 0.45);
+    if (spread) {
+      // ступня: большая подушечка и три «пальчика»
+      ctx.beginPath();
+      ctx.ellipse(0, s * 0.004, s * 0.030, s * 0.022, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+      [-1, 0, 1].forEach(k => {
+        ctx.beginPath();
+        ctx.arc(k * s * 0.024, -s * 0.026, s * 0.011, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+      });
+    } else {
+      ctx.beginPath();
+      ctx.ellipse(0, 0, s * 0.020, s * 0.016, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+    }
+  }
+
+  drawFootPads(ctx, s, C, lw) {
+    if (!(this.char && this.char.pads)) return;
+    const footR = this.legAnim * 0.25;
+    [1, -1].forEach(dir => {
+      ctx.save();
+      ctx.translate(dir * s * 0.235, s * 0.408);
+      ctx.rotate(dir * (0.18 + footR));
+      this.pawPad(ctx, s, lw, true);
+      ctx.restore();
+    });
+  }
+
+  drawHandPads(ctx, s, C, lw) {
+    if (!(this.char && this.char.pads)) return;
+    [1, -1].forEach(dir => {
+      ctx.save();
+      ctx.translate(dir * s * 0.335, s * 0.03);
+      ctx.rotate(dir * (0.16 + this.armAngle));
+      if (this.expression === 'excited') ctx.rotate(dir * 0.26);
+      ctx.translate(dir * s * 0.048, s * 0.004);
+      this.pawPad(ctx, s, lw, false);
+      ctx.restore();
+    });
+  }
+
+  // ---------- ВЫШИТЫЕ ГЛАЗА И РУМЯНЕЦ (Милка) ----------
+  drawFaceOval(ctx, s, C, lw, ch) {
+    const eyeY = -s * 0.272, eyeSpacing = s * 0.097, eyeR = s * 0.098;
+    const eyeCol = ch.eyeColor || '#2E8B57';
+    [1, -1].forEach(dir => {
+      const ex = dir * eyeSpacing;
+      if (this.expression === 'sleeping' || this.blinking) {
+        ctx.strokeStyle = C.line; ctx.lineWidth = lw * 1.3; ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(ex, eyeY - eyeR * 0.30, eyeR * 0.70, Math.PI * 0.18, Math.PI * 0.82);
+        ctx.stroke();
+        ctx.lineCap = 'butt';
+        return;
+      }
+      // круглый зелёный глаз с бликом — как вышито на игрушке
+      ctx.beginPath();
+      ctx.ellipse(ex, eyeY, eyeR * 0.74, eyeR * 1.02, 0, 0, Math.PI * 2);
+      ctx.fillStyle = eyeCol; ctx.fill();
+      ctx.strokeStyle = C.line; ctx.lineWidth = lw; ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(ex - dir * eyeR * 0.20, eyeY - eyeR * 0.34, eyeR * 0.15, eyeR * 0.20, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fill();
+      if (this.expression === 'sad' || this.expression === 'sick') {
+        ctx.strokeStyle = C.line; ctx.lineWidth = lw * 0.9;
+        ctx.beginPath();
+        ctx.moveTo(ex - dir * eyeR * 0.80, eyeY - eyeR * 1.25);
+        ctx.lineTo(ex + dir * eyeR * 0.50, eyeY - eyeR * 1.05);
+        ctx.stroke();
+      }
+    });
+    this.drawMuzzle(ctx, s, C, lw, ch);
+    this.drawCheeks(ctx, s, ch);
+  }
+
+  drawCheeks(ctx, s, ch) {
+    if (!ch.cheeks) return;
+    ctx.fillStyle = ch.cheeks;
+    ctx.globalAlpha = 0.65;
+    [1, -1].forEach(dir => {
+      ctx.beginPath();
+      ctx.ellipse(dir * s * 0.215, -s * 0.175, s * 0.052, s * 0.032, dir * 0.2, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
   }
 
   // ---------- ПРЕДМЕТ В ЛАПЕ ----------

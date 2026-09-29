@@ -72,6 +72,7 @@ class QuietScene {
   reward(gameId, title) {
     const meta = (typeof QUIET_GAMES !== 'undefined') ? QUIET_GAMES.find(g => g.id === gameId) : null;
     const coins = meta ? meta.reward : 8;
+    System.countAction('quiet');
     System.earnCoins(coins);
     System.addXP(6);
     System.relax(4);

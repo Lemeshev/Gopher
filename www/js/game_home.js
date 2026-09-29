@@ -63,7 +63,7 @@ class HomeScene {
       this.setBubble(System.offlineMessage());
       System.offlineReport = null;
     } else if (System.isSleeping) {
-      this.setBubble('\ud83d\udca4 \u0413\u043e\u0444\u0435\u0440 \u0441\u043f\u0438\u0442: \u044d\u043d\u0435\u0440\u0433\u0438\u044f \u043a\u043e\u043f\u0438\u0442\u0441\u044f, \u043c\u043e\u0436\u043d\u043e \u0438\u0433\u0440\u0430\u0442\u044c \u0442\u0438\u0445\u043e');
+      this.setBubble('\ud83d\udca4 \u0413\u043e\u0444\u0435\u0440 \u0441\u043f\u0438\u0442: \u043f\u043e\u0445\u043e\u0434\u044b \u0437\u0430\u043a\u0440\u044b\u0442\u044b \u2014 \u0441\u0435\u0439\u0447\u0430\u0441 \u0442\u0438\u0445\u0438\u0435 \u0438\u0433\u0440\u044b \u0438 \u043c\u0438\u043d\u0438-\u0438\u0433\u0440\u044b');
     } else if (System.stressHint()) {
       this.setBubble(System.stressHint());
     } else if (System.furnitureCount() === 0) {
@@ -83,7 +83,10 @@ class HomeScene {
     const actionsTop = H - 8 - actionsH;
 
     const pad = 9, labelH = 11, barH = 12, rowGap = 5, statRows = 3;
-    const panelH = pad * 2 + statRows * (labelH + barH) + (statRows - 1) * rowGap;
+    // +hintH: под шкалами идёт строка-подсказка «нажми на „Стресс“…». Раньше
+    // её рисовали поверх нижней шкалы (Здоровье/Стресс) — это и было видно.
+    const hintH = 10;
+    const panelH = pad * 2 + statRows * (labelH + barH) + (statRows - 1) * rowGap + hintH;
     const panelTop = actionsTop - 8 - panelH;
 
     // Переключатель комнат: над комнатой, под верхней панелью
@@ -121,6 +124,14 @@ class HomeScene {
     if (this.bubbleTimer > 0) {
       this.bubbleTimer -= sec;
       if (this.bubbleTimer <= 0) this.bubbleText = '';
+    }
+
+    // Питомец выспался сам (энергия 100%) — говорим об этом прямо, иначе
+    // ребёнок не поймёт, почему «Разбудить» превратилось в «Уложить спать».
+    if (System.justWoke) {
+      System.justWoke = false;
+      this.setBubble('\u2600\ufe0f Гофер выспался! Энергия 100% \u26a1');
+      AudioSys.play('success');
     }
 
     // Еда
@@ -521,18 +532,22 @@ class HomeScene {
   // питомец сам идёт туда — так ребёнок изучает планировку дома.
   actionsList() {
     const sleeping = System.isSleeping;
+    // Пока питомец спит, действия с ним закрыты и подсказка говорит почему.
+    const sleepHint = 'Гофер спит 💤 — сначала разбуди';
     return [
       { emoji: '\ud83c\udf7d\ufe0f', text: 'Покормить', action: 'feed', color: '#FF6B6B', room: 'kitchen',
-        off: sleeping || System.stats.hunger >= 100, hint: 'Покормить можно на кухне' },
+        off: sleeping || System.stats.hunger >= 100, hint: sleeping ? sleepHint : 'Покормить можно на кухне' },
       { emoji: '\ud83d\udec1', text: 'Искупать', action: 'bathe', color: '#00BCD4', room: 'bathroom',
-        off: sleeping || System.stats.cleanliness >= 100, hint: 'Купаются в ванной' },
+        off: sleeping || System.stats.cleanliness >= 100, hint: sleeping ? sleepHint : 'Купаются в ванной' },
       { emoji: sleeping ? '\u2600\ufe0f' : '\ud83d\ude34', text: sleeping ? 'Разбудить' : 'Уложить спать',
-        action: 'sleep', color: sleeping ? '#FFB300' : '#3F51B5', room: 'bedroom', hint: 'Кроватка в спальне' },
+        action: 'sleep', color: sleeping ? '#FFB300' : '#3F51B5', room: 'bedroom',
+        off: !sleeping && System.stats.energy >= 99, hint: 'Гофер и так полон сил ⚡' },
       { emoji: '\ud83c\udfae', text: 'Играть', action: 'play', color: '#FF8C42', room: 'living',
-        off: sleeping || System.stats.energy <= 5, hint: 'Играют в гостиной' },
+        off: sleeping || System.stats.energy <= 5, hint: sleeping ? sleepHint : 'Играют в гостиной' },
       { emoji: '\ud83c\udfb5', text: 'Музыка', action: 'music', color: '#9B59B6', room: 'living',
-        off: sleeping || this.music > 0, hint: 'Музыка играет в гостиной' },
-      { emoji: '\ud83e\udd2b', text: 'Тихие игры', action: 'quiet', color: '#546E7A', off: false, hint: '' },
+        off: sleeping || this.music > 0, hint: sleeping ? sleepHint : 'Музыка играет в гостиной' },
+      { emoji: '\ud83e\udd2b', text: 'Тихие игры', action: 'quiet', color: sleeping ? '#3E8E5A' : '#546E7A',
+        off: false, hint: '' },
       { emoji: '\ud83d\udecb\ufe0f', text: 'Обстановка', action: 'decorToggle',
         color: this.decorMode ? '#6BCB77' : '#2ECC71', off: false, hint: '' },
       { emoji: '\ud83d\uddfa\ufe0f', text: 'Карта', action: 'map', color: '#4D96FF', off: false, hint: '' }
@@ -587,17 +602,28 @@ class HomeScene {
     ctx.fillStyle = 'rgba(24,24,64,0.28)';
     ctx.fillRect(0, L.bubbleTop - 6, L.W, L.panelTop - L.bubbleTop + 2);
 
-    const txt = 'Сон: +' + (100 / System.SLEEP_FULL_MINUTES).toFixed(0) + '% энергии в минуту';
-    ctx.font = `bold ${Math.min(L.W * 0.026, 11.5)}px Arial`;
+    // Две строки: сколько энергии капает и что сейчас открыто ребёнку.
+    // Иначе возникает вопрос «а что делать, пока он спит?».
+    const lines = [
+      '\ud83d\ude34 Сон: +' + (100 / System.SLEEP_FULL_MINUTES).toFixed(0) + '% энергии в минуту',
+      'Открыто: ' + System.sleepAllowedHint()
+    ];
+    const pad = 12, lineH = 13;
+    const sizes = lines.map(t => fitFontSize(ctx, t, L.W - 40, Math.min(L.W * 0.026, 11.5), 8.5, true));
+    const boxW = Math.min(L.W - 20, Math.max.apply(null,
+      lines.map((t, i) => { ctx.font = `bold ${sizes[i]}px Arial`; return ctx.measureText(t).width; })) + pad * 2);
+    const boxH = pad + lines.length * lineH;
+    const by = L.panelTop - boxH - 8;
+    ctx.fillStyle = 'rgba(20,20,60,0.78)';
+    roundRect(ctx, (L.W - boxW) / 2, by, boxW, boxH, 11);
+    ctx.fill();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const w = ctx.measureText(txt).width + 22;
-    const by = L.panelTop - 30;
-    ctx.fillStyle = 'rgba(20,20,60,0.78)';
-    roundRect(ctx, (L.W - w) / 2, by, w, 22, 11);
-    ctx.fill();
-    ctx.fillStyle = '#d7dcff';
-    ctx.fillText(txt, L.W / 2, by + 11);
+    lines.forEach((t, i) => {
+      ctx.font = `bold ${sizes[i]}px Arial`;
+      ctx.fillStyle = i === 0 ? '#d7dcff' : '#9be3b0';
+      ctx.fillText(t, L.W / 2, by + pad * 0.6 + lineH * (i + 0.5));
+    });
     ctx.textBaseline = 'alphabetic';
   }
 
@@ -1124,6 +1150,16 @@ class HomeScene {
   doAction(action) {
     const L = this.layout();
 
+    // Пока питомец спит — никаких дел с ним: только тихие игры, обстановка,
+    // карта, инфо и «Разбудить». Проверка обязана стоять до всего остального,
+    // иначе спящий гофер идёт работать, гулять и лечиться.
+    const awakeOnly = ['feed', 'bathe', 'play', 'music', 'heal', 'work', 'study'];
+    if (System.isSleeping && awakeOnly.indexOf(action) !== -1) {
+      this.setBubble('Гофер спит 💤 — сначала разбуди или поиграй тихо 🤫');
+      AudioSys.play('fail');
+      return true;
+    }
+
     // Если действие делается в другой комнате — питомец идёт туда
     const targetRoom = this.roomForAction(action);
     if (targetRoom && System.activeRoom !== targetRoom) {
@@ -1217,6 +1253,7 @@ class HomeScene {
         this.setBubble('Ням-ням! Вкусно! \ud83d\ude0b');
         AudioSys.play('eat');
         System.addXP(5);
+        System.countAction('feeds');
         break;
       }
 
@@ -1227,6 +1264,7 @@ class HomeScene {
         this.setBubble('Бульк-бульк! Чистый! \ud83e\uddfc');
         AudioSys.play('bath');
         System.addXP(5);
+        System.countAction('washes');
         break;
 
       case 'sleep':
@@ -1235,10 +1273,13 @@ class HomeScene {
             this.setBubble('Доброе утро! \u2600\ufe0f');
             AudioSys.play('success');
           }
-        } else {
-          System.startSleep();
+        } else if (System.startSleep()) {
           this.setBubble('Спокойной ночи! \ud83d\udca4 Энергия растёт сама');
           AudioSys.play('sleep');
+        } else {
+          // Энергия и так полная: спать нечего, и это надо сказать словами
+          this.setBubble('Гофер и так полон сил \u26a1 — бегать и играть!');
+          AudioSys.play('fail');
         }
         break;
 
@@ -1260,6 +1301,7 @@ class HomeScene {
         this.setBubble('Ура! Весело! \ud83c\udf89');
         AudioSys.play('success');
         System.addXP(8);
+        System.countAction('plays');
         break;
 
       case 'work':

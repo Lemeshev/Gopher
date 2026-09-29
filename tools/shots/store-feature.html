@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Gopher Life — feature graphic 1024×500</title>
+<style>
+  html, body { margin:0; padding:0; background:#16213e; overflow:hidden; }
+  canvas { display:block; }
+  #out { position:fixed; left:-9999px; }
+</style>
+</head>
+<body>
+<!-- «Баннер» карточки Google Play: 1024×500, без альфы (отдаём JPEG).
+     По правилам Play: без призывов «скачай сейчас», без рейтингов и
+     обещаний наград — только название и суть игры. -->
+<canvas id="fg" width="1024" height="500"></canvas>
+<pre id="out"></pre>
+<pre id="diag"></pre>
+
+<script src="../../www/js/helpers.js"></script>
+<script src="../../www/js/gopher.js"></script>
+<script src="../../www/js/characters.js"></script>
+<script>
+(function () {
+  try {
+    var cv = document.getElementById('fg');
+    var ctx = cv.getContext('2d');
+    var W = 1024, H = 500;
+
+    // Фон: ночной синий → тёплый свет, как в самой игре
+    var grad = ctx.createLinearGradient(0, 0, W, H);
+    grad.addColorStop(0, '#16213e');
+    grad.addColorStop(0.55, '#1f3b63');
+    grad.addColorStop(1, '#0f2a3d');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Мягкое пятно света за маскотом
+    var spot = ctx.createRadialGradient(300, 250, 20, 300, 250, 330);
+    spot.addColorStop(0, 'rgba(0,173,216,0.55)');
+    spot.addColorStop(1, 'rgba(0,173,216,0)');
+    ctx.fillStyle = spot;
+    ctx.fillRect(0, 0, W, H);
+
+    // Земля-полоса снизу
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    roundRect(ctx, 0, H - 84, W, 84, 0);
+    ctx.fill();
+
+    // Маскот (код игры)
+    var g = new Gopher(null, 100);
+    g.expression = 'happy';
+    g.blinking = false;
+    for (var i = 0; i < 20; i++) g.draw(ctx, 250, 250, 1);
+    g.draw(ctx, 250, 250, 2.5);
+
+    // Текст: обязательно подгоняем по ширине, иначе надпись обрезается справа
+    // (так и случилось в первой версии баннера — заметили глазами на картинке).
+    var overflow = [];
+    var textX = 500;
+    var maxW = W - textX - 32;
+    function line(text, y, base, min, bold, color) {
+      var size = fitFontSize(ctx, text, maxW, base, min, bold);
+      ctx.font = (bold ? 'bold ' : '') + size + 'px Arial, sans-serif';
+      var w = ctx.measureText(text).width;
+      if (textX + w > W - 24) overflow.push(text);     // не должно случиться
+      ctx.fillStyle = color;
+      ctx.fillText(text, textX, y);
+      return size;
+    }
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    line('Gopher Life', 200, 84, 40, true, '#ffffff');
+    line('Игра-питомец с гофером', 252, 34, 20, true, '#9fd0ff');
+    line('15 локаций · 4 комнаты дома', 302, 26, 16, false, 'rgba(255,255,255,0.85)');
+    line('32 достижения · музеи и мини-игры', 336, 26, 16, false, 'rgba(255,255,255,0.85)');
+    line('Без рекламы и покупок. Работает без интернета', 378, 22, 14, false, 'rgba(255,255,255,0.6)');
+
+    document.getElementById('diag').textContent = overflow.length
+      ? 'ОБРЕЗАНО: ' + overflow.join(' | ')
+      : 'OK, надписи влезают в 1024×500';
+    document.getElementById('out').textContent = cv.toDataURL('image/jpeg', 0.92);
+  } catch (e) {
+    document.getElementById('diag').textContent = 'ОШИБКА: ' + e.message;
+    document.getElementById('out').textContent = '';
+  }
+})();
+</script>
+</body>
+</html>

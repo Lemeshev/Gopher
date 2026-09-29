@@ -101,7 +101,14 @@ ok('У каждого предмета есть палитра для перек
 ok('Обои и пол можно купить (есть цена)', sandbox.WALLS.some(w => w.cost > 0) && sandbox.FLOORS.some(f => f.cost > 0));
 ok('Процедур в поликлинике 8', sandbox.CLINIC_PROCEDURES.length === 8);
 ok('Тихих игр 3', sandbox.QUIET_GAMES.length === 3);
-ok('Персонажей 5 (гофер + 4 игрушки)', sandbox.CHARACTERS.length === 5, sandbox.CHARACTERS.map(c => c.name).join(', '));
+ok('Персонажей 6 (гофер + 5 игрушек)', sandbox.CHARACTERS.length === 6, sandbox.CHARACTERS.map(c => c.name).join(', '));
+const milka = sandbox.findCharacter('milka');
+ok('Среди героев есть «Милка» — плюшевая, как на фотографиях заказчика',
+  milka.id === 'milka' && milka.ears.inner === '#2BB24C' && !!milka.eyeColor,
+  milka.name + ': ' + milka.desc);
+ok('У Милки крылышки с зелёными подушечками, румянец и лапки-подушечки',
+  !!milka.wings && milka.wings.pad === '#2FA84F' && !!milka.cheeks && !!milka.pads,
+  'крылья ' + milka.wings.spread + ', подушечки ' + milka.pads);
 
 /* ---------- Комнаты ---------- */
 S.resetProgress();
@@ -163,6 +170,35 @@ S.applyOfflineProgress(Date.now() - 48 * 3600000);
 ok('Долгое отсутствие не убивает питомца (есть «пол»)',
   S.stats.energy >= 25 && S.stats.hunger >= 25 && S.stats.stress <= 25,
   'энергия ' + Math.round(S.stats.energy) + ', сытость ' + Math.round(S.stats.hunger) + ', стресс ' + Math.round(S.stats.stress));
+
+/* ---------- Сон: во сне дела с питомцем закрыты (v1.2.1) ---------- */
+S.resetProgress();
+S.stats.energy = 95;
+ok('Спать укладывают, когда есть что восстанавливать', S.startSleep() === true && S.isSleeping === true);
+S.tick(60000 * 3);                     // +30% -> 100%
+ok('Выспавшийся питомец просыпается сам и без закрытия приложения',
+  S.isSleeping === false && S.justWoke === true, Math.round(S.stats.energy) + '%');
+S.justWoke = false;
+S.stats.energy = 100;
+ok('С полной энергией «Уложить спать» не работает (нечего восстанавливать)', S.startSleep() === false);
+S.isSleeping = true;
+S.stats.energy = 40;
+const sleepBlocked = ['work', 'school', 'museums', 'museum_art', 'museum_nature', 'library',
+  'cinema', 'park', 'pool', 'gym', 'restaurant', 'beach', 'friend', 'clinic'];
+const sleepOpen = ['home', 'shop', 'stats', 'minigames', 'quiet'];
+const wronglyOpen = sleepBlocked.filter(l => S.isLocationAvailable(l));
+const wronglyClosed = sleepOpen.filter(l => !S.isLocationAvailable(l));
+ok('Пока гофер спит, походы закрыты (музеи, работа, спорт, гости, поликлиника)',
+  wronglyOpen.length === 0, wronglyOpen.length ? 'открыто: ' + wronglyOpen.join(', ') : sleepBlocked.length + ' локаций');
+ok('Пока гофер спит, открыто только «безгоферное»: дом, магазин, мини-игры, тихие игры, инфо',
+  wronglyClosed.length === 0, wronglyClosed.length ? 'закрыто: ' + wronglyClosed.join(', ') : sleepOpen.join(', '));
+const sleepReasons = sleepBlocked.map(l => S.locationLockReason(l));
+ok('Отказ во сне объясняется словами, а не «нельзя»',
+  sleepReasons.every(r => r.indexOf('спит') !== -1),
+  sleepReasons[0]);
+S.isSleeping = false;
+ok('Проснувшись, можно снова идти в музей', S.isLocationAvailable('museums') === true);
+S.resetProgress();
 
 /* ---------- Стресс ---------- */
 S.stats.stress = 80;
@@ -262,7 +298,7 @@ ok('Робот тоже создаётся', robot && robot.charId === 'robot');
 let drawOk = true;
 try {
   const ctx = sandbox.__ctx;
-  ['gopher', 'bear', 'bunny', 'cat', 'robot'].forEach(id => {
+  sandbox.CHARACTERS.map(c => c.id).forEach(id => {
     const c = sandbox.createCharacter(id, 120);
     ['happy', 'sleeping', 'excited', 'sad', 'sick', 'eating', 'neutral'].forEach(e => {
       c.setExpression(e, 5);
@@ -272,7 +308,7 @@ try {
     });
   });
 } catch (e) { drawOk = false; console.log('   ошибка отрисовки: ' + e.message); }
-ok('Все 5 персонажей рисуются во всех выражениях без ошибок', drawOk);
+ok('Все ' + sandbox.CHARACTERS.length + ' персонажей рисуются во всех выражениях без ошибок', drawOk);
 
 /* ---------- Перспектива (соразмерность) ---------- */
 const rect = { x: 0, y: 0, w: 400, h: 300 };
@@ -405,7 +441,9 @@ ok('Крупная мебель встаёт вперёд, а не у стены
 sandbox.System.resetProgress();
 
 // Герой стоит впереди по центру: вещи не должны вставать ему на голову,
-// а настенные — попадать в окно
+// а настенные — попадать в окно (окно начинается на 0.64 ширины комнаты,
+// поэтому важна не только середина вещи, но и её край)
+const windowHalf = (id, y) => sandbox.RoomView.sizeFor(id, rect, y) * 0.5 / rect.w;
 const spotsOverlapHero = (() => {
   sandbox.System.rooms = null;
   sandbox.System.ensureRooms();
@@ -416,8 +454,8 @@ const spotsOverlapHero = (() => {
     if (!f) return false;
     // Передний ряд по центру — место героя (x ≈ 0.5, y = 0.86)
     if (it.y >= 0.8 && Math.abs(it.x - 0.5) < 0.2) return true;
-    // Верхняя часть правой стены — окно
-    if (f.zone === 'wall' && it.x > 0.7 && it.y < 0.6) return true;
+    // Верхняя полоса стены — окно: вещь не должна залезать даже краем
+    if (f.zone === 'wall' && it.y < 0.6 && it.x + windowHalf(it.id, it.y) > 0.64) return true;
     return false;
   });
   return bad.map(it => it.id).join(', ');
@@ -458,7 +496,11 @@ sandbox.HOME_ROOMS.forEach(r => {
   sandbox.System.rooms[r.id].furniture.forEach(it => {
     const f = sandbox.findFurniture(it.id);
     const wallItem = f && f.zone === 'wall';
-    if (wallItem && it.x > 0.7 && it.y < 0.6) badInRooms.push(r.id + ': ' + it.id + ' в окне');
+    // Окно начинается на 0.64 ширины комнаты: проверяем правый край вещи,
+    // а не только её середину — так нашлось зеркало, «разрезанное» рамой.
+    if (wallItem && it.y < 0.6 && it.x + windowHalf(it.id, it.y) > 0.64) {
+      badInRooms.push(r.id + ': ' + it.id + ' краем в окне');
+    }
     if (!wallItem && it.y >= 0.8 && Math.abs(it.x - 0.5) < 0.2) badInRooms.push(r.id + ': ' + it.id + ' на герое');
   });
 });
@@ -634,6 +676,39 @@ if (boot) {
   } catch (e) { shopOk = false; shopInfo = e.message; }
   ok('Магазин «Дом»: фильтры и покупка обоев/пола работают', shopOk, shopInfo);
 
+  /* ---------- Сон: карта и дом закрывают «дела с питомцем» (v1.2.1) ---------- */
+  // Раньше спящего питомца можно было увести в музей, на работу и в спортзал:
+  // проверки смотрели на доступность локации, а не на состояние сна.
+  let sleepUi = { ok: true, info: '' };
+  try {
+    const map = boot.scenes.map, home = boot.scenes.home;
+    S.resetProgress();
+    S.isSleeping = true;
+    S.stats.energy = 40;
+    boot.currentScene = 'map';
+    map.init();
+    map.draw(sandbox.__ctx);
+    const tile = map.locationButtons.find(b => b.loc.id === 'museums');
+    boot.handleClick(tile.x + tile.w / 2, tile.y + tile.h / 2);
+    const stayedOnMap = boot.currentScene === 'map';
+    const tileClosed = !S.isLocationAvailable('museums');
+    const acts = home.actionsList();
+    const off = acts.filter(a => a.off).map(a => a.action);
+    const awakeOnlyOff = ['feed', 'bathe', 'play', 'music'].every(a => off.indexOf(a) !== -1);
+    const freeOpen = ['sleep', 'quiet', 'decorToggle', 'map'].every(a => off.indexOf(a) === -1);
+    S.stats.hunger = 50;
+    home.doAction('feed');
+    const notFed = S.stats.hunger === 50;
+    sleepUi.ok = stayedOnMap && tileClosed && awakeOnlyOff && freeOpen && notFed;
+    sleepUi.info = 'карта ' + (stayedOnMap ? 'держит' : 'уводит') +
+      ', плитка ' + (tileClosed ? 'закрыта' : 'открыта') +
+      ', закрыто дома: ' + off.join(', ') +
+      ', кормление ' + (notFed ? 'заблокировано' : 'сработало');
+  } catch (e) { sleepUi.ok = false; sleepUi.info = e.message; }
+  ok('Пока гофер спит, карта и дом не дают заниматься делами', sleepUi.ok, sleepUi.info);
+  S.isSleeping = false;
+  S.resetProgress();
+
   /* ---------- Фаззинг: случайные нажатия не должны ломать игру ---------- */
   let fuzzErr = null, fuzzClicks = 0;
   const STAT_KEYS = ['happiness', 'hunger', 'energy', 'health', 'cleanliness',
@@ -654,6 +729,9 @@ if (boot) {
       if (out.length) throw new Error('шкалы вне диапазона (' + out.join(', ') + ') в сцене ' + n);
     }
   } catch (e) { fuzzErr = e; }
+  // Фаззинг мог случайно уложить питомца спать — состояние стенда возвращаем сами,
+  // иначе следующие проверки видят «сон» и валятся на пустом месте.
+  S.isSleeping = false;
   ok('Случайные нажатия не ломают игру', !fuzzErr,
     fuzzErr ? fuzzErr.message : fuzzClicks + ' кликов, монеты и шкалы в порядке');
 
@@ -670,6 +748,10 @@ if (boot) {
     set() { return true; }
   });
   boot.scenes.map.init();
+  // Фаззинг мог потратить энергию и монеты — приводим состояние к обычному
+  // старту, иначе значки ⚡ просто негде рисовать (проверка была «плавающей»).
+  S.resetProgress();
+  S.isSleeping = false;
   boot.scenes.map.draw(logCtx);
   ok('На карте видно, сколько энергии стоит поход',
     drawnTexts.some(t => t.indexOf('⚡') !== -1),
@@ -793,6 +875,205 @@ if (boot) {
   });
   ok('Число кнопок не растёт от кадра к кадру', maxBtns > 0 && maxBtns <= 40,
     'макс ' + maxBtns + ' в сцене ' + worst);
+  /* ---------- ДОСТИЖЕНИЯ: движок и темп прогресса (v1.2.2) ---------- */
+  // Заказчик: «ачивки должны работать, и нельзя за первый же день взять все —
+  // должны быть вещи, на которые нужны месяцы».
+  const cat = S.achievementList();
+  ok('Каталог достижений читается игрой и разбит на ступени',
+    cat.length >= 25 && S.achievementTiers().length === 4,
+    cat.length + ' достижений, ' + S.achievementTiers().map(t => t.name).join(' → '));
+  const broken = cat.filter(a => !a.id || !a.emoji || !a.name || !a.desc || !(a.goal > 0) || typeof a.of !== 'function');
+  ok('У каждого достижения есть цель и описание, id не повторяются',
+    broken.length === 0 && new Set(cat.map(a => a.id)).size === cat.length,
+    broken.length ? ('сломаны: ' + broken.map(a => a.id).join(', ')) : cat.length + ' записей');
+  const longTerm = ['days7', 'streak7', 'days30', 'streak30', 'days100', 'days365'].filter(id => cat.some(a => a.id === id));
+  ok('Есть достижения «на месяцы»: 7/30/100/365 разных дней и серии подряд',
+    longTerm.length === 6 && cat.find(a => a.id === 'days365').goal === 365,
+    longTerm.join(', '));
+
+  S.resetProgress();
+  const feedAch = (function () {
+    S.popupQueue = []; S.lastPopup = null;
+    const home2 = boot.scenes.home;
+    home2.init(); home2.draw(sandbox.__ctx);
+    home2.doAction('feed');
+    return { open: S.isAchUnlocked('first_feed'), popup: S.lastPopup ? S.lastPopup.text : '',
+             again: S.addAch('first_feed') };
+  })();
+  ok('Кормление открывает «Первая еда» и показывает плашку с названием',
+    feedAch.open === true && feedAch.popup.indexOf('Первая еда') !== -1, 'плашка: «' + feedAch.popup + '»');
+  ok('Достижение не открывается дважды', feedAch.again === false && S.unlockedCount() === 1);
+
+  // Достижения подключены к настоящим действиям: поход по карте и покупка вещей
+  const tripAch = (function () {
+    S.resetProgress();
+    const map = boot.scenes.map;
+    map.init(); map.draw(sandbox.__ctx);
+    const tile = (map.locationButtons || []).filter(b => b.loc && b.loc.id === 'park')[0];
+    boot.handleClick(tile.x + tile.w / 2, tile.y + tile.h / 2);
+    return { open: S.isAchUnlocked('first_trip'), counter: S.progress.trips };
+  })();
+  ok('Поход по карте открывает «Первый поход»', tripAch.open === true && tripAch.counter === 1,
+    'походов ' + tripAch.counter);
+  const homeAch = (function () {
+    S.resetProgress();
+    S.coins = 9000;
+    ['plant', 'clock', 'lamp', 'carpet', 'painting'].forEach(id => S.buyFurniture(id, 'living'));
+    return { open: S.isAchUnlocked('home5'), counter: S.progress.furniture };
+  })();
+  ok('Покупка вещей в дом открывает «Уютный дом» (счётчик покупок работает)',
+    homeAch.open === true && homeAch.counter === 5, 'куплено ' + homeAch.counter + ' вещей');
+
+  S.resetProgress();
+  const sameDay = [S.registerDay(), S.registerDay(), S.registerDay()];
+  ok('День считается один раз, сколько бы раз ни открыли игру',
+    S.progress.days === 1 && S.progress.streak === 1 && sameDay.every(x => x === false),
+    'три захода → дней ' + S.progress.days);
+  const streak = (function () {
+    S.resetProgress();
+    S.progress.days = 0; S.progress.streak = 0; S.progress.lastDay = null;
+    const base = Date.UTC(2030, 0, 1, 12), day = 86400000;
+    S.registerDay(base); S.registerDay(base + day);
+    const two = S.progress.streak;
+    S.registerDay(base + 3 * day);
+    const skipped = S.progress.streak;
+    const days = S.progress.days;
+    S.registerDay(base + day);         // часы назад
+    return { two: two, skipped: skipped, same: S.progress.days === days };
+  })();
+  ok('Пропуск дня обнуляет серию, перевод часов назад дни не накручивает',
+    streak.two === 2 && streak.skipped === 1 && streak.same === true);
+
+  // «Жёсткий» первый день: все счётчики в цели, но дней = 1
+  const hard = (function () {
+    S.resetProgress();
+    const p = S.progress;
+    p.trips = 999; p.minigames = 999; p.quiet = 999; p.tttWins = 99;
+    p.feeds = 99; p.washes = 99; p.plays = 99; p.sleeps = 99; p.furniture = 99; p.coinsEarned = 99999;
+    S.coins = 99999; S.addXP(99999);
+    Object.keys(S.stats).forEach(k => { S.stats[k] = 99; });
+    sandbox.MUSEUM_CATEGORIES.forEach(c => { for (let i = 0; i < 20; i++) S.markSeen(c, c + ':q' + i); });
+    S.checkAchievements();
+    return cat.filter(a => !S.isAchUnlocked(a.id)).map(a => a.id);
+  })();
+  ok('Даже с заполненными счётчиками дневные достижения за один день не взять',
+    ['days7', 'streak7', 'days30', 'streak30', 'days100', 'days365'].every(id => hard.indexOf(id) !== -1) &&
+    hard.length >= 6 && hard.length <= cat.length * 0.4,
+    'закрыты за первый день: ' + hard.length + ' из ' + cat.length);
+
+  // Симуляция настоящей игры: дни по календарю + реальный доход за день
+  const pace = (function () {
+    S.resetProgress();
+    S.popupQueue = []; S._popupShownAt = 0;
+    S.progress.days = 0; S.progress.streak = 0; S.progress.lastDay = null;
+    const base = Date.UTC(2030, 0, 1, 12), day = 86400000;
+    const play = (i, full) => {
+      S.registerDay(base + i * day);
+      const p = S.progress;
+      p.trips += full ? 6 : 2; p.minigames += full ? 4 : 1; p.quiet += full ? 3 : 1;
+      p.feeds += full ? 3 : 2; p.washes += 1; p.plays += full ? 3 : 1; p.tttWins += 1;
+      if (full) p.furniture += 1;
+      S.stats.energy = 45; S.startSleep(); S.tick(600000);
+      S.earnCoins(full ? 120 : 40); S.addXP(full ? 250 : 60);
+      S.stats.workSkill = Math.min(100, S.stats.workSkill + (full ? 8 : 3));
+      S.stats.schoolSkill = Math.min(100, S.stats.schoolSkill + (full ? 6 : 2));
+      S.stats.intelligence = Math.min(100, S.stats.intelligence + (full ? 6 : 1));
+      // Уход из настоящих кнопок дома: покормил, искупал, поиграл
+      if (full) { S.stats.hunger = 95; S.stats.cleanliness = 92; S.stats.happiness = 95; S.stats.health = 95; }
+      if (full) sandbox.MUSEUM_CATEGORIES.forEach((c, k) => { for (let j = 0; j < 2; j++) S.markSeen(c, c + ':d' + i + '-' + k + '-' + j); });
+    };
+    const at = {};
+    play(0, true); at.day1 = S.unlockedCount();
+    for (let i = 1; i < 400; i++) {
+      play(i, i < 30 || i % 3 === 0);
+      if (i === 6) at.day7 = S.unlockedCount();
+      if (i === 29) at.day30 = S.unlockedCount();
+      if (i === 99) at.day100 = S.unlockedCount();
+    }
+    at.day400 = S.unlockedCount();
+    at.total = cat.length;
+    at.locked = cat.filter(a => !S.isAchUnlocked(a.id)).map(a => a.id);
+    return at;
+  })();
+  ok('Темп: за первый вечер — меньше трети каталога, за год — весь каталог',
+    pace.day1 <= Math.ceil(pace.total * 0.35) && pace.day7 < pace.day30 &&
+    pace.day30 < pace.day400 && pace.day400 === pace.total,
+    pace.day1 + ' → ' + pace.day7 + ' → ' + pace.day30 + ' → ' + pace.day100 + ' → ' + pace.day400 +
+    ' (тупиков: ' + pace.locked.length + ')');
+
+  // Сохранение: достижения и дни переживают перезапуск, мусор вычищается
+  S.resetProgress();
+  S.progress.days = 12; S.progress.streak = 4; S.checkAchievements();
+  const beforeSave = S.unlockedCount();
+  S.achievements = ['unknown_from_old_version'].concat(S.achievements);
+  S.saveGame();
+  S.achievements = []; S.progress = null;
+  const loaded = S.loadGame();
+  ok('Достижения и дни переживают сохранение, мусорные id вычищаются',
+    loaded === true && S.unlockedCount() === beforeSave && S.progress.days === 12 &&
+    S.progress.streak === 4 && S.achievements.indexOf('unknown_from_old_version') === -1,
+    'открыто до ' + beforeSave + ' → после ' + S.unlockedCount() + ', дней ' + S.progress.days +
+    ', мусор: ' + (S.achievements.indexOf('unknown_from_old_version') === -1 ? 'убран' : 'ОСТАЛСЯ'));
+
+  // Экран: строки внутри области списка, закрытое — с 🔒
+  const achScreen = (function () {
+    S.resetProgress();
+    const sc = boot.scenes.stats;
+    const texts = [];
+    const rec = new Proxy({}, {
+      get(t, p) {
+        if (p === 'canvas') return { width: 360, height: 640 };
+        if (p === 'measureText') return s => ({ width: String(s).length * 6 });
+        if (p === 'createLinearGradient' || p === 'createRadialGradient') return () => ({ addColorStop() {} });
+        return (...a) => { if (p === 'fillText') texts.push(String(a[0])); };
+      },
+      set() { return true; }
+    });
+    sc.init(); sc.tab = 'ach';
+    sc.draw(sandbox.__ctx);
+    const view = sc.achView, maxScroll = sc.achMaxScroll;
+    let outside = 0;
+    [0, 200, maxScroll].forEach(off => {
+      sc.achScroll = off; sc.draw(sandbox.__ctx);
+      sc.achRows.forEach(r => { if (r.y < view.top - 0.5 || r.y + r.h > view.bottom + 0.5) outside++; });
+    });
+    const arrows = (sc.buttons || []).filter(b => b.action === 'achUp' || b.action === 'achDown');
+    sc.achScroll = 1e6;
+    sc.draw(sandbox.__ctx);
+    const backArrow = (sc.buttons || []).some(b => b.action === 'achUp');
+    texts.length = 0;
+    sc.drawAchRow(rec, cat[0], 360, 200, 46);
+    const lockedRow = texts.slice();
+    S.addAch(cat[0].id, { silent: true });
+    texts.length = 0;
+    sc.drawAchRow(rec, cat[0], 360, 200, 46);
+    const openRow = texts.slice();
+    // Награда не отбирается: монеты потратил — достижение осталось открытым
+    S.coins = 400; S.checkAchievements();
+    S.coins = 0;
+    const rich = cat.find(a => a.id === 'rich200');
+    texts.length = 0;
+    sc.drawAchRow(rec, rich, 360, 200, 46);
+    return { maxScroll: maxScroll, outside: outside, lockedRow: lockedRow, openRow: openRow,
+             richRow: texts.slice(), richUnlocked: S.isAchUnlocked('rich200'), richEmoji: rich.emoji,
+             arrowTexts: arrows.map(b => b.text), backArrow: backArrow,
+             bottom: view.bottom, height: boot.height };
+  })();
+  ok('Вкладка 🏆: список листается и не уезжает под кнопку «Назад»',
+    achScreen.maxScroll > 0 && achScreen.outside === 0 && achScreen.bottom <= achScreen.height - 50,
+    'листание ' + Math.round(achScreen.maxScroll) + ' px, строк вне области: ' + achScreen.outside);
+  ok('Стрелки листания нарисованы (не «кнопки-невидимки») и стрелка вверх есть внизу списка',
+    achScreen.arrowTexts.length > 0 && achScreen.arrowTexts.every(t => t === '▲' || t === '▼') &&
+    achScreen.backArrow === true,
+    'подписи: ' + (achScreen.arrowTexts.join(' ') || 'нет') + ', внизу списка есть ▲: ' + achScreen.backArrow);
+  ok('Закрытое достижение рисуется с 🔒, открытое — с эмодзи и подписью «открыто»',
+    achScreen.lockedRow.indexOf('🔒') !== -1 && achScreen.lockedRow.indexOf(cat[0].emoji) === -1 &&
+    achScreen.openRow.indexOf(cat[0].emoji) !== -1 && achScreen.openRow.indexOf('открыто') !== -1);
+  ok('Полученную награду не отбирают: потратил монеты — достижение открыто и с эмодзи',
+    achScreen.richUnlocked === true && achScreen.richRow.indexOf(achScreen.richEmoji) !== -1);
+
+  S.resetProgress();
+  S.isSleeping = false;
 }
 
 console.log('\n' + '─'.repeat(50));

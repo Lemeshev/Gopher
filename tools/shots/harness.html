@@ -102,7 +102,15 @@ console.error = function () {
     };
   }
 
-  var hash = decodeURIComponent(location.hash.slice(1)) || 'menu';
+  // Флаги-маркеры (jpeg/hires/sleeping) можно ставить в любом месте хеша —
+  // в том числе после '~' (visit~art_museum@jpeg@hires). Вынимаем их до
+  // разбора сцены, иначе флаг уезжал в аргумент сцены, и кадр выходил не тот.
+  var flags = { jpeg: false, hires: false, sleeping: false };
+  var rawHash = decodeURIComponent(location.hash.slice(1)) || 'menu';
+  var hash = rawHash.replace(/(^|[@~])(jpeg|hires|sleeping)(?=$|[@~])/g, function (m, sep, flag) {
+    flags[flag] = true;
+    return sep;
+  }).replace(/^[@~]+/, '').replace(/[@~]+$/, '') || 'menu';
   var initArg = null;
   var tilde = hash.indexOf('~');
   if (tilde !== -1) { initArg = hash.slice(tilde + 1); hash = hash.slice(0, tilde); }
@@ -128,6 +136,7 @@ console.error = function () {
   // Важно: в комнатах должны быть ВСЕ формы мебели (иначе новая вещь уедет в
   // релиз невидимой), но без свалки — иначе по кадру не понять, что нарисовано.
   try {
+    System.resetProgress();          // стенд всегда стартует из одного состояния
     System.coins = 9000;
     ['plant', 'clock', 'lamp', 'carpet', 'painting', 'sofa', 'tv', 'piano', 'fireplace'].forEach(function (id) {
       System.buyFurniture(id, 'living');
@@ -140,6 +149,16 @@ console.error = function () {
     System.setFloor('blue');
     System.setFur('rose');
     System.applyLookTo(g.gopher);
+    // Достижения: на кадре #stats@ach видно и открытые, и закрытые. Дни и
+    // серия берём «как после месяца игры» — так видно, что долгие ступени
+    // ещё закрыты, а близкие уже взяты.
+    var pr = System.progress;
+    pr.days = 34; pr.streak = 9; pr.bestStreak = 12;
+    pr.trips = 14; pr.minigames = 12; pr.quiet = 9; pr.tttWins = 2;
+    pr.feeds = 6; pr.washes = 4; pr.plays = 5; pr.sleeps = 8;
+    pr.coinsEarned = 2400;
+    System.stats.workSkill = 62; System.stats.schoolSkill = 48; System.stats.intelligence = 70;
+    System.checkAchievements();
     if (!System.friends.length) {
       System.friends.push(createNPC([]));
       System.friends.push(createNPC(System.friends.map(function (f) { return f.name; })));
@@ -149,6 +168,27 @@ console.error = function () {
   }
 
   try {
+    // Флаг «jpeg»: картинка без альфа-канала — так требуют карточки магазинов
+    // (Google Play: JPEG или 24-bit PNG без альфы).
+    var asJpeg = flags.jpeg;
+    // Флаг «hires»: кадр для карточки магазина — логический размер 540×960
+    // (как на телефоне), а битмап 1080×1920. Размеры задаём ЯВНО: у headless
+    // Chrome окно и вьюпорт не совпадают, и кадр получался 1080×1746.
+    var hires = flags.hires;
+    if (hires) {
+      g.width = 540;
+      g.height = 960;
+      g.canvas.width = 1080;
+      g.canvas.height = 1920;
+      g.ctx.setTransform(2, 0, 0, 2, 0, 0);
+      // Страховка: позднее событие resize не должно вернуть канвас к окну
+      g.resize = function () {};
+    }
+    // Флаг «sleeping»: кадр со спящим питомцем (#map@sleeping, #home@sleeping)
+    if (flags.sleeping) {
+      System.isSleeping = true;
+      System.stats.energy = 45;
+    }
     if (parts[0]) g.transitionTo(parts[0], initArg);
     var scene = g.scenes[g.currentScene];
     for (var i = 0; i < 60; i++) scene.update(16);
@@ -194,6 +234,15 @@ console.error = function () {
     }
     if (parts[2] === 'tutorial') g.showTutorial();
 
+    // После всех правок размера контекст мог сброситься — ставим размер и масштаб заново
+    if (hires) {
+      if (g.canvas.width !== 1080 || g.canvas.height !== 1920) {
+        g.canvas.width = 1080;
+        g.canvas.height = 1920;
+      }
+      g.ctx.setTransform(2, 0, 0, 2, 0, 0);
+    }
+
     g.ctx.clearRect(0, 0, g.width, g.height);
     g.scenes[g.currentScene].draw(g.ctx);
     if (g.tutorialVisible) g.drawTutorial();
@@ -203,7 +252,9 @@ console.error = function () {
     stats.canvas = g.width + 'x' + g.height;
     stats.errors = window.__log.slice();
     report(stats);
-    document.getElementById('shot').textContent = g.canvas.toDataURL('image/png');
+    document.getElementById('shot').textContent = asJpeg
+      ? g.canvas.toDataURL('image/jpeg', 0.92)
+      : g.canvas.toDataURL('image/png');
   } catch (e) {
     show('DRAW FAIL: ' + e.message + '\n' + (e.stack || '').split('\n').slice(0, 5).join('\n'), '#500');
     report({ drawFail: e.message, hash: hash });

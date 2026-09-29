@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /* Рендер маскота из gopher.js в SVG (перехват команд canvas 2D).
    Нужен, чтобы ГЛАЗАМИ проверить, как выглядит гофер в игре.
-   Запуск: node tools/render-gopher.js <файл.svg> [выражение] */
+   Запуск: node tools/render-gopher.js <файл.svg> [выражение] [экипировка] [предмет] [--char=id]
+   Примеры:
+     node tools/render-gopher.js /tmp/go.svg happy
+     node tools/render-gopher.js /tmp/milka.svg happy - - --char=milka   */
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -11,6 +14,7 @@ const outFile = process.argv[2] || '/tmp/gopher.svg';
 const expression = process.argv[3] || 'happy';
 const outfit = process.argv[4] || null;
 const held = process.argv[5] || null;
+const charArg = (process.argv.find(a => a.indexOf('--char=') === 0) || '').split('=')[1] || null;
 
 const el = [];
 let state = { fillStyle: '#000', strokeStyle: '#000', lineWidth: 1, globalAlpha: 1, font: '10px Arial', textAlign: 'left', textBaseline: 'alphabetic' };
@@ -139,15 +143,16 @@ vm.createContext(sandbox);
 // helpers.js даёт roundRect/clamp/randInt — gopher.js использует roundRect
 vm.runInContext(fs.readFileSync(path.join(WWW, 'js/helpers.js'), 'utf8'), sandbox, { filename: 'helpers.js' });
 vm.runInContext(fs.readFileSync(path.join(WWW, 'js/gopher.js'), 'utf8'), sandbox, { filename: 'gopher.js' });
-const Gopher = sandbox.Gopher;
+vm.runInContext(fs.readFileSync(path.join(WWW, 'js/characters.js'), 'utf8'), sandbox, { filename: 'characters.js' });
 
-const g = new Gopher(null, 100);
+const g = charArg ? sandbox.createCharacter(charArg, 100) : new sandbox.Gopher(null, 100);
 for (let i = 0; i < 30; i++) g.draw(ctx, 0, 0, 1);      // разогрев анимации
 el.length = 0; tf = []; stack = []; pending = null; d = '';   // очистка
 g.expression = expression;
 if (outfit && outfit !== '-') g.outfit = outfit;
 if (held && held !== '-') g.heldEmoji = held;
 g.shower = 0;
+g.blinking = false;
 g.draw(ctx, 0, 0, 1);
 
 const size = 320;

@@ -108,6 +108,23 @@ class MinigamesScene {
       radius: 10
     }));
 
+    // Пока гофер спит, мини-игры — единственное «дело»: они не зависят от
+    // питомца и не тратят энергию. Об этом честно написано на экране.
+    if (System.isSleeping) {
+      const note = '\ud83d\udca4 Гофер спит — играй, энергия копится сама';
+      const nSize = fitFontSize(ctx, note, W - 30, Math.min(W * 0.031, 12.5), 8.5, false);
+      ctx.font = `${nSize}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const nw = ctx.measureText(note).width + 20;
+      ctx.fillStyle = 'rgba(20,20,60,0.7)';
+      roundRect(ctx, (W - nw) / 2, H * 0.10, nw, 22, 11);
+      ctx.fill();
+      ctx.fillStyle = '#9be3b0';
+      ctx.fillText(note, W / 2, H * 0.10 + 11);
+      ctx.textBaseline = 'alphabetic';
+    }
+
     if (this.mode === 'select') {
       this.drawSelect(ctx, W, H);
     } else if (this.mode === 'ticTacToe') {
@@ -137,18 +154,24 @@ class MinigamesScene {
       roundRect(ctx, startX, y, btnW, btnH, 15);
       ctx.fill();
 
-      ctx.font = `${btnW * 0.25}px Arial`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#fff';
-      ctx.fillText(g.emoji, startX + 15, y + btnH / 2 - 10);
+      // Размер эмодзи ограничен: ❌⭕ шириной в две эмодзи раньше наезжало
+      // на название игры.
+      const emojiSizePx = Math.min(btnW * 0.25, 40);
+      ctx.font = `${emojiSizePx}px Arial`;
+      const emojiW = ctx.measureText(g.emoji).width;
+      ctx.fillText(g.emoji, startX + 14, y + btnH / 2 - 10);
 
       ctx.font = `bold ${Math.min(W * 0.045, 18)}px Arial`;
-      ctx.fillText(g.name, startX + btnW * 0.3, y + btnH / 2 - 10);
+      ctx.textAlign = 'left';
+      const nameX = Math.max(startX + btnW * 0.3, startX + 14 + emojiW + 8);
+      ctx.fillText(g.name, nameX, y + btnH / 2 - 10);
 
       ctx.font = `${Math.min(W * 0.03, 13)}px Arial`;
       ctx.fillStyle = 'rgba(255,255,255,0.8)';
-      ctx.fillText(g.desc, startX + btnW * 0.3, y + btnH / 2 + 12);
+      ctx.fillText(g.desc, nameX, y + btnH / 2 + 12);
 
       this.buttons.push({ x: startX, y, w: btnW, h: btnH, action: g.id });
     });
@@ -390,9 +413,9 @@ class MinigamesScene {
         const btn = this.buttons[i];
         if (isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) {
           switch (btn.action) {
-            case 'tictactoe': this.initTTT(); break;
-            case 'memory': this.initMemory(); break;
-            case 'coinflip': this.initCoinFlip(); break;
+            case 'tictactoe': this.initTTT(); System.countAction('minigames'); break;
+            case 'memory': this.initMemory(); System.countAction('minigames'); break;
+            case 'coinflip': this.initCoinFlip(); System.countAction('minigames'); break;
           }
           return true;
         }
@@ -419,6 +442,7 @@ class MinigamesScene {
           if (this.checkTTTWin('X')) {
             this.ttt.over = true;
             this.ttt.winner = 'X';
+            System.countAction('tttWins');
             System.earnCoins(20);
             System.addXP(10);
             System.stats.happiness = Math.min(100, System.stats.happiness + 10);

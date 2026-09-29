@@ -207,7 +207,7 @@ class MenuScene {
   // Задел заказчика: герой — не только гофер. Здесь это уже работает:
   // можно играть гофером, мишкой, зайкой, котёнком или роботом.
   drawCharacters(ctx, W, H) {
-    ctx.fillStyle = 'rgba(8,10,24,0.95)';
+    ctx.fillStyle = 'rgba(8,10,24,1)';
     ctx.fillRect(0, 0, W, H);
 
     ctx.textAlign = 'center';
@@ -250,10 +250,15 @@ class MenuScene {
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#fff';
-      ctx.font = `bold ${Math.min(cardW * 0.13, 15)}px Arial`;
+      // Имя и описание подгоняем по ширине карточки: длинное описание
+      // («Белая, с зелёными ушками») раньше уезжало за правый край.
+      const lineW = cardW * 0.45;
+      const nameSize = fitFontSize(ctx, ch.emoji + ' ' + ch.name, lineW, Math.min(cardW * 0.13, 15), 9, true);
+      ctx.font = `bold ${nameSize}px Arial`;
       ctx.fillText(ch.emoji + ' ' + ch.name, x + cardW * 0.52, y + cardH * 0.34);
       ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.font = `${Math.min(cardW * 0.10, 11)}px Arial`;
+      const descSize = fitFontSize(ctx, ch.desc, lineW, Math.min(cardW * 0.10, 11), 7.5, false);
+      ctx.font = `${descSize}px Arial`;
       ctx.fillText(ch.desc, x + cardW * 0.52, y + cardH * 0.58);
       if (active) {
         ctx.fillStyle = '#6BCB77';
