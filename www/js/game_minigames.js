@@ -7,7 +7,7 @@ class MinigamesScene {
     this.mode = 'select'; // select, ticTacToe, memory, coinFlip
     this.ttt = { board: Array(9).fill(null), turn: 'X', over: false, winner: null };
     this.memory = { cards: [], flipped: [], matched: [], moves: 0, ready: false };
-    this.coinFlip = { state: 'none', timer: 0, result: null };
+    this.coinFlip = { state: 'ready', timer: 0, result: null, angle: 0, flipDur: 1100 };
   }
 
   init() {
@@ -32,28 +32,22 @@ class MinigamesScene {
   }
 
   initCoinFlip() {
-    this.coinFlip = { state: 'waiting', timer: 0, target: 0.7, result: null };
+    this.coinFlip = { state: 'ready', timer: 0, result: null, angle: 0, flipDur: 1100 };
     this.mode = 'coinFlip';
   }
 
   update(dt) {
     this.time += dt;
-    if (this.mode === 'coinFlip' && this.coinFlip.state === 'flipping') {
-      this.coinFlip.timer += dt;
-      if (this.coinFlip.timer > 1000) {
-        const success = this.coinFlip.timer / 1000 >= this.coinFlip.target - 0.1 && this.coinFlip.timer / 1000 <= this.coinFlip.target + 0.15;
-        this.coinFlip.result = success ? 'heads' : 'tails';
-        this.coinFlip.state = 'done';
-        if (success) {
-          const reward = randInt(10, 30);
-          System.earnCoins(reward);
-          System.stats.happiness = Math.min(100, System.stats.happiness + 10);
-          System.showAchievement('🪙', '+' + reward + ' монет!');
-          AudioSys.play('coin');
-        } else {
-          AudioSys.play('fail');
-        }
-        System.addXP(3);
+    const cf = this.coinFlip;
+    if (this.mode === 'coinFlip' && cf.state === 'flipping') {
+      cf.timer += dt;
+      cf.angle += dt * 0.022;
+      if (cf.timer >= cf.flipDur) {
+        cf.angle = 0;
+        cf.result = Math.random() < 0.5 ? 'yes' : 'no';
+        cf.state = 'done';
+        AudioSys.play('coin');
+        System.addXP(2);
         System.saveGame();
       }
     }
@@ -129,7 +123,7 @@ class MinigamesScene {
     const games = [
       { id: 'tictactoe', emoji: '❌⭕', name: 'Крестики-нолики', desc: 'Сыграй против Гофера', color: '#FF6B6B' },
       { id: 'memory', emoji: '🧠', name: 'Memory', desc: 'Найди пары карточек', color: '#9B59B6' },
-      { id: 'coinflip', emoji: '🪙', name: 'Бросай монету', desc: 'Поймай тайминг!', color: '#FFD93D' }
+      { id: 'coinflip', emoji: '🪙', name: 'Монетка: Да или Нет', desc: 'Случайный ответ на вопрос', color: '#FFD93D' }
     ];
 
     const btnW = Math.min(W * 0.7, 280);
@@ -291,63 +285,90 @@ class MinigamesScene {
   drawCoinFlip(ctx, W, H) {
     const cf = this.coinFlip;
 
-    if (cf.state === 'waiting') {
-      ctx.fillStyle = '#fff';
-      ctx.font = `bold ${Math.min(W * 0.05, 22)}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.fillText('Нажмите КОГДА захотите!', W / 2, H * 0.35);
+    // Вопрос-подсказка
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.font = `${Math.min(W * 0.036, 15)}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('Загадай вопрос и подбрось монетку', W / 2, H * 0.16);
 
-      ctx.font = `${Math.min(W * 0.035, 16)}px Arial`;
-      ctx.fillStyle = '#aaa';
-      ctx.fillText('Таймер крутится... жмите в зелёную зону!', W / 2, H * 0.42);
+    // Монетка
+    const R = Math.min(W * 0.22, 90);
+    const cx = W / 2;
+    const cy = H * 0.36;
 
-      this.buttons.push(createButton(ctx, W / 2 - 80, H * 0.5, 160, 50, '🪙 Бросить!', {
-        bgColor: '#FFD93D',
-        fgColor: '#333',
-        fontSize: 18,
-        radius: 15
+    ctx.save();
+    ctx.translate(cx, cy);
+    if (cf.state === 'flipping') ctx.rotate(cf.angle);
+
+    // Тень
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(4, 6, R, R, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Тело монеты
+    const grad = ctx.createLinearGradient(-R, -R, R, R);
+    grad.addColorStop(0, '#FFE873');
+    grad.addColorStop(0.5, '#FFD93D');
+    grad.addColorStop(1, '#E0A800');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, R, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#B8860B';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Внутренний обод
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, R * 0.82, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Символ на монете
+    ctx.fillStyle = '#8B6508';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    if (cf.state === 'done') {
+      ctx.font = `bold ${R * 0.5}px Arial`;
+      ctx.fillText(cf.result === 'yes' ? 'ДА' : 'НЕТ', 0, 4);
+    } else {
+      ctx.font = `${R * 0.9}px Arial`;
+      ctx.fillText('🪙', 0, 4);
+    }
+    ctx.restore();
+
+    // Результат / кнопка
+    if (cf.state === 'ready') {
+      this.buttons.push(createButton(ctx, W / 2 - 110, H * 0.58, 220, 52, '🪙 Подбросить монетку', {
+        bgColor: '#FFD93D', fgColor: '#333', fontSize: 16, radius: 15
       }));
     } else if (cf.state === 'flipping') {
-      // Spinning bar
-      const barW = W * 0.7;
-      const barX = (W - barW) / 2;
-      const barY = H * 0.4;
-
-      ctx.fillStyle = 'rgba(255,255,255,0.2)';
-      roundRect(ctx, barX, barY, barW, 30, 15);
-      ctx.fill();
-
-      // Target zone (green)
-      const targetStart = barX + barW * (cf.target - 0.1);
-      const targetEnd = barX + barW * Math.min(cf.target + 0.15, 1);
-      ctx.fillStyle = 'rgba(107, 203, 119, 0.5)';
-      roundRect(ctx, targetStart, barY, targetEnd - targetStart, 30, cf.target - 0.1 < 0 ? 15 : 0);
-      ctx.fill();
-
-      // Indicator
-      const progress = Math.min(cf.timer / 1000, 1);
-      ctx.fillStyle = '#FF6B6B';
-      roundRect(ctx, barX + progress * barW - 3, barY - 5, 6, 40, 3);
-      ctx.fill();
-
       ctx.fillStyle = '#fff';
-      ctx.font = `bold ${Math.min(W * 0.04, 20)}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.fillText('⬆️ ЖМИТЕ!', W / 2, H * 0.25);
-    } else if (cf.state === 'done') {
-      const won = cf.result === 'heads';
-      ctx.fillStyle = won ? 'rgba(107, 203, 119, 0.3)' : 'rgba(255, 107, 107, 0.3)';
-      roundRect(ctx, W * 0.15, H * 0.3, W * 0.7, 100, 20);
-      ctx.fill();
-
-      ctx.font = `${Math.min(W * 0.3, 60)}px Arial`;
+      ctx.font = `bold ${Math.min(W * 0.045, 20)}px Arial`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(won ? '🪙' : '❌', W / 2, H * 0.38);
-
+      ctx.fillText('Монетка в воздухе...', W / 2, H * 0.58);
+    } else if (cf.state === 'done') {
+      const isYes = cf.result === 'yes';
+      ctx.fillStyle = isYes ? 'rgba(107,203,119,0.95)' : 'rgba(255,107,107,0.95)';
+      roundRect(ctx, W * 0.2, H * 0.52, W * 0.6, 64, 18);
+      ctx.fill();
       ctx.fillStyle = '#fff';
-      ctx.font = `bold ${Math.min(W * 0.05, 24)}px Arial`;
-      ctx.fillText(won ? 'Победа!' : 'Мимо!', W / 2, H * 0.48);
+      ctx.font = `bold ${Math.min(W * 0.09, 34)}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(isYes ? 'ДА' : 'НЕТ', W / 2, H * 0.52 + 32);
+
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.font = `${Math.min(W * 0.033, 14)}px Arial`;
+      ctx.fillText(isYes ? 'Вселенная говорит «да» ✨' : 'Значит, не сейчас 🌙', W / 2, H * 0.64);
+
+      this.buttons.push(createButton(ctx, W / 2 - 90, H * 0.70, 180, 46, '🔄 Ещё раз', {
+        bgColor: '#4D96FF', fgColor: '#fff', fontSize: 15, radius: 12
+      }));
     }
   }
 
@@ -480,28 +501,13 @@ class MinigamesScene {
 
     if (this.mode === 'coinFlip') {
       const cf = this.coinFlip;
-      if (cf.state === 'waiting') {
+      if (cf.state === 'ready' || cf.state === 'done') {
         cf.state = 'flipping';
         cf.timer = 0;
-        cf.target = randFloat(0.4, 0.9);
-        return true;
-      } else if (cf.state === 'flipping') {
-        cf.state = 'done';
-        const success = cf.timer / 1000 >= cf.target - 0.1 && cf.timer / 1000 <= cf.target + 0.15;
-        cf.result = success ? 'heads' : 'tails';
-        if (success) {
-          const reward = randInt(10, 30);
-          System.earnCoins(reward);
-          System.stats.happiness = Math.min(100, System.stats.happiness + 10);
-          System.showAchievement('🪙', '+' + reward + ' монет!');
-          AudioSys.play('coin');
-        } else {
-          AudioSys.play('fail');
-        }
-        System.addXP(3);
-        System.saveGame();
-        return true;
+        cf.angle = 0;
+        cf.result = null;
       }
+      return true;
     }
 
     return false;

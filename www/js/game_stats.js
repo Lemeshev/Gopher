@@ -158,7 +158,8 @@ class StatsScene {
       { id: 'rich', emoji: '💰', name: 'Богач', desc: 'Накопите 200 монет', check: () => System.coins >= 200 },
       { id: 'level5', emoji: '⭐', name: 'Опытный', desc: 'Достигните 5 уровня', check: () => System.level >= 5 },
       { id: 'level10', emoji: '🌟', name: 'Ветеран', desc: 'Достигните 10 уровня', check: () => System.level >= 10 },
-      { id: 'all_museums', emoji: '🎓', name: 'Коллекционер', desc: 'Посетите все музеи', check: () => ['museum_art','museum_nature','museum_space','museum_history'].every(l => System.visitedLocations.has(l)) },
+      { id: 'all_museums', emoji: '🎓', name: 'Коллекционер', desc: 'Увидьте по 12 экспонатов в каждом музее',
+        check: () => ['art_museum','nature_museum','space_museum','history_museum'].every(c => System.seenCount(c) >= 12) },
       { id: 'tictactoe_win', emoji: '❌', name: 'Победитель', desc: 'Выиграйте в крестики-нолики', check: () => System.achievements.includes('ttt_win') },
       { id: 'healthy', emoji: '💪', name: 'Здоровяк', desc: 'Все статы > 80', check: () => ['happiness','hunger','energy','health','cleanliness'].every(s => System.stats[s] > 80) },
       { id: 'scholar', emoji: '📚', name: 'Учёный', desc: 'Интеллект > 80', check: () => System.stats.intelligence > 80 },
@@ -204,39 +205,68 @@ class StatsScene {
   }
 
   drawKnowledgeTab(ctx, W, H) {
-    const knowledge = [
-      { key: 'artMuseum', emoji: '🎨', name: 'Художественный музей', value: System.knowledge.artMuseum },
-      { key: 'natureMuseum', emoji: '🦕', name: 'Музей природы', value: System.knowledge.natureMuseum },
-      { key: 'spaceMuseum', emoji: '🚀', name: 'Космический музей', value: System.knowledge.spaceMuseum },
-      { key: 'historyMuseum', emoji: '🏛️', name: 'Исторический музей', value: System.knowledge.historyMuseum },
-      { key: 'library', emoji: '📚', name: 'Библиотека', value: System.knowledge.library }
+    // Коллекция: сколько предметов уже увидено из базы контента
+    const cats = [
+      { key: 'art_museum', emoji: '🖼️', name: 'Художественный музей' },
+      { key: 'nature_museum', emoji: '🦕', name: 'Музей природы' },
+      { key: 'space_museum', emoji: '🚀', name: 'Космический музей' },
+      { key: 'history_museum', emoji: '🏺', name: 'Исторический музей' },
+      { key: 'library', emoji: '📚', name: 'Библиотека' },
+      { key: 'school', emoji: '🎓', name: 'Учёба' },
+      { key: 'work', emoji: '💼', name: 'Работа' },
+      { key: 'park', emoji: '🎢', name: 'Парк' },
+      { key: 'cinema', emoji: '🎬', name: 'Кино' },
+      { key: 'pool', emoji: '🏊', name: 'Бассейн' },
+      { key: 'gym', emoji: '🏋️', name: 'Спортзал' },
+      { key: 'clinic', emoji: '🏥', name: 'Лечения' },
+      { key: 'restaurant', emoji: '🍽️', name: 'Блюда' }
     ];
 
-    const startY = 100;
-    const rowH = 50;
+    let totalSeen = 0, totalAll = 0;
+    const rows = cats.map(c => {
+      const total = (typeof contentSize === 'function') ? contentSize(c.key) : 0;
+      const seen = System.seenCount(c.key);
+      totalSeen += seen; totalAll += total;
+      return { emoji: c.emoji, name: c.name, seen: seen, total: total };
+    });
 
-    knowledge.forEach((k, i) => {
-      const y = startY + i * (rowH + 10);
+    const startY = 92;
+    const avail = H - startY - 70;
+    const rowH = Math.max(22, Math.min(40, avail / rows.length - 5));
+
+    rows.forEach((r, i) => {
+      const y = startY + i * (rowH + 5);
+      const pct = r.total > 0 ? r.seen / r.total : 0;
 
       ctx.fillStyle = 'rgba(255,255,255,0.08)';
-      roundRect(ctx, 15, y, W - 30, rowH, 12);
+      roundRect(ctx, 15, y, W - 30, rowH, 10);
       ctx.fill();
 
-      ctx.font = '22px Arial';
       ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.font = `${Math.min(rowH * 0.55, 18)}px Arial`;
       ctx.fillStyle = '#fff';
-      ctx.fillText(k.emoji, 25, y + 30);
+      ctx.fillText(r.emoji, 24, y + rowH / 2);
 
-      ctx.font = `bold ${Math.min(W * 0.035, 14)}px Arial`;
-      ctx.fillText(k.name, 55, y + 18);
+      ctx.font = `bold ${Math.min(W * 0.031, 12)}px Arial`;
+      ctx.fillText(r.name, 50, y + rowH / 2);
 
-      drawProgressBar(ctx, 55, y + 28, W * 0.45, 12, k.value, 100, 'rgba(255,255,255,0.15)', '#4D96FF');
+      const barX = W * 0.56;
+      const barW = W * 0.26;
+      drawProgressBar(ctx, barX, y + rowH / 2 - 5, barW, 10, pct * 100, 100, 'rgba(255,255,255,0.15)', '#4D96FF');
 
-      ctx.font = 'bold 12px Arial';
       ctx.textAlign = 'right';
-      ctx.fillStyle = '#4D96FF';
-      ctx.fillText(k.value + '%', W - 25, y + 37);
+      ctx.fillStyle = '#9fd0ff';
+      ctx.font = `bold ${Math.min(W * 0.028, 11)}px Arial`;
+      ctx.fillText(r.seen + '/' + r.total, W - 22, y + rowH / 2);
     });
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#FFD93D';
+    ctx.font = `bold ${Math.min(W * 0.036, 15)}px Arial`;
+    const pctAll = totalAll > 0 ? Math.round(totalSeen / totalAll * 100) : 0;
+    ctx.fillText('📖 Собрано ' + totalSeen + ' / ' + totalAll + ' (' + pctAll + '%)', W / 2, H - 40);
   }
 
   drawInventoryTab(ctx, W, H) {

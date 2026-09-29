@@ -127,19 +127,18 @@ class MapScene {
     const locations = [
       { id: 'home', emoji: '🏠', name: 'Дом', color: '#FF6B6B', desc: 'Еда, сон, игры' },
       { id: 'shop', emoji: '🛒', name: 'Магазин', color: '#F39C12', desc: 'Покупки 🎁' },
-      { id: 'work', emoji: '🏢', name: 'Работа', color: '#4D96FF', desc: 'Заработок 💰', req: 'energy>40' },
-      { id: 'school', emoji: '🎓', name: 'Учёба', color: '#9B59B6', desc: 'Знания 📚', req: 'energy>40' },
-      { id: 'restaurant', emoji: '🍽️', name: 'Ресторан', color: '#FF8C42', desc: 'Угощение 🍰', cost: 30, req: 'energy>30' },
+      { id: 'work', emoji: '🏢', name: 'Работа', color: '#4D96FF', desc: 'Разные задания', req: 'energy>40' },
+      { id: 'school', emoji: '🎓', name: 'Учёба', color: '#9B59B6', desc: 'Разные знания', req: 'energy>40' },
+      { id: 'restaurant', emoji: '🍽️', name: 'Ресторан', color: '#FF8C42', desc: 'Блюда мира', cost: 30, req: 'energy>30' },
       { id: 'pool', emoji: '🏊', name: 'Бассейн', color: '#00BCD4', desc: 'Плавание 🏊', req: 'hunger>30' },
       { id: 'park', emoji: '🎢', name: 'Парк', color: '#2ECC71', desc: 'Аттракционы', req: 'energy>40' },
-      { id: 'clinic', emoji: '🏥', name: 'Поликлиника', color: '#E74C3C', desc: 'Лечение 💊', req: 'health<70' },
-      { id: 'museum_art', emoji: '🎨', name: 'Искусств', color: '#E91E63', desc: 'Карттины 🖼️', cost: 30 },
-      { id: 'museum_nature', emoji: '🦕', name: 'Природы', color: '#4CAF50', desc: 'Динозавры', cost: 30 },
-      { id: 'museum_space', emoji: '🚀', name: 'Космический', color: '#3F51B5', desc: 'Планеты 🌍', cost: 30 },
-      { id: 'museum_history', emoji: '🏛️', name: 'История', color: '#795548', desc: 'Древний Рим', cost: 30 },
-      { id: 'library', emoji: '📚', name: 'Библиотека', color: '#607D8B', desc: 'Чтение 📖', cost: 10 },
+      { id: 'clinic', emoji: '🏥', name: 'Поликлиника', color: '#E74C3C', desc: 'Разные лечения', req: 'health<70' },
+      { id: 'museums', emoji: '🏛️', name: 'Музеи', color: '#E91E63', desc: '4 музея 📜', cost: 0, req: 'energy>20' },
+      { id: 'library', emoji: '📚', name: 'Библиотека', color: '#607D8B', desc: '100 книг 📖', cost: 10 },
+      { id: 'cinema', emoji: '🎬', name: 'Кино', color: '#8E44AD', desc: 'Фильмы 🍿', cost: 20, req: 'energy>30' },
+      { id: 'gym', emoji: '🏋️', name: 'Спортзал', color: '#16A085', desc: 'Тренировки 💪', cost: 15, req: 'energy>30' },
       { id: 'friend', emoji: '🧑‍🤝‍🧑', name: 'Друзья', color: '#FF5722', desc: 'В гости 🐹' },
-      { id: 'minigames', emoji: '🎮', name: 'Мини-игры', color: '#9C27B0', desc: 'Крестики-нолики' },
+      { id: 'minigames', emoji: '🎮', name: 'Мини-игры', color: '#9C27B0', desc: '3 игры' },
       { id: 'stats', emoji: '📊', name: 'Инфо', color: '#607D8B', desc: 'Достижения ⭐' }
     ];
 
@@ -257,35 +256,13 @@ class MapScene {
             System.showAchievement(event.emoji, event.text);
           }
 
-          // Map location IDs to visit scene data keys
-          const visitMap = {
-            museum_art: 'art_museum', museum_nature: 'nature_museum',
-            museum_space: 'space_museum', museum_history: 'history_museum',
-            library: 'library', restaurant: 'restaurant',
-            pool: 'pool', park: 'park', work: 'work',
-            school: 'school', cinema: 'cinema'
-          };
-
+          // Клиника и друзья — отдельные сцены, остальное — сцена посещения
           if (loc.id === 'clinic') {
             this.game.transitionTo('clinic');
-          } else if (visitMap[loc.id]) {
-            this.game.transitionTo('visit', visitMap[loc.id]);
-          } else if (loc.id === 'work') {
-            const earn = Math.floor(10 + System.stats.workSkill * 0.5 + System.level * 2);
-            System.earnCoins(earn);
-            System.stats.energy = Math.max(0, System.stats.energy - 20);
-            System.stats.workSkill = Math.min(100, System.stats.workSkill + 2);
-            System.stats.stress = Math.min(100, System.stats.stress + 10);
-            System.showAchievement('💼', '+🪙' + earn + ' | Работа +навык');
-            AudioSys.play('coin');
-          } else if (loc.id === 'school') {
-            System.stats.energy = Math.max(0, System.stats.energy - 20);
-            System.stats.schoolSkill = Math.min(100, System.stats.schoolSkill + 3);
-            System.stats.intelligence = Math.min(100, System.stats.intelligence + 2);
-            System.showAchievement('🎓', 'Учёба продвигается!');
-            AudioSys.play('success');
           } else if (loc.id === 'friend') {
             this.game.transitionTo('friends');
+          } else if (typeof VISIT_DATA !== 'undefined' && VISIT_DATA[loc.id]) {
+            this.game.transitionTo('visit', loc.id);
           } else {
             System.showAchievement(loc.emoji, loc.name);
             this.game.transitionTo('home');

@@ -24,6 +24,11 @@ const System = {
     historyMuseum: 0,
     library: 0
   },
+  // Просмотренные предметы локаций: { 'art_museum': ['art_museum:Мона Лиза', ...] }
+  visitedItems: {},
+  // Мебель в доме игрока и список друзей
+  homeDecor: [],
+  friends: [],
   timeOfDay: 'morning',  // morning, afternoon, evening, night
   currentLocation: 'home',
   isSleeping: false,
@@ -70,6 +75,28 @@ const System = {
     }
   },
 
+  // ===== Трекинг просмотренных предметов локаций =====
+  getSeen(category) {
+    if (!this.visitedItems) this.visitedItems = {};
+    return this.visitedItems[category] || [];
+  },
+
+  hasSeen(category, id) {
+    return this.getSeen(category).indexOf(id) !== -1;
+  },
+
+  markSeen(category, id) {
+    if (!this.visitedItems) this.visitedItems = {};
+    if (!this.visitedItems[category]) this.visitedItems[category] = [];
+    if (this.visitedItems[category].indexOf(id) === -1) {
+      this.visitedItems[category].push(id);
+    }
+  },
+
+  seenCount(category) {
+    return this.getSeen(category).length;
+  },
+
   showAchievement(emoji, text) {
     let el = document.getElementById('achievement-popup');
     if (!el) {
@@ -105,6 +132,7 @@ const System = {
       case 'cinema': return energy > 30 && this.canAfford(20);
       case 'friend': return energy > 30;
       case 'beach': return energy > 40 && hunger > 30;
+      case 'museums': return energy > 20;
       case 'museum_art': return this.canAfford(30);
       case 'museum_nature': return this.canAfford(30);
       case 'museum_space': return this.canAfford(30);
@@ -151,6 +179,7 @@ const System = {
       inventory: [...this.inventory],
       achievements: [...this.achievements],
       knowledge: { ...this.knowledge },
+      visitedItems: { ...this.visitedItems },
       timeOfDay: this.timeOfDay,
       visitedLocations: [...this.visitedLocations],
       totalPlayTime: this.totalPlayTime,
@@ -177,6 +206,7 @@ const System = {
       this.inventory = data.inventory || [];
       this.achievements = data.achievements || [];
       this.knowledge = { ...this.knowledge, ...data.knowledge };
+      this.visitedItems = data.visitedItems || {};
       this.timeOfDay = data.timeOfDay || 'morning';
       this.visitedLocations = new Set(data.visitedLocations || []);
       this.totalPlayTime = data.totalPlayTime || 0;
@@ -217,6 +247,7 @@ const System = {
     this.knowledge = {
       artMuseum: 0, natureMuseum: 0, spaceMuseum: 0, historyMuseum: 0, library: 0
     };
+    this.visitedItems = {};
     this.timeOfDay = 'morning';
     this.currentLocation = 'home';
     this.isSleeping = false;
@@ -225,6 +256,29 @@ const System = {
     this.totalPlayTime = 0;
     this.homeDecor = [];
     this.friends = [];
+  },
+
+  // Универсальное начисление награды: { stat, amount, coins, energyCost }
+  applyReward(reward) {
+    if (!reward) return '';
+    const parts = [];
+    if (reward.coins) {
+      this.earnCoins(reward.coins);
+      parts.push('🪙+' + reward.coins);
+    }
+    if (reward.stat && reward.amount) {
+      if (reward.stat === 'money') {
+        this.earnCoins(reward.amount);
+        parts.push('🪙+' + reward.amount);
+      } else if (this.stats[reward.stat] !== undefined) {
+        this.stats[reward.stat] = Math.min(100, this.stats[reward.stat] + reward.amount);
+        parts.push(this.getStatEmoji(reward.stat) + '+' + reward.amount);
+      }
+    }
+    if (reward.energyCost) {
+      this.stats.energy = Math.max(0, this.stats.energy - reward.energyCost);
+    }
+    return parts.join(' ');
   },
 
   addDecor(id, emoji, name) {
@@ -237,8 +291,20 @@ const System = {
   addFriend(code) {
     try {
       const data = JSON.parse(atob(code));
-      if (data && data.name && !this.friends.find(f => f.name === data.name)) {
-        this.friends.push(data);
+      if (data && data.name) {
+        if (this.friends.find(f => f.name === data.name)) return false;
+        this.friends.push({
+          id: 'code_' + data.name + '_' + Date.now().toString(36),
+          name: data.name,
+          emoji: '🐹',
+          trait: 'друг по переписке',
+          level: data.level || 1,
+          friendship: 20,
+          decor: (data.homeDecor || []).map(d => ({ emoji: d.emoji, name: d.name })),
+          hat: data.hat || null,
+          glasses: data.glasses || null,
+          bowtie: !!data.bowtie
+        });
         this.saveGame();
         return true;
       }
