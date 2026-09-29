@@ -86,9 +86,12 @@ function serve() {
 
 function chrome(hash, port, shotPath, timeoutMs) {
   return new Promise(resolve => {
+    // Профиль Chrome создаётся на каждый запуск и удаляется после: без уборки
+    // в /tmp за один прогон остаётся 50 папок и Chrome начинает тормозить.
+    const profileDir = '/tmp/chrome-render-' + process.pid + '-' + Math.random().toString(36).slice(2, 7);
     const args = [
       '--headless=new', '--disable-gpu', '--no-first-run', '--hide-scrollbars',
-      '--user-data-dir=/tmp/chrome-render-' + process.pid + '-' + Math.random().toString(36).slice(2, 7),
+      '--user-data-dir=' + profileDir,
       '--window-size=390,844', '--virtual-time-budget=1500'
     ];
     if (shotPath) { args.push('--screenshot=' + shotPath); } else { args.push('--dump-dom'); }
@@ -102,6 +105,7 @@ function chrome(hash, port, shotPath, timeoutMs) {
       done = true;
       clearTimeout(timer);
       try { p.kill('SIGKILL'); } catch (e) {}
+      try { fs.rmSync(profileDir, { recursive: true, force: true }); } catch (e) {}
       const unesc = t => t.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
       const m = out.match(/<pre id="report">([\s\S]*?)<\/pre>/);
       let json = null;

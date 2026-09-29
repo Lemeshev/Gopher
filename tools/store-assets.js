@@ -66,9 +66,11 @@ function serve() {
 /* ---------- Chrome: открыть страницу и забрать data-URL + диагностику ---------- */
 function chromePage(url, width, height, scale, timeoutMs) {
   return new Promise(resolve => {
+    // Профиль Chrome удаляем после запуска — иначе /tmp растёт с каждым кадром
+    const profileDir = '/tmp/chrome-store-' + process.pid + '-' + Math.random().toString(36).slice(2, 7);
     const chromeArgs = [
       '--headless=new', '--disable-gpu', '--no-first-run', '--hide-scrollbars',
-      '--user-data-dir=/tmp/chrome-store-' + process.pid + '-' + Math.random().toString(36).slice(2, 7),
+      '--user-data-dir=' + profileDir,
       '--window-size=' + width + ',' + height,
       '--force-device-scale-factor=' + (scale || 1),
       '--virtual-time-budget=4000', '--dump-dom', url
@@ -81,6 +83,7 @@ function chromePage(url, width, height, scale, timeoutMs) {
       done = true;
       clearTimeout(timer);
       try { p.kill('SIGKILL'); } catch (e) {}
+      try { fs.rmSync(profileDir, { recursive: true, force: true }); } catch (e) {}
       const unesc = t => t.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
       const grab = id => {
         const m = out.match(new RegExp('<pre id="' + id + '">([\\s\\S]*?)<\\/pre>'));
