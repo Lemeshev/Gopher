@@ -114,7 +114,7 @@ class ShopScene {
       { id: 'food', emoji: '🍕', name: 'Еда' },
       { id: 'toys', emoji: '🧸', name: 'Игрушки' },
       { id: 'clothes', emoji: '👔', name: 'Одежда' },
-      { id: 'decor', emoji: '🛋️', name: 'Мебель' },
+      { id: 'decor', emoji: '🛋️', name: 'Дом' },
       { id: 'fun', emoji: '🎉', name: 'Веселье' }
     ];
 
@@ -153,26 +153,34 @@ class ShopScene {
       { id: 'robot', emoji: '🤖', name: 'Робот', desc: '+20 счастья, +10 XP', cost: 50, category: 'toys', effect: () => { System.stats.happiness = Math.min(100, System.stats.happiness + 20); System.addXP(10); } },
       { id: 'doll', emoji: '🧸', name: 'Мишка', desc: '+15 счастья, успокаивает', cost: 25, category: 'toys', effect: () => { System.stats.happiness = Math.min(100, System.stats.happiness + 15); System.stats.stress = Math.max(0, System.stats.stress - 10); } },
 
-      // Clothes
-      { id: 'hat_cook', emoji: '👨‍🍳', name: 'Шеф-шапка', desc: 'Визуальный аксессуар', cost: 40, category: 'clothes', effect: () => { this.game.gopher.hat = 'chef'; } },
-      { id: 'hat_sci', emoji: '🧑‍🔬', name: 'Очки учёного', desc: 'Визуальный аксессуар', cost: 35, category: 'clothes', effect: () => { this.game.gopher.glasses = 'nerd'; } },
-      { id: 'bowtie', emoji: '🎀', name: 'Бабочка', desc: 'Визуальный аксессуар', cost: 30, category: 'clothes', effect: () => { this.game.gopher.bowtie = true; } },
-      { id: 'cool_shades', emoji: '😎', name: 'Крутые очки', desc: 'Визуальный аксессуар', cost: 45, category: 'clothes', effect: () => { this.game.gopher.glasses = 'cool'; } },
-      { id: 'crown', emoji: '👑', name: 'Корона', desc: '+20 счастья!', cost: 100, category: 'clothes', effect: () => { System.stats.happiness = Math.min(100, System.stats.happiness + 20); } },
+      // Одежда и аксессуары (внешний вид хранится в System.look)
+      { id: 'no_acc', emoji: '🚫', name: 'Без аксессуаров', desc: 'Снять всё', cost: 0, category: 'clothes',
+        effect: () => { System.look.hat = null; System.look.glasses = null; System.look.bowtie = false; System.saveGame(); } },
+      { id: 'hat_cook', emoji: '👨‍🍳', name: 'Шеф-шапка', desc: 'Поварской колпак', cost: 40, category: 'clothes',
+        effect: () => { System.look.hat = 'chef'; System.saveGame(); } },
+      { id: 'hat_sci', emoji: '🧑‍🔬', name: 'Шапочка учёного', desc: 'Умный вид', cost: 35, category: 'clothes',
+        effect: () => { System.look.hat = 'scientist'; System.saveGame(); } },
+      { id: 'glasses_nerd', emoji: '🤓', name: 'Очки учёного', desc: 'Для чтения', cost: 35, category: 'clothes',
+        effect: () => { System.look.glasses = 'nerd'; System.saveGame(); } },
+      { id: 'cool_shades', emoji: '😎', name: 'Крутые очки', desc: 'Стиль', cost: 45, category: 'clothes',
+        effect: () => { System.look.glasses = 'cool'; System.saveGame(); } },
+      { id: 'bowtie', emoji: '🎀', name: 'Бабочка', desc: 'Нарядный', cost: 30, category: 'clothes',
+        effect: () => { System.look.bowtie = true; System.saveGame(); } },
+      { id: 'crown', emoji: '👑', name: 'Корона', desc: '+20 счастья!', cost: 100, category: 'clothes',
+        effect: () => { System.look.hat = 'crown'; System.stats.happiness = Math.min(100, System.stats.happiness + 20); System.saveGame(); } },
 
-      // Decor / Furniture (persisted in System.homeDecor)
-      { id: 'sofa', emoji: '🛋️', name: 'Диван', desc: 'Уют в дом', cost: 40, category: 'decor', effect: () => { System.addDecor('sofa', '🛋️', 'Диван'); } },
-      { id: 'carpet', emoji: '🟫', name: 'Ковёр', desc: 'Тепло полу', cost: 25, category: 'decor', effect: () => { System.addDecor('carpet', '🟫', 'Ковёр'); } },
-      { id: 'painting', emoji: '🖼️', name: 'Картина', desc: 'Красота стен', cost: 35, category: 'decor', effect: () => { System.addDecor('painting', '🖼️', 'Картина'); } },
-      { id: 'bookshelf', emoji: '📚', name: 'Книжная полка', desc: 'Знания дома', cost: 30, category: 'decor', effect: () => { System.addDecor('bookshelf', '📚', 'Полка'); } },
-      { id: 'aquarium', emoji: '🐠', name: 'Аквариум', desc: 'Рыбки!', cost: 50, category: 'decor', effect: () => { System.addDecor('aquarium', '🐠', 'Аквариум'); } },
-      { id: 'plant', emoji: '🪴', name: 'Растение', desc: 'Свежий воздух', cost: 15, category: 'decor', effect: () => { System.addDecor('plant', '🪴', 'Растение'); } },
-      { id: 'lamp', emoji: '💡', name: 'Лампа', desc: 'Свет и уют', cost: 20, category: 'decor', effect: () => { System.addDecor('lamp', '💡', 'Лампа'); } },
-      { id: 'tv', emoji: '📺', name: 'Телевизор', desc: 'Развлечения', cost: 60, category: 'decor', effect: () => { System.addDecor('tv', '📺', 'ТВ'); } },
-      { id: 'piano', emoji: '🎹', name: 'Пианино', desc: 'Музыка!', cost: 80, category: 'decor', effect: () => { System.addDecor('piano', '🎹', 'Пианино'); } },
-      { id: 'clock', emoji: '🕐', name: 'Часы', desc: 'Пунктуальность', cost: 18, category: 'decor', effect: () => { System.addDecor('clock', '🕐', 'Часы'); } },
-      { id: 'bed', emoji: '🛏️', name: 'Кровать', desc: 'Лучший сон', cost: 45, category: 'decor', effect: () => { System.addDecor('bed', '🛏️', 'Кровать'); } },
-      { id: 'fridge', emoji: '🧊', name: 'Холодильник', desc: 'Еда под рукой', cost: 55, category: 'decor', effect: () => { System.addDecor('fridge', '🧊', 'Холодильник'); } },
+      // Окрас шерсти — гофера видно издалека
+      ...FURS.map(f => ({
+        id: 'fur_' + f.id, emoji: '🎨', name: 'Окрас: ' + f.name,
+        desc: f.cost === 0 ? 'Классический цвет' : 'Новый цвет шерсти',
+        cost: f.cost === 0 ? 5 : f.cost, category: 'clothes', fur: f.id
+      })),
+
+      // Мебель — общий каталог: купленная вещь сразу появляется в комнате
+      ...FURNITURE.map(f => ({
+        id: f.id, emoji: f.emoji, name: f.name, desc: f.desc, cost: f.cost,
+        category: 'decor', furniture: true
+      })),
 
       // Fun
       { id: 'party', emoji: '🎉', name: 'Вечеринка', desc: '+30 счастья!', cost: 60, category: 'fun', effect: () => { System.stats.happiness = Math.min(100, System.stats.happiness + 30); this.game.gopher.setExpression('excited', 999); } },
@@ -195,10 +203,12 @@ class ShopScene {
       const row = Math.floor(i / cols);
       const ix = startX + col * itemW;
       const iy = startY + row * itemH;
-      const canAfford = System.canAfford(item.cost);
+      const owned = item.furniture ? System.ownsFurniture(item.id)
+        : (item.fur ? System.look.fur === item.fur : false);
+      const canAfford = System.canAfford(item.cost) && !owned;
 
       // Item card
-      ctx.fillStyle = canAfford ? 'rgba(255,255,255,0.9)' : 'rgba(200,200,200,0.7)';
+      ctx.fillStyle = owned ? 'rgba(107,203,119,0.28)' : (canAfford ? 'rgba(255,255,255,0.9)' : 'rgba(200,200,200,0.7)');
       roundRect(ctx, ix, iy, itemW - 4, itemH - 4, 15);
       ctx.fill();
 
@@ -224,11 +234,16 @@ class ShopScene {
       ctx.fillStyle = '#666';
       ctx.fillText(item.desc, ix + 50, iy + itemH * 0.50);
 
-      // Cost
-      ctx.fillStyle = canAfford ? '#4CAF50' : '#999';
-      ctx.font = `bold ${Math.min(itemW * 0.12, 13)}px Arial`;
+      // Цена / состояние
       ctx.textAlign = 'right';
-      ctx.fillText('🪙 ' + item.cost, ix + itemW - 15, iy + itemH - 14);
+      ctx.font = `bold ${Math.min(itemW * 0.12, 13)}px Arial`;
+      if (owned) {
+        ctx.fillStyle = '#2E7D32';
+        ctx.fillText('✓ Куплено', ix + itemW - 15, iy + itemH - 14);
+      } else {
+        ctx.fillStyle = canAfford ? '#4CAF50' : '#999';
+        ctx.fillText('🪙 ' + item.cost, ix + itemW - 15, iy + itemH - 14);
+      }
 
       this.buttons.push({ ...item, x: ix, y: iy, w: itemW - 4, h: itemH - 4 });
     });
@@ -274,15 +289,58 @@ class ShopScene {
     // Check item buttons
     for (const btn of this.buttons.slice(0, -1)) {
       if (isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) {
+        // Мебель: купленная вещь сразу встаёт в комнату
+        if (btn.furniture) {
+          if (System.ownsFurniture(btn.id)) {
+            this.showNotification('🏠', btn.name + ' уже дома!');
+            AudioSys.play('fail');
+            return true;
+          }
+          if (!System.canAfford(btn.cost)) {
+            this.showNotification('🪙', 'Не хватает монет! Нужно ещё ' + (btn.cost - System.coins));
+            AudioSys.play('fail');
+            return true;
+          }
+          System.spendCoins(btn.cost);
+          System.buyFurniture(btn.id);
+          this.showNotification(btn.emoji, btn.name + ' уже в комнате!');
+          System.addXP(8);
+          System.saveGame();
+          AudioSys.play('success');
+          this.game.gopher.setExpression('excited', 60);
+          return true;
+        }
+
+        if (btn.fur) {
+          if (System.look.fur === btn.fur) {
+            this.showNotification('🎨', 'Этот окрас уже выбран');
+            AudioSys.play('fail');
+            return true;
+          }
+          if (!System.canAfford(btn.cost)) {
+            this.showNotification('🪙', 'Не хватает монет!');
+            AudioSys.play('fail');
+            return true;
+          }
+          System.spendCoins(btn.cost);
+          System.setFur(btn.fur);
+          System.applyLookTo(this.game.gopher);
+          this.showNotification('🎨', 'Новый окрас: ' + findFur(btn.fur).name);
+          System.addXP(6);
+          AudioSys.play('success');
+          this.game.gopher.setExpression('excited', 60);
+          return true;
+        }
+
         if (System.canAfford(btn.cost)) {
           System.spendCoins(btn.cost);
           btn.effect();
+          System.applyLookTo(this.game.gopher);
           this.showNotification(btn.emoji, 'Куплено: ' + btn.name + '!');
           System.addXP(5);
           System.saveGame();
           AudioSys.play('success');
           if (btn.cost >= 30) {
-            // Visual effect
             this.game.gopher.setExpression('excited', 60);
           }
         } else {

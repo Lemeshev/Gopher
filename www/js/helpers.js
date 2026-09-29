@@ -79,3 +79,64 @@ function createButton(ctx, x, y, w, h, text, opts = {}) {
 function isPointInRect(px, py, rx, ry, rw, rh) {
   return px >= rx && px <= rx + rw && py >= ry && py <= ry + rh;
 }
+
+// Подобрать размер шрифта так, чтобы текст влез в maxW
+function fitFontSize(ctx, text, maxW, baseSize, minSize, bold) {
+  let size = baseSize;
+  const min = minSize || 7;
+  while (size > min) {
+    ctx.font = (bold ? 'bold ' : '') + size + 'px Arial, sans-serif';
+    if (ctx.measureText(text).width <= maxW) return size;
+    size -= 0.5;
+  }
+  ctx.font = (bold ? 'bold ' : '') + min + 'px Arial, sans-serif';
+  return min;
+}
+
+// Разбить текст на строки по ширине (не больше maxLines)
+function wrapLines(ctx, text, maxW, maxLines) {
+  const words = String(text == null ? '' : text).split(' ');
+  const lines = [];
+  let cur = '';
+  for (const word of words) {
+    const test = cur ? cur + ' ' + word : word;
+    if (!cur || ctx.measureText(test).width <= maxW) cur = test;
+    else { lines.push(cur); cur = word; }
+  }
+  if (cur) lines.push(cur);
+  const max = maxLines || 2;
+  if (lines.length > max) {
+    const tail = lines.slice(max - 1).join(' ');
+    lines.length = max - 1;
+    lines.push(tail);
+  }
+  return lines;
+}
+
+// ============ ВЕРСИЯ И ВНЕШНИЕ ССЫЛКИ ============
+const GAME_VERSION = '1.1';
+
+// Открыть ссылку во внешнем браузере (Android WebView тоже)
+function openExternalLink(url) {
+  try {
+    if (window.cordova && window.cordova.InAppBrowser && window.cordova.InAppBrowser.open) {
+      window.cordova.InAppBrowser.open(url, '_system');
+      return true;
+    }
+  } catch (e) {}
+  try {
+    const w = window.open(url, '_system');
+    if (w) return true;
+  } catch (e) {}
+  try {
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { try { document.body.removeChild(a); } catch (e) {} }, 200);
+    return true;
+  } catch (e) {}
+  return false;
+}

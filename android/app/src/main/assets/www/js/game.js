@@ -14,13 +14,16 @@ class Game {
     this.tutorialVisible = false;
     this.tutorialPage = 0;
     this.buttons = [];
+    this.dragging = false;
+    this.dragScene = null;
 
     this.tutorialPages = [
-      '🐹 Добро пожаловать в Gopher Life!\nЭто ваш виртуальный питомец.',
-      '❤️ Следите за статами гофера:\nсчастье, сытость, энергия, здоровье.',
-      '🏠 Посещайте разные места:\nдом, магазин, парк, работу.',
-      '🛒 Покупайте еду и игрушки,\nчтобы повысить статы.',
-      '🎮 Играйте в мини-игры,\nчтобы заработать монеты!'
+      '🐹 Добро пожаловать в Gopher Life!\nЭто твой гофер-питомец.',
+      '🏠 Дома корми его, купай, играй с ним\nи укладывай спать — энергия растёт сама.',
+      '🛋️ В магазине покупай мебель: она сразу\nпоявляется в комнате. Ставь и переставляй её!',
+      '🗺️ На карте — музеи, парк, бассейн, кино,\nработа и учёба. В каждом месте своя подборка.',
+      '🧑‍🤝‍🧑 Знакомься с друзьями и ходи к ним в гости —\nтам видно, как они обустроили комнату.',
+      '👥 Кнопка «Профили» в меню: можно завести\nвторого гофера и ходить к нему в гости!'
     ];
 
     this.sceneClasses = {
@@ -41,24 +44,76 @@ class Game {
     window.addEventListener('resize', () => this.resize());
 
     // Единая система ввода: touch + mouse -> координаты канваса
-    const onPointer = (clientX, clientY) => {
+    const toCanvas = (clientX, clientY) => {
       const rect = this.canvas.getBoundingClientRect();
-      if (!rect.width || !rect.height) return;
-      const mx = (clientX - rect.left) / rect.width * this.width;
-      const my = (clientY - rect.top) / rect.height * this.height;
-      this.handleClick(mx, my);
+      if (!rect.width || !rect.height) return null;
+      return {
+        x: (clientX - rect.left) / rect.width * this.width,
+        y: (clientY - rect.top) / rect.height * this.height
+      };
+    };
+
+    const onDown = (clientX, clientY) => {
+      const pt = toCanvas(clientX, clientY);
+      if (!pt) return;
+      const scene = this.scenes[this.currentScene];
+      // Сначала даём сцене возможность начать перетаскивание (мебель в доме)
+      if (scene && scene.beginDrag && scene.beginDrag(pt.x, pt.y)) {
+        this.dragging = true;
+        this.dragScene = scene;
+        return;
+      }
+      this.dragging = false;
+      this.dragScene = null;
+      this.handleClick(pt.x, pt.y);
+    };
+
+    const onMove = (clientX, clientY) => {
+      if (!this.dragging) return;
+      const pt = toCanvas(clientX, clientY);
+      if (!pt) return;
+      if (this.dragScene && this.dragScene.dragMove) this.dragScene.dragMove(pt.x, pt.y);
+    };
+
+    const onUp = (clientX, clientY) => {
+      if (!this.dragging) return;
+      const pt = toCanvas(clientX, clientY) || { x: 0, y: 0 };
+      if (this.dragScene && this.dragScene.endDrag) this.dragScene.endDrag(pt.x, pt.y);
+      this.dragging = false;
+      this.dragScene = null;
     };
 
     this.canvas.addEventListener('touchstart', (e) => {
       e.preventDefault();
       const t = e.changedTouches[0];
-      if (t) onPointer(t.clientX, t.clientY);
+      if (t) onDown(t.clientX, t.clientY);
     }, { passive: false });
+
+    this.canvas.addEventListener('touchmove', (e) => {
+      const t = e.changedTouches[0];
+      if (!t) return;
+      if (this.dragging) e.preventDefault();
+      onMove(t.clientX, t.clientY);
+    }, { passive: false });
+
+    this.canvas.addEventListener('touchend', (e) => {
+      const t = e.changedTouches[0];
+      if (t) onUp(t.clientX, t.clientY);
+    });
+
+    this.canvas.addEventListener('touchcancel', () => {
+      if (this.dragging && this.dragScene && this.dragScene.endDrag) this.dragScene.endDrag(0, 0);
+      this.dragging = false;
+      this.dragScene = null;
+    });
 
     this.canvas.addEventListener('mousedown', (e) => {
       e.preventDefault();
-      onPointer(e.clientX, e.clientY);
+      onDown(e.clientX, e.clientY);
     });
+
+    window.addEventListener('mousemove', (e) => onMove(e.clientX, e.clientY));
+    window.addEventListener('mouseup', (e) => onUp(e.clientX, e.clientY));
 
     // Аудио инициализируется по первому касанию пользователя
     this.canvas.addEventListener('touchstart', () => AudioSys.init(), { once: true });
@@ -71,6 +126,7 @@ class Game {
 
     this.currentScene = 'menu';
     this.scenes.menu.init();
+    System.applyLookTo(this.gopher);
     this.gopher.setExpression('excited', 999999);
 
     this.lastTime = performance.now();
@@ -107,6 +163,13 @@ class Game {
 
   transitionTo(sceneName, initArgs) {
     if (this.scenes[sceneName]) {
+      this.dragging = false;
+      this.dragScene = null;
+      // Временные эффекты не должны «протекать» в другую сцену
+      this.gopher.outfit = null;
+      this.gopher.heldEmoji = null;
+      this.gopher.heldTimer = 0;
+      this.gopher.shower = 0;
       this.scenes[sceneName].init(initArgs);
       this.currentScene = sceneName;
     }
@@ -151,6 +214,7 @@ class Game {
 
     const scene = this.scenes[this.currentScene];
     try {
+      System.tick(this.dt);   // сон: энергия растёт постепенно в реальном времени
       scene.update(this.dt);
       this.ctx.clearRect(0, 0, this.width, this.height);
       scene.draw(this.ctx);

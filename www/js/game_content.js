@@ -946,6 +946,69 @@ const CONTENT = {
   ],
 };
 
+// ============ КАТАЛОГ МЕБЕЛИ И ОТДЕЛКИ КОМНАТЫ ============
+// Цены намеренно разные: дешёвое можно взять сразу, дорогое — копить.
+const FURNITURE = [
+  { id: 'plant',     emoji: '🪴', name: 'Растение',    cost: 12,  desc: 'Свежий воздух', zone: 'floor', k: 1.0 },
+  { id: 'clock',     emoji: '🕐', name: 'Часы',        cost: 15,  desc: 'Пунктуальность', zone: 'wall',  k: 0.9 },
+  { id: 'lamp',      emoji: '💡', name: 'Лампа',       cost: 25,  desc: 'Свет и уют', zone: 'floor', k: 1.0 },
+  { id: 'carpet',    emoji: '🟫', name: 'Ковёр',       cost: 45,  desc: 'Тепло полу', zone: 'floor', k: 1.9 },
+  { id: 'painting',  emoji: '🖼️', name: 'Картина',     cost: 60,  desc: 'Красота стен', zone: 'wall',  k: 1.5 },
+  { id: 'shelf',     emoji: '📚', name: 'Полка',       cost: 75,  desc: 'Знания дома', zone: 'floor', k: 1.2 },
+  { id: 'sofa',      emoji: '🛋️', name: 'Диван',       cost: 130, desc: 'Мягко сидеть', zone: 'floor', k: 1.5 },
+  { id: 'aquarium',  emoji: '🐠', name: 'Аквариум',    cost: 160, desc: 'Живые рыбки', zone: 'floor', k: 1.1 },
+  { id: 'bed',       emoji: '🛏️', name: 'Кровать',     cost: 190, desc: 'Лучший сон', zone: 'floor', k: 1.6 },
+  { id: 'tv',        emoji: '📺', name: 'Телевизор',   cost: 210, desc: 'Развлечения', zone: 'floor', k: 1.3 },
+  { id: 'fridge',    emoji: '🧊', name: 'Холодильник', cost: 240, desc: 'Еда под рукой', zone: 'floor', k: 1.5 },
+  { id: 'piano',     emoji: '🎹', name: 'Пианино',     cost: 320, desc: 'Живая музыка', zone: 'floor', k: 1.6 }
+];
+
+// Отделка: обои и пол. Перекраска — бесплатная, это творчество, а не покупка.
+const WALLS = [
+  { id: 'warm',   name: 'Тёплые',   c1: '#FFF8E7', c2: '#FFE4C4', night1: '#1a1a3e', night2: '#2a2a4e' },
+  { id: 'mint',   name: 'Мятные',   c1: '#E9FBF3', c2: '#C9F2E0', night1: '#12303a', night2: '#1b4550' },
+  { id: 'sky',    name: 'Небесные', c1: '#E8F3FF', c2: '#C9E2FF', night1: '#141c3a', night2: '#1d2a52' },
+  { id: 'peach',  name: 'Персик',   c1: '#FFF1EC', c2: '#FFD9CB', night1: '#3a1c22', night2: '#54262f' },
+  { id: 'lilac',  name: 'Сирень',   c1: '#F4ECFF', c2: '#E0D0FF', night1: '#251a3a', night2: '#352552' },
+  { id: 'sand',   name: 'Песок',    c1: '#FFF9E8', c2: '#F3E5BE', night1: '#332b14', night2: '#4a3f20' }
+];
+
+const FLOORS = [
+  { id: 'wood',   name: 'Дерево',  c1: '#D2B48C', c2: '#C4A882', night1: '#3a2a1a', night2: '#2a1a0a' },
+  { id: 'tile',   name: 'Плитка',  c1: '#E7E7E7', c2: '#CFCFCF', night1: '#33343a', night2: '#24252a' },
+  { id: 'grass',  name: 'Ковролин', c1: '#C9E7C0', c2: '#B2D9A6', night1: '#243322', night2: '#1a2618' },
+  { id: 'blue',   name: 'Синий',   c1: '#CFE3F5', c2: '#B4D1EC', night1: '#1e2a3a', night2: '#16202c' },
+  { id: 'rose',   name: 'Розовый', c1: '#F7D9E3', c2: '#EAC0CF', night1: '#33202a', night2: '#261821' }
+];
+
+function findFurniture(id) { return FURNITURE.find(f => f.id === id) || null; }
+function findWall(id) { return WALLS.find(w => w.id === id) || WALLS[0]; }
+function findFloor(id) { return FLOORS.find(f => f.id === id) || FLOORS[0]; }
+
+window.FURNITURE = FURNITURE;
+window.WALLS = WALLS;
+window.FLOORS = FLOORS;
+window.findFurniture = findFurniture;
+window.findWall = findWall;
+window.findFloor = findFloor;
+
+// Окрас гофера: перекрасить своего можно в магазине — друзей видно сразу
+const FURS = [
+  { id: 'classic', name: 'Классик',   color: '#7FDBE8', cost: 0 },
+  { id: 'mint',    name: 'Мятный',    color: '#8FE3B4', cost: 20 },
+  { id: 'rose',    name: 'Розовый',   color: '#F7A8C4', cost: 20 },
+  { id: 'lemon',   name: 'Лимонный',  color: '#F6E27A', cost: 20 },
+  { id: 'lilac',   name: 'Сиреневый', color: '#C4A8F0', cost: 25 },
+  { id: 'peach',   name: 'Персик',    color: '#FFC49B', cost: 25 },
+  { id: 'sky',     name: 'Голубой',   color: '#A8C8F0', cost: 25 }
+];
+function findFur(id) { return FURS.find(f => f.id === id) || FURS[0]; }
+function randomFurId() { return FURS[randInt(1, FURS.length - 1)].id; }
+
+window.FURS = FURS;
+window.findFur = findFur;
+window.randomFurId = randomFurId;
+
 // ============ ВЫБОРКА КОНТЕНТА ============
 // Случайная подборка без повторов, с приоритетом на непросмотренные.
 function shuffleArray(arr) {

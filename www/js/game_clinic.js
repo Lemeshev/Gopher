@@ -112,12 +112,18 @@ class ClinicScene {
     ctx.textAlign = 'center';
     ctx.fillText('Доктор Гофер', W / 2, doctorY + 78);
 
-    // Пациент
+    // Пациент: приболевший вид и градусник в лапе
     if (this.game.gopher) {
       const gopherY = H * 0.58;
-      this.game.gopher.setExpression(System.isSick ? 'sick' : 'sad', 30);
+      const g = this.game.gopher;
+      g.setExpression(System.isSick ? 'sick' : 'sad', 30);
+      g.outfit = null;
+      g.heldEmoji = '🌡️';
+      g.heldTimer = 5;
       const gs2 = Math.min(W * 0.32, 130);
-      this.game.gopher.draw(ctx, W * 0.5, gopherY, gs2 / this.game.gopher.size);
+      g.draw(ctx, W * 0.5, gopherY, gs2 / g.size);
+      g.heldEmoji = null;
+      g.heldTimer = 0;
     }
 
     // Статус

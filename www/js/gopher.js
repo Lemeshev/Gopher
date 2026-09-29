@@ -14,6 +14,12 @@ class Gopher {
     this.hat = null;
     this.glasses = null;
     this.bowtie = false;
+    this.bodyColor = null;     // свой окрас (если куплен)
+    this.outfit = null;        // 'tie' | 'trunks' | 'sporty'
+    this.heldEmoji = null;     // что держит в лапе
+    this.heldTimer = 0;
+    this.shower = 0;           // >0 — над гофером льётся вода
+    this.waterLine = null;     // доля s: ниже — вода (для бассейна)
     this.animationTime = 0;
     this.zzz = [];
     this.sparks = [];
@@ -23,13 +29,18 @@ class Gopher {
   // ---------- ПАЛИТРА ----------
   get COLORS() {
     return {
-      body: '#7FDBE8',   // светло-голубой, как у маскота Go
+      body: this.bodyColor || '#7FDBE8',   // по умолчанию светло-голубой, как у маскота Go
       limb: '#F7D8A8',   // бежевые морда/лапы/ступни
       nose: '#3A2618',   // тёмно-коричневый нос
       line: '#1A1A1A',   // обводка
       tooth: '#FFFFFF',
       eyePupil: '#141414'
     };
+  }
+
+  // Силуэт тела: используется и для заливки, и для обрезки экипировки
+  bodyPath(ctx, s) {
+    roundRect(ctx, -s * 0.315, -s * 0.400, s * 0.63, s * 0.80, s * 0.235);
   }
 
   draw(ctx, x, y, scale) {
@@ -46,6 +57,11 @@ class Gopher {
       this.expressionTimer--;
       if (this.expressionTimer <= 0) this.expression = 'happy';
     }
+    if (this.heldTimer > 0) {
+      this.heldTimer--;
+      if (this.heldTimer <= 0) this.heldEmoji = null;
+    }
+    if (this.shower > 0) this.shower--;
 
     if (this.expression === 'sleeping') {
       this.zzz.push({ x: x + s * 0.4, y: y - s * 0.55 - this.zzz.length * 12, alpha: 1, size: 10 + this.zzz.length * 2 });
@@ -131,10 +147,56 @@ class Gopher {
 
     // ============ ТЕЛО — капсула со прямыми боками ============
     const bodyW = s * 0.63, bodyH = s * 0.80, bodyR = s * 0.235;
-    const bodyX = -bodyW / 2, bodyY = -s * 0.400;
-    roundRect(ctx, bodyX, bodyY, bodyW, bodyH, bodyR);
+    this.bodyPath(ctx, s);
     ctx.fillStyle = C.body; ctx.fill();
     ctx.strokeStyle = C.line; ctx.lineWidth = lw; ctx.stroke();
+
+    // ============ ЭКИПИРОВКА (зависит от места) ============
+    if (this.outfit === 'trunks') {
+      // плавки: пояс + полоса, обрезанные по силуэту тела
+      ctx.save(); this.bodyPath(ctx, s); ctx.clip();
+      ctx.fillStyle = '#2D6BE0';
+      ctx.fillRect(-s * 0.5, s * 0.155, s, s * 0.16);
+      ctx.fillStyle = '#F2F2F2';
+      ctx.fillRect(-s * 0.5, s * 0.155, s, s * 0.028);
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.fillRect(-s * 0.5, s * 0.265, s, s * 0.014);
+      ctx.restore();
+    } else if (this.outfit === 'tie') {
+      // галстук: узел + полотнище
+      const topY = s * 0.075;
+      ctx.fillStyle = '#C0392B';
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.028, topY);
+      ctx.lineTo(s * 0.028, topY);
+      ctx.lineTo(s * 0.020, topY + s * 0.045);
+      ctx.lineTo(-s * 0.020, topY + s * 0.045);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.030, topY + s * 0.040);
+      ctx.lineTo(s * 0.030, topY + s * 0.040);
+      ctx.lineTo(s * 0.042, topY + s * 0.225);
+      ctx.lineTo(0, topY + s * 0.275);
+      ctx.lineTo(-s * 0.042, topY + s * 0.225);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.28)'; ctx.lineWidth = Math.max(0.8, lw * 0.5); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.22)';
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.030, topY + s * 0.046);
+      ctx.lineTo(-s * 0.008, topY + s * 0.046);
+      ctx.lineTo(-s * 0.022, topY + s * 0.235);
+      ctx.closePath(); ctx.fill();
+    } else if (this.outfit === 'sporty') {
+      // спортивная повязка на лбу (обрезана по силуэту головы)
+      ctx.save(); this.bodyPath(ctx, s); ctx.clip();
+      ctx.fillStyle = '#E74C3C';
+      ctx.fillRect(-s * 0.5, -s * 0.400, s, s * 0.040);
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.fillRect(-s * 0.5, -s * 0.364, s, s * 0.009);
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.beginPath(); ctx.arc(0, -s * 0.382, s * 0.010, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
 
     // ============ ГЛАЗА — огромные, почти вплотную, у макушки ============
     const eyeY = -s * 0.272;
@@ -269,6 +331,43 @@ class Gopher {
       ctx.moveTo(s * 0.235, -s * 0.30);
       ctx.quadraticCurveTo(s * 0.265, -s * 0.235, s * 0.235, -s * 0.195);
       ctx.quadraticCurveTo(s * 0.195, -s * 0.235, s * 0.235, -s * 0.30);
+      ctx.fill();
+    }
+
+    // ============ ПРЕДМЕТ В ЛАПЕ ============
+    if (this.heldEmoji) {
+      const sway = Math.sin(this.animationTime * 5) * s * 0.012;
+      ctx.font = `${s * 0.20}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(this.heldEmoji, s * 0.40 + sway, -s * 0.045);
+    }
+
+    // ============ ВОДА НАД ГОФЕРОМ (купание) ============
+    if (this.shower > 0) {
+      for (let i = 0; i < 16; i++) {
+        const seed = i * 1.73;
+        const phase = ((this.animationTime * 0.55 + seed) % 1);
+        const dx = (((i * 37) % 11) / 10 - 0.5) * s * 0.62 + Math.sin(seed) * s * 0.02;
+        const dy = -s * 0.62 + phase * s * 0.42;
+        ctx.fillStyle = 'rgba(122,203,240,0.9)';
+        ctx.beginPath();
+        ctx.ellipse(dx, dy, s * 0.011, s * 0.030, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // брызги и пузырьки у тела
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      for (let i = 0; i < 8; i++) {
+        const seed = i * 2.1;
+        const bx = Math.sin(this.animationTime * 0.8 + seed) * s * 0.30;
+        const by = s * (0.10 + ((i % 5) * 0.055)) + Math.cos(seed) * s * 0.02;
+        const br = s * (0.014 + ((i % 3) * 0.006));
+        ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2); ctx.fill();
+      }
+      // лужа под гофером
+      ctx.fillStyle = 'rgba(122,203,240,0.35)';
+      ctx.beginPath();
+      ctx.ellipse(0, s * 0.455, s * (0.30 + Math.sin(this.animationTime) * 0.02), s * 0.045, 0, 0, Math.PI * 2);
       ctx.fill();
     }
 
