@@ -24,7 +24,8 @@ const APK_RELEASE = path.join(ROOT, 'android', 'app', 'build', 'outputs', 'apk',
 const APK = fs.existsSync(APK_RELEASE) ? APK_RELEASE : APK_DEBUG;
 
 const SCRIPT_ORDER = [
-  'js/helpers.js', 'js/gopher.js', 'js/system.js', 'js/game_content.js', 'js/audio.js',
+  'js/helpers.js', 'js/gopher.js', 'js/system.js', 'js/game_content.js',
+  'js/game_room.js', 'js/game_scenery.js', 'js/audio.js',
   'js/game_menu.js', 'js/game_map.js', 'js/game_home.js', 'js/game_shop.js',
   'js/game_minigames.js', 'js/game_stats.js', 'js/game_clinic.js',
   'js/game_visit.js', 'js/game_friends.js', 'js/game.js'
@@ -117,7 +118,18 @@ function reviewerStatic() {
         gopherSrc.indexOf('const bodyW') !== -1 && gopherSrc.indexOf('bodyR =') !== -1);
 
   const menu = fs.readFileSync(path.join(WWW, 'js/game_menu.js'), 'utf8');
-  check('В главном меню нет кнопки "Об авторе"', menu.indexOf('Об авторе') === -1 && menu.indexOf('showAbout') === -1);
+  // v1.1: кнопка настроек маленькая (её трудно нажать случайно),
+  // а раздел «Об авторе» доступен из настроек и содержит копирайт и ссылку
+  const gearSize = /const gearS = (\d+);/.exec(menu);
+  check('Кнопка настроек в меню маленькая (≤ 36 px)', !!gearSize && parseInt(gearSize[1], 10) <= 36,
+        gearSize ? gearSize[1] + ' px' : 'размер не найден');
+  check('Раздел «Об авторе»: копирайт Лемешев Виктор', menu.indexOf('Лемешев Виктор') !== -1);
+  const helpersSrc = fs.readFileSync(path.join(WWW, 'js/helpers.js'), 'utf8');
+  check('Раздел «Об авторе»: ссылка vk.com/VL открывается',
+        menu.indexOf('vk.com/VL') !== -1 && menu.indexOf('openExternalLink') !== -1 &&
+        helpersSrc.indexOf('function openExternalLink') !== -1);
+  check('В меню можно завести второй профиль (гофер на каждого ребёнка)',
+        menu.indexOf('createProfile') !== -1 && menu.indexOf('switchToProfile') !== -1);
   check('createButton() возвращает поле text (корень бага с кнопками)',
         fs.readFileSync(path.join(WWW, 'js/helpers.js'), 'utf8').indexOf('return { x, y, w, h, text }') !== -1);
   let drawOk = true, drawDetail = 'все сцены с кнопками';
@@ -530,7 +542,7 @@ function reviewerRender() {
   let res = null;
   try {
     const out = cp.execSync('node tools/render-check.js --json',
-      { cwd: ROOT, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024, timeout: 300000 });
+      { cwd: ROOT, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024, timeout: 900000 });
     res = JSON.parse(out);
   } catch (e) {
     const so = e.stdout ? String(e.stdout) : '';

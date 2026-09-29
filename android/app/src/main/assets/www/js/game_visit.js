@@ -138,6 +138,7 @@ class VisitScene {
     this.backTarget = 'map';
     this.totalInBase = 0;
     this.freshCount = 0;
+    this.page = 0;
   }
 
   init(locationKey) {
@@ -151,6 +152,7 @@ class VisitScene {
     this.animTime = 0;
     this.toast = '';
     this.toastTimer = 0;
+    this.page = 0;
 
     if (!this.data) {
       this.data = {
@@ -186,6 +188,7 @@ class VisitScene {
     const seen = System.getSeen(d.content);
     const picked = (typeof getRandomItems === 'function') ? getRandomItems(d.content, d.count || 12, seen) : [];
     this.items = picked;
+    this.page = 0;
     this.freshCount = picked.filter(it => !System.hasSeen(d.content, it.id)).length;
   }
 
@@ -300,35 +303,53 @@ class VisitScene {
     if (this.totalInBase > 0) {
       ctx.fillStyle = 'rgba(255,255,255,0.62)';
       ctx.font = `${Math.min(W * 0.028, 12)}px Arial`;
-      ctx.fillText(`Новые: ${this.freshCount} · Всего в базе: ${this.totalInBase}`, W / 2, 52);
+      ctx.fillText(`Новые: ${this.freshCount} · Всего в базе: ${this.totalInBase}`, W / 2, 50);
     }
     ctx.fillStyle = '#fff';
     ctx.font = `bold ${Math.min(W * 0.03, 13)}px Arial`;
-    ctx.fillText(`Изучено: ${viewed}/${n}`, W / 2, 70);
+    ctx.fillText(`Изучено: ${viewed}/${n}`, W / 2, 67);
+
+    // ---- Сцена локации: гофер в правильном виде ----
+    const stageTop = 76;
+    const stageH = Math.min(H * 0.23, 152);
+    if (typeof LocationStage !== 'undefined') {
+      LocationStage.draw(ctx, { x: 0, y: stageTop, w: W, h: stageH }, this.locationId, this.game.gopher, this.animTime);
+    }
 
     if (n === 0) {
       ctx.fillStyle = '#9aa';
       ctx.font = `${Math.min(W * 0.034, 14)}px Arial`;
-      ctx.fillText('Здесь пока нечего смотреть', W / 2, H / 2);
+      ctx.fillText('Здесь пока нечего смотреть', W / 2, stageTop + stageH + 50);
       return;
     }
 
-    const cols = n >= 9 ? 3 : 2;
-    const rows = Math.ceil(n / cols);
+    const perPage = 6;
+    const pages = Math.max(1, Math.ceil(n / perPage));
+    if (this.page >= pages) this.page = 0;
+    const from = this.page * perPage;
+    const pageItems = this.items.slice(from, from + perPage);
+
+    const cols = 3;
+    const rows = Math.ceil(pageItems.length / cols);
     const gap = 8;
-    const gridTop = 82;
-    const footerReserve = this.rewardClaimed ? 70 : (viewed >= n ? 84 : 68);
-    const gridBottom = H - footerReserve;
+    const gridTop = stageTop + stageH + 10;
+    // Внизу всегда живут кнопка награды, «другая подборка» и листание —
+    // сетка не должна залезать на них (иначе клик открывает предмет вместо кнопки)
+    const gridBottom = H - 140;
     const cellW = Math.min((W - 24 - (cols - 1) * gap) / cols, 130);
-    const cellH = Math.min((gridBottom - gridTop - (rows - 1) * gap) / rows, 96);
+    // Не растягиваем карточки на весь экран и центрируем сетку по вертикали
+    const cellH = Math.min((gridBottom - gridTop - (rows - 1) * gap) / Math.max(rows, 1), 132);
+    const gridH = rows * cellH + (rows - 1) * gap;
+    const gridY = gridTop + Math.max(0, (gridBottom - gridTop - gridH) / 2);
     const gridW = cols * cellW + (cols - 1) * gap;
     const startX = (W - gridW) / 2;
 
-    this.items.forEach((item, i) => {
+    pageItems.forEach((item, i) => {
+      const gi = from + i;
       const col = i % cols, row = Math.floor(i / cols);
       const cx = startX + col * (cellW + gap);
-      const cy = gridTop + row * (cellH + gap);
-      const isViewed = this.viewed.indexOf(i) !== -1;
+      const cy = gridY + row * (cellH + gap);
+      const isViewed = this.viewed.indexOf(gi) !== -1;
       const isNew = !System.hasSeen(d.content, item.id);
 
       ctx.fillStyle = isViewed ? 'rgba(107,203,119,0.22)' : 'rgba(255,255,255,0.10)';
@@ -339,7 +360,6 @@ class VisitScene {
       roundRect(ctx, cx, cy, cellW, cellH, 12);
       ctx.stroke();
 
-      // Бейдж «новое»
       if (isNew && d.kind === 'browse') {
         ctx.fillStyle = 'rgba(255,217,61,0.9)';
         roundRect(ctx, cx + 5, cy + 5, 22, 13, 6);
@@ -350,62 +370,82 @@ class VisitScene {
         ctx.fillText('NEW', cx + 8, cy + 15);
       }
 
-      ctx.font = `${Math.min(cellW * 0.34, 30)}px Arial`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#fff';
-      ctx.fillText(item.emoji, cx + cellW / 2, cy + cellH * 0.36);
+      ctx.font = `${Math.min(cellW * 0.34, 30)}px Arial`;
+      ctx.fillText(item.emoji, cx + cellW / 2, cy + cellH * 0.32);
 
+      const nameSize = fitFontSize(ctx, item.name, cellW - 10, Math.min(cellW * 0.115, 12), 8, false);
+      ctx.font = `${nameSize}px Arial`;
       ctx.fillStyle = isViewed ? '#9BE3A5' : '#fff';
-      ctx.font = `${Math.min(cellW * 0.115, 12)}px Arial`;
-      const label = this.truncate(ctx, item.name, cellW - 8);
-      ctx.fillText(label, cx + cellW / 2, cy + cellH * 0.70);
+      const lines = wrapLines(ctx, item.name, cellW - 10, 2);
+      const firstLine = cy + cellH * (lines.length > 1 ? 0.58 : 0.64);
+      lines.forEach((ln, li) => ctx.fillText(ln, cx + cellW / 2, firstLine + li * (nameSize + 1)));
 
-      // Цена/оплата
       let sub = null;
       if (d.kind === 'work') sub = '🪙' + (item.coins || 12);
-      ctx.fillStyle = '#FFD93D';
-      ctx.font = `bold ${Math.min(cellW * 0.1, 11)}px Arial`;
-      if (sub) ctx.fillText(sub, cx + cellW / 2, cy + cellH * 0.89);
+      if (sub) {
+        ctx.fillStyle = '#FFD93D';
+        ctx.font = `bold ${Math.min(cellW * 0.1, 11)}px Arial`;
+        ctx.fillText(sub, cx + cellW / 2, cy + cellH - 12);
+      }
 
       if (isViewed) {
         ctx.fillStyle = '#6BCB77';
         ctx.font = '13px Arial';
         ctx.textAlign = 'right';
         ctx.fillText('✓', cx + cellW - 7, cy + cellH - 10);
-        ctx.textAlign = 'center';
       }
 
-      this.buttons.push({ x: cx, y: cy, w: cellW, h: cellH, text: 'item_' + i });
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      this.buttons.push({ x: cx, y: cy, w: cellW, h: cellH, text: 'item_' + gi });
     });
 
-    // Итог
+    // Итоговая награда
     if (viewed >= n && !this.rewardClaimed) {
       const label = '🎁 ' + (d.reward && d.reward.label ? d.reward.label : 'Награда');
-      this.buttons.push(createButton(ctx, W / 2 - 105, H - 62, 210, 46, label, {
-        bgColor: '#FFD93D', fgColor: '#1a1a2e', fontSize: 15, radius: 12
+      this.buttons.push(createButton(ctx, W / 2 - 100, H - 84, 200, 38, label, {
+        bgColor: '#FFD93D', fgColor: '#1a1a2e', fontSize: 14, radius: 12
       }));
     } else if (this.rewardClaimed) {
       ctx.fillStyle = '#6BCB77';
-      ctx.font = `${Math.min(W * 0.033, 14)}px Arial`;
+      ctx.font = `${Math.min(W * 0.033, 13)}px Arial`;
       ctx.textAlign = 'center';
-      ctx.fillText('✅ Награда получена', W / 2, H - 56);
+      ctx.fillText('✅ Награда получена', W / 2, H - 62);
     }
 
-    // Кнопка «ещё подборка» — чтобы посмотреть новые предметы
+    // Листание подборки
+    if (pages > 1) {
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.font = `bold ${Math.min(W * 0.031, 13)}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Подборка ' + (this.page + 1) + ' / ' + pages, W / 2, H - 20);
+      ctx.textBaseline = 'alphabetic';
+      this.buttons.push(createButton(ctx, 14, H - 36, 48, 32, '◀', {
+        bgColor: 'rgba(255,255,255,0.18)', fgColor: '#fff', fontSize: 15, radius: 9
+      }));
+      this.buttons.push(createButton(ctx, W - 62, H - 36, 48, 32, '▶', {
+        bgColor: 'rgba(255,255,255,0.18)', fgColor: '#fff', fontSize: 15, radius: 9
+      }));
+    }
+
+    // Всё посмотрели — можно взять другую подборку
     if (viewed >= n) {
-      this.buttons.push(createButton(ctx, W / 2 - 95, H - 104, 190, 36,
-        '🔄 Другая подборка', { bgColor: 'rgba(255,255,255,0.18)', fgColor: '#fff', fontSize: 13, radius: 10 }));
+      this.buttons.push(createButton(ctx, W / 2 - 92, H - 130, 184, 32,
+        '🔄 Другая подборка', { bgColor: 'rgba(255,255,255,0.18)', fgColor: '#fff', fontSize: 12, radius: 10 }));
     }
 
     if (this.toast) {
       ctx.fillStyle = 'rgba(0,0,0,0.7)';
-      roundRect(ctx, W / 2 - 130, 44, 260, 26, 13);
+      roundRect(ctx, W / 2 - 130, 40, 260, 26, 13);
       ctx.fill();
       ctx.fillStyle = '#FFD93D';
       ctx.font = `bold ${Math.min(W * 0.03, 13)}px Arial`;
       ctx.textAlign = 'center';
-      ctx.fillText(this.toast, W / 2, 62);
+      ctx.fillText(this.toast, W / 2, 58);
     }
   }
 
@@ -480,6 +520,20 @@ class VisitScene {
 
   // ================= ОБРАБОТКА НАЖАТИЙ =================
   handleClick(mx, my) {
+    // Карточка экспоната перекрывает сетку: пока она открыта, сетка не кликается
+    if (this.state === 'fact') {
+      for (const b of this.buttons) {
+        const bt = b.text || '';
+        if (bt !== 'Понятно!' && bt.indexOf('Взять задание') === -1) continue;
+        if (!isPointInRect(mx, my, b.x, b.y, b.w, b.h)) continue;
+        AudioSys.play('click');
+        this.state = 'browse';
+        this.selected = null;
+        return true;
+      }
+      return true;
+    }
+
     for (const btn of this.buttons) {
       if (!isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) continue;
       const t = btn.text || '';
@@ -495,6 +549,14 @@ class VisitScene {
       if (t.indexOf('museum_') === 0) {
         AudioSys.play('click');
         this.game.transitionTo('visit', t.slice(7));
+        return true;
+      }
+
+      // Листание подборок
+      if (t === '◀' || t === '▶') {
+        AudioSys.play('click');
+        const pages = Math.max(1, Math.ceil(this.items.length / 6));
+        this.page = t === '◀' ? Math.max(0, this.page - 1) : Math.min(pages - 1, this.page + 1);
         return true;
       }
 

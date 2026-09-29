@@ -9,6 +9,8 @@ class MenuScene {
     this.hasSave = false;
     this.showSettings = false;
     this.confirmReset = false;
+    this.aboutMode = false;
+    this.profilesMode = false;
   }
 
   init() {
@@ -19,6 +21,8 @@ class MenuScene {
     this.hasSave = System.hasSave();
     this.showSettings = false;
     this.confirmReset = false;
+    this.aboutMode = false;
+    this.profilesMode = false;
     if (this.game.gopher) this.game.gopher.setExpression('excited', 999999);
   }
 
@@ -137,81 +141,302 @@ class MenuScene {
     }
 
     // === КНОПКИ ===
+    // Панели рисуются вместо списка кнопок
+    if (this.aboutMode) { this.drawAbout(ctx, W, H); return; }
+    if (this.profilesMode) { this.drawProfiles(ctx, W, H); return; }
+    if (this.showSettings) { this.drawSettings(ctx, W, H); return; }
+
     const btnW = Math.min(W * 0.72, 270);
     const btnH = 50;
     const gap = 12;
     const btnX = (W - btnW) / 2;
 
-    if (this.showSettings) {
-      // === ПАНЕЛЬ НАСТРОЕК ===
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      roundRect(ctx, 0, 0, W, H, 0);
-      ctx.fill();
+    const list = [];
+    if (this.hasSave) {
+      list.push({ text: '▶️ Продолжить', color: '#4D96FF', size: 18 });
+    } else {
+      list.push({ text: '🎮 Начать игру', color: '#6BCB77', size: 18 });
+    }
+    list.push({ text: '📖 Как играть', color: '#FF8C42', size: 16 });
+    list.push({ text: '👥 Профили', color: '#546E7A', size: 16 });
 
-      const panelW = Math.min(W * 0.85, 320);
-      const panelH = 220;
-      const panelX = (W - panelW) / 2;
-      const panelY = (H - panelH) / 2;
+    const totalH = list.length * btnH + (list.length - 1) * gap;
+    let by = Math.max(H * 0.52, H - totalH - 46);
+    if (by + totalH > H - 14) by = H - totalH - 14;
 
-      ctx.fillStyle = '#1e2a4a';
-      roundRect(ctx, panelX, panelY, panelW, panelH, 20);
-      ctx.fill();
-      ctx.strokeStyle = '#FFD93D';
-      ctx.lineWidth = 2;
-      roundRect(ctx, panelX, panelY, panelW, panelH, 20);
-      ctx.stroke();
+    list.forEach(item => {
+      this.buttons.push(createButton(ctx, btnX, by, btnW, btnH, item.text, {
+        bgColor: item.color, fontSize: item.size
+      }));
+      by += btnH + gap;
+    });
 
-      ctx.fillStyle = '#FFD93D';
-      ctx.font = `bold ${Math.min(W * 0.05, 22)}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.fillText('⚙️ Настройки', W / 2, panelY + 35);
+    // Маленькие угловые кнопки: профиль слева, настройки справа
+    const chipW = Math.min(W * 0.44, 158), chipH = 28;
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    roundRect(ctx, 12, 12, chipW, chipH, 14);
+    ctx.fill();
+    ctx.fillStyle = '#c9d2f0';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    const pchip = '👥 ' + (System.profileName || 'Гофер');
+    const chipFont = fitFontSize(ctx, pchip, chipW - 18, Math.min(chipW * 0.11, 12), 8, false);
+    ctx.font = `${chipFont}px Arial`;
+    ctx.fillText(pchip, 20, 12 + chipH / 2);
+    this.buttons.push({ x: 12, y: 12, w: chipW, h: chipH, text: 'profiles' });
 
-      if (!this.confirmReset) {
-        ctx.fillStyle = '#aaa';
-        ctx.font = `${Math.min(W * 0.03, 13)}px Arial`;
-        ctx.fillText('Сбросить весь прогресс?', W / 2, panelY + 70);
+    const gearS = 30;
+    const gx = W - gearS - 12, gy = 12;
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    roundRect(ctx, gx, gy, gearS, gearS, 9);
+    ctx.fill();
+    ctx.fillStyle = '#c9d2f0';
+    ctx.font = `${Math.min(gearS * 0.55, 16)}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('⚙️', gx + gearS / 2, gy + gearS / 2 + 1);
+    this.buttons.push({ x: gx, y: gy, w: gearS, h: gearS, text: 'settings' });
+    ctx.textBaseline = 'alphabetic';
+  }
 
-        this.buttons.push(createButton(ctx, panelX + 20, panelY + 90, panelW - 40, 45, '🗑️ Сбросить прогресс', {
-          bgColor: '#E74C3C', fgColor: '#fff', fontSize: 16, radius: 12
-        }));
-      } else {
-        ctx.fillStyle = '#E74C3C';
-        ctx.font = `bold ${Math.min(W * 0.035, 15)}px Arial`;
-        ctx.fillText('Вы уверены? Это необратимо!', W / 2, panelY + 70);
+  // ---------- ПАНЕЛЬ НАСТРОЕК ----------
+  drawSettings(ctx, W, H) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    roundRect(ctx, 0, 0, W, H, 0);
+    ctx.fill();
 
-        const halfW = (panelW - 50) / 2;
-        this.buttons.push(createButton(ctx, panelX + 20, panelY + 95, halfW, 40, '✅ Да, сбросить', {
-          bgColor: '#E74C3C', fgColor: '#fff', fontSize: 14, radius: 10
-        }));
-        this.buttons.push(createButton(ctx, panelX + 30 + halfW, panelY + 95, halfW, 40, '❌ Отмена', {
-          bgColor: '#6BCB77', fgColor: '#fff', fontSize: 14, radius: 10
-        }));
-      }
+    const panelW = Math.min(W * 0.86, 320);
+    const panelH = 268;
+    const panelX = (W - panelW) / 2;
+    const panelY = (H - panelH) / 2;
 
-      this.buttons.push(createButton(ctx, panelX + 20, panelY + panelH - 55, panelW - 40, 40, '← Закрыть', {
-        bgColor: 'rgba(255,255,255,0.2)', fgColor: '#fff', fontSize: 15, radius: 10
+    ctx.fillStyle = '#1e2a4a';
+    roundRect(ctx, panelX, panelY, panelW, panelH, 20);
+    ctx.fill();
+    ctx.strokeStyle = '#FFD93D';
+    ctx.lineWidth = 2;
+    roundRect(ctx, panelX, panelY, panelW, panelH, 20);
+    ctx.stroke();
+
+    ctx.fillStyle = '#FFD93D';
+    ctx.font = `bold ${Math.min(W * 0.05, 22)}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('⚙️ Настройки', W / 2, panelY + 34);
+
+    this.buttons.push(createButton(ctx, panelX + 20, panelY + 50, panelW - 40, 44, '👤 Об авторе', {
+      bgColor: '#4D96FF', fgColor: '#fff', fontSize: 15, radius: 12
+    }));
+
+    if (!this.confirmReset) {
+      ctx.fillStyle = '#aaa';
+      ctx.font = `${Math.min(W * 0.029, 12.5)}px Arial`;
+      ctx.fillText('Сброс нельзя отменить — будь осторожен', W / 2, panelY + 116);
+      this.buttons.push(createButton(ctx, panelX + 20, panelY + 128, panelW - 40, 44, '🗑️ Сбросить прогресс', {
+        bgColor: '#E74C3C', fgColor: '#fff', fontSize: 15, radius: 12
       }));
     } else {
-      const list = [];
-      if (this.hasSave) {
-        list.push({ text: '▶️ Продолжить', color: '#4D96FF', size: 18 });
-      } else {
-        list.push({ text: '🎮 Начать игру', color: '#6BCB77', size: 18 });
-      }
-      list.push({ text: '📖 Как играть', color: '#FF8C42', size: 16 });
-      list.push({ text: '⚙️ Настройки', color: '#888', size: 16 });
-
-      const totalH = list.length * btnH + (list.length - 1) * gap;
-      let by = Math.max(H * 0.52, H - totalH - 40);
-      if (by + totalH > H - 12) by = H - totalH - 12;
-
-      list.forEach(item => {
-        this.buttons.push(createButton(ctx, btnX, by, btnW, btnH, item.text, {
-          bgColor: item.color, fontSize: item.size
-        }));
-        by += btnH + gap;
-      });
+      ctx.fillStyle = '#E74C3C';
+      ctx.font = `bold ${Math.min(W * 0.035, 15)}px Arial`;
+      ctx.fillText('Вы уверены? Это необратимо!', W / 2, panelY + 116);
+      const halfW = (panelW - 50) / 2;
+      this.buttons.push(createButton(ctx, panelX + 20, panelY + 128, halfW, 44, '✅ Да, сбросить', {
+        bgColor: '#E74C3C', fgColor: '#fff', fontSize: 13, radius: 10
+      }));
+      this.buttons.push(createButton(ctx, panelX + 30 + halfW, panelY + 128, halfW, 44, '❌ Отмена', {
+        bgColor: '#6BCB77', fgColor: '#fff', fontSize: 13, radius: 10
+      }));
     }
+
+    this.buttons.push(createButton(ctx, panelX + 20, panelY + panelH - 58, panelW - 40, 42, '← Закрыть', {
+      bgColor: 'rgba(255,255,255,0.2)', fgColor: '#fff', fontSize: 15, radius: 10
+    }));
+  }
+
+  // ---------- ОБ АВТОРЕ ----------
+  drawAbout(ctx, W, H) {
+    ctx.fillStyle = 'rgba(0,0,0,0.72)';
+    roundRect(ctx, 0, 0, W, H, 0);
+    ctx.fill();
+
+    const panelW = Math.min(W * 0.88, 330);
+    const panelH = 380;
+    const px = (W - panelW) / 2;
+    const py = (H - panelH) / 2;
+
+    ctx.fillStyle = '#1e2a4a';
+    roundRect(ctx, px, py, panelW, panelH, 20);
+    ctx.fill();
+    ctx.strokeStyle = '#4D96FF';
+    ctx.lineWidth = 2;
+    roundRect(ctx, px, py, panelW, panelH, 20);
+    ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#FFD93D';
+    ctx.font = `bold ${Math.min(W * 0.05, 21)}px Arial`;
+    ctx.fillText('👤 Об авторе', W / 2, py + 36);
+
+    if (this.game.gopher) {
+      const gs = Math.min(W * 0.26, 108);
+      this.game.gopher.draw(ctx, W / 2, py + 112, gs / this.game.gopher.size);
+    }
+
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${Math.min(W * 0.045, 17)}px Arial`;
+    ctx.fillText('Gopher Life', W / 2, py + 192);
+
+    ctx.fillStyle = '#9fb0d8';
+    ctx.font = `${Math.min(W * 0.029, 12)}px Arial`;
+    ctx.fillText('Игра про гофера-питомца · v' + GAME_VERSION, W / 2, py + 214);
+
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${Math.min(W * 0.036, 14)}px Arial`;
+    ctx.fillText('© Лемешев Виктор', W / 2, py + 242);
+
+    ctx.fillStyle = '#9fb0d8';
+    ctx.font = `${Math.min(W * 0.027, 11)}px Arial`;
+    ctx.fillText('Связаться и посмотреть другие проекты:', W / 2, py + 262);
+
+    this.buttons.push(createButton(ctx, px + 30, py + 276, panelW - 60, 40, '🔗 vk.com/VL', {
+      bgColor: '#4C75A3', fgColor: '#fff', fontSize: 15, radius: 10
+    }));
+
+    this.buttons.push(createButton(ctx, px + 30, py + panelH - 54, panelW - 60, 40, '← Назад', {
+      bgColor: 'rgba(255,255,255,0.2)', fgColor: '#fff', fontSize: 15, radius: 10
+    }));
+  }
+
+  // ---------- ПРОФИЛИ (несколько гоферов на устройстве) ----------
+  drawProfiles(ctx, W, H) {
+    ctx.fillStyle = 'rgba(0,0,0,0.72)';
+    roundRect(ctx, 0, 0, W, H, 0);
+    ctx.fill();
+
+    const list = System.getProfiles();
+    const rows = list.length;
+    const canAdd = rows < 4;
+    const panelW = Math.min(W * 0.9, 340);
+    const panelH = Math.min(H * 0.9, (canAdd ? 190 : 140) + rows * 62);
+    const px = (W - panelW) / 2;
+    const py = (H - panelH) / 2;
+
+    ctx.fillStyle = '#1e2a4a';
+    roundRect(ctx, px, py, panelW, panelH, 20);
+    ctx.fill();
+    ctx.strokeStyle = '#546E7A';
+    ctx.lineWidth = 2;
+    roundRect(ctx, px, py, panelW, panelH, 20);
+    ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#FFD93D';
+    ctx.font = `bold ${Math.min(W * 0.048, 20)}px Arial`;
+    ctx.fillText('👥 Профили', W / 2, py + 34);
+
+    ctx.fillStyle = '#9fb0d8';
+    ctx.font = `${Math.min(W * 0.027, 11)}px Arial`;
+    ctx.fillText('У каждого свой гофер · можно ходить друг к другу', W / 2, py + 54);
+
+    let y = py + 70;
+    list.forEach(pr => {
+      const active = pr.id === System.profileId;
+      ctx.fillStyle = active ? 'rgba(107,203,119,0.25)' : 'rgba(255,255,255,0.09)';
+      roundRect(ctx, px + 16, y, panelW - 32, 54, 12);
+      ctx.fill();
+      ctx.strokeStyle = active ? '#6BCB77' : 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 2;
+      roundRect(ctx, px + 16, y, panelW - 32, 54, 12);
+      ctx.stroke();
+
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff';
+      ctx.font = `${Math.min(W * 0.05, 22)}px Arial`;
+      ctx.fillText(active ? '✅' : '🐹', px + 26, y + 27);
+
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${Math.min(W * 0.038, 15)}px Arial`;
+      const nameSize = fitFontSize(ctx, pr.name, panelW - 110, Math.min(W * 0.038, 15), 9, true);
+      ctx.font = `bold ${nameSize}px Arial`;
+      ctx.fillText(pr.name, px + 58, y + 20);
+
+      ctx.fillStyle = '#9aa';
+      ctx.font = `${Math.min(W * 0.028, 11)}px Arial`;
+      const lv = this.profileLevel(pr.id);
+      ctx.fillText(active ? ('Играем сейчас · Ур.' + lv) : ('Ур.' + lv), px + 58, y + 38);
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      this.buttons.push({ x: px + 16, y: y, w: panelW - 32, h: 54, text: 'profile_' + pr.id });
+      y += 62;
+    });
+
+    if (canAdd) {
+      this.buttons.push(createButton(ctx, px + 16, y + 4, panelW - 32, 42, '＋ Новый гофер', {
+        bgColor: '#4D96FF', fgColor: '#fff', fontSize: 15, radius: 12
+      }));
+    }
+
+    this.buttons.push(createButton(ctx, px + 16, py + panelH - 54, panelW - 32, 42, '← Закрыть', {
+      bgColor: 'rgba(255,255,255,0.2)', fgColor: '#fff', fontSize: 15, radius: 10
+    }));
+  }
+
+  profileLevel(id) {
+    try {
+      const raw = localStorage.getItem(System.saveKeyFor(id));
+      if (!raw) return 1;
+      return JSON.parse(raw).level || 1;
+    } catch (e) { return 1; }
+  }
+
+  switchToProfile(id) {
+    if (id === System.profileId) { this.profilesMode = false; return; }
+    const pr = System.getProfiles().find(p => p.id === id);
+    if (!pr) return;
+    System.saveGame();                       // сохраняем текущего игрока
+    System.profileId = pr.id;
+    System.profileName = pr.name;
+    if (System.hasSave()) {
+      System.loadGame();
+    } else {
+      System.resetProgress();                // новый профиль — новый гофер
+      System.saveGame();
+    }
+    System.applyLookTo(this.game.gopher);
+    this.hasSave = System.hasSave();
+    this.profilesMode = false;
+    this.showSettings = false;
+    this.aboutMode = false;
+    this.game.transitionTo('map');
+    System.showAchievement('👥', 'Играем за ' + pr.name);
+  }
+
+  createProfile() {
+    const list = System.getProfiles();
+    if (list.length >= 4) return;
+    const fallback = 'Гофер ' + (list.length + 1);
+    let name = '';
+    try { name = (window.prompt('Как зовут гофера?', fallback) || '').trim(); } catch (e) { name = ''; }
+    if (!name) name = fallback;
+    name = name.slice(0, 16);
+
+    System.saveGame();                       // сохраняем текущего игрока
+    const id = 'p' + Date.now().toString(36);
+    list.push({ id: id, name: name });
+    System.saveProfiles(list);
+    System.profileId = id;
+    System.profileName = name;
+    System.resetProgress();
+    System.saveGame();
+    System.applyLookTo(this.game.gopher);
+    this.hasSave = true;
+    this.profilesMode = false;
+    this.game.transitionTo('map');
+    System.showAchievement('🐹', 'Новый гофер: ' + name);
   }
 
   handleClick(mx, my) {
@@ -220,43 +445,63 @@ class MenuScene {
       AudioSys.play('click');
       const t = btn.text || '';
 
-      if (this.showSettings) {
-        if (t.indexOf('Сбросить прогресс') !== -1) {
-          this.confirmReset = false;
-          // first click — show confirmation
-          this.confirmReset = true;
-        } else if (t.indexOf('Да, сбросить') !== -1) {
-          System.resetProgress();
-          System.saveGame();
-          this.hasSave = false;
-          this.showSettings = false;
-          this.confirmReset = false;
-          this.game.transitionTo('map');
-        } else if (t.indexOf('Отмена') !== -1) {
-          this.confirmReset = false;
-        } else if (t.indexOf('Закрыть') !== -1) {
-          this.showSettings = false;
-          this.confirmReset = false;
-        }
+      // ---- Об авторе ----
+      if (this.aboutMode) {
+        if (t.indexOf('vk.com') !== -1) { openExternalLink('https://vk.com/VL'); return true; }
+        if (t.indexOf('Назад') !== -1 || t.indexOf('Закрыть') !== -1) { this.aboutMode = false; return true; }
         return true;
       }
 
+      // ---- Профили ----
+      if (this.profilesMode) {
+        if (t.indexOf('profile_') === 0) { this.switchToProfile(t.slice(8)); return true; }
+        if (t.indexOf('Новый гофер') !== -1) { this.createProfile(); return true; }
+        if (t.indexOf('Закрыть') !== -1 || t.indexOf('Назад') !== -1) { this.profilesMode = false; return true; }
+        return true;
+      }
+
+      // ---- Настройки ----
+      if (this.showSettings) {
+        if (t.indexOf('Об авторе') !== -1) { this.aboutMode = true; return true; }
+        if (t.indexOf('Сбросить прогресс') !== -1) { this.confirmReset = true; return true; }
+        if (t.indexOf('Да, сбросить') !== -1) {
+          System.resetProgress();
+          System.saveGame();
+          System.applyLookTo(this.game.gopher);
+          this.hasSave = false;
+          this.showSettings = false;
+          this.confirmReset = false;
+          this.game.transitionTo('menu');
+          return true;
+        }
+        if (t.indexOf('Отмена') !== -1) { this.confirmReset = false; return true; }
+        if (t.indexOf('Закрыть') !== -1) { this.showSettings = false; this.confirmReset = false; return true; }
+        return true;
+      }
+
+      // ---- Главный экран ----
       if (t.indexOf('Начать игру') !== -1) {
         System.resetProgress();
         System.saveGame();
+        System.applyLookTo(this.game.gopher);
         this.hasSave = true;
         this.game.transitionTo('map');
       } else if (t.indexOf('Продолжить') !== -1) {
         System.loadGame();
+        System.applyLookTo(this.game.gopher);
         this.game.transitionTo('map');
       } else if (t.indexOf('Как играть') !== -1) {
         this.game.showTutorial();
-      } else if (t.indexOf('Настройки') !== -1) {
+      } else if (t === 'settings') {
         this.showSettings = true;
+        this.confirmReset = false;
+      } else if (t === 'profiles') {
+        this.profilesMode = true;
       }
       return true;
     }
     return false;
   }
 }
+
 window.MenuScene = MenuScene;

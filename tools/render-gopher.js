@@ -9,6 +9,8 @@ const vm = require('vm');
 const WWW = path.join(__dirname, '..', 'www');
 const outFile = process.argv[2] || '/tmp/gopher.svg';
 const expression = process.argv[3] || 'happy';
+const outfit = process.argv[4] || null;
+const held = process.argv[5] || null;
 
 const el = [];
 let state = { fillStyle: '#000', strokeStyle: '#000', lineWidth: 1, globalAlpha: 1, font: '10px Arial', textAlign: 'left', textBaseline: 'alphabetic' };
@@ -24,7 +26,13 @@ const styleOf = mode => {
   if (state.globalAlpha !== 1) a.push('opacity="' + state.globalAlpha + '"');
   return a.join(' ');
 };
-const wrap = (attr, inner) => el.push('<g transform="' + tf.join(' ') + '" ' + attr + '>' + inner + '</g>');
+const wrap = (attr, inner) => {
+  let html = inner;
+  for (let i = clipStack.length - 1; i >= 0; i--) {
+    html = '<g clip-path="url(#' + clipStack[i] + ')">' + html + '</g>';
+  }
+  el.push('<g transform="' + tf.join(' ') + '" ' + attr + '>' + html + '</g>');
+};
 const num = v => (Math.round(Number(v) * 100) / 100);
 
 const ctx = {
@@ -38,8 +46,8 @@ const ctx = {
   get textAlign() { return state.textAlign; }, set textAlign(v) { state.textAlign = v; },
   get textBaseline() { return state.textBaseline; }, set textBaseline(v) { state.textBaseline = v; },
 
-  save() { stack.push(Object.assign({}, state, { tf: tf.slice() })); },
-  restore() { const s = stack.pop(); if (s) { state = Object.assign({}, s); tf = s.tf; } },
+  save() { stack.push(Object.assign({}, state, { tf: tf.slice(), clip: clipStack.slice() })); },
+  restore() { const s = stack.pop(); if (s) { state = Object.assign({}, s); tf = s.tf; clipStack = s.clip ? s.clip.slice() : []; } },
   translate(x, y) { tf.push('translate(' + num(x) + ',' + num(y) + ')'); },
   rotate(r) { tf.push('rotate(' + num(r * 180 / Math.PI) + ')'); },
   scale(x, y) { tf.push('scale(' + num(x) + ',' + num(y) + ')'); },
@@ -73,7 +81,20 @@ const ctx = {
   rect(x, y, w, h) { pending = { kind: 'r', x: x, y: y, w: w, h: h, r: 0 }; },
   fillRect(x, y, w, h) { wrap(styleOf('fill'), '<rect x="' + num(x) + '" y="' + num(y) + '" width="' + num(w) + '" height="' + num(h) + '"/>'); },
   clearRect() {},
-  clip() {},
+  clip() {
+    const shape = pending || (d ? { kind: 'path', d: d } : lastShape);
+    if (!shape) return;
+    const id = 'clip' + (++clipSeq);
+    let inner;
+    if (shape.kind === 'path') inner = '<path d="' + shape.d.trim() + '"/>';
+    else if (shape.kind === 'c') inner = '<ellipse cx="' + num(shape.cx) + '" cy="' + num(shape.cy) + '" rx="' + num(shape.rx) + '" ry="' + num(shape.ry) + '"/>';
+    else inner = '<rect x="' + num(shape.x) + '" y="' + num(shape.y) + '" width="' + num(shape.w) + '" height="' + num(shape.h) + '" rx="' + num(shape.r) + '"/>';
+    // clipPath в тех же координатах, что и фигура — учитываем текущий transform
+    // Координаты фигуры уже в локальной системе ссылающегося элемента → transform не нужен
+    defs.push('<clipPath id="' + id + '" clipPathUnits="userSpaceOnUse">' + inner + '</clipPath>');
+    clipStack.push(id);
+    pending = null; d = '';
+  },
   createLinearGradient() { return { addColorStop() {} }; },
   createRadialGradient() { return { addColorStop() {} }; },
   measureText(t) { return { width: String(t).length * 6 }; },
@@ -87,6 +108,9 @@ const ctx = {
 };
 
 let lastShape = null;
+let defs = [];
+let clipStack = [];
+let clipSeq = 0;
 
 function commit(mode) {
   if (pending) { lastShape = pending; }
@@ -121,10 +145,13 @@ const g = new Gopher(null, 100);
 for (let i = 0; i < 30; i++) g.draw(ctx, 0, 0, 1);      // разогрев анимации
 el.length = 0; tf = []; stack = []; pending = null; d = '';   // очистка
 g.expression = expression;
+if (outfit && outfit !== '-') g.outfit = outfit;
+if (held && held !== '-') g.heldEmoji = held;
+g.shower = 0;
 g.draw(ctx, 0, 0, 1);
 
 const size = 320;
-const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + size + '" height="' + size + '" viewBox="-80 -80 160 160">' +
+const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + size + '" height="' + size + '" viewBox="-80 -80 160 160"><defs>' + defs.join('') + '</defs>' +
   '<rect x="-80" y="-80" width="160" height="160" fill="#16213e"/>' +
   '<g transform="translate(0,10)">' + el.join('') + '</g></svg>';
 fs.writeFileSync(outFile, svg);

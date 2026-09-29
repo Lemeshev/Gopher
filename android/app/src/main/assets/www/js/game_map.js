@@ -1,3 +1,22 @@
+// ============ СПИСОК ЛОКАЦИЙ ============
+const MAP_LOCATIONS = [
+  { id: 'home', emoji: '🏠', name: 'Дом', color: '#FF6B6B', desc: 'Еда, сон, игры' },
+  { id: 'shop', emoji: '🛒', name: 'Магазин', color: '#F39C12', desc: 'Покупки' },
+  { id: 'work', emoji: '🏢', name: 'Работа', color: '#4D96FF', desc: 'Задания', req: 'energy>40' },
+  { id: 'school', emoji: '🎓', name: 'Учёба', color: '#9B59B6', desc: 'Знания', req: 'energy>40' },
+  { id: 'restaurant', emoji: '🍽️', name: 'Ресторан', color: '#FF8C42', desc: 'Блюда', cost: 30, req: 'energy>30' },
+  { id: 'pool', emoji: '🏊', name: 'Бассейн', color: '#00BCD4', desc: 'Плавание', req: 'hunger>30' },
+  { id: 'park', emoji: '🎢', name: 'Парк', color: '#2ECC71', desc: 'Аттракционы', req: 'energy>40' },
+  { id: 'clinic', emoji: '🏥', name: 'Поликлиника', color: '#E74C3C', desc: 'Лечение', req: 'health<70' },
+  { id: 'museums', emoji: '🏛️', name: 'Музеи', color: '#E91E63', desc: '4 музея', cost: 0, req: 'energy>20' },
+  { id: 'library', emoji: '📚', name: 'Библиотека', color: '#607D8B', desc: '100 книг', cost: 10 },
+  { id: 'cinema', emoji: '🎬', name: 'Кино', color: '#8E44AD', desc: 'Фильмы', cost: 20, req: 'energy>30' },
+  { id: 'gym', emoji: '🏋️', name: 'Спортзал', color: '#16A085', desc: 'Тренировки', cost: 15, req: 'energy>30' },
+  { id: 'friend', emoji: '👥', name: 'Друзья', color: '#FF5722', desc: 'В гости' },
+  { id: 'minigames', emoji: '🎮', name: 'Мини-игры', color: '#9C27B0', desc: '3 игры' },
+  { id: 'stats', emoji: '📊', name: 'Инфо', color: '#546E7A', desc: 'Достижения' }
+];
+
 // ============ СЦЕНА КАРТЫ МИРА ============
 class MapScene {
   constructor(game) {
@@ -119,96 +138,92 @@ class MapScene {
 
     // Draw gopher
     if (this.game.gopher) {
-      this.game.gopher.setExpression('happy', 20);
+      // Если гофер спит дома — на карте он тоже спит
+      this.game.gopher.setExpression(System.isSleeping ? 'sleeping' : 'happy', 20);
       this.game.gopher.draw(ctx, W * 0.5, H * 0.17, Math.min(W * 0.25, 100) / this.game.gopher.size);
     }
 
-    // Locations
-    const locations = [
-      { id: 'home', emoji: '🏠', name: 'Дом', color: '#FF6B6B', desc: 'Еда, сон, игры' },
-      { id: 'shop', emoji: '🛒', name: 'Магазин', color: '#F39C12', desc: 'Покупки 🎁' },
-      { id: 'work', emoji: '🏢', name: 'Работа', color: '#4D96FF', desc: 'Разные задания', req: 'energy>40' },
-      { id: 'school', emoji: '🎓', name: 'Учёба', color: '#9B59B6', desc: 'Разные знания', req: 'energy>40' },
-      { id: 'restaurant', emoji: '🍽️', name: 'Ресторан', color: '#FF8C42', desc: 'Блюда мира', cost: 30, req: 'energy>30' },
-      { id: 'pool', emoji: '🏊', name: 'Бассейн', color: '#00BCD4', desc: 'Плавание 🏊', req: 'hunger>30' },
-      { id: 'park', emoji: '🎢', name: 'Парк', color: '#2ECC71', desc: 'Аттракционы', req: 'energy>40' },
-      { id: 'clinic', emoji: '🏥', name: 'Поликлиника', color: '#E74C3C', desc: 'Разные лечения', req: 'health<70' },
-      { id: 'museums', emoji: '🏛️', name: 'Музеи', color: '#E91E63', desc: '4 музея 📜', cost: 0, req: 'energy>20' },
-      { id: 'library', emoji: '📚', name: 'Библиотека', color: '#607D8B', desc: '100 книг 📖', cost: 10 },
-      { id: 'cinema', emoji: '🎬', name: 'Кино', color: '#8E44AD', desc: 'Фильмы 🍿', cost: 20, req: 'energy>30' },
-      { id: 'gym', emoji: '🏋️', name: 'Спортзал', color: '#16A085', desc: 'Тренировки 💪', cost: 15, req: 'energy>30' },
-      { id: 'friend', emoji: '🧑‍🤝‍🧑', name: 'Друзья', color: '#FF5722', desc: 'В гости 🐹' },
-      { id: 'minigames', emoji: '🎮', name: 'Мини-игры', color: '#9C27B0', desc: '3 игры' },
-      { id: 'stats', emoji: '📊', name: 'Инфо', color: '#607D8B', desc: 'Достижения ⭐' }
-    ];
+    const locations = MAP_LOCATIONS;
 
     const cols = 4;
     const btnW = (W - 40) / cols;
-    const btnH = 80;
+    const btnH = Math.max(74, Math.min(H * 0.125, 92));
     const startX = 20;
-    const startY = H * 0.23;
+    const rowsCount = Math.ceil(locations.length / cols);
+    const gridH = rowsCount * btnH;
+    const gridTop = H * 0.22;
+    // Центрируем плитки между шапкой и кнопкой «Вернуться»
+    const startY = gridTop + Math.max(0, ((H - 70) - gridTop - gridH) / 2);
 
     locations.forEach((loc, i) => {
       const col = i % cols;
       const row = Math.floor(i / cols);
       const bx = startX + col * btnW;
       const by = startY + row * btnH;
+      const tileW = btnW - 4;
+      const tileH = btnH - 6;
+      const cx = bx + tileW / 2;
 
       const available = System.isLocationAvailable(loc.id);
       const canAfford = !loc.cost || System.canAfford(loc.cost);
+      const active = available && canAfford;
 
-      ctx.globalAlpha = (available && canAfford) ? 1 : 0.4;
-
-      // Button
-      const btnColor = loc.color;
-      ctx.fillStyle = btnColor;
-      roundRect(ctx, bx, by, btnW - 4, btnH - 4, 12);
+      ctx.globalAlpha = active ? 1 : 0.45;
+      ctx.fillStyle = loc.color;
+      roundRect(ctx, bx, by, tileW, tileH, 12);
       ctx.fill();
-
-      // Button border highlight
       ctx.strokeStyle = 'rgba(255,255,255,0.3)';
       ctx.lineWidth = 2;
-      roundRect(ctx, bx, by, btnW - 4, btnH - 4, 12);
+      roundRect(ctx, bx, by, tileW, tileH, 12);
       ctx.stroke();
-
-      if (!available || !canAfford) {
-        ctx.fillStyle = 'rgba(0,0,0,0.3)';
-        roundRect(ctx, bx, by, btnW - 4, btnH - 4, 12);
+      if (!active) {
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        roundRect(ctx, bx, by, tileW, tileH, 12);
         ctx.fill();
       }
 
-      // Emoji — слева, отдельно от названия
-      ctx.font = `${Math.min(btnW * 0.24, 22)}px Arial`;
-      ctx.textAlign = 'left';
+      // Эмодзи сверху по центру
+      ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#fff';
-      ctx.fillText(loc.emoji, bx + 10, by + 24);
+      ctx.font = `${Math.min(tileW * 0.34, 24)}px Arial`;
+      ctx.fillText(loc.emoji, cx, by + tileH * 0.30);
 
-      // Name — справа от эмодзи, чтобы не наезжали друг на друга
-      ctx.font = `bold ${Math.min(btnW * 0.115, 11)}px Arial`;
-      ctx.fillStyle = '#fff';
-      ctx.fillText(loc.name, bx + 34, by + 24);
+      // Название: подбираем размер и при необходимости переносим на две строки
+      const nameSize = fitFontSize(ctx, loc.name, tileW - 8, Math.min(tileW * 0.16, 12), 7.5, true);
+      ctx.font = `bold ${nameSize}px Arial`;
+      const lines = wrapLines(ctx, loc.name, tileW - 8, 2);
+      const lineH = nameSize + 1;
+      const firstY = by + tileH * (lines.length > 1 ? 0.55 : 0.62);
+      lines.forEach((line, li) => ctx.fillText(line, cx, firstY + li * lineH));
 
-      // Desc — выравнен влево, чтобы не пересекаться с бейджем цены
-      ctx.font = `${Math.min(btnW * 0.1, 10)}px Arial`;
-      ctx.fillStyle = 'rgba(255,255,255,0.8)';
-      ctx.textAlign = 'left';
-      ctx.fillText(loc.desc, bx + 12, by + 44);
-      ctx.textAlign = 'center';
+      // Подпись мелким шрифтом
+      ctx.font = `${Math.min(tileW * 0.115, 8.5)}px Arial`;
+      ctx.globalAlpha = active ? 0.85 : 0.45;
+      ctx.fillText(loc.desc, cx, by + tileH - 9);
+      ctx.globalAlpha = active ? 1 : 0.45;
 
-      // Cost badge — в правом нижнем углу карточки, название не перекрывает
+      // Цена — маленький бейдж в правом верхнем углу
       if (loc.cost) {
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        roundRect(ctx, bx + btnW - 36, by + btnH - 24, 30, 16, 8);
+        const bw2 = 30, bh2 = 15;
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        roundRect(ctx, bx + tileW - bw2 - 3, by + 3, bw2, bh2, 7);
         ctx.fill();
-        ctx.font = 'bold 10px Arial';
+        ctx.font = 'bold 9px Arial';
         ctx.fillStyle = '#FFD93D';
-        ctx.fillText('🪙' + loc.cost, bx + btnW - 21, by + btnH - 14);
+        ctx.fillText('🪙' + loc.cost, bx + tileW - bw2 / 2 - 3, by + 3 + bh2 / 2 + 0.5);
+      }
+
+      // Замок, если сейчас нельзя
+      if (!active) {
+        ctx.font = '13px Arial';
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.fillText(canAfford ? '🔒' : '🪙', bx + 13, by + 13);
       }
 
       ctx.globalAlpha = 1;
-
-      this.locationButtons.push({ x: bx, y: by, w: btnW - 4, h: btnH - 4, loc });
+      ctx.textBaseline = 'alphabetic';
+      this.locationButtons.push({ x: bx, y: by, w: tileW, h: tileH, loc });
     });
 
     // Close/map back button
@@ -220,60 +235,52 @@ class MapScene {
     }));
   }
 
-  handleClick(mx, my) {
-    AudioSys.play('click');
+  // Переход в локацию (используется картой и кнопками в доме)
+  enterLocation(locId) {
+    const loc = MAP_LOCATIONS.find(l => l.id === locId);
+    if (!loc) return false;
 
-    // Check location buttons
+    if (loc.id === 'home') { this.game.transitionTo('home'); return true; }
+    if (loc.id === 'shop') { this.game.transitionTo('shop'); return true; }
+    if (loc.id === 'minigames') { this.game.transitionTo('minigames'); return true; }
+    if (loc.id === 'stats') { this.game.transitionTo('stats'); return true; }
+
+    if (!System.isLocationAvailable(loc.id)) {
+      System.showAchievement('🔒', 'Пока нельзя: нужна энергия или другое условие');
+      AudioSys.play('fail');
+      return true;
+    }
+    if (loc.cost && !System.canAfford(loc.cost)) {
+      System.showAchievement('🪙', 'Не хватает монет!');
+      AudioSys.play('fail');
+      return true;
+    }
+    if (loc.cost) {
+      System.spendCoins(loc.cost);
+      AudioSys.play('coin');
+    }
+    System.visitedLocations.add(loc.id);
+    System.addXP(10);
+    System.advanceTime(1);
+
+    const event = System.getRandomEvent();
+    if (event) System.showAchievement(event.emoji, event.text);
+
+    if (loc.id === 'clinic') this.game.transitionTo('clinic');
+    else if (loc.id === 'friend') this.game.transitionTo('friends');
+    else if (typeof VISIT_DATA !== 'undefined' && VISIT_DATA[loc.id]) this.game.transitionTo('visit', loc.id);
+    else { System.showAchievement(loc.emoji, loc.name); this.game.transitionTo('home'); }
+
+    System.saveGame();
+    return true;
+  }
+
+  handleClick(mx, my) {
+    // Кнопки локаций
     for (const btn of this.locationButtons) {
       if (isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) {
-        const loc = btn.loc;
-
-        if (loc.id === 'home') {
-          this.game.transitionTo('home');
-        } else if (loc.id === 'shop') {
-          this.game.transitionTo('shop');
-        } else if (loc.id === 'minigames') {
-          this.game.transitionTo('minigames');
-        } else if (loc.id === 'stats') {
-          this.game.transitionTo('stats');
-        } else if (System.isLocationAvailable(loc.id)) {
-          if (loc.cost && !System.canAfford(loc.cost)) {
-            System.showAchievement('🪙', 'Не хватает монет!');
-            AudioSys.play('fail');
-            return true;
-          }
-          if (loc.cost) {
-            System.spendCoins(loc.cost);
-            AudioSys.play('coin');
-          }
-          System.visitedLocations.add(loc.id);
-          System.addXP(10);
-          System.advanceTime(1);
-
-          // Check for random event
-          const event = System.getRandomEvent();
-          if (event) {
-            System.showAchievement(event.emoji, event.text);
-          }
-
-          // Клиника и друзья — отдельные сцены, остальное — сцена посещения
-          if (loc.id === 'clinic') {
-            this.game.transitionTo('clinic');
-          } else if (loc.id === 'friend') {
-            this.game.transitionTo('friends');
-          } else if (typeof VISIT_DATA !== 'undefined' && VISIT_DATA[loc.id]) {
-            this.game.transitionTo('visit', loc.id);
-          } else {
-            System.showAchievement(loc.emoji, loc.name);
-            this.game.transitionTo('home');
-          }
-          System.saveGame();
-          return true;
-        } else {
-          System.showAchievement('🔒', 'Нужна энергия или другое условие!');
-          AudioSys.play('fail');
-        }
-        return true;
+        AudioSys.play('click');
+        return this.enterLocation(btn.loc.id);
       }
     }
 
@@ -290,3 +297,4 @@ class MapScene {
   }
 }
 window.MapScene = MapScene;
+window.MAP_LOCATIONS = MAP_LOCATIONS;

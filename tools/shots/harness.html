@@ -55,6 +55,8 @@ console.error = function () {
 <script src="../../www/js/gopher.js"></script>
 <script src="../../www/js/system.js"></script>
 <script src="../../www/js/game_content.js"></script>
+<script src="../../www/js/game_room.js"></script>
+<script src="../../www/js/game_scenery.js"></script>
 <script src="../../www/js/audio.js"></script>
 <script src="../../www/js/game_menu.js"></script>
 <script src="../../www/js/game_map.js"></script>
@@ -119,12 +121,35 @@ console.error = function () {
     return;
   }
 
+  // Демо-данные: комната с мебелью и пара друзей, чтобы проверять эти сцены
+  try {
+    System.coins = 900;
+    ['plant', 'clock', 'lamp', 'carpet', 'painting', 'shelf', 'sofa', 'tv'].forEach(function (id) {
+      System.buyFurniture(id);
+    });
+    System.setWall('mint');
+    System.setFloor('blue');
+    System.setFur('rose');
+    System.applyLookTo(g.gopher);
+    if (!System.friends.length) {
+      System.friends.push(createNPC([]));
+      System.friends.push(createNPC(System.friends.map(function (f) { return f.name; })));
+    }
+  } catch (e) {
+    show('seed fail: ' + e.message);
+  }
+
   try {
     if (parts[0]) g.transitionTo(parts[0], initArg);
     var scene = g.scenes[g.currentScene];
     for (var i = 0; i < 60; i++) scene.update(16);
 
-    if (parts[1]) {
+    // Магазин: вкладку можно открыть прямо из hash (#shop@decor)
+    var isShopTab = parts[0] === 'shop' &&
+      ['food', 'toys', 'clothes', 'decor', 'fun'].indexOf(parts[1]) !== -1;
+    if (isShopTab) scene.currentTab = parts[1];
+
+    if (parts[1] && !isShopTab) {
       scene.draw(g.ctx);
       var all = (scene.locationButtons || []).concat(scene.buttons || []);
       var target = all.filter(function (b) {

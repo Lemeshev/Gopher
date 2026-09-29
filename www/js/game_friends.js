@@ -37,12 +37,25 @@ function makeNPCPool(usedNames) {
 function createNPC(existingIds) {
   const used = existingIds || [];
   const name = pickRandom(makeNPCPool(used));
-  const decorCount = randInt(1, 4);
-  const decor = [];
-  const pool = DECOR_POOL.slice();
-  for (let i = 0; i < decorCount && pool.length; i++) {
-    decor.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+
+  // Комнату обставляем по-настоящему: мебель с координатами, как у игрока
+  const pool = FURNITURE.slice();
+  const furniture = [];
+  const spots = [];
+  const count = randInt(2, 5);
+  for (let i = 0; i < count && pool.length; i++) {
+    const item = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+    const wall = item.zone === 'wall';
+    let x = 0.5, y = 0.5, tries = 0;
+    do {
+      x = 0.16 + Math.random() * 0.68;
+      y = wall ? (0.08 + Math.random() * 0.72) : (0.10 + Math.random() * 0.72);
+      tries++;
+    } while (spots.some(sp => Math.abs(sp.x - x) < 0.18 && Math.abs(sp.y - y) < 0.24) && tries < 24);
+    spots.push({ x: x, y: y });
+    furniture.push({ id: item.id, x: x, y: y });
   }
+
   return {
     id: 'npc_' + name + '_' + Date.now().toString(36),
     name: name,
@@ -50,7 +63,17 @@ function createNPC(existingIds) {
     trait: pickRandom(NPC_TRAITS),
     level: randInt(1, Math.max(2, System.level)),
     friendship: 10,
-    decor: decor,
+    room: {
+      wall: pickRandom(WALLS.map(w => w.id)),
+      floor: pickRandom(FLOORS.map(fl => fl.id))
+    },
+    furniture: furniture,
+    decor: furniture.map(fr => ({
+      id: fr.id,
+      emoji: findFurniture(fr.id).emoji,
+      name: findFurniture(fr.id).name
+    })),
+    fur: randomFurId(),
     hat: Math.random() < 0.3 ? 'scientist' : null,
     glasses: Math.random() < 0.25 ? 'cool' : null,
     bowtie: Math.random() < 0.35
@@ -103,7 +126,9 @@ class FriendsScene {
   }
 
   getFriends() {
-    return System.friends || [];
+    // Сначала друзья с этого устройства (братья, сёстры), потом остальные
+    const local = (System.getLocalFriends && System.getLocalFriends()) || [];
+    return local.concat(System.friends || []);
   }
 
   findFriend(id) {
@@ -130,6 +155,10 @@ class FriendsScene {
 
   addFriendship(f, amount) {
     f.friendship = Math.min(100, (f.friendship || 0) + amount);
+    if (f.local) {
+      if (!System.localFriendship) System.localFriendship = {};
+      System.localFriendship[f.id] = f.friendship;
+    }
     System.saveGame();
   }
 
@@ -263,9 +292,22 @@ class FriendsScene {
       ctx.font = `bold ${Math.min(W * 0.038, 15)}px Arial`;
       ctx.fillText(f.name, btnX + 46, y + 20);
 
+      // Цветной кружок — окрас гофера друга
+      const furColor = (typeof findFur === 'function') ? findFur(f.fur || 'classic').color : '#7FDBE8';
+      ctx.fillStyle = furColor;
+      ctx.beginPath();
+      ctx.arc(btnX + 50, y + 36, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
       ctx.fillStyle = '#9aa';
       ctx.font = `${Math.min(W * 0.028, 11)}px Arial`;
-      ctx.fillText(f.trait + ' · Ур.' + (f.level || 1), btnX + 46, y + 36);
+      const traitTxt = f.trait + ' · Ур.' + (f.level || 1) + ' · 🏠' + ((f.furniture || f.decor || []).length);
+      const traitSize = fitFontSize(ctx, traitTxt, btnW - 110, Math.min(W * 0.028, 11), 7.5, false);
+      ctx.font = `${traitSize}px Arial`;
+      ctx.fillText(traitTxt, btnX + 62, y + 36);
 
       // Полоса дружбы
       const barX = btnX + 46, barY = y + 44, barW = btnW - 60;
@@ -351,72 +393,72 @@ class FriendsScene {
     const f = this.friendVisitData;
     if (!f) { this.tab = 'list'; return; }
 
-    // Комната друга
-    const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, '#2a2340');
-    grad.addColorStop(1, '#3a2f52');
-    ctx.fillStyle = grad;
+    ctx.fillStyle = '#141428';
     ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = 'rgba(255,255,255,0.07)';
-    ctx.fillRect(0, H * 0.56, W, H * 0.44);
 
-    // Имя и статус
+    // Имя и статус друга
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = '#FFD93D';
     ctx.font = `bold ${Math.min(W * 0.045, 19)}px Arial`;
-    ctx.fillText(f.name + ' — ' + f.trait, W / 2, 62);
+    ctx.fillText(f.name + ' — ' + f.trait, W / 2, 58);
 
-    // Полоса дружбы
     const barW = Math.min(W * 0.7, 260);
     const barX = (W - barW) / 2;
     ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    roundRect(ctx, barX, 72, barW, 12, 6);
+    roundRect(ctx, barX, 66, barW, 11, 6);
     ctx.fill();
     ctx.fillStyle = f.friendship >= 100 ? '#FFD93D' : '#6BCB77';
-    roundRect(ctx, barX, 72, barW * (f.friendship / 100), 12, 6);
+    roundRect(ctx, barX, 66, barW * (f.friendship / 100), 11, 6);
     ctx.fill();
     ctx.fillStyle = '#fff';
     ctx.font = `bold ${Math.min(W * 0.026, 11)}px Arial`;
-    ctx.fillText(friendTag(f) + ' · ' + Math.round(f.friendship) + '%', W / 2, 100);
+    ctx.fillText(friendTag(f) + ' · ' + Math.round(f.friendship) + '%', W / 2, 92);
 
-    // Гофер-хозяин
-    if (this.game.gopher) {
-      const g = this.game.gopher;
-      const savedHat = g.hat, savedGlasses = g.glasses, savedBow = g.bowtie;
-      g.hat = f.hat; g.glasses = f.glasses; g.bowtie = f.bowtie;
-      g.setExpression('happy', 40);
-      const gs = Math.min(W * 0.3, 120);
-      g.draw(ctx, W * 0.5, H * 0.38, gs / g.size);
-      g.hat = savedHat; g.glasses = savedGlasses; g.bowtie = savedBow;
+    // ---- КОМНАТА ДРУГА (та же отрисовка, что и дома) ----
+    const rect = { x: 0, y: 100, w: W, h: Math.max(170, Math.min(H * 0.54, H - 100 - 150)) };
+    const room = f.room || { wall: 'warm', floor: 'wood' };
+    const furniture = (f.furniture && f.furniture.length)
+      ? f.furniture
+      : (f.decor || []).map((d, i) => ({ id: this.guessItemId(d), x: 0.22 + (i % 4) * 0.19, y: 0.25 + Math.floor(i / 4) * 0.35 }));
+
+    if (typeof RoomView !== 'undefined') {
+      RoomView.drawAll(ctx, rect, room, furniture, {});
+
+      // Хозяин комнаты стоит у себя
+      if (this.game.gopher) {
+        const g = this.game.gopher;
+        const savedHat = g.hat, savedGlasses = g.glasses, savedBow = g.bowtie, savedFur = g.bodyColor;
+        g.hat = f.hat || null;
+        g.glasses = f.glasses || null;
+        g.bowtie = !!f.bowtie;
+        g.bodyColor = (f.fur && f.fur !== 'classic' && typeof findFur === 'function') ? findFur(f.fur).color : null;
+        g.outfit = null;
+        g.heldEmoji = null;
+        g.shower = 0;
+        g.setExpression('happy', 40);
+        const floorTop = rect.y + rect.h * 0.52;
+        const gs = Math.min(W * 0.30, rect.h * 0.42);
+        g.draw(ctx, W * 0.5, floorTop + rect.h * 0.16 - gs * 0.52, gs / g.size);
+        g.hat = savedHat; g.glasses = savedGlasses; g.bowtie = savedBow; g.bodyColor = savedFur;
+      }
     }
 
-    // Мебель друга
-    if (f.decor && f.decor.length) {
-      const cols = Math.min(f.decor.length, 4);
-      const floorY = H * 0.58;
-      const cellW = W / cols;
-      f.decor.forEach((d, i) => {
-        const col = i % cols, row = Math.floor(i / cols);
-        const cx = col * cellW + cellW / 2;
-        const cy = floorY + row * 56 + 26;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.font = `${Math.min(cellW * 0.5, 32)}px Arial`;
-        ctx.fillText(d.emoji, cx, cy);
-        ctx.fillStyle = 'rgba(255,255,255,0.6)';
-        ctx.font = `${Math.min(cellW * 0.13, 9)}px Arial`;
-        ctx.textBaseline = 'alphabetic';
-        ctx.fillText(d.name, cx, cy + 20);
-      });
-    } else {
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#9aa';
-      ctx.font = `${Math.min(W * 0.032, 13)}px Arial`;
-      ctx.fillText('У ' + f.name + ' пока пусто дома...', W / 2, H * 0.65);
-    }
+    // Подпись снизу
+    const wall = (typeof findWall === 'function') ? findWall(room.wall) : { name: '' };
+    const floor = (typeof findFloor === 'function') ? findFloor(room.floor) : { name: '' };
+    const info = 'Обои: ' + wall.name + ' · Пол: ' + floor.name + ' · Мебель: ' + furniture.length;
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.font = `${Math.min(W * 0.028, 11.5)}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(info, W / 2, rect.y + rect.h + 18);
 
-    // Действия
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.font = `${Math.min(W * 0.026, 10.5)}px Arial`;
+    ctx.fillText('Свою комнату обустраивай дома \u2014 кнопка \ud83d\udecb\ufe0f сверху', W / 2, rect.y + rect.h + 36);
+
+    // Действия в гостях
     const btnW = Math.min(W * 0.8, 260);
     const btnX = (W - btnW) / 2;
     const startY = H - 140;
@@ -431,6 +473,15 @@ class FriendsScene {
     this.buttons.push({ x: btnX, y: startY + 50, w: btnW, h: 42, text: 'gift_here' });
 
     this.drawNotif(ctx, W, H);
+  }
+
+  // Постаревшие записи друзей хранили только emoji+name — приводим к id
+  guessItemId(d) {
+    if (d && d.id) return d.id;
+    const found = (typeof FURNITURE !== 'undefined')
+      ? FURNITURE.find(x => x.emoji === (d && d.emoji))
+      : null;
+    return found ? found.id : 'plant';
   }
 
   drawMyCode(ctx, W, H) {
