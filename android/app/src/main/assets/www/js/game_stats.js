@@ -41,7 +41,8 @@ class StatsScene {
       { id: 'stats', label: '📈 Статы', w: 80 },
       { id: 'ach', label: '🏆', w: 50 },
       { id: 'knowledge', label: '📚', w: 50 },
-      { id: 'inventory', label: '🎒', w: 50 }
+      { id: 'inventory', label: '🎒', w: 50 },
+      { id: 'help', label: '❓', w: 46 }
     ];
     const totalTabW = tabs.reduce((s, t) => s + t.w, 0) + tabs.length * 8;
     let tabX = (W - totalTabW) / 2;
@@ -69,6 +70,7 @@ class StatsScene {
     else if (this.tab === 'ach') this.drawAchTab(ctx, W, H);
     else if (this.tab === 'knowledge') this.drawKnowledgeTab(ctx, W, H);
     else if (this.tab === 'inventory') this.drawInventoryTab(ctx, W, H);
+    else if (this.tab === 'help') this.drawHelpTab(ctx, W, H);
 
     ctx.restore();
 
@@ -269,6 +271,37 @@ class StatsScene {
     ctx.fillText('📖 Собрано ' + totalSeen + ' / ' + totalAll + ' (' + pctAll + '%)', W / 2, H - 40);
   }
 
+  // ---------- СПРАВКА: «как сделать стресс нормальным» и остальные шкалы ----------
+  drawHelpTab(ctx, W, H) {
+    const list = (typeof STAT_HELP !== 'undefined') ? STAT_HELP : [];
+    let y = 104;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+
+    list.forEach(h => {
+      ctx.fillStyle = '#FFD93D';
+      ctx.font = `bold ${Math.min(W * 0.038, 15)}px Arial`;
+      ctx.fillText(h.emoji + ' ' + h.name, 16, y);
+      y += 15;
+
+      ctx.fillStyle = '#dfe3f0';
+      ctx.font = `${Math.min(W * 0.03, 11.5)}px Arial`;
+      wrapLines(ctx, h.what, W - 32, 2).forEach(l => { ctx.fillText(l, 16, y); y += 13; });
+
+      ctx.fillStyle = '#9be3b0';
+      wrapLines(ctx, '↑ ' + h.up.join('; '), W - 32, 2).forEach(l => { ctx.fillText(l, 16, y); y += 13; });
+      ctx.fillStyle = '#ffb3b3';
+      wrapLines(ctx, '↓ ' + h.down.join('; '), W - 32, 2).forEach(l => { ctx.fillText(l, 16, y); y += 13; });
+      y += 8;
+    });
+
+    ctx.fillStyle = 'rgba(255,255,255,0.65)';
+    ctx.font = `${Math.min(W * 0.028, 11)}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.fillText('Подсказка: голодный питомец быстрее устаёт и нервничает', W / 2, H - 22);
+    ctx.textBaseline = 'alphabetic';
+  }
+
   drawInventoryTab(ctx, W, H) {
     ctx.fillStyle = '#fff';
     ctx.font = `${Math.min(W * 0.04, 18)}px Arial`;
@@ -283,19 +316,18 @@ class StatsScene {
     AudioSys.play('click');
 
     // Tab buttons
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 6; i++) {
       const btn = this.buttons[i];
-      if (btn && isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) {
-        if (btn.action === 'stats') this.tab = 'stats';
-        else if (btn.action === 'ach') this.tab = 'ach';
-        else if (btn.action === 'knowledge') this.tab = 'knowledge';
-        else if (btn.action === 'inventory') this.tab = 'inventory';
+      if (!btn) break;
+      if (!btn.action) break;              // закончились вкладки
+      if (isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) {
+        this.tab = btn.action;
         return true;
       }
     }
 
     // Back button
-    if (this.buttons.length > 4) {
+    if (this.buttons.length > 5) {
       const btn = this.buttons[this.buttons.length - 1];
       if (isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) {
         this.game.transitionTo('map');

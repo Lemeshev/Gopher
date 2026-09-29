@@ -1,9 +1,16 @@
-// ============ ГОФЕР — КЛАССИЧЕСКИЙ Go-МАСКОТ (Renée French) ============
-// Пропорции: тело-«капсула» со прямыми боками, круглые уши, огромные глаза,
-// бежевая морда с тёмным носом и двумя резцами, бежевые лапы и ступни.
+// ============ ПЕРСОНАЖ — КЛАССИЧЕСКИЙ Go-МАСКОТ + ОБЩАЯ АНИМАЦИЯ ============
+// Пропорции гофера: тело-«капсула» со прямыми боками, круглые уши, огромные
+// глаза, бежевая морда с тёмным носом и двумя резцами, бежевые лапы и ступни.
+//
+// ВАЖНО (задел на будущее): класс отвечает не только за гофера. Любая детская
+// игрушка (мишка, зайка, котёнок, робот) — это тот же персонаж с другим
+// описанием из CHARACTERS (см. js/characters.js). Общая часть — «пульс» фигурки
+// (покачивание, мигание, zzz, искры), аксессуары и экипировка.
 class Gopher {
-  constructor(canvas, size) {
+  constructor(canvas, size, charId) {
     this.size = size || 100;
+    this.charId = charId || 'gopher';
+    this.char = (typeof findCharacter === 'function') ? findCharacter(this.charId) : null;
     this.expression = 'happy';
     this.expressionTimer = 0;
     this.bobY = 0;
@@ -27,11 +34,14 @@ class Gopher {
   }
 
   // ---------- ПАЛИТРА ----------
+  // body — свой окрас (купленный) → иначе цвет персонажа (гофер голубой,
+  // мишка коричневый, зайка белый, ...) → иначе классический Go-голубой.
   get COLORS() {
+    const ch = this.char || {};
     return {
-      body: this.bodyColor || '#7FDBE8',   // по умолчанию светло-голубой, как у маскота Go
-      limb: '#F7D8A8',   // бежевые морда/лапы/ступни
-      nose: '#3A2618',   // тёмно-коричневый нос
+      body: this.bodyColor || ch.body || '#7FDBE8',
+      limb: ch.limb || '#F7D8A8',   // морда/лапы/ступни
+      nose: ch.nose || '#3A2618',   // тёмно-коричневый нос
       line: '#1A1A1A',   // обводка
       tooth: '#FFFFFF',
       eyePupil: '#141414'
@@ -43,8 +53,10 @@ class Gopher {
     roundRect(ctx, -s * 0.315, -s * 0.400, s * 0.63, s * 0.80, s * 0.235);
   }
 
-  draw(ctx, x, y, scale) {
-    const s = this.size * (scale || 1);
+  // ---------- ОБЩИЙ «ПУЛЬС» ФИГУРКИ ----------
+  // Покачивание, мигание, таймеры, «z» во сне и искры при радости.
+  // Вызывается всеми персонажами — и гофером, и другими игрушками.
+  animate(x, y, s) {
     this.animationTime += 0.05;
     this.bobY = Math.sin(this.animationTime * 2) * 2;
     this.blinkTimer++;
@@ -78,14 +90,10 @@ class Gopher {
       this.sparks = this.sparks.filter(sp => sp.alpha > 0);
     }
 
-    const C = this.COLORS;
-    const lw = Math.max(1.2, s * 0.011);
+  }
 
-    ctx.save();
-    ctx.translate(x, y + this.bobY);
-    ctx.lineJoin = 'round';
-
-    // --- искры (excited) ---
+  // ---------- АУРА: искры (excited) и «z» (sleeping) ----------
+  drawAura(ctx, x, y, s) {
     if (this.sparks.length > 0) {
       this.sparks.forEach(sp => {
         ctx.globalAlpha = sp.alpha; ctx.fillStyle = '#FFD700';
@@ -94,7 +102,6 @@ class Gopher {
       ctx.globalAlpha = 1;
     }
 
-    // --- «z» (sleeping) ---
     if (this.zzz.length > 0) {
       this.zzz.forEach(z => {
         ctx.globalAlpha = z.alpha; ctx.fillStyle = '#8FD8E8';
@@ -103,6 +110,140 @@ class Gopher {
       });
       ctx.globalAlpha = 1;
     }
+  }
+
+  // ---------- ЭКИПИРОВКА (одинаковая для всех персонажей) ----------
+  // Плавки/галстук/повязка обрезаются по силуэту своего тела.
+  drawOutfit(ctx, s, lw) {
+    // ============ ЭКИПИРОВКА (зависит от места) ============
+    if (this.outfit === 'trunks') {
+      // плавки: пояс + полоса, обрезанные по силуэту тела
+      ctx.save(); this.bodyPath(ctx, s); ctx.clip();
+      ctx.fillStyle = '#2D6BE0';
+      ctx.fillRect(-s * 0.5, s * 0.155, s, s * 0.16);
+      ctx.fillStyle = '#F2F2F2';
+      ctx.fillRect(-s * 0.5, s * 0.155, s, s * 0.028);
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.fillRect(-s * 0.5, s * 0.265, s, s * 0.014);
+      ctx.restore();
+    } else if (this.outfit === 'tie') {
+      // галстук: узел + полотнище
+      const topY = s * 0.075;
+      ctx.fillStyle = '#C0392B';
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.028, topY);
+      ctx.lineTo(s * 0.028, topY);
+      ctx.lineTo(s * 0.020, topY + s * 0.045);
+      ctx.lineTo(-s * 0.020, topY + s * 0.045);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.030, topY + s * 0.040);
+      ctx.lineTo(s * 0.030, topY + s * 0.040);
+      ctx.lineTo(s * 0.042, topY + s * 0.225);
+      ctx.lineTo(0, topY + s * 0.275);
+      ctx.lineTo(-s * 0.042, topY + s * 0.225);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.28)'; ctx.lineWidth = Math.max(0.8, lw * 0.5); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.22)';
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.030, topY + s * 0.046);
+      ctx.lineTo(-s * 0.008, topY + s * 0.046);
+      ctx.lineTo(-s * 0.022, topY + s * 0.235);
+      ctx.closePath(); ctx.fill();
+    } else if (this.outfit === 'sporty') {
+      // спортивная повязка на лбу (обрезана по силуэту головы)
+      ctx.save(); this.bodyPath(ctx, s); ctx.clip();
+      ctx.fillStyle = '#E74C3C';
+      ctx.fillRect(-s * 0.5, -s * 0.400, s, s * 0.040);
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.fillRect(-s * 0.5, -s * 0.364, s, s * 0.009);
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.beginPath(); ctx.arc(0, -s * 0.382, s * 0.010, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+  }
+
+  // ---------- АКСЕССУАРЫ: шляпы, очки, бабочка ----------
+  drawAccessories(ctx, s, C, lw, eyeY, eyeSpacing, eyeR) {
+    // ============ АКСЕССУАРЫ ============
+    // Шляпы садятся на макушку (верх тела — y = -0.395s)
+    if (this.hat === 'chef') {
+      ctx.fillStyle = '#FFFFFF'; ctx.strokeStyle = C.line; ctx.lineWidth = lw * 0.8;
+      roundRect(ctx, -s * 0.155, -s * 0.460, s * 0.31, s * 0.12, s * 0.02);
+      ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(0, -s * 0.460, s * 0.175, s * 0.058, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(0, -s * 0.510, s * 0.105, s * 0.042, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+    } else if (this.hat === 'scientist') {
+      ctx.fillStyle = '#FFFFFF'; ctx.strokeStyle = C.line; ctx.lineWidth = lw * 0.8;
+      roundRect(ctx, -s * 0.165, -s * 0.455, s * 0.33, s * 0.115, s * 0.015);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#1F3B4D'; ctx.font = `bold ${s * 0.055}px Arial`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('Go', 0, -s * 0.398);
+    } else if (this.hat === 'crown') {
+      ctx.fillStyle = '#FFD700'; ctx.beginPath();
+      ctx.moveTo(-s * 0.135, -s * 0.44); ctx.lineTo(-s * 0.135, -s * 0.57); ctx.lineTo(-s * 0.052, -s * 0.50);
+      ctx.lineTo(0, -s * 0.60); ctx.lineTo(s * 0.052, -s * 0.50); ctx.lineTo(s * 0.135, -s * 0.57);
+      ctx.lineTo(s * 0.135, -s * 0.44);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#B8860B'; ctx.lineWidth = Math.max(1, lw * 0.7); ctx.stroke();
+    }
+
+    // Очки размером под большие глаза
+    if (this.glasses === 'nerd') {
+      ctx.strokeStyle = C.line; ctx.lineWidth = Math.max(1.6, s * 0.016);
+      [-1, 1].forEach(dir => {
+        ctx.beginPath(); ctx.arc(dir * eyeSpacing, eyeY, eyeR * 1.08, 0, Math.PI * 2); ctx.stroke();
+      });
+      ctx.beginPath();
+      ctx.moveTo(-eyeSpacing + eyeR * 1.08, eyeY); ctx.lineTo(eyeSpacing - eyeR * 1.08, eyeY);
+      ctx.stroke();
+    } else if (this.glasses === 'cool') {
+      ctx.fillStyle = 'rgba(24,24,28,0.88)';
+      ctx.strokeStyle = C.line; ctx.lineWidth = lw * 0.8;
+      [-1, 1].forEach(dir => {
+        const gx = dir * eyeSpacing - eyeR * 0.95;
+        roundRect(ctx, gx, eyeY - eyeR * 0.62, eyeR * 1.9, eyeR * 1.24, s * 0.022);
+        ctx.fill(); ctx.stroke();
+      });
+      ctx.beginPath();
+      ctx.moveTo(-eyeSpacing + eyeR * 0.95, eyeY); ctx.lineTo(eyeSpacing - eyeR * 0.95, eyeY);
+      ctx.strokeStyle = C.line; ctx.lineWidth = Math.max(1.4, s * 0.012); ctx.stroke();
+    }
+
+    // Бабочка — под подбородком
+    if (this.bowtie) {
+      const by = s * 0.045, bw = s * 0.072, bh = s * 0.062;
+      ctx.fillStyle = '#FF4444'; ctx.strokeStyle = C.line; ctx.lineWidth = lw * 0.7;
+      [-1, 1].forEach(dir => {
+        ctx.beginPath();
+        ctx.moveTo(0, by);
+        ctx.lineTo(dir * bw, by - bh / 2);
+        ctx.lineTo(dir * bw, by + bh / 2);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+      });
+      ctx.fillStyle = '#CC0000';
+      ctx.beginPath(); ctx.arc(0, by, s * 0.019, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = C.line; ctx.lineWidth = lw * 0.6; ctx.stroke();
+    }
+
+  }
+
+  draw(ctx, x, y, scale) {
+    const s = this.size * (scale || 1);
+    this.animate(x, y, s);
+
+    const C = this.COLORS;
+    const lw = Math.max(1.2, s * 0.011);
+
+    ctx.save();
+    ctx.translate(x, y + this.bobY);
+    ctx.lineJoin = 'round';
+
+    this.drawAura(ctx, x, y, s);
 
     // ============ УШИ — маленькие круги по бокам головы (ПОД телом) ============
     const earR = s * 0.072;
@@ -151,52 +292,7 @@ class Gopher {
     ctx.fillStyle = C.body; ctx.fill();
     ctx.strokeStyle = C.line; ctx.lineWidth = lw; ctx.stroke();
 
-    // ============ ЭКИПИРОВКА (зависит от места) ============
-    if (this.outfit === 'trunks') {
-      // плавки: пояс + полоса, обрезанные по силуэту тела
-      ctx.save(); this.bodyPath(ctx, s); ctx.clip();
-      ctx.fillStyle = '#2D6BE0';
-      ctx.fillRect(-s * 0.5, s * 0.155, s, s * 0.16);
-      ctx.fillStyle = '#F2F2F2';
-      ctx.fillRect(-s * 0.5, s * 0.155, s, s * 0.028);
-      ctx.fillStyle = 'rgba(255,255,255,0.18)';
-      ctx.fillRect(-s * 0.5, s * 0.265, s, s * 0.014);
-      ctx.restore();
-    } else if (this.outfit === 'tie') {
-      // галстук: узел + полотнище
-      const topY = s * 0.075;
-      ctx.fillStyle = '#C0392B';
-      ctx.beginPath();
-      ctx.moveTo(-s * 0.028, topY);
-      ctx.lineTo(s * 0.028, topY);
-      ctx.lineTo(s * 0.020, topY + s * 0.045);
-      ctx.lineTo(-s * 0.020, topY + s * 0.045);
-      ctx.closePath(); ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(-s * 0.030, topY + s * 0.040);
-      ctx.lineTo(s * 0.030, topY + s * 0.040);
-      ctx.lineTo(s * 0.042, topY + s * 0.225);
-      ctx.lineTo(0, topY + s * 0.275);
-      ctx.lineTo(-s * 0.042, topY + s * 0.225);
-      ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.28)'; ctx.lineWidth = Math.max(0.8, lw * 0.5); ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,0.22)';
-      ctx.beginPath();
-      ctx.moveTo(-s * 0.030, topY + s * 0.046);
-      ctx.lineTo(-s * 0.008, topY + s * 0.046);
-      ctx.lineTo(-s * 0.022, topY + s * 0.235);
-      ctx.closePath(); ctx.fill();
-    } else if (this.outfit === 'sporty') {
-      // спортивная повязка на лбу (обрезана по силуэту головы)
-      ctx.save(); this.bodyPath(ctx, s); ctx.clip();
-      ctx.fillStyle = '#E74C3C';
-      ctx.fillRect(-s * 0.5, -s * 0.400, s, s * 0.040);
-      ctx.fillStyle = 'rgba(0,0,0,0.18)';
-      ctx.fillRect(-s * 0.5, -s * 0.364, s, s * 0.009);
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.beginPath(); ctx.arc(0, -s * 0.382, s * 0.010, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
-    }
+    this.drawOutfit(ctx, s, lw);
 
     // ============ ГЛАЗА — огромные, почти вплотную, у макушки ============
     const eyeY = -s * 0.272;
@@ -371,69 +467,7 @@ class Gopher {
       ctx.fill();
     }
 
-    // ============ АКСЕССУАРЫ ============
-    // Шляпы садятся на макушку (верх тела — y = -0.395s)
-    if (this.hat === 'chef') {
-      ctx.fillStyle = '#FFFFFF'; ctx.strokeStyle = C.line; ctx.lineWidth = lw * 0.8;
-      roundRect(ctx, -s * 0.155, -s * 0.460, s * 0.31, s * 0.12, s * 0.02);
-      ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.ellipse(0, -s * 0.460, s * 0.175, s * 0.058, 0, 0, Math.PI * 2);
-      ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.ellipse(0, -s * 0.510, s * 0.105, s * 0.042, 0, 0, Math.PI * 2);
-      ctx.fill(); ctx.stroke();
-    } else if (this.hat === 'scientist') {
-      ctx.fillStyle = '#FFFFFF'; ctx.strokeStyle = C.line; ctx.lineWidth = lw * 0.8;
-      roundRect(ctx, -s * 0.165, -s * 0.455, s * 0.33, s * 0.115, s * 0.015);
-      ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#1F3B4D'; ctx.font = `bold ${s * 0.055}px Arial`;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('Go', 0, -s * 0.398);
-    } else if (this.hat === 'crown') {
-      ctx.fillStyle = '#FFD700'; ctx.beginPath();
-      ctx.moveTo(-s * 0.135, -s * 0.44); ctx.lineTo(-s * 0.135, -s * 0.57); ctx.lineTo(-s * 0.052, -s * 0.50);
-      ctx.lineTo(0, -s * 0.60); ctx.lineTo(s * 0.052, -s * 0.50); ctx.lineTo(s * 0.135, -s * 0.57);
-      ctx.lineTo(s * 0.135, -s * 0.44);
-      ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = '#B8860B'; ctx.lineWidth = Math.max(1, lw * 0.7); ctx.stroke();
-    }
-
-    // Очки размером под большие глаза
-    if (this.glasses === 'nerd') {
-      ctx.strokeStyle = C.line; ctx.lineWidth = Math.max(1.6, s * 0.016);
-      [-1, 1].forEach(dir => {
-        ctx.beginPath(); ctx.arc(dir * eyeSpacing, eyeY, eyeR * 1.08, 0, Math.PI * 2); ctx.stroke();
-      });
-      ctx.beginPath();
-      ctx.moveTo(-eyeSpacing + eyeR * 1.08, eyeY); ctx.lineTo(eyeSpacing - eyeR * 1.08, eyeY);
-      ctx.stroke();
-    } else if (this.glasses === 'cool') {
-      ctx.fillStyle = 'rgba(24,24,28,0.88)';
-      ctx.strokeStyle = C.line; ctx.lineWidth = lw * 0.8;
-      [-1, 1].forEach(dir => {
-        const gx = dir * eyeSpacing - eyeR * 0.95;
-        roundRect(ctx, gx, eyeY - eyeR * 0.62, eyeR * 1.9, eyeR * 1.24, s * 0.022);
-        ctx.fill(); ctx.stroke();
-      });
-      ctx.beginPath();
-      ctx.moveTo(-eyeSpacing + eyeR * 0.95, eyeY); ctx.lineTo(eyeSpacing - eyeR * 0.95, eyeY);
-      ctx.strokeStyle = C.line; ctx.lineWidth = Math.max(1.4, s * 0.012); ctx.stroke();
-    }
-
-    // Бабочка — под подбородком
-    if (this.bowtie) {
-      const by = s * 0.045, bw = s * 0.072, bh = s * 0.062;
-      ctx.fillStyle = '#FF4444'; ctx.strokeStyle = C.line; ctx.lineWidth = lw * 0.7;
-      [-1, 1].forEach(dir => {
-        ctx.beginPath();
-        ctx.moveTo(0, by);
-        ctx.lineTo(dir * bw, by - bh / 2);
-        ctx.lineTo(dir * bw, by + bh / 2);
-        ctx.closePath(); ctx.fill(); ctx.stroke();
-      });
-      ctx.fillStyle = '#CC0000';
-      ctx.beginPath(); ctx.arc(0, by, s * 0.019, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = C.line; ctx.lineWidth = lw * 0.6; ctx.stroke();
-    }
+    this.drawAccessories(ctx, s, C, lw, eyeY, eyeSpacing, eyeR);
 
     ctx.restore();
   }

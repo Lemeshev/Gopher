@@ -11,6 +11,7 @@ class MenuScene {
     this.confirmReset = false;
     this.aboutMode = false;
     this.profilesMode = false;
+    this.charMode = false;      // выбор персонажа (гофер, мишка, зайка...)
   }
 
   init() {
@@ -23,6 +24,7 @@ class MenuScene {
     this.confirmReset = false;
     this.aboutMode = false;
     this.profilesMode = false;
+    this.charMode = false;
     if (this.game.gopher) this.game.gopher.setExpression('excited', 999999);
   }
 
@@ -144,6 +146,7 @@ class MenuScene {
     // Панели рисуются вместо списка кнопок
     if (this.aboutMode) { this.drawAbout(ctx, W, H); return; }
     if (this.profilesMode) { this.drawProfiles(ctx, W, H); return; }
+    if (this.charMode) { this.drawCharacters(ctx, W, H); return; }
     if (this.showSettings) { this.drawSettings(ctx, W, H); return; }
 
     const btnW = Math.min(W * 0.72, 270);
@@ -159,6 +162,7 @@ class MenuScene {
     }
     list.push({ text: '📖 Как играть', color: '#FF8C42', size: 16 });
     list.push({ text: '👥 Профили', color: '#546E7A', size: 16 });
+    list.push({ text: '🧸 Персонаж: ' + System.characterName(), color: '#9B59B6', size: 15 });
 
     const totalH = list.length * btnH + (list.length - 1) * gap;
     let by = Math.max(H * 0.52, H - totalH - 46);
@@ -197,6 +201,74 @@ class MenuScene {
     ctx.fillText('⚙️', gx + gearS / 2, gy + gearS / 2 + 1);
     this.buttons.push({ x: gx, y: gy, w: gearS, h: gearS, text: 'settings' });
     ctx.textBaseline = 'alphabetic';
+  }
+
+  // ---------- ВЫБОР ПЕРСОНАЖА ----------
+  // Задел заказчика: герой — не только гофер. Здесь это уже работает:
+  // можно играть гофером, мишкой, зайкой, котёнком или роботом.
+  drawCharacters(ctx, W, H) {
+    ctx.fillStyle = 'rgba(8,10,24,0.95)';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#FFD93D';
+    ctx.font = `bold ${Math.min(W * 0.055, 24)}px Arial`;
+    ctx.fillText('🧸 Кто будет героем?', W / 2, H * 0.10);
+    ctx.fillStyle = '#c9cfe0';
+    ctx.font = `${Math.min(W * 0.03, 13)}px Arial`;
+    ctx.fillText('Играть можно не только гофером', W / 2, H * 0.135);
+
+    const chars = (typeof characterList === 'function') ? characterList() : [];
+    const cols = 2, gap = 10, pad = 14;
+    const cardW = (W - pad * 2 - gap) / cols;
+    const cardH = Math.min(H * 0.17, 120);
+    const startY = H * 0.17;
+
+    chars.forEach((ch, i) => {
+      const col = i % cols, row = Math.floor(i / cols);
+      const x = pad + col * (cardW + gap);
+      const y = startY + row * (cardH + gap);
+      const active = (System.look.char || 'gopher') === ch.id;
+
+      ctx.fillStyle = active ? 'rgba(107,203,119,0.30)' : 'rgba(255,255,255,0.10)';
+      roundRect(ctx, x, y, cardW, cardH, 14);
+      ctx.fill();
+      ctx.strokeStyle = active ? '#6BCB77' : 'rgba(255,255,255,0.25)';
+      ctx.lineWidth = active ? 3 : 1.5;
+      roundRect(ctx, x, y, cardW, cardH, 14);
+      ctx.stroke();
+
+      // Живое превью персонажа
+      let preview = null;
+      try { preview = (typeof createCharacter === 'function') ? createCharacter(ch.id, 100) : null; } catch (e) { preview = null; }
+      if (preview) {
+        preview.setExpression('happy', 20);
+        preview.draw(ctx, x + cardW * 0.30, y + cardH * 0.46, (cardH * 0.62) / preview.size);
+      }
+
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${Math.min(cardW * 0.13, 15)}px Arial`;
+      ctx.fillText(ch.emoji + ' ' + ch.name, x + cardW * 0.52, y + cardH * 0.34);
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.font = `${Math.min(cardW * 0.10, 11)}px Arial`;
+      ctx.fillText(ch.desc, x + cardW * 0.52, y + cardH * 0.58);
+      if (active) {
+        ctx.fillStyle = '#6BCB77';
+        ctx.font = `bold ${Math.min(cardW * 0.10, 11)}px Arial`;
+        ctx.fillText('✓ выбран', x + cardW * 0.52, y + cardH * 0.80);
+      }
+      ctx.textBaseline = 'alphabetic';
+
+      this.buttons.push({ x: x, y: y, w: cardW, h: cardH, text: 'char_' + ch.id });
+    });
+
+    createButton(ctx, W * 0.2, H - 62, W * 0.6, 44, '✅ Готово', {
+      bgColor: '#6BCB77', fgColor: '#fff', fontSize: 16, radius: 12
+    });
+    this.buttons.push({ x: W * 0.2, y: H - 62, w: W * 0.6, h: 44, text: 'close_chars' });
   }
 
   // ---------- ПАНЕЛЬ НАСТРОЕК ----------
@@ -445,6 +517,20 @@ class MenuScene {
       AudioSys.play('click');
       const t = btn.text || '';
 
+      // ---- Персонаж (гофер или другая игрушка) ----
+      if (this.charMode) {
+        if (t.indexOf('char_') === 0) {
+          const id = t.slice(5);
+          System.setCharacter(id);
+          this.game.ensureCharacter();
+          System.applyLookTo(this.game.gopher);
+          System.showAchievement('🧸', 'Герой: ' + System.characterName());
+          return true;
+        }
+        if (t === 'close_chars' || t.indexOf('Готово') !== -1 || t.indexOf('Назад') !== -1) { this.charMode = false; return true; }
+        return true;
+      }
+
       // ---- Об авторе ----
       if (this.aboutMode) {
         if (t.indexOf('vk.com') !== -1) { openExternalLink('https://vk.com/VL'); return true; }
@@ -497,6 +583,8 @@ class MenuScene {
         this.confirmReset = false;
       } else if (t === 'profiles') {
         this.profilesMode = true;
+      } else if (t.indexOf('Персонаж') !== -1) {
+        this.charMode = true;
       }
       return true;
     }

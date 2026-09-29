@@ -114,7 +114,7 @@ class Gopher {
 
   // ---------- ЭКИПИРОВКА (одинаковая для всех персонажей) ----------
   // Плавки/галстук/повязка обрезаются по силуэту своего тела.
-  drawOutfit(ctx, s) {
+  drawOutfit(ctx, s, lw) {
     // ============ ЭКИПИРОВКА (зависит от места) ============
     if (this.outfit === 'trunks') {
       // плавки: пояс + полоса, обрезанные по силуэту тела
@@ -292,7 +292,7 @@ class Gopher {
     ctx.fillStyle = C.body; ctx.fill();
     ctx.strokeStyle = C.line; ctx.lineWidth = lw; ctx.stroke();
 
-    this.drawOutfit(ctx, s);
+    this.drawOutfit(ctx, s, lw);
 
     // ============ ГЛАЗА — огромные, почти вплотную, у макушки ============
     const eyeY = -s * 0.272;

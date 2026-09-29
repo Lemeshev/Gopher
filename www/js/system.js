@@ -275,14 +275,30 @@ const System = {
     }
   },
 
-  // Человеческая причина отказа — вместо сухого «нельзя»
+  // Человеческая причина отказа — вместо сухого «нельзя».
+  // Причина всегда та, из-за которой isLocationAvailable вернул false.
   locationLockReason(loc) {
     const energy = this.stats.energy;
     const hunger = this.stats.hunger;
-    if (loc === 'work' && energy < 15) return 'Гофер устал — сначала поспи 😴';
-    if (loc === 'school' && energy < 10) return 'Гофер устал — сначала поспи 😴';
-    if ((loc === 'park' || loc === 'gym' || loc === 'cinema') && energy < 5) return 'Гофер совсем без сил — поспи 😴';
+    if (this.isLocationAvailable(loc)) return 'Сюда можно идти 🙂';
+
+    const price = {
+      cinema: 20, library: 10, museum_art: 30, museum_nature: 30,
+      museum_space: 30, museum_history: 30
+    }[loc];
+    if (price && !this.canAfford(price)) {
+      return 'Нужно ' + price + ' \ud83e\ude99 — загляни в магазин или на работу';
+    }
     if ((loc === 'pool' || loc === 'beach') && hunger <= 15) return 'Гофер голодный — сначала покорми 🍕';
+    if (loc === 'restaurant' && hunger >= 95) return 'Гофер сыт — сначала погуляй 🚶';
+
+    const need = {
+      work: 15, school: 10, pool: 5, park: 5, gym: 5,
+      cinema: 5, friend: 5, beach: 5, museums: 3
+    }[loc];
+    if (need && energy < need) {
+      return 'Гофер устал (⚡' + Math.round(energy) + '%) — поспи, сон даёт +10% в минуту 😴';
+    }
     return 'Сейчас сюда нельзя';
   },
 
@@ -667,15 +683,66 @@ const System = {
     const f = findFurniture(id);
     const wall = f && f.zone === 'wall';
     const room = this.rooms[roomId || this.activeRoom] || this.currentRoomData();
-    for (let row = 0; row < 3; row++) {
-      for (let col = 0; col < 4; col++) {
-        const x = 0.16 + col * 0.225;
-        const y = wall ? (0.25 + row * 0.30) : (0.14 + row * 0.34);
-        const busy = room.furniture.some(it => Math.abs(it.x - x) < 0.14 && Math.abs(it.y - y) < 0.20);
-        if (!busy) return { x: x, y: y };
+    // Ряды: сначала середина комнаты (видно и не мешает герою), потом передний
+    // план, и только затем глубина. В центре (x = 0.5) места нет: там стоит герой.
+    // Крупную мебель (рояль, камин, шкаф) ставим сразу вперёд: у стены она
+    // читается как висящая на стене картина.
+    const big = f && (f.k || 1) >= 1.5;
+    const rowsFloor = big ? [0.86, 0.55, 0.28] : [0.55, 0.28, 0.86];
+    const rowsWall = [0.35, 0.70, 0.12];
+    const colsWall = [0.16, 0.385, 0.61, 0.835];
+    // Впереди, по центру, стоит сам герой: крупную вещь туда не ставим,
+    // иначе она закрывает ему лапы и мордочку.
+    const colsFront = [0.16, 0.84];
+    // Окно нарисовано в правой части стены: там место не занимаем
+    const colsWallTop = [0.16, 0.385, 0.61];
+    const rows = wall ? rowsWall : rowsFloor;
+    const colsFor = (row) => {
+      if (wall) return rows[row] < 0.6 ? colsWallTop : colsWall;
+      return rows[row] >= 0.8 ? colsFront : [0.16, 0.385, 0.61, 0.835];
+    };
+    // Из свободных мест берём то, что дальше всего от уже стоящих вещей, но
+    // сначала заполняем самый пустой ряд — иначе вся мебель сбивается вперёд,
+    // а верх комнаты остаётся голым.
+    let best = null, bestScore = -1;
+    for (let row = 0; row < rows.length; row++) {
+      const y = rows[row];
+      const rowCols = colsFor(row);
+      const inRow = room.furniture.filter(it => Math.abs(it.y - y) < 0.13).length;
+      for (let col = 0; col < rowCols.length; col++) {
+        const x = rowCols[col];
+        let nearest = 9, busy = false;
+        for (const it of room.furniture) {
+          const dx = Math.abs(it.x - x), dy = Math.abs(it.y - y);
+          if (dx < 0.14 && dy < 0.20) busy = true;
+          const d = dx + dy;
+          if (d < nearest) nearest = d;
+        }
+        if (busy) continue;
+        const score = (4 - inRow) * 10 + nearest;
+        if (score > bestScore) { bestScore = score; best = { x: x, y: y }; }
       }
     }
-    return { x: 0.5, y: 0.5 };
+    if (best) return best;
+    // Комната забита под завязку: не сваливаем всё в одну точку, а ищем самое
+    // свободное место — иначе мебель встаёт стопкой в центре комнаты.
+    const fineCols = [0.12, 0.20, 0.29, 0.38, 0.47, 0.56, 0.65, 0.74, 0.83, 0.90];
+    const fineRows = wall ? [0.06, 0.14, 0.22, 0.30, 0.38, 0.46]
+                          : [0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90];
+    for (const y of fineRows) {
+      for (const x of fineCols) {
+        // Те же запреты, что и в сетке: окно и место героя
+        if (wall && x > 0.7 && y < 0.6) continue;
+        if (!wall && y >= 0.8 && Math.abs(x - 0.5) < 0.2) continue;
+        let nearest = 9;
+        for (const it of room.furniture) {
+          const d = Math.abs(it.x - x) + Math.abs(it.y - y);
+          if (d < nearest) nearest = d;
+        }
+        if (nearest > bestScore) { bestScore = nearest; best = { x: x, y: y }; }
+      }
+    }
+    return best || { x: 0.5, y: 0.5 };
   },
 
   ownsFurniture(id) {

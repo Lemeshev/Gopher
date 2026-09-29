@@ -485,7 +485,8 @@ class HomeScene {
       ctx.textAlign = 'left';
       ctx.textBaseline = 'alphabetic';
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(s.emoji + ' ' + s.name, cx, baseline);
+      // У «Стресса» стоит знак вопроса: строка нажимаемая, там справка
+      ctx.fillText(s.emoji + ' ' + s.name + (s.key === 'stress' ? ' ❓' : ''), cx, baseline);
 
       ctx.font = `${Math.min(L.labelH - 2, 10)}px Arial`;
       ctx.textAlign = 'right';
@@ -496,24 +497,24 @@ class HomeScene {
         'rgba(255,255,255,0.18)', System.getStatColor(s.key));
     });
 
-    // Кнопка «?» — прямой ответ на вопрос «как сделать стресс нормальным?»:
-    // открывает справку по всем шкалам (что повышает, что понижает).
-    const qs = 20;
-    const qx = 10 + W - 20 - qs - 3, qy = L.panelTop + 3;
-    ctx.fillStyle = 'rgba(255,255,255,0.22)';
-    ctx.beginPath();
-    ctx.arc(qx + qs / 2, qy + qs / 2, qs / 2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 13px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('?', qx + qs / 2, qy + qs / 2 + 0.5);
+    // Подсказка и нажимаемая строка «Стресс»: именно на неё ребёнок ткнёт,
+    // когда спросит «а как сделать стресс нормальным?» — откроется справка.
+    ctx.font = `${Math.min(L.labelH - 2, 9.5)}px Arial`;
+    ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    this.buttons.push({ x: qx, y: qy, w: qs, h: qs, action: 'help' });
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.fillText('нажми на «Стресс» — расскажу, как его снизить', 10 + L.pad, L.panelTop + L.panelH - 5);
+
+    const rowH = L.labelH + L.barH + L.rowGap;
+    this.buttons.push({
+      x: 10 + L.pad - 2,
+      y: L.panelTop + L.pad + 2 * rowH - 2,
+      w: (W - 20 - L.pad * 2 - 12) / 2 + 4,
+      h: rowH,
+      action: 'help'
+    });
   }
 
-  // ---------- Кнопки действий ----------
   // ---------- Кнопки действий ----------
   // Действия привязаны к комнатам: покормить — на кухне, искупать — в ванной,
   // спать — в спальне, играть и слушать музыку — в гостиной. Если комната не та,
@@ -678,7 +679,7 @@ class HomeScene {
     ctx.fillText('Тяни мебель · нажми на вещь, чтобы убрать или перекрасить', L.W / 2, by - 7);
 
     const items = [
-      { label: '\ud83e\ude91 Мебель', sub: System.inventory.length + ' шт.', action: 'decor:sheet:furniture', color: '#4D96FF' },
+      { label: '\ud83d\udce6 В кладовке', sub: System.inventory.length + ' шт.', action: 'decor:sheet:furniture', color: '#4D96FF' },
       { label: '\ud83c\udfa8 Обои', sub: findWall(System.room.wall).name, action: 'decor:sheet:walls', color: '#9B59B6' },
       { label: '\ud83e\uddf1 Пол', sub: findFloor(System.room.floor).name, action: 'decor:sheet:floors', color: '#E67E22' },
       { label: '\u2705 Готово', sub: '', action: 'decor:done', color: '#6BCB77' }
@@ -757,8 +758,9 @@ class HomeScene {
       ctx.fillStyle = '#c9cfe0';
       ctx.font = `${Math.min(pw * 0.042, 13)}px Arial`;
       ctx.textAlign = 'center';
-      ctx.fillText('Свободной мебели нет.', px + pw / 2, py + ph * 0.34);
-      ctx.fillText('Всё уже стоит в комнате \ud83d\ude42', px + pw / 2, py + ph * 0.34 + 22);
+      ctx.fillText('В кладовке пусто.', px + pw / 2, py + ph * 0.34);
+      ctx.fillText('Всё стоит в комнате \ud83d\ude42 Нажми на вещь в комнате,', px + pw / 2, py + ph * 0.34 + 22);
+      ctx.fillText('чтобы убрать её сюда и поставить заново', px + pw / 2, py + ph * 0.34 + 40);
       this.buttons.push(createButton(ctx, px + 26, py + ph - 66, pw - 52, 40, '\ud83d\uded2 В магазин за мебелью',
         { bgColor: '#F39C12', fgColor: '#fff', fontSize: 13, radius: 10 }));
       ctx.textBaseline = 'alphabetic';
@@ -1169,7 +1171,7 @@ class HomeScene {
         if (!this.selected) return true;
         const f = findFurniture(this.selected);
         System.removeFurniture(this.selected);
-        this.setBubble((f ? f.name : 'Вещь') + ' — убрано в инвентарь \ud83d\udce6');
+        this.setBubble((f ? f.name : 'Вещь') + ' — убрано в кладовку \ud83d\udce6');
         AudioSys.play('click');
         this.selected = null;
         return true;

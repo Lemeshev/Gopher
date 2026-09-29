@@ -978,21 +978,21 @@ addFurniture([
   { id: 'painting',     emoji: '🖼️', name: 'Картина',           cost: 60,   desc: 'Красота стен',  zone: 'wall', rooms: ['living', 'bedroom', 'kitchen'], k: 0.90, shape: 'painting', palette: WOOD_PAL },
   { id: 'paintingBig',  emoji: '🖼️', name: 'Картина в раме',    cost: 220,  desc: 'Как в музее',   zone: 'wall', rooms: ['living', 'bedroom'], k: 1.25, shape: 'painting', palette: WOOD_PAL },
   { id: 'shelf',        emoji: '📚', name: 'Полка',             cost: 75,   desc: 'Знания дома',   zone: 'floor', rooms: ['living', 'bedroom'], k: 1.15, shape: 'shelf', palette: WOOD_PAL },
-  { id: 'sofa',         emoji: '🛋️', name: 'Диван',             cost: 130,  desc: 'Мягко сидеть',  zone: 'floor', rooms: ['living'], k: 1.60, shape: 'sofa', palette: FABRIC_PAL },
+  { id: 'sofa',         emoji: '🛋️', name: 'Диван',             cost: 130,  desc: 'Мягко сидеть',  zone: 'floor', rooms: ['living'], k: 1.80, shape: 'sofa', palette: FABRIC_PAL },
   { id: 'aquarium',     emoji: '🐠', name: 'Аквариум',          cost: 160,  desc: 'Живые рыбки',   zone: 'floor', rooms: ['living', 'bedroom'], k: 1.00, shape: 'aquarium', palette: WHITE_PAL },
   { id: 'armchair',     emoji: '🪑', name: 'Кресло',            cost: 180,  desc: 'Своё место',    zone: 'floor', rooms: ['living', 'bedroom'], k: 1.15, shape: 'chair', palette: FABRIC_PAL },
   { id: 'tv',           emoji: '📺', name: 'Телевизор',         cost: 210,  desc: 'Развлечения',   zone: 'floor', rooms: ['living'], k: 1.25, shape: 'tv', palette: WHITE_PAL },
   { id: 'palm',         emoji: '🌴', name: 'Пальма',            cost: 260,  desc: 'Почти как в парке', zone: 'floor', rooms: ['living', 'bedroom'], k: 1.35, shape: 'plant', palette: FABRIC_PAL },
-  { id: 'bookshelf',    emoji: '📚', name: 'Книжный шкаф',      cost: 260,  desc: 'Целая библиотека', zone: 'wall', rooms: ['living', 'bedroom'], k: 1.50, shape: 'shelf', palette: WOOD_PAL },
+  { id: 'bookshelf',    emoji: '📚', name: 'Книжный шкаф',      cost: 260,  desc: 'Целая библиотека', zone: 'floor', rooms: ['living', 'bedroom'], k: 1.50, shape: 'shelf', palette: WOOD_PAL },
   { id: 'piano',        emoji: '🎹', name: 'Пианино',           cost: 320,  desc: 'Живая музыка',  zone: 'floor', rooms: ['living'], k: 1.50, shape: 'piano', palette: WOOD_PAL },
-  { id: 'sofaSoft',     emoji: '🛋️', name: 'Мягкий диван',      cost: 420,  desc: 'Так и тянет поспать', zone: 'floor', rooms: ['living'], k: 1.75, shape: 'sofa', palette: FABRIC_PAL },
+  { id: 'sofaSoft',     emoji: '🛋️', name: 'Мягкий диван',      cost: 420,  desc: 'Так и тянет поспать', zone: 'floor', rooms: ['living'], k: 1.95, shape: 'sofa', palette: FABRIC_PAL },
   { id: 'tvBig',        emoji: '📺', name: 'Большой телевизор', cost: 650,  desc: 'Как в кино',    zone: 'floor', rooms: ['living'], k: 1.50, shape: 'tv', palette: WHITE_PAL },
   { id: 'aquariumBig',  emoji: '🐠', name: 'Большой аквариум',  cost: 700,  desc: 'Целый риф',     zone: 'floor', rooms: ['living'], k: 1.35, shape: 'aquarium', palette: WHITE_PAL },
   { id: 'persian',      emoji: '🟥', name: 'Персидский ковёр',  cost: 900,  desc: 'Роскошь для лап', zone: 'floor', rooms: ['living', 'bedroom'], k: 1.95, shape: 'carpet', palette: FABRIC_PAL },
-  { id: 'sofaLeather',  emoji: '🛋️', name: 'Кожаный диван',     cost: 1200, desc: 'Дорого и солидно', zone: 'floor', rooms: ['living'], k: 1.90, shape: 'sofa', palette: WOOD_PAL },
+  { id: 'sofaLeather',  emoji: '🛋️', name: 'Кожаный диван',     cost: 1200, desc: 'Дорого и солидно', zone: 'floor', rooms: ['living'], k: 2.05, shape: 'sofa', palette: WOOD_PAL },
   { id: 'floorClock',   emoji: '🕰️', name: 'Напольные часы',    cost: 1500, desc: 'С боем, как у бабушки', zone: 'floor', rooms: ['living'], k: 1.30, shape: 'clock', palette: WOOD_PAL },
   { id: 'grandPiano',   emoji: '🎹', name: 'Рояль',             cost: 2500, desc: 'Мечта музыканта', zone: 'floor', rooms: ['living'], k: 1.85, shape: 'piano', palette: WOOD_PAL },
-  { id: 'fireplace',    emoji: '🔥', name: 'Камин',             cost: 3500, desc: 'Настоящий огонь', zone: 'wall', rooms: ['living'], k: 1.60, shape: 'fireplace', palette: WOOD_PAL }
+  { id: 'fireplace',    emoji: '🔥', name: 'Камин',             cost: 3500, desc: 'Настоящий огонь', zone: 'floor', rooms: ['living'], k: 1.60, shape: 'fireplace', palette: WOOD_PAL }
 ]);
 
 // ---------- СПАЛЬНЯ: кровати от раскладушки до балдахина ----------
@@ -1001,12 +1001,12 @@ addFurniture([
   { id: 'toybox',       emoji: '🧸', name: 'Ящик игрушек',      cost: 60,   desc: 'Всё под рукой', zone: 'floor', rooms: ['bedroom', 'living'], k: 0.85, shape: 'chest', palette: FABRIC_PAL },
   { id: 'nightstand',   emoji: '🗄️', name: 'Тумбочка',          cost: 70,   desc: 'Для книжки и будильника', zone: 'floor', rooms: ['bedroom'], k: 0.80, shape: 'nightstand', palette: WOOD_PAL },
   { id: 'mirror',       emoji: '🪞', name: 'Зеркало',           cost: 110,  desc: 'Умываться веселее', zone: 'wall', rooms: ['bedroom', 'bathroom'], k: 0.95, shape: 'mirror', palette: WOOD_PAL },
-  { id: 'bed',          emoji: '🛏️', name: 'Кровать',           cost: 190,  desc: 'Лучший сон',    zone: 'floor', rooms: ['bedroom'], k: 1.60, shape: 'bed', palette: FABRIC_PAL },
-  { id: 'wardrobe',     emoji: '🚪', name: 'Шкаф',              cost: 240,  desc: 'Для одежды',    zone: 'floor', rooms: ['bedroom'], k: 1.60, shape: 'wardrobe', palette: WOOD_PAL },
+  { id: 'bed',          emoji: '🛏️', name: 'Кровать',           cost: 190,  desc: 'Лучший сон',    zone: 'floor', rooms: ['bedroom'], k: 1.90, shape: 'bed', palette: FABRIC_PAL },
+  { id: 'wardrobe',     emoji: '🚪', name: 'Шкаф',              cost: 240,  desc: 'Для одежды',    zone: 'floor', rooms: ['bedroom'], k: 1.85, shape: 'wardrobe', palette: WOOD_PAL },
   { id: 'dresser',      emoji: '🗄️', name: 'Комод',             cost: 300,  desc: 'Много ящиков',  zone: 'floor', rooms: ['bedroom'], k: 1.30, shape: 'nightstand', palette: WOOD_PAL },
-  { id: 'wardrobeBig',  emoji: '🚪', name: 'Большой шкаф',      cost: 800,  desc: 'Вся одежда влезет', zone: 'floor', rooms: ['bedroom'], k: 1.85, shape: 'wardrobe', palette: WOOD_PAL },
-  { id: 'bedBig',       emoji: '🛏️', name: 'Двуспальная кровать', cost: 900, desc: 'Простор!',      zone: 'floor', rooms: ['bedroom'], k: 2.00, shape: 'bed', palette: FABRIC_PAL },
-  { id: 'bedRoyal',     emoji: '👑', name: 'Кровать с балдахином', cost: 3000, desc: 'Сон как в сказке', zone: 'floor', rooms: ['bedroom'], k: 2.15, shape: 'bed', palette: FABRIC_PAL }
+  { id: 'wardrobeBig',  emoji: '🚪', name: 'Большой шкаф',      cost: 800,  desc: 'Вся одежда влезет', zone: 'floor', rooms: ['bedroom'], k: 2.10, shape: 'wardrobe', palette: WOOD_PAL },
+  { id: 'bedBig',       emoji: '🛏️', name: 'Двуспальная кровать', cost: 900, desc: 'Простор!',      zone: 'floor', rooms: ['bedroom'], k: 2.25, shape: 'bed', palette: FABRIC_PAL },
+  { id: 'bedRoyal',     emoji: '👑', name: 'Кровать с балдахином', cost: 3000, desc: 'Сон как в сказке', zone: 'floor', rooms: ['bedroom'], k: 2.40, shape: 'bed', palette: FABRIC_PAL }
 ]);
 
 // ---------- КУХНЯ: столы, холодильники, плита ----------
@@ -1017,11 +1017,11 @@ addFurniture([
   { id: 'table',        emoji: '🍽️', name: 'Стол',              cost: 90,   desc: 'Есть где поесть', zone: 'floor', rooms: ['kitchen'], k: 1.20, shape: 'table', palette: WOOD_PAL },
   { id: 'microwave',    emoji: '📻', name: 'Микроволновка',     cost: 150,  desc: 'Разогреть быстро', zone: 'floor', rooms: ['kitchen'], k: 0.75, shape: 'microwave', palette: WHITE_PAL },
   { id: 'stove',        emoji: '🍳', name: 'Плита',             cost: 200,  desc: 'Готовить вкусно', zone: 'floor', rooms: ['kitchen'], k: 1.35, shape: 'stove', palette: WHITE_PAL },
-  { id: 'fridge',       emoji: '🧊', name: 'Холодильник',       cost: 240,  desc: 'Еда под рукой', zone: 'floor', rooms: ['kitchen'], k: 1.55, shape: 'fridge', palette: WHITE_PAL },
+  { id: 'fridge',       emoji: '🧊', name: 'Холодильник',       cost: 240,  desc: 'Еда под рукой', zone: 'floor', rooms: ['kitchen'], k: 1.75, shape: 'fridge', palette: WHITE_PAL },
   { id: 'cupboard',     emoji: '🗄️', name: 'Кухонный шкаф',     cost: 320,  desc: 'Посуда и крупы', zone: 'wall', rooms: ['kitchen'], k: 1.40, shape: 'cupboard', palette: WOOD_PAL },
   { id: 'tableBig',     emoji: '🍽️', name: 'Большой стол',      cost: 400,  desc: 'Для гостей',    zone: 'floor', rooms: ['kitchen'], k: 1.55, shape: 'table', palette: WOOD_PAL },
   { id: 'dishwasher',   emoji: '🧽', name: 'Посудомойка',       cost: 600,  desc: 'Мыть не надо',  zone: 'floor', rooms: ['kitchen'], k: 1.30, shape: 'washer', palette: WHITE_PAL },
-  { id: 'fridgeBig',    emoji: '🧊', name: 'Двухдверный холодильник', cost: 780, desc: 'Два отсека', zone: 'floor', rooms: ['kitchen'], k: 1.75, shape: 'fridge', palette: WHITE_PAL }
+  { id: 'fridgeBig',    emoji: '🧊', name: 'Двухдверный холодильник', cost: 780, desc: 'Два отсека', zone: 'floor', rooms: ['kitchen'], k: 1.95, shape: 'fridge', palette: WHITE_PAL }
 ]);
 
 // ---------- ВАННАЯ: сантехника и мелочи ----------
@@ -1032,10 +1032,10 @@ addFurniture([
   { id: 'basin',        emoji: '🚰', name: 'Умывальник',        cost: 80,   desc: 'Мыть лапы',     zone: 'wall', rooms: ['bathroom'], k: 1.00, shape: 'basin', palette: WHITE_PAL },
   { id: 'toilet',       emoji: '🚽', name: 'Унитаз',            cost: 150,  desc: 'Самый нужный',  zone: 'floor', rooms: ['bathroom'], k: 0.95, shape: 'toilet', palette: WHITE_PAL },
   { id: 'mirrorCab',    emoji: '🪞', name: 'Зеркальный шкаф',   cost: 180,  desc: 'И зеркало, и полка', zone: 'wall', rooms: ['bathroom'], k: 1.00, shape: 'mirror', palette: WHITE_PAL },
-  { id: 'bath',         emoji: '🛁', name: 'Ванна',             cost: 260,  desc: 'Много пены',    zone: 'floor', rooms: ['bathroom'], k: 1.60, shape: 'bathtub', palette: WHITE_PAL },
+  { id: 'bath',         emoji: '🛁', name: 'Ванна',             cost: 260,  desc: 'Много пены',    zone: 'floor', rooms: ['bathroom'], k: 1.80, shape: 'bathtub', palette: WHITE_PAL },
   { id: 'washer',       emoji: '🌀', name: 'Стиральная машина', cost: 300,  desc: 'Чистые вещи',   zone: 'floor', rooms: ['bathroom'], k: 1.25, shape: 'washer', palette: WHITE_PAL },
   { id: 'shower',       emoji: '🚿', name: 'Душевая кабина',    cost: 340,  desc: 'Быстро и бодро', zone: 'floor', rooms: ['bathroom'], k: 1.55, shape: 'shower', palette: WHITE_PAL },
-  { id: 'jacuzzi',      emoji: '🛁', name: 'Джакузи',           cost: 1400, desc: 'Пузырьки и роскошь', zone: 'floor', rooms: ['bathroom'], k: 1.80, shape: 'bathtub', palette: WHITE_PAL }
+  { id: 'jacuzzi',      emoji: '🛁', name: 'Джакузи',           cost: 1400, desc: 'Пузырьки и роскошь', zone: 'floor', rooms: ['bathroom'], k: 2.00, shape: 'bathtub', palette: WHITE_PAL }
 ]);
 
 // ============ КОМНАТЫ ДОМА ============
