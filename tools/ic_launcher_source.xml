@@ -10,77 +10,65 @@
         android:fillColor="#00ADD8"
         android:pathData="M54,54 m-52,0 a52,52 0 1,0 104,0 a52,52 0 1,0 -104,0 Z" />
 
-    <!-- УШИ (небольшие, за головой) -->
-    <path
-        android:fillColor="#BFE6F2"
-        android:pathData="M45,23 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0 Z" />
-    <path
-        android:fillColor="#F5A9B8"
-        android:pathData="M45,23 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 Z" />
-    <path
-        android:fillColor="#BFE6F2"
-        android:pathData="M63,23 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0 Z" />
-    <path
-        android:fillColor="#F5A9B8"
-        android:pathData="M63,23 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 Z" />
+    <group android:scaleX="0.72" android:scaleY="0.72" android:pivotX="54" android:pivotY="54">
 
-    <!-- ТЕЛО (грушевидное) -->
-    <path
-        android:fillColor="#BFE6F2"
-        android:strokeColor="#2C7A9C"
-        android:strokeWidth="1.5"
-        android:pathData="M54,74 m-20,0 a20,18 0 1,0 40,0 a20,18 0 1,0 -40,0 Z" />
+        <!-- УШИ — маленькие круги по бокам головы (ПОД телом) -->
+        <path android:fillColor="#7FDBE8" android:strokeColor="#1A1A1A" android:strokeWidth="1.1"
+            android:pathData="M26,23.2 m-7.2,0 a7.2,7.2 0 1,0 14.4,0 a7.2,7.2 0 1,0 -14.4,0 Z" />
+        <path android:fillColor="#7FDBE8" android:strokeColor="#1A1A1A" android:strokeWidth="1.1"
+            android:pathData="M82,23.2 m-7.2,0 a7.2,7.2 0 1,0 14.4,0 a7.2,7.2 0 1,0 -14.4,0 Z" />
 
-    <!-- ЖИВОТ (кремовый) -->
-    <path
-        android:fillColor="#FDF0D5"
-        android:pathData="M54,78 m-13,0 a13,12 0 1,0 26,0 a13,12 0 1,0 -26,0 Z" />
+        <!-- СТУПНИ — бежевые (ПОД телом) -->
+        <path android:fillColor="#F7D8A8" android:strokeColor="#1A1A1A" android:strokeWidth="1.1"
+            android:pathData="M30.5,94.8 m-7.5,0 a7.5,5.6 0 1,0 15,0 a7.5,5.6 0 1,0 -15,0 Z" />
+        <path android:fillColor="#F7D8A8" android:strokeColor="#1A1A1A" android:strokeWidth="1.1"
+            android:pathData="M77.5,94.8 m-7.5,0 a7.5,5.6 0 1,0 15,0 a7.5,5.6 0 1,0 -15,0 Z" />
 
-    <!-- ГОЛОВА -->
-    <path
-        android:fillColor="#BFE6F2"
-        android:strokeColor="#2C7A9C"
-        android:strokeWidth="1.5"
-        android:pathData="M54,42 m-21,0 a21,20 0 1,0 42,0 a21,20 0 1,0 -42,0 Z" />
+        <!-- ЛАПЫ — бежевые (ПОД телом) -->
+        <path android:fillColor="#F7D8A8" android:strokeColor="#1A1A1A" android:strokeWidth="1.1"
+            android:pathData="M20,57 m-5.5,0 a5.5,3.4 0 1,0 11,0 a5.5,3.4 0 1,0 -11,0 Z" />
+        <path android:fillColor="#F7D8A8" android:strokeColor="#1A1A1A" android:strokeWidth="1.1"
+            android:pathData="M15.2,57.4 m-3.6,0 a3.6,3.6 0 1,0 7.2,0 a3.6,3.6 0 1,0 -7.2,0 Z" />
+        <path android:fillColor="#F7D8A8" android:strokeColor="#1A1A1A" android:strokeWidth="1.1"
+            android:pathData="M88,57 m-5.5,0 a5.5,3.4 0 1,0 11,0 a5.5,3.4 0 1,0 -11,0 Z" />
+        <path android:fillColor="#F7D8A8" android:strokeColor="#1A1A1A" android:strokeWidth="1.1"
+            android:pathData="M92.8,57.4 m-3.6,0 a3.6,3.6 0 1,0 7.2,0 a3.6,3.6 0 1,0 -7.2,0 Z" />
 
-    <!-- ГЛАЗА: белки -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M47,40 m-6.5,0 a6.5,7 0 1,0 13,0 a6.5,7 0 1,0 -13,0 Z" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M61,40 m-6.5,0 a6.5,7 0 1,0 13,0 a6.5,7 0 1,0 -13,0 Z" />
+        <!-- ТЕЛО — капсула со прямыми боками -->
+        <path android:fillColor="#7FDBE8" android:strokeColor="#1A1A1A" android:strokeWidth="1.1"
+            android:pathData="M46,14 L62,14 A23.5,23.5 0 0 1 85.5,37.5 L85.5,70.5 A23.5,23.5 0 0 1 62,94 L46,94 A23.5,23.5 0 0 1 22.5,70.5 L22.5,37.5 A23.5,23.5 0 0 1 46,14 Z" />
 
-    <!-- ЗРАЧКИ -->
-    <path
-        android:fillColor="#20303C"
-        android:pathData="M47.5,41.5 m-3.4,0 a3.4,3.4 0 1,0 6.8,0 a3.4,3.4 0 1,0 -6.8,0 Z" />
-    <path
-        android:fillColor="#20303C"
-        android:pathData="M61.5,41.5 m-3.4,0 a3.4,3.4 0 1,0 6.8,0 a3.4,3.4 0 1,0 -6.8,0 Z" />
+        <!-- ГЛАЗА (белки) -->
+        <path android:fillColor="#FFFFFF" android:strokeColor="#1A1A1A" android:strokeWidth="1.1"
+            android:pathData="M44.3,26.8 m-9.8,0 a9.8,9.8 0 1,0 19.6,0 a9.8,9.8 0 1,0 -19.6,0 Z" />
+        <path android:fillColor="#FFFFFF" android:strokeColor="#1A1A1A" android:strokeWidth="1.1"
+            android:pathData="M63.7,26.8 m-9.8,0 a9.8,9.8 0 1,0 19.6,0 a9.8,9.8 0 1,0 -19.6,0 Z" />
+        <!-- ЗРАЧКИ -->
+        <path android:fillColor="#141414"
+            android:pathData="M45.28,28.07 m-4.21,0 a4.21,4.21 0 1,0 8.42,0 a4.21,4.21 0 1,0 -8.42,0 Z" />
+        <path android:fillColor="#141414"
+            android:pathData="M62.72,28.07 m-4.21,0 a4.21,4.21 0 1,0 8.42,0 a4.21,4.21 0 1,0 -8.42,0 Z" />
+        <!-- БЛИКИ -->
+        <path android:fillColor="#FFFFFF"
+            android:pathData="M46.71,26.55 m-1.26,0 a1.26,1.26 0 1,0 2.52,0 a1.26,1.26 0 1,0 -2.52,0 Z" />
+        <path android:fillColor="#FFFFFF"
+            android:pathData="M64.15,26.55 m-1.26,0 a1.26,1.26 0 1,0 2.52,0 a1.26,1.26 0 1,0 -2.52,0 Z" />
 
-    <!-- БЛИКИ -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M45.6,38.9 m-1.5,0 a1.5,1.5 0 1,0 3,0 a1.5,1.5 0 1,0 -3,0 Z" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M59.6,38.9 m-1.5,0 a1.5,1.5 0 1,0 3,0 a1.5,1.5 0 1,0 -3,0 Z" />
+        <!-- МОРДА — бежевая -->
+        <path android:fillColor="#F7D8A8" android:strokeColor="#1A1A1A" android:strokeWidth="1.1"
+            android:pathData="M54,37.2 m-10.6,0 a10.6,5.7 0 1,0 21.2,0 a10.6,5.7 0 1,0 -21.2,0 Z" />
 
-    <!-- НОС -->
-    <path
-        android:fillColor="#F5A9B8"
-        android:pathData="M54,49 m-3.6,0 a3.6,2.6 0 1,0 7.2,0 a3.6,2.6 0 1,0 -7.2,0 Z" />
+        <!-- НОС — тёмно-коричневый -->
+        <path android:fillColor="#3A2618"
+            android:pathData="M54,34.2 m-4.9,0 a4.9,3.3 0 1,0 9.8,0 a4.9,3.3 0 1,0 -9.8,0 Z" />
+        <path android:fillColor="#FFFFFF" android:fillAlpha="0.22"
+            android:pathData="M52.9,34.9 m-2.2,0 a2.2,0.9 0 1,0 4.4,0 a2.2,0.9 0 1,0 -4.4,0 Z" />
 
-    <!-- ПЕРЕДНИЕ ЗУБЫ (фирменная черта гофера) -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:strokeColor="#2C7A9C"
-        android:strokeWidth="0.7"
-        android:pathData="M51.3,53.2 A1.1,1.1 0 0 1 53.5,53.2 L53.5,58.8 A1.1,1.1 0 0 1 51.3,58.8 Z" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:strokeColor="#2C7A9C"
-        android:strokeWidth="0.7"
-        android:pathData="M54.5,53.2 A1.1,1.1 0 0 1 56.7,53.2 L56.7,58.8 A1.1,1.1 0 0 1 54.5,58.8 Z" />
+        <!-- ЗУБЫ — два резца -->
+        <path android:fillColor="#FFFFFF" android:strokeColor="#1A1A1A" android:strokeWidth="0.7"
+            android:pathData="M50.8,38.8 L52.8,38.8 A1,1 0 0 1 53.8,39.8 L53.8,44 A1,1 0 0 1 52.8,45 L50.8,45 A1,1 0 0 1 49.8,44 L49.8,39.8 A1,1 0 0 1 50.8,38.8 Z" />
+        <path android:fillColor="#FFFFFF" android:strokeColor="#1A1A1A" android:strokeWidth="0.7"
+            android:pathData="M55.2,38.8 L57.2,38.8 A1,1 0 0 1 58.2,39.8 L58.2,44 A1,1 0 0 1 57.2,45 L55.2,45 A1,1 0 0 1 54.2,44 L54.2,39.8 A1,1 0 0 1 55.2,38.8 Z" />
+
+        </group>
 </vector>

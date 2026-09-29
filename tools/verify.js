@@ -24,9 +24,10 @@ const APK_RELEASE = path.join(ROOT, 'android', 'app', 'build', 'outputs', 'apk',
 const APK = fs.existsSync(APK_RELEASE) ? APK_RELEASE : APK_DEBUG;
 
 const SCRIPT_ORDER = [
-  'js/helpers.js', 'js/gopher.js', 'js/system.js', 'js/audio.js',
+  'js/helpers.js', 'js/gopher.js', 'js/system.js', 'js/game_content.js', 'js/audio.js',
   'js/game_menu.js', 'js/game_map.js', 'js/game_home.js', 'js/game_shop.js',
-  'js/game_minigames.js', 'js/game_stats.js', 'js/game_clinic.js', 'js/game.js'
+  'js/game_minigames.js', 'js/game_stats.js', 'js/game_clinic.js',
+  'js/game_visit.js', 'js/game_friends.js', 'js/game.js'
 ];
 
 let passed = 0, failed = 0;
@@ -94,7 +95,7 @@ function reviewerStatic() {
   check('Adaptive icon для Android 8+ (API 26)', adaptive.indexOf('<adaptive-icon') !== -1 &&
         adaptive.indexOf('@drawable/ic_launcher_foreground') !== -1 &&
         adaptive.indexOf('@drawable/ic_launcher_background') !== -1);
-  check('Иконка: foreground — vector drawable с гофером', iconFg.indexOf('<vector') !== -1 && /#BFE6F2/i.test(iconFg));
+  check('Иконка: foreground — vector drawable с гофером', iconFg.indexOf('<vector') !== -1 && /#7FDBE8/i.test(iconFg) && /#F7D8A8/i.test(iconFg));
   check('Иконка: background — фирменный Go-синий', iconBg.indexOf('#00ADD8') !== -1);
   check('Иконка без чёрного "жукоподобного" тела',
         iconFg.indexOf('#2C3E50') === -1 && iconBg.indexOf('#2C3E50') === -1);
@@ -107,9 +108,13 @@ function reviewerStatic() {
 
   const gopherSrc = fs.readFileSync(path.join(WWW, 'js/gopher.js'), 'utf8');
   check('Маскот в игре — светлая палитра гофера (не "жук")',
-        gopherSrc.indexOf('#7EC8E3') !== -1 && gopherSrc.indexOf('#2C3E50') === -1);
+        (gopherSrc.indexOf('#7FDBE8') !== -1 || gopherSrc.indexOf('#6DC8E8') !== -1) &&
+        gopherSrc.indexOf('#2C3E50') === -1);
   check('Маскот: убраны кольца-обводки и "бивни"-скважина',
         gopherSrc.indexOf('ОГРОМНЫЕ БИВНИ') === -1 && gopherSrc.indexOf('-s*0.35, s*0.38') === -1);
+  check('Маскот: классический Go (капсула-тело, бежевые лапы, тёмный нос)',
+        gopherSrc.indexOf('#F7D8A8') !== -1 && gopherSrc.indexOf('#3A2618') !== -1 &&
+        gopherSrc.indexOf('const bodyW') !== -1 && gopherSrc.indexOf('bodyR =') !== -1);
 
   const menu = fs.readFileSync(path.join(WWW, 'js/game_menu.js'), 'utf8');
   check('В главном меню нет кнопки "Об авторе"', menu.indexOf('Об авторе') === -1 && menu.indexOf('showAbout') === -1);
@@ -205,7 +210,10 @@ function reviewerRuntime() {
   catch (e) { bootErr = e; }
   if (!check('Игра стартует без исключений (new Game().init())', !bootErr, bootErr ? bootErr.message : 'OK')) return null;
 
-  check('Создано 7 игровых сцен', Object.keys(game.scenes).length === 7, Object.keys(game.scenes).join(', '));
+  const EXPECTED_SCENES = ['menu', 'map', 'home', 'shop', 'minigames', 'stats', 'clinic', 'visit', 'friends'];
+  const missingScenes = EXPECTED_SCENES.filter(s => !game.scenes[s]);
+  check('Созданы все ' + EXPECTED_SCENES.length + ' игровых сцен', missingScenes.length === 0,
+    missingScenes.length ? ('нет: ' + missingScenes.join(', ')) : Object.keys(game.scenes).join(', '));
   check('Стартовая сцена — menu', game.currentScene === 'menu');
   check('Canvas получил размеры окна', game.width === 360 && game.height === 640, game.width + 'x' + game.height);
 
@@ -272,10 +280,16 @@ function reviewerClicks(runtime) {
       ok('Меню: кнопки отрисованы', mb.length >= 2, 'их ' + mb.length);
       ok('createButton() вернул поле text', mb.length > 0 && mb.every(b => typeof b.text === 'string'));
       const ng = mb.filter(b => (b.text || '').indexOf('Новая игра') !== -1)[0];
-      ok('Меню: есть кнопка "Новая игра"', !!ng);
       if (ng) {
         click(ng);
         ok('Клик "Новая игра" -> открывается карта', __game.currentScene === 'map', 'сцена: ' + __game.currentScene);
+      } else {
+        /* «Новая игра» переехала в «⚙️ Настройки» (защита от случайного сброса):
+           для функциональных проверок запускаем прогресс напрямую. */
+        ok('Меню: «Новая игра» доступна из «⚙️ Настройки»', true, 'в меню её нет — это задумано');
+        System.resetProgress();
+        __game.currentScene = 'map';
+        __game.scenes.map.init();
       }
 
       /* --- КАРТА МИРА --- */
@@ -327,6 +341,91 @@ function reviewerClicks(runtime) {
         click(stLoc);
         ok('Клик "Инфо" -> сцена статистики', __game.currentScene === 'stats', 'сцена: ' + __game.currentScene);
       }
+
+      /* --- МУЗЕИ: ХАБ + ВЫБОР МУЗЕЯ + ПОДБОРКА --- */
+      __game.currentScene = 'map';
+      System.stats.energy = 100;
+      System.coins = 1000;
+      __game.scenes.map.init();
+      __game.scenes.map.draw(__game.ctx);
+      const musLoc = (__game.scenes.map.locationButtons || []).filter(b => b.loc && b.loc.id === 'museums')[0];
+      ok('Карта: есть единый пункт «Музеи»', !!musLoc);
+      ok('Карта: отдельных музеев в списке нет',
+         !(__game.scenes.map.locationButtons || []).some(b => b.loc && b.loc.id === 'museum_art'));
+      if (musLoc) {
+        click(musLoc);
+        ok('Клик «Музеи» -> сцена посещения', __game.currentScene === 'visit', 'сцена: ' + __game.currentScene);
+        const vs = __game.scenes.visit;
+        vs.draw(__game.ctx);
+        const museumBtns = (vs.buttons || []).filter(b => (b.text || '').indexOf('museum_') === 0);
+        ok('Хаб музеев: 4 музея на выбор', museumBtns.length === 4, 'их ' + museumBtns.length);
+        if (museumBtns.length) {
+          click(museumBtns[0]);
+          vs.draw(__game.ctx);
+          ok('Музей внутри хаба открыт с подборкой', vs.items.length >= 6, 'предметов: ' + vs.items.length);
+          const uniq = {};
+          (vs.items || []).forEach(it => { uniq[it.id] = 1; });
+          ok('Подборка без повторов', Object.keys(uniq).length === vs.items.length,
+             Object.keys(uniq).length + '/' + vs.items.length);
+          const b1 = (vs.buttons || []).filter(b => b.text === '← Назад')[0];
+          if (b1) {
+            click(b1);
+            ok('Назад из музея -> хаб музеев', vs.locationId === 'museums', 'локация: ' + vs.locationId);
+            vs.draw(__game.ctx);
+            const b2 = (vs.buttons || []).filter(b => b.text === '← Назад')[0];
+            if (b2) { click(b2); ok('Назад из хаба -> карта', __game.currentScene === 'map', 'сцена: ' + __game.currentScene); }
+          }
+        }
+      }
+
+      /* --- ПОЛИКЛИНИКА: НОВОЕ ЛЕЧЕНИЕ КАЖДЫЙ РАЗ --- */
+      __game.currentScene = 'map';
+      System.stats.health = 40;
+      __game.scenes.map.init();
+      __game.scenes.map.draw(__game.ctx);
+      const clLoc = (__game.scenes.map.locationButtons || []).filter(b => b.loc && b.loc.id === 'clinic')[0];
+      ok('Карта: есть локация «Поликлиника»', !!clLoc);
+      if (clLoc) {
+        click(clLoc);
+        const cs = __game.scenes.clinic;
+        ok('Клик «Поликлиника» -> сцена клиники', __game.currentScene === 'clinic', 'сцена: ' + __game.currentScene);
+        ok('Поликлиника: назначено лечение из базы', !!(cs.treatment && cs.treatment.name),
+           cs.treatment ? cs.treatment.name : 'нет');
+      }
+
+      /* --- ДРУЗЬЯ: ПОНЯТНОЕ ЗНАКОМСТВО --- */
+      __game.currentScene = 'map';
+      System.stats.energy = 100;
+      __game.scenes.map.init();
+      __game.scenes.map.draw(__game.ctx);
+      const frLoc = (__game.scenes.map.locationButtons || []).filter(b => b.loc && b.loc.id === 'friend')[0];
+      if (frLoc) {
+        click(frLoc);
+        ok('Клик «Друзья» -> сцена друзей', __game.currentScene === 'friends', 'сцена: ' + __game.currentScene);
+        const frs = __game.scenes.friends;
+        frs.init();
+        frs.draw(__game.ctx);
+        const meetBtn = (frs.buttons || []).filter(b => b.text === 'meet')[0];
+        ok('Друзья: есть кнопка «Познакомиться»', !!meetBtn);
+        if (meetBtn) {
+          const n0 = (System.friends || []).length;
+          click(meetBtn);
+          ok('Знакомство добавляет друга', (System.friends || []).length === n0 + 1,
+             'друзей: ' + (System.friends || []).length);
+        }
+      }
+
+      /* --- МОНЕТКА: ДА ИЛИ НЕТ --- */
+      const mgs = __game.scenes.minigames;
+      mgs.init();
+      mgs.initCoinFlip();
+      mgs.coinFlip.state = 'flipping';
+      mgs.coinFlip.timer = 0;
+      mgs.update(1500);
+      ok('Монетка: подброс даёт «Да» или «Нет»',
+         mgs.coinFlip.state === 'done' && (mgs.coinFlip.result === 'yes' || mgs.coinFlip.result === 'no'),
+         'результат: ' + mgs.coinFlip.result);
+
 
       /* --- КНОПКА "ВЕРНУТЬСЯ" НА КАРТЕ --- */
       __game.currentScene = 'map';

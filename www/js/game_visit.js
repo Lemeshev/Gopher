@@ -1,130 +1,123 @@
-// ============ СЦЕНА ПОСЕЩЕНИЯ ЛОКАЦИИ (интерьер + интерактив) ============
+// ============ СЦЕНА ПОСЕЩЕНИЯ ЛОКАЦИИ ============
+// Музеи — это ХАБ: сначала выбираем музей, потом осматриваем экспонаты.
+// Каждое посещение показывает свежую подборку из общей базы контента
+// (приоритет отдаётся тем предметам, что ещё не попадались).
+
+const MUSEUM_KEYS = ['art_museum', 'nature_museum', 'space_museum', 'history_museum'];
 
 const VISIT_DATA = {
+  // ----- ХАБ МУЗЕЕВ -----
+  museums: {
+    name: '🏛️ Музеи', bg: '#12122a', kind: 'hub',
+    intro: 'Какой музей посетим?',
+    sub: [
+      { id: 'art_museum', emoji: '🖼️', name: 'Художественный', desc: 'Живопись и скульптура', color: '#E91E63' },
+      { id: 'nature_museum', emoji: '🦕', name: 'Музей природы', desc: 'Животные и минералы', color: '#4CAF50' },
+      { id: 'space_museum', emoji: '🚀', name: 'Космический', desc: 'Планеты, звёзды, ракеты', color: '#3F51B5' },
+      { id: 'history_museum', emoji: '🏺', name: 'Исторический', desc: 'Артефакты и эпохи', color: '#8D6E63' }
+    ]
+  },
+
+  // ----- МУЗЕИ -----
   art_museum: {
-    name: 'Художественный музей', bg: '#1a1a2e',
-    items: [
-      { emoji: '🖼️', name: 'Мона Лиза', fact: 'Написана Леонардо да Винчи ~1503 г. Хранится в Лувре.' },
-      { emoji: '🌅', name: 'Звёздная ночь', fact: 'Ван Гог, 1889 г. Вид из окна санатория в Сен-Реми.' },
-      { emoji: '🌊', name: 'Волна', fact: 'Хокусай, ~1831 г. Деревянная гравюра, 30 млн копий продано.' },
-      { emoji: '🎵', name: 'Девушка с жемчужной серёжкой', fact: 'Вермеер, ~1665 г. «Голландская Мона Лиза».' },
-      { emoji: '👟', name: 'Кеды Конверс', fact: 'Энди Уорхол, 1964 г. Поп-арт ирония над массовой культурой.' },
-      { emoji: '🍎', name: 'Яблоки и апельсины', fact: 'Сезанн, ~1899 г. Предтеча кубизма.' }
-    ],
+    name: '🖼️ Художественный музей', bg: '#1a1a2e', kind: 'browse',
+    content: 'art_museum', count: 12, energyCost: 5,
+    perItem: '+1 интеллект за картину',
+    perItemReward: { stat: 'intelligence', amount: 1 },
     reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
   },
   nature_museum: {
-    name: 'Музей природы', bg: '#2d4a2d',
-    items: [
-      { emoji: '🦕', name: 'Тираннозавр', fact: 'Жил 68–66 млн лет назад. Длина 12 м, вес 8 тонн.' },
-      { emoji: '💎', name: 'Алмаз', fact: 'Образуется на глубине 150 км при давлении 5 ГПа.' },
-      { emoji: '🦋', name: 'Бабочка Монарх', fact: 'Мигрирует 4000 км из Канады в Мексику.' },
-      { emoji: '🌋', name: 'Вулкан', fact: 'Температура лавы 700–1200 °C. На Земле ~1500 действующих.' },
-      { emoji: '🦑', name: 'Гигантский кальмар', fact: 'Длина до 13 м. Глаза размером с тарелку!' },
-      { emoji: '🧬', name: 'ДНК', fact: '3 млрд пар оснований. Если растянуть — 2 м длиной.' }
-    ],
+    name: '🦕 Музей природы', bg: '#16301c', kind: 'browse',
+    content: 'nature_museum', count: 12, energyCost: 5,
+    perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 },
     reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
   },
   space_museum: {
-    name: 'Космический музей', bg: '#0a0a2a',
-    items: [
-      { emoji: '🪐', name: 'Сатурн', fact: '82 спутника. Кольца из льда и камней, ширина 282 000 км.' },
-      { emoji: '🌍', name: 'Земля', fact: '4,54 млрд лет. Единственная планета с подтверждённой жизнью.' },
-      { emoji: '🔴', name: 'Марс', fact: 'Олимп — высочайшая гора Солнечной системы, 21,9 км.' },
-      { emoji: '🚀', name: 'Ракета Сатурн V', fact: 'Вывела человека на Луну. Высота 111 м, вес 2970 т.' },
-      { emoji: '🛸', name: 'МКС', fact: 'Облетает Землю за 90 мин. Скорость 27 600 км/ч.' },
-      { emoji: '☄️', name: 'Комета', fact: 'Хвост всегда направлен от Солнца, длина до 150 млн км.' }
-    ],
+    name: '🚀 Космический музей', bg: '#0a0a2a', kind: 'browse',
+    content: 'space_museum', count: 12, energyCost: 5,
+    perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 },
     reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
   },
   history_museum: {
-    name: 'Исторический музей', bg: '#3a2a1a',
-    items: [
-      { emoji: '🏺', name: 'Амфора', fact: 'Древняя Греция, V в. до н.э. Для вина и масла.' },
-      { emoji: '⚔️', name: 'Меч рыцаря', fact: 'XV век, сталь. Вес 1–2 кг, длина 90–110 см.' },
-      { emoji: '📜', name: 'Свиток', fact: 'Папирус, Египет, ~2000 до н.э. Предшественник книги.' },
-      { emoji: '👑', name: 'Корона', fact: 'Корона Священной Римской империи, X век.' },
-      { emoji: '🪙', name: 'Золотой динар', fact: 'Византия, VI в. Первая мировая валюта.' },
-      { emoji: '🏛️', name: 'Фрагмент Парфенона', fact: 'Афины, 447 до н.э. Ионический ордер.' }
-    ],
+    name: '🏺 Исторический музей', bg: '#2b1f14', kind: 'browse',
+    content: 'history_museum', count: 12, energyCost: 5,
+    perItem: '+1 интеллект за артефакт',
+    perItemReward: { stat: 'intelligence', amount: 1 },
     reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
   },
+
+  // ----- БИБЛИОТЕКА -----
   library: {
-    name: 'Библиотека', bg: '#1a2a1a',
-    items: [
-      { emoji: '📕', name: '«Война и мир»', fact: 'Лев Толстой, 1869. 1225 страниц, 580 персонажей.' },
-      { emoji: '📗', name: '«Гарри Поттер»', fact: 'Дж.К. Роулинг, 1997. 500 млн экземпляров продано.' },
-      { emoji: '📘', name: '«1984»', fact: 'Джордж Оруэлл, 1949. «Большой Брат следит за тобой».' },
-      { emoji: '📙', name: '«Маленький принц»', fact: 'Экзюпери, 1943. 300 языков, 200 млн экз.' },
-      { emoji: '📓', name: '«Алиса в Стране чудес»', fact: 'Кэрролл, 1865. Популярна у математиков и детей.' },
-      { emoji: '📔', name: '«Винни-Пух»', fact: 'Милн, 1926. Переведён на 50 языков включая латынь.' }
-    ],
+    name: '📚 Библиотека', bg: '#152a1b', kind: 'browse',
+    content: 'library', count: 12, energyCost: 8,
+    perItem: '+1 интеллект за книгу',
+    perItemReward: { stat: 'intelligence', amount: 1 },
     reward: { stat: 'intelligence', amount: 8, label: 'Интеллект +8' }
   },
-  restaurant: {
-    name: 'Ресторан', bg: '#2a1a1a',
-    items: [
-      { emoji: '🍕', name: 'Пицца Маргарита', fact: 'Неаполь, 1889. Помидоры + моцарелла + базилик = цвета Италии.' },
-      { emoji: '🍣', name: 'Суши', fact: 'Япония, VIII век. Первоначально — способ хранения рыбы.' },
-      { emoji: '🥗', name: 'Цезарь', fact: 'Тихуана, Мексика, 1924. Придуман итальянцем Цезарем Кардини.' },
-      { emoji: '🍝', name: 'Паста Карбонара', fact: 'Рим, ~1944. Яйца + гуанчиале + пекорино.' },
-      { emoji: '🥩', name: 'Стейк', fact: 'Температура внутри 71 °C. Идеально для безопасности.' },
-      { emoji: '🍰', name: 'Тирамису', fact: 'Венето, 1960-е. «Подними мне настроение» по-итальянски.' }
-    ],
-    reward: { stat: 'satiety', amount: 25, label: 'Сытость +25' }
+
+  // ----- РАБОТА -----
+  work: {
+    name: '💼 Работа', bg: '#1d2338', kind: 'work',
+    content: 'work', count: 6, energyCost: 25,
+    perItem: 'задание приносит монеты',
+    reward: { stat: 'schoolSkill', amount: 0, label: 'Смена окончена' },
+    xp: 12
   },
-  pool: {
-    name: 'Бассейн', bg: '#1a3a5a',
-    items: [
-      { emoji: '🏊', name: 'Поплавать!', fact: '30 минут плавания сжигает ~250 ккал.' },
-      { emoji: '🤿', name: 'Нырнуть с маской', fact: 'Задержка дыхания: мировой рекорд 24 мин!' },
-      { emoji: '🏊‍♀️', name: 'Баттерфляй', fact: 'Самый сложный стиль. Скорость ~2 м/с.' },
-      { emoji: '🎽', name: 'Водное поло', fact: 'Олимпийский вид с 1900 года.' }
-    ],
+
+  // ----- УЧЁБА -----
+  school: {
+    name: '🎓 Учёба', bg: '#26224a', kind: 'browse',
+    content: 'school', count: 12, energyCost: 20,
+    perItem: '+1 интеллект за тему',
+    perItemReward: { stat: 'intelligence', amount: 1 },
+    reward: { stat: 'schoolSkill', amount: 4, label: 'Учебный навык +4' }
+  },
+
+  // ----- РЕСТОРАН -----
+  restaurant: {
+    name: '🍽️ Ресторан', bg: '#2a1616', kind: 'eat',
+    content: 'restaurant', count: 9,
+    perItem: 'блюдо утоляет голод',
+    perItemReward: { stat: 'hunger', amount: 5 },
+    reward: { stat: 'hunger', amount: 25, label: 'Сытость +25' }
+  },
+
+  // ----- ПАРК -----
+  park: {
+    name: '🎢 Парк', bg: '#1b3a20', kind: 'browse',
+    content: 'park', count: 12, energyCost: 18,
+    perItem: '+1 счастье за аттракцион',
+    perItemReward: { stat: 'happiness', amount: 1 },
     reward: { stat: 'happiness', amount: 15, label: 'Счастье +15' }
   },
-  park: {
-    name: 'Парк', bg: '#2a4a1a',
-    items: [
-      { emoji: '🦆', name: 'Покормить уток', fact: 'Утки живут 5–10 лет. Хлеб им вреден — лучше овсянку!' },
-      { emoji: '🪑', name: 'Посидеть на скамейке', fact: 'Парк снижает стресс за 20 мин по данным Стэндфорда.' },
-      { emoji: '🌳', name: 'Обнять дерево', fact: 'Деревья общаются через грибную сеть («древесный интернет»).' },
-      { emoji: '🌷', name: 'Полить цветы', fact: 'Тюльпаны были дороже золота в Голландии, 1637 г.' },
-      { emoji: '🏃', name: 'Побегать', fact: 'Бег продлевает жизнь на 3 года по обзору 55 исследований.' }
-    ],
-    reward: { stat: 'happiness', amount: 10, label: 'Счастье +10' }
-  },
-  work: {
-    name: 'Работа', bg: '#2a2a3a',
-    items: [
-      { emoji: '💻', name: 'Написать код', fact: 'Программист пишет ~10 строк продакшн-кода в день.' },
-      { emoji: '📊', name: 'Сделать отчёт', fact: 'Excel: 750 млн пользователей по всему миру.' },
-      { emoji: '📧', name: 'Ответить на письма', fact: 'Средний офисный работник получает 121 письмо в день.' },
-      { emoji: '☕', name: 'Кофе-брейк', fact: 'Финляндия — #1 по потреблению кофе: 12 кг/чел/год.' },
-      { emoji: '📝', name: 'Планёрка', fact: 'Средний сотрудник проводит 31 час в месяц на совещаниях.' }
-    ],
-    reward: { stat: 'money', amount: 30, label: 'Монеты +30', energyCost: 25 }
-  },
-  school: {
-    name: 'Школа', bg: '#2a2a4a',
-    items: [
-      { emoji: '📐', name: 'Геометрия', fact: 'Теорема Пифагора: a² + b² = c². Известна 4000 лет.' },
-      { emoji: '🧪', name: 'Химия', fact: 'H₂O — единственное вещество в 3 состояниях при обычных условиях.' },
-      { emoji: '📖', name: 'Литература', fact: '«Евгений Онегин» — роман в стихах, 389 строф.' },
-      { emoji: '🌍', name: 'География', fact: 'Марианская впадина: 10 994 м. Эверест: 8 849 м.' },
-      { emoji: '🔢', name: 'Арифметика', fact: '1729 — число Рамануджана: сумма кубов двумя способами.' }
-    ],
-    reward: { stat: 'intelligence', amount: 6, label: 'Интеллект +6', energyCost: 20 }
-  },
+
+  // ----- КИНО -----
   cinema: {
-    name: 'Кинотеатр', bg: '#0a0a1a',
-    items: [
-      { emoji: '🎬', name: 'Мультфильм', fact: '«Шрек» (2001) — первый фильм, получивший Оскар за анимацию.' },
-      { emoji: '🦸', name: 'Супергеройский', fact: 'Marvel MCU: 32 фильма, $29 млрд сборов.' },
-      { emoji: '🚀', name: 'Фантастика', fact: '«Интерстеллар» — консультант Кип Торн, Нобелевский лауреат.' },
-      { emoji: '😂', name: 'Комедия', fact: 'Смех на 15 мин продлевает жизнь как 2 км прогулки.' }
-    ],
-    reward: { stat: 'happiness', amount: 12, label: 'Счастье +12' }
+    name: '🎬 Кинотеатр', bg: '#0a0a18', kind: 'browse',
+    content: 'cinema', count: 9, energyCost: 10,
+    perItem: '+1 счастье за фильм',
+    perItemReward: { stat: 'happiness', amount: 1 },
+    reward: { stat: 'happiness', amount: 15, label: 'Счастье +15' }
+  },
+
+  // ----- БАССЕЙН -----
+  pool: {
+    name: '🏊 Бассейн', bg: '#0b2a3a', kind: 'browse',
+    content: 'pool', count: 12, energyCost: 15,
+    perItem: '+2 чистоты за занятие',
+    perItemReward: { stat: 'cleanliness', amount: 2 },
+    reward: { stat: 'cleanliness', amount: 20, label: 'Чистота +20' }
+  },
+
+  // ----- СПОРТЗАЛ -----
+  gym: {
+    name: '🏋️ Спортзал', bg: '#22222a', kind: 'browse',
+    content: 'gym', count: 12, energyCost: 20,
+    perItem: '+1 здоровье за упражнение',
+    perItemReward: { stat: 'health', amount: 1 },
+    reward: { stat: 'health', amount: 10, label: 'Здоровье +10' }
   }
 };
 
@@ -132,122 +125,434 @@ class VisitScene {
   constructor(game) {
     this.game = game;
     this.buttons = [];
+    this.state = 'browse';       // 'hub' | 'browse' | 'fact'
     this.locationId = null;
     this.data = null;
-    this.viewedItems = [];
-    this.selectedItem = null;
-    this.showFact = false;
+    this.items = [];
+    this.viewed = [];
+    this.selected = null;
     this.rewardClaimed = false;
     this.animTime = 0;
+    this.toast = '';
+    this.toastTimer = 0;
+    this.backTarget = 'map';
+    this.totalInBase = 0;
+    this.freshCount = 0;
   }
 
-  init(locationId) {
-    this.locationId = locationId;
-    this.data = VISIT_DATA[locationId];
-    this.viewedItems = [];
-    this.selectedItem = null;
-    this.showFact = false;
+  init(locationKey) {
+    this.buttons = [];
+    this.locationId = locationKey;
+    this.data = VISIT_DATA[locationKey] || null;
+    this.items = [];
+    this.viewed = [];
+    this.selected = null;
     this.rewardClaimed = false;
     this.animTime = 0;
-    this.buttons = [];
+    this.toast = '';
+    this.toastTimer = 0;
+
     if (!this.data) {
       this.data = {
-        name: 'Локация', bg: '#2a2a3a',
-        items: [{ emoji: '📍', name: 'Осмотреться', fact: 'Пока тут пусто, но скоро будет интересно!' }],
+        name: '📍 Локация', bg: '#242438', kind: 'browse', count: 0, content: null,
         reward: { stat: 'happiness', amount: 3, label: 'Счастье +3' }
       };
     }
+
+    // Куда вернёмся по «Назад»: из музея — в хаб, из хаба и прочих — на карту
+    const isMuseum = MUSEUM_KEYS.indexOf(locationKey) !== -1;
+    this.backTarget = isMuseum ? 'museums' : 'map';
+
+    if (this.data.kind === 'hub') {
+      this.state = 'hub';
+      return;
+    }
+
+    this.state = 'browse';
+    this.loadItems();
+
+    // Оплата энергией за посещение (один раз при входе)
+    if (this.data.energyCost) {
+      System.stats.energy = Math.max(0, System.stats.energy - this.data.energyCost);
+      System.saveGame();
+    }
   }
 
-  update(dt) { this.animTime += dt; }
+  // Загрузить случайную подборку предметов для этой локации
+  loadItems() {
+    const d = this.data;
+    if (!d.content) { this.items = []; return; }
+    this.totalInBase = (typeof contentSize === 'function') ? contentSize(d.content) : 0;
+    const seen = System.getSeen(d.content);
+    const picked = (typeof getRandomItems === 'function') ? getRandomItems(d.content, d.count || 12, seen) : [];
+    this.items = picked;
+    this.freshCount = picked.filter(it => !System.hasSeen(d.content, it.id)).length;
+  }
 
+  setToast(msg) {
+    this.toast = msg;
+    this.toastTimer = 1.8;
+  }
+
+  update(dt) {
+    this.animTime += dt;
+    if (this.toastTimer > 0) {
+      this.toastTimer -= dt / 1000;
+      if (this.toastTimer <= 0) this.toast = '';
+    }
+  }
+
+  // ================= ОТРИСОВКА =================
   draw(ctx) {
     const W = this.game.width, H = this.game.height;
     this.buttons = [];
     const d = this.data;
-    ctx.fillStyle = d.bg; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(0, H * 0.75, W, H * 0.25);
-    ctx.fillStyle = '#FFD93D'; ctx.font = `bold ${Math.min(W * 0.05, 22)}px Arial`; ctx.textAlign = 'center';
-    ctx.fillText(d.name, W / 2, 36);
-    const total = d.items.length, viewed = this.viewedItems.length;
-    ctx.fillStyle = '#aaa'; ctx.font = `${Math.min(W * 0.03, 13)}px Arial`;
-    ctx.fillText(`Осмотрено: ${viewed}/${total}`, W / 2, 56);
-    this.buttons.push(createButton(ctx, 10, 10, 80, 32, '← Назад', { bgColor: 'rgba(255,255,255,0.15)', fgColor: '#fff', fontSize: 13, radius: 8 }));
 
-    if (this.showFact && this.selectedItem !== null) { this.drawFactOverlay(ctx, W, H); return; }
+    ctx.fillStyle = d.bg || '#242438';
+    ctx.fillRect(0, 0, W, H);
 
-    const cols = Math.min(3, d.items.length);
-    const rows = Math.ceil(d.items.length / cols);
-    const cellW = Math.min((W - 40) / cols, 130);
-    const cellH = Math.min((H * 0.55) / rows, 110);
-    const gridW = cols * cellW + (cols - 1) * 10;
+    // Фоновая полоса «пола»
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillRect(0, H * 0.78, W, H * 0.22);
+
+    const title = (d.name || 'Локация').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').trim();
+    ctx.fillStyle = '#FFD93D';
+    ctx.font = `bold ${Math.min(W * 0.048, 21)}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(title, W / 2, 34);
+
+    this.buttons.push(createButton(ctx, 10, 10, 78, 32, '← Назад', {
+      bgColor: 'rgba(255,255,255,0.15)', fgColor: '#fff', fontSize: 13, radius: 8
+    }));
+
+    if (this.state === 'hub') {
+      this.drawHub(ctx, W, H);
+      return;
+    }
+
+    if (this.state === 'fact' && this.selected !== null) {
+      this.drawGrid(ctx, W, H);
+      this.drawFactOverlay(ctx, W, H);
+      return;
+    }
+
+    this.drawGrid(ctx, W, H);
+  }
+
+  // ----- Хаб музеев -----
+  drawHub(ctx, W, H) {
+    const d = this.data;
+    ctx.fillStyle = '#b9c3ff';
+    ctx.font = `${Math.min(W * 0.036, 15)}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.fillText(d.intro || 'Выбери:', W / 2, 62);
+
+    const btnW = Math.min(W * 0.86, 320);
+    const btnH = Math.min(H * 0.14, 92);
+    const btnX = (W - btnW) / 2;
+    const startY = 80;
+
+    d.sub.forEach((m, i) => {
+      const y = startY + i * (btnH + 14);
+      ctx.fillStyle = m.color;
+      roundRect(ctx, btnX, y, btnW, btnH, 16);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+      ctx.lineWidth = 2;
+      roundRect(ctx, btnX, y, btnW, btnH, 16);
+      ctx.stroke();
+
+      ctx.font = `${Math.min(btnH * 0.46, 40)}px Arial`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff';
+      ctx.fillText(m.emoji, btnX + 16, y + btnH / 2);
+
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${Math.min(W * 0.042, 17)}px Arial`;
+      ctx.fillText(m.name, btnX + 68, y + btnH / 2 - 10);
+
+      ctx.fillStyle = 'rgba(255,255,255,0.82)';
+      ctx.font = `${Math.min(W * 0.031, 13)}px Arial`;
+      ctx.fillText(m.desc, btnX + 68, y + btnH / 2 + 12);
+
+      const seen = System.seenCount(m.id);
+      const total = (typeof contentSize === 'function') ? contentSize(m.id) : 0;
+      ctx.textAlign = 'right';
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.font = `bold ${Math.min(W * 0.028, 12)}px Arial`;
+      ctx.fillText(seen + '/' + total, btnX + btnW - 14, y + btnH - 16);
+
+      this.buttons.push({ x: btnX, y, w: btnW, h: btnH, text: 'museum_' + m.id });
+    });
+  }
+
+  // ----- Сетка экспонатов/заданий -----
+  drawGrid(ctx, W, H) {
+    const d = this.data;
+    const n = this.items.length;
+    const viewed = this.viewed.length;
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    if (this.totalInBase > 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.62)';
+      ctx.font = `${Math.min(W * 0.028, 12)}px Arial`;
+      ctx.fillText(`Новые: ${this.freshCount} · Всего в базе: ${this.totalInBase}`, W / 2, 52);
+    }
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${Math.min(W * 0.03, 13)}px Arial`;
+    ctx.fillText(`Изучено: ${viewed}/${n}`, W / 2, 70);
+
+    if (n === 0) {
+      ctx.fillStyle = '#9aa';
+      ctx.font = `${Math.min(W * 0.034, 14)}px Arial`;
+      ctx.fillText('Здесь пока нечего смотреть', W / 2, H / 2);
+      return;
+    }
+
+    const cols = n >= 9 ? 3 : 2;
+    const rows = Math.ceil(n / cols);
+    const gap = 8;
+    const gridTop = 82;
+    const footerReserve = this.rewardClaimed ? 70 : (viewed >= n ? 84 : 68);
+    const gridBottom = H - footerReserve;
+    const cellW = Math.min((W - 24 - (cols - 1) * gap) / cols, 130);
+    const cellH = Math.min((gridBottom - gridTop - (rows - 1) * gap) / rows, 96);
+    const gridW = cols * cellW + (cols - 1) * gap;
     const startX = (W - gridW) / 2;
-    const startY = 70;
 
-    d.items.forEach((item, i) => {
+    this.items.forEach((item, i) => {
       const col = i % cols, row = Math.floor(i / cols);
-      const cx = startX + col * (cellW + 10), cy = startY + row * (cellH + 10);
-      const isViewed = this.viewedItems.includes(i);
-      ctx.fillStyle = isViewed ? 'rgba(107,203,119,0.2)' : 'rgba(255,255,255,0.1)';
-      roundRect(ctx, cx, cy, cellW, cellH, 12); ctx.fill();
-      ctx.strokeStyle = isViewed ? '#6BCB77' : 'rgba(255,255,255,0.2)'; ctx.lineWidth = isViewed ? 2 : 1;
-      roundRect(ctx, cx, cy, cellW, cellH, 12); ctx.stroke();
-      ctx.font = `${Math.min(cellW * 0.35, 36)}px Arial`; ctx.textAlign = 'center';
-      ctx.fillText(item.emoji, cx + cellW / 2, cy + cellH * 0.45);
-      ctx.fillStyle = isViewed ? '#6BCB77' : '#fff'; ctx.font = `${Math.min(cellW * 0.09, 11)}px Arial`;
-      ctx.fillText(item.name, cx + cellW / 2, cy + cellH * 0.80);
-      if (isViewed) { ctx.fillStyle = '#6BCB77'; ctx.font = '14px Arial'; ctx.fillText('✓', cx + cellW - 14, cy + 16); }
-      this.buttons.push({ x: cx, y: cy, w: cellW, h: cellH, text: `item_${i}`, _isItem: true });
+      const cx = startX + col * (cellW + gap);
+      const cy = gridTop + row * (cellH + gap);
+      const isViewed = this.viewed.indexOf(i) !== -1;
+      const isNew = !System.hasSeen(d.content, item.id);
+
+      ctx.fillStyle = isViewed ? 'rgba(107,203,119,0.22)' : 'rgba(255,255,255,0.10)';
+      roundRect(ctx, cx, cy, cellW, cellH, 12);
+      ctx.fill();
+      ctx.strokeStyle = isViewed ? '#6BCB77' : 'rgba(255,255,255,0.18)';
+      ctx.lineWidth = isViewed ? 2 : 1;
+      roundRect(ctx, cx, cy, cellW, cellH, 12);
+      ctx.stroke();
+
+      // Бейдж «новое»
+      if (isNew && d.kind === 'browse') {
+        ctx.fillStyle = 'rgba(255,217,61,0.9)';
+        roundRect(ctx, cx + 5, cy + 5, 22, 13, 6);
+        ctx.fill();
+        ctx.fillStyle = '#333';
+        ctx.font = 'bold 9px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText('NEW', cx + 8, cy + 15);
+      }
+
+      ctx.font = `${Math.min(cellW * 0.34, 30)}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff';
+      ctx.fillText(item.emoji, cx + cellW / 2, cy + cellH * 0.36);
+
+      ctx.fillStyle = isViewed ? '#9BE3A5' : '#fff';
+      ctx.font = `${Math.min(cellW * 0.115, 12)}px Arial`;
+      const label = this.truncate(ctx, item.name, cellW - 8);
+      ctx.fillText(label, cx + cellW / 2, cy + cellH * 0.70);
+
+      // Цена/оплата
+      let sub = null;
+      if (d.kind === 'work') sub = '🪙' + (item.coins || 12);
+      ctx.fillStyle = '#FFD93D';
+      ctx.font = `bold ${Math.min(cellW * 0.1, 11)}px Arial`;
+      if (sub) ctx.fillText(sub, cx + cellW / 2, cy + cellH * 0.89);
+
+      if (isViewed) {
+        ctx.fillStyle = '#6BCB77';
+        ctx.font = '13px Arial';
+        ctx.textAlign = 'right';
+        ctx.fillText('✓', cx + cellW - 7, cy + cellH - 10);
+        ctx.textAlign = 'center';
+      }
+
+      this.buttons.push({ x: cx, y: cy, w: cellW, h: cellH, text: 'item_' + i });
     });
 
-    if (viewed >= total && !this.rewardClaimed) {
-      this.buttons.push(createButton(ctx, W / 2 - 100, H - 70, 200, 44, `🎁 ${d.reward.label}`, { bgColor: '#FFD93D', fgColor: '#1a1a2e', fontSize: 15, radius: 12 }));
+    // Итог
+    if (viewed >= n && !this.rewardClaimed) {
+      const label = '🎁 ' + (d.reward && d.reward.label ? d.reward.label : 'Награда');
+      this.buttons.push(createButton(ctx, W / 2 - 105, H - 62, 210, 46, label, {
+        bgColor: '#FFD93D', fgColor: '#1a1a2e', fontSize: 15, radius: 12
+      }));
     } else if (this.rewardClaimed) {
-      ctx.fillStyle = '#6BCB77'; ctx.font = `${Math.min(W * 0.035, 15)}px Arial`; ctx.textAlign = 'center';
-      ctx.fillText('✅ Награда получена!', W / 2, H - 45);
+      ctx.fillStyle = '#6BCB77';
+      ctx.font = `${Math.min(W * 0.033, 14)}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.fillText('✅ Награда получена', W / 2, H - 56);
+    }
+
+    // Кнопка «ещё подборка» — чтобы посмотреть новые предметы
+    if (viewed >= n) {
+      this.buttons.push(createButton(ctx, W / 2 - 95, H - 104, 190, 36,
+        '🔄 Другая подборка', { bgColor: 'rgba(255,255,255,0.18)', fgColor: '#fff', fontSize: 13, radius: 10 }));
+    }
+
+    if (this.toast) {
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      roundRect(ctx, W / 2 - 130, 44, 260, 26, 13);
+      ctx.fill();
+      ctx.fillStyle = '#FFD93D';
+      ctx.font = `bold ${Math.min(W * 0.03, 13)}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.fillText(this.toast, W / 2, 62);
     }
   }
 
   drawFactOverlay(ctx, W, H) {
-    const item = this.data.items[this.selectedItem];
-    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
-    const panelW = Math.min(W * 0.85, 300), panelH = 200;
+    const item = this.items[this.selected];
+    if (!item) return;
+    ctx.fillStyle = 'rgba(0,0,0,0.72)';
+    ctx.fillRect(0, 0, W, H);
+    const panelW = Math.min(W * 0.86, 310);
+    const panelH = 230;
     const px = (W - panelW) / 2, py = (H - panelH) / 2;
-    ctx.fillStyle = '#1e2a4a'; roundRect(ctx, px, py, panelW, panelH, 16); ctx.fill();
-    ctx.strokeStyle = '#FFD93D'; ctx.lineWidth = 2; roundRect(ctx, px, py, panelW, panelH, 16); ctx.stroke();
-    ctx.textAlign = 'center'; ctx.font = `${Math.min(panelW * 0.15, 40)}px Arial`;
-    ctx.fillText(item.emoji, W / 2, py + 45);
-    ctx.fillStyle = '#FFD93D'; ctx.font = `bold ${Math.min(panelW * 0.06, 18)}px Arial`;
-    ctx.fillText(item.name, W / 2, py + 70);
-    ctx.fillStyle = '#ddd'; ctx.font = `${Math.min(panelW * 0.04, 13)}px Arial`;
-    this.wrapText(ctx, item.fact, W / 2, py + 95, panelW - 30, 16);
-    this.buttons.push(createButton(ctx, px + 20, py + panelH - 50, panelW - 40, 38, 'Понятно!', { bgColor: '#6BCB77', fgColor: '#fff', fontSize: 14, radius: 10 }));
+    ctx.fillStyle = '#1e2a4a';
+    roundRect(ctx, px, py, panelW, panelH, 16);
+    ctx.fill();
+    ctx.strokeStyle = '#FFD93D';
+    ctx.lineWidth = 2;
+    roundRect(ctx, px, py, panelW, panelH, 16);
+    ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `${Math.min(panelW * 0.16, 44)}px Arial`;
+    ctx.fillText(item.emoji, W / 2, py + 44);
+
+    ctx.fillStyle = '#FFD93D';
+    ctx.font = `bold ${Math.min(panelW * 0.058, 17)}px Arial`;
+    const title = this.truncate(ctx, item.name, panelW - 30);
+    ctx.fillText(title, W / 2, py + 82);
+
+    ctx.fillStyle = '#e6e6f0';
+    ctx.font = `${Math.min(panelW * 0.042, 13.5)}px Arial`;
+    ctx.textBaseline = 'alphabetic';
+    this.wrapText(ctx, item.fact || '', W / 2, py + 108, panelW - 34, 17);
+
+    const d = this.data;
+    if (d.kind === 'work') {
+      ctx.fillStyle = '#6BCB77';
+      ctx.font = `bold ${Math.min(panelW * 0.05, 14)}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.fillText('Оплата: 🪙' + (item.coins || 12) + (item.id && System.hasSeen(d.content, item.id) ? ' (повтор)' : ''), W / 2, py + panelH - 62);
+    }
+
+    this.buttons.push(createButton(ctx, px + 20, py + panelH - 48, panelW - 40, 38,
+      (d.kind === 'work' ? '💼 Взять задание' : 'Понятно!'),
+      { bgColor: '#6BCB77', fgColor: '#fff', fontSize: 14, radius: 10 }));
   }
 
   wrapText(ctx, text, x, y, maxW, lineH) {
-    const words = text.split(' '); let line = '', cy = y;
+    const words = String(text).split(' ');
+    let line = '', cy = y;
     for (const word of words) {
       const test = line + word + ' ';
-      if (ctx.measureText(test).width > maxW && line.length > 0) { ctx.fillText(line.trim(), x, cy); line = word + ' '; cy += lineH; } else { line = test; }
+      if (ctx.measureText(test).width > maxW && line.length > 0) {
+        ctx.fillText(line.trim(), x, cy);
+        line = word + ' ';
+        cy += lineH;
+      } else {
+        line = test;
+      }
     }
     ctx.fillText(line.trim(), x, cy);
   }
 
+  truncate(ctx, text, maxW) {
+    let t = String(text == null ? '' : text);
+    if (ctx.measureText(t).width <= maxW) return t;
+    while (t.length > 1 && ctx.measureText(t + '…').width > maxW) {
+      t = t.slice(0, -1);
+    }
+    return t + '…';
+  }
+
+  // ================= ОБРАБОТКА НАЖАТИЙ =================
   handleClick(mx, my) {
     for (const btn of this.buttons) {
       if (!isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) continue;
-      AudioSys.play('click');
       const t = btn.text || '';
-      if (t === '← Назад') { this.game.transitionTo('map'); return true; }
-      if (t.startsWith('item_')) { const idx = parseInt(t.split('_')[1]); this.selectedItem = idx; this.showFact = true; if (!this.viewedItems.includes(idx)) this.viewedItems.push(idx); return true; }
-      if (t.indexOf('Понятно') !== -1) { this.showFact = false; this.selectedItem = null; return true; }
-      if (t.indexOf(this.data.reward.label) !== -1 && !this.rewardClaimed) {
-        this.rewardClaimed = true; const r = this.data.reward;
-        if (r.stat === 'money') { System.earnCoins(r.amount); } else if (System.stats[r.stat] !== undefined) { System.stats[r.stat] = Math.min(100, System.stats[r.stat] + r.amount); }
-        if (r.energyCost) { System.stats.energy = Math.max(0, System.stats.energy - r.energyCost); }
-        System.addXP(3);
-        System.saveGame(); return true;
+
+      if (t === '← Назад') {
+        AudioSys.play('click');
+        if (this.backTarget === 'museums') this.game.transitionTo('visit', 'museums');
+        else this.game.transitionTo('map');
+        return true;
       }
+
+      // Выбор музея в хабе
+      if (t.indexOf('museum_') === 0) {
+        AudioSys.play('click');
+        this.game.transitionTo('visit', t.slice(7));
+        return true;
+      }
+
+      // Новая подборка
+      if (t === '🔄 Другая подборка') {
+        AudioSys.play('click');
+        this.viewed = [];
+        this.rewardClaimed = false;
+        this.loadItems();
+        System.saveGame();
+        return true;
+      }
+
+      // Открыть предмет
+      if (t.indexOf('item_') === 0) {
+        const idx = parseInt(t.split('_')[1], 10);
+        if (!isNaN(idx) && this.items[idx]) {
+          this.selected = idx;
+          this.state = 'fact';
+          AudioSys.play('click');
+          if (this.viewed.indexOf(idx) === -1) this.viewed.push(idx);
+          // Награда за сам предмет
+          const item = this.items[idx];
+          const d = this.data;
+          if (d.kind === 'work' && item.coins) {
+            System.earnCoins(item.coins);
+            System.addXP(3);
+            this.setToast('+' + item.coins + ' монет за задание');
+          } else if (d.perItemReward) {
+            const r = System.applyReward(d.perItemReward);
+            if (r) this.setToast(r);
+          }
+          if (d.content && item.id) System.markSeen(d.content, item.id);
+          System.saveGame();
+        }
+        return true;
+      }
+
+      // Закрыть карточку
+      if (t === 'Понятно!' || t.indexOf('Взять задание') !== -1) {
+        AudioSys.play('click');
+        this.state = 'browse';
+        this.selected = null;
+        return true;
+      }
+
+      // Получить итоговую награду
+      if (t.indexOf('🎁') === 0) {
+        AudioSys.play('success');
+        this.rewardClaimed = true;
+        const d = this.data;
+        const r = System.applyReward(d.reward);
+        System.addXP(d.xp || 10);
+        System.showAchievement(d.reward && d.reward.label ? '🎁' : '✅', r || (d.reward ? d.reward.label : 'Готово!'));
+        System.saveGame();
+        return true;
+      }
+
       return true;
     }
     return false;
@@ -256,3 +561,4 @@ class VisitScene {
 
 window.VisitScene = VisitScene;
 window.VISIT_DATA = VISIT_DATA;
+window.MUSEUM_KEYS = MUSEUM_KEYS;

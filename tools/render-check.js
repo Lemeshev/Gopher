@@ -24,6 +24,12 @@ const SCENES = [
   { hash: 'stats',              minColors: 20, minNonBg: 3 },
   { hash: 'minigames',          minColors: 20, minNonBg: 3 },
   { hash: 'clinic',             minColors: 20, minNonBg: 3 },
+  { hash: 'visit~museums',      minColors: 20, minNonBg: 3 },
+  { hash: 'visit~art_museum',   minColors: 20, minNonBg: 3 },
+  { hash: 'visit~library',      minColors: 20, minNonBg: 3 },
+  { hash: 'visit~work',         minColors: 20, minNonBg: 3 },
+  { hash: 'visit~restaurant',   minColors: 20, minNonBg: 3 },
+  { hash: 'friends',            minColors: 20, minNonBg: 3 },
   { hash: 'menu@@tutorial',     minColors: 20, minNonBg: 3 }
 ];
 

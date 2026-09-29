@@ -20,7 +20,7 @@ let d = '';
 const styleOf = mode => {
   const a = [];
   if (mode === 'fill') a.push('fill="' + (state.fillStyle || 'none') + '"');
-  else { a.push('fill="none"', 'stroke="' + (state.strokeStyle || 'none') + '"', 'stroke-width="' + (state.lineWidth || 1) + '"', 'stroke-linecap="' + (state.lineCap || 'butt') + '"'); }
+  else { a.push('fill="none"', 'stroke="' + (state.strokeStyle || 'none') + '"', 'stroke-width="' + (state.lineWidth || 1) + '"', 'stroke-linecap="' + (state.lineCap || 'butt') + '"', 'stroke-linejoin="' + (state.lineJoin || 'miter') + '"'); }
   if (state.globalAlpha !== 1) a.push('opacity="' + state.globalAlpha + '"');
   return a.join(' ');
 };
@@ -44,12 +44,30 @@ const ctx = {
   rotate(r) { tf.push('rotate(' + num(r * 180 / Math.PI) + ')'); },
   scale(x, y) { tf.push('scale(' + num(x) + ',' + num(y) + ')'); },
   setTransform() {},
-  beginPath() { pending = null; d = ''; },
+  beginPath() { pending = null; d = ''; lastShape = null; },
   moveTo(x, y) { d += ' M' + num(x) + ',' + num(y); },
   lineTo(x, y) { d += ' L' + num(x) + ',' + num(y); },
   quadraticCurveTo(cx, cy, x, y) { d += ' Q' + num(cx) + ',' + num(cy) + ' ' + num(x) + ',' + num(y); },
   closePath() { d += ' Z'; },
-  arc(cx, cy, r, a0, a1) { pending = { kind: 'c', cx: cx, cy: cy, rx: r, ry: r }; },
+  arc(cx, cy, r, a0, a1, acw) {
+    const FULL = Math.PI * 2;
+    const start = (a0 == null) ? 0 : a0;
+    let sweepDelta = ((a1 == null) ? FULL : a1) - start;
+    if (!acw) { while (sweepDelta < 0) sweepDelta += FULL; }
+    else { while (sweepDelta > 0) sweepDelta -= FULL; }
+    // полный круг рисуем как эллипс
+    if (Math.abs(sweepDelta) >= FULL - 1e-6) {
+      pending = { kind: 'c', cx: cx, cy: cy, rx: r, ry: r };
+      return;
+    }
+    const end = start + sweepDelta;
+    const sx = cx + r * Math.cos(start), sy = cy + r * Math.sin(start);
+    const ex = cx + r * Math.cos(end), ey = cy + r * Math.sin(end);
+    const large = Math.abs(sweepDelta) > Math.PI ? 1 : 0;
+    const sweep = sweepDelta > 0 ? 1 : 0;
+    if (!d) d += ' M' + num(sx) + ',' + num(sy);
+    d += ' A' + num(r) + ',' + num(r) + ' 0 ' + large + ' ' + sweep + ' ' + num(ex) + ',' + num(ey);
+  },
   ellipse(cx, cy, rx, ry, rot) { pending = { kind: 'c', cx: cx, cy: cy, rx: rx, ry: ry, rot: rot }; },
   roundRect(x, y, w, h, r) { pending = { kind: 'r', x: x, y: y, w: w, h: h, r: (typeof r === 'number' ? r : (r && r.tl) || 0) }; },
   rect(x, y, w, h) { pending = { kind: 'r', x: x, y: y, w: w, h: h, r: 0 }; },
@@ -68,9 +86,16 @@ const ctx = {
   }
 };
 
+let lastShape = null;
+
 function commit(mode) {
+  if (pending) { lastShape = pending; }
+  else if (d) { lastShape = { kind: 'path', d: d }; }
+  if (!pending && !d && lastShape) { pending = lastShape; }
   if (pending) {
-    if (pending.kind === 'c') {
+    if (pending.kind === 'path') {
+      wrap(styleOf(mode), '<path d="' + pending.d.trim() + '"/>');
+    } else if (pending.kind === 'c') {
       const rotDeg = pending.rot ? num(pending.rot * 180 / Math.PI) : 0;
       const inner = '<ellipse cx="' + num(pending.cx) + '" cy="' + num(pending.cy) + '" rx="' + num(pending.rx) + '" ry="' + num(pending.ry) + '"' + (rotDeg ? ' transform="rotate(' + rotDeg + ' ' + num(pending.cx) + ' ' + num(pending.cy) + ')"' : '') + '/>';
       wrap(styleOf(mode), inner);
@@ -87,6 +112,8 @@ function commit(mode) {
 const sandbox = { window: {}, Math: Math, console: console };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
+// helpers.js даёт roundRect/clamp/randInt — gopher.js использует roundRect
+vm.runInContext(fs.readFileSync(path.join(WWW, 'js/helpers.js'), 'utf8'), sandbox, { filename: 'helpers.js' });
 vm.runInContext(fs.readFileSync(path.join(WWW, 'js/gopher.js'), 'utf8'), sandbox, { filename: 'gopher.js' });
 const Gopher = sandbox.Gopher;
 

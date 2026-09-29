@@ -54,6 +54,7 @@ console.error = function () {
 <script src="../../www/js/helpers.js"></script>
 <script src="../../www/js/gopher.js"></script>
 <script src="../../www/js/system.js"></script>
+<script src="../../www/js/game_content.js"></script>
 <script src="../../www/js/audio.js"></script>
 <script src="../../www/js/game_menu.js"></script>
 <script src="../../www/js/game_map.js"></script>
@@ -62,6 +63,8 @@ console.error = function () {
 <script src="../../www/js/game_minigames.js"></script>
 <script src="../../www/js/game_stats.js"></script>
 <script src="../../www/js/game_clinic.js"></script>
+<script src="../../www/js/game_visit.js"></script>
+<script src="../../www/js/game_friends.js"></script>
 <script src="../../www/js/game.js"></script>
 
 <script>
@@ -95,6 +98,9 @@ console.error = function () {
   }
 
   var hash = decodeURIComponent(location.hash.slice(1)) || 'menu';
+  var initArg = null;
+  var tilde = hash.indexOf('~');
+  if (tilde !== -1) { initArg = hash.slice(tilde + 1); hash = hash.slice(0, tilde); }
   var parts = hash.split('@');
   var g;
 
@@ -114,7 +120,7 @@ console.error = function () {
   }
 
   try {
-    if (parts[0]) g.transitionTo(parts[0]);
+    if (parts[0]) g.transitionTo(parts[0], initArg);
     var scene = g.scenes[g.currentScene];
     for (var i = 0; i < 60; i++) scene.update(16);
 
