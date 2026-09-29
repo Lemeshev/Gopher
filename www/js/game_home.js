@@ -11,7 +11,7 @@ class HomeScene {
 
     // Режим обстановки
     this.decorMode = false;
-    this.sheet = null;        // null | 'furniture' | 'walls' | 'floors'
+    this.sheet = null;        // null | 'furniture' | 'walls' | 'floors' | 'paint' | 'help'
     this.sheetPage = 0;
     this.sheetBtnFrom = 0;
     this.selected = null;     // id выбранной мебели
@@ -19,6 +19,7 @@ class HomeScene {
     this.dragOffset = { x: 0, y: 0 };
     this.dragMoved = false;
     this.dragLive = null;     // { id, x, y } — позиция во время перетаскивания
+    this.roomTabs = [];       // кнопки переключения комнат
 
     // Анимации
     this.feed = 0;
@@ -26,6 +27,8 @@ class HomeScene {
     this.bath = 0;
     this.playBall = null;
     this.playTimer = 0;
+    this.music = 0;           // >0 — играет тихая музыка (снимает стресс)
+    this.notes = [];
     this.crumbs = [];
     this.sparkles = [];
     this.zzz = [];
@@ -48,11 +51,23 @@ class HomeScene {
     this.bath = 0;
     this.playBall = null;
     this.playTimer = 0;
+    this.music = 0;
+    this.notes = [];
     this.crumbs = [];
     this.sparkles = [];
     this.zzz = [];
-    if (System.furniture.length === 0 && System.inventory.length === 0) {
-      this.setBubble('Загляни в магазин — обустроим комнату! 🛒');
+    System.ensureRooms();
+
+    // Что показать в облачке: сначала «пока тебя не было», потом сон/стресс
+    if (System.offlineReport) {
+      this.setBubble(System.offlineMessage());
+      System.offlineReport = null;
+    } else if (System.isSleeping) {
+      this.setBubble('\ud83d\udca4 \u0413\u043e\u0444\u0435\u0440 \u0441\u043f\u0438\u0442: \u044d\u043d\u0435\u0440\u0433\u0438\u044f \u043a\u043e\u043f\u0438\u0442\u0441\u044f, \u043c\u043e\u0436\u043d\u043e \u0438\u0433\u0440\u0430\u0442\u044c \u0442\u0438\u0445\u043e');
+    } else if (System.stressHint()) {
+      this.setBubble(System.stressHint());
+    } else if (System.furnitureCount() === 0) {
+      this.setBubble('\u0417\u0430\u0433\u043b\u044f\u043d\u0438 \u0432 \u043c\u0430\u0433\u0430\u0437\u0438\u043d — \u043e\u0431\u0443\u0441\u0442\u0440\u043e\u0438\u043c \u043a\u043e\u043c\u043d\u0430\u0442\u0443! \ud83d\uded2');
     }
   }
 
@@ -60,7 +75,7 @@ class HomeScene {
   layout() {
     const W = this.game.width, H = this.game.height;
     const btnGap = 6;
-    const btnH = Math.max(38, Math.min(48, H * 0.070));
+    const btnH = Math.max(38, Math.min(46, H * 0.066));
     const btnCols = 4;
     const btnW = (W - 20 - (btnCols - 1) * btnGap) / btnCols;
     const rows = 2;
@@ -71,7 +86,9 @@ class HomeScene {
     const panelH = pad * 2 + statRows * (labelH + barH) + (statRows - 1) * rowGap;
     const panelTop = actionsTop - 8 - panelH;
 
-    const bubbleTop = 36, bubbleH = 42;
+    // Переключатель комнат: над комнатой, под верхней панелью
+    const tabsTop = 32, tabsH = Math.max(24, Math.min(30, H * 0.036));
+    const bubbleTop = tabsTop + tabsH + 4, bubbleH = 40;
     const roomTop = bubbleTop + bubbleH + 6;
     const roomBottom = panelTop - 8;
     const roomH = Math.max(120, roomBottom - roomTop);
@@ -85,7 +102,7 @@ class HomeScene {
     return {
       W, H, btnGap, btnH, btnW, btnCols, actionsTop, actionsH,
       pad, labelH, barH, rowGap, panelTop, panelH,
-      bubbleTop, bubbleH,
+      tabsTop, tabsH, bubbleTop, bubbleH,
       roomRect: { x: 0, y: roomTop, w: W, h: roomH },
       floorTop, floorDepth, floorBottom: roomBottom,
       gs, gopherY
@@ -119,6 +136,24 @@ class HomeScene {
 
     // Купание
     if (this.bath > 0) this.bath -= sec;
+
+    // Тихая музыка: нотки летят, стресс понемногу уходит
+    if (this.music > 0) {
+      this.music -= sec;
+      if (Math.random() < 0.10) {
+        const L = this.layout();
+        this.notes.push({
+          x: randFloat(L.W * 0.15, L.W * 0.85),
+          y: L.floorTop + randFloat(-10, 40),
+          life: 1,
+          emoji: ['\ud83c\udfb5', '\ud83c\udfb6', '\ud83c\udfb7', '\ud83c\udfb9'][randInt(0, 3)]
+        });
+      }
+      if (Math.random() < 0.06) System.relax(0.4);
+      if (this.music <= 0) this.setBubble('\u041c\u0443\u0437\u044b\u043a\u0430 \u0437\u0430\u043a\u043e\u043d\u0447\u0438\u043b\u0430\u0441\u044c — \u0441\u0442\u0430\u043b\u043e \u0441\u043f\u043e\u043a\u043e\u0439\u043d\u0435\u0435 \ud83d\ude0c');
+    }
+    this.notes.forEach(n => { n.life -= 0.006; n.y -= 0.42; });
+    this.notes = this.notes.filter(n => n.life > 0);
 
     // Игра с мячиком
     if (this.playBall) {
@@ -162,11 +197,12 @@ class HomeScene {
   draw(ctx) {
     const L = this.layout();
     this.buttons = [];
+    this.roomTabs = [];
 
-    this.drawRoom(ctx, L);
-    this.drawGopher(ctx, L);
+    this.drawRoom(ctx, L);          // фон + мебель вокруг фигурки
     this.drawEffects(ctx, L);
     this.drawTopBar(ctx, L);
+    this.drawRoomTabs(ctx, L);      // переключатель комнат
     if (this.bubbleText) this.drawBubble(ctx, L);
     this.drawStats(ctx, L);
 
@@ -177,9 +213,57 @@ class HomeScene {
     if (this.sheet) this.drawSheet(ctx, L);
   }
 
+  // ---------- Переключатель комнат ----------
+  // Гостиная, спальня, кухня, ванная. У каждой свои обои, пол и мебель.
+  drawRoomTabs(ctx, L) {
+    const list = (typeof HOME_ROOMS !== 'undefined') ? HOME_ROOMS : [];
+    const gap = 5, pad = 10;
+    const tw = (L.W - pad * 2 - gap * (list.length - 1)) / list.length;
+    const th = L.tabsH;
+
+    list.forEach((r, i) => {
+      const x = pad + i * (tw + gap);
+      const active = System.activeRoom === r.id;
+      const count = (System.rooms && System.rooms[r.id]) ? System.rooms[r.id].furniture.length : 0;
+
+      ctx.fillStyle = active ? '#FFB300' : 'rgba(0,0,0,0.42)';
+      roundRect(ctx, x, L.tabsTop, tw, th, th * 0.35);
+      ctx.fill();
+      if (!active) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+        ctx.lineWidth = 1;
+        roundRect(ctx, x, L.tabsTop, tw, th, th * 0.35);
+        ctx.stroke();
+      }
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = active ? '#3a2600' : '#ffffff';
+      const label = r.emoji + ' ' + r.name;
+      const size = fitFontSize(ctx, label, tw - 8, Math.min(th * 0.44, 12.5), 7.5, true);
+      ctx.font = `bold ${size}px Arial`;
+      ctx.fillText(label, x + tw / 2, L.tabsTop + th / 2 + 0.5);
+
+      // сколько предметов уже стоит в комнате
+      if (count > 0) {
+        ctx.fillStyle = active ? 'rgba(58,38,0,0.55)' : 'rgba(255,217,61,0.85)';
+        ctx.font = `${Math.min(th * 0.34, 9)}px Arial`;
+        ctx.fillText(String(count), x + tw - 7, L.tabsTop + th - 6);
+      }
+
+      this.roomTabs.push({ x: x, y: L.tabsTop, w: tw, h: th, action: 'room:' + r.id });
+    });
+    ctx.textBaseline = 'alphabetic';
+  }
+
   // ---------- Комната и мебель ----------
+  // Мебель рисуется в два слоя: дальняя — за фигуркой, ближняя — перед ней,
+  // поэтому большая кровать на переднем плане честно перекрывает лапы.
+  gopherDepthLine() { return 0.45; }
+
   drawRoom(ctx, L) {
     const rect = L.roomRect;
+    const room = System.currentRoomData();
     // Во время перетаскивания показываем предмет в новой позиции
     const furniture = System.furniture.map(it => {
       if (this.dragLive && this.dragLive.id === it.id) {
@@ -188,13 +272,14 @@ class HomeScene {
       return it;
     });
 
-    const opts = {};
-    if (this.decorMode && this.dragId) opts.skipId = this.dragId;
-    RoomView.drawAll(ctx, rect, System.room, furniture, opts);
+    RoomView.drawBase(ctx, rect, room);
+    RoomView.drawItems(ctx, rect, furniture, { behind: this.gopherDepthLine() });
+    this.drawGopher(ctx, L);
+    RoomView.drawItems(ctx, rect, furniture, { front: this.gopherDepthLine() });
 
     // Перетаскиваемый предмет — поверх остальных
-    if (opts.skipId) {
-      const it = furniture.find(f => f.id === opts.skipId);
+    if (this.decorMode && this.dragId) {
+      const it = furniture.find(f => f.id === this.dragId);
       if (it) RoomView.drawItem(ctx, it, rect, {});
     }
 
@@ -274,6 +359,16 @@ class HomeScene {
       ctx.lineTo(b.x + 9, b.y);
       ctx.stroke();
     }
+
+    // Нотки тихой музыки
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    this.notes.forEach(n => {
+      ctx.globalAlpha = Math.max(0, n.life);
+      ctx.font = `${16 + (1 - n.life) * 8}px Arial`;
+      ctx.fillText(n.emoji, n.x, n.y);
+    });
+    ctx.globalAlpha = 1;
     ctx.textBaseline = 'alphabetic';
   }
 
@@ -400,21 +495,46 @@ class HomeScene {
       drawProgressBar(ctx, cx, rowTop + L.labelH + 1, cellW, L.barH, val, 100,
         'rgba(255,255,255,0.18)', System.getStatColor(s.key));
     });
+
+    // Кнопка «?» — прямой ответ на вопрос «как сделать стресс нормальным?»:
+    // открывает справку по всем шкалам (что повышает, что понижает).
+    const qs = 20;
+    const qx = 10 + W - 20 - qs - 3, qy = L.panelTop + 3;
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.beginPath();
+    ctx.arc(qx + qs / 2, qy + qs / 2, qs / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('?', qx + qs / 2, qy + qs / 2 + 0.5);
+    ctx.textBaseline = 'alphabetic';
+    this.buttons.push({ x: qx, y: qy, w: qs, h: qs, action: 'help' });
   }
 
   // ---------- Кнопки действий ----------
+  // ---------- Кнопки действий ----------
+  // Действия привязаны к комнатам: покормить — на кухне, искупать — в ванной,
+  // спать — в спальне, играть и слушать музыку — в гостиной. Если комната не та,
+  // питомец сам идёт туда — так ребёнок изучает планировку дома.
   actionsList() {
     const sleeping = System.isSleeping;
-    const sick = System.isSick || System.stats.health < 50;
     return [
-      { emoji: '\ud83c\udf7d\ufe0f', text: 'Покормить', action: 'feed', color: '#FF6B6B', off: sleeping || System.stats.hunger >= 100 },
-      { emoji: '\ud83d\udec1', text: 'Искупать', action: 'bathe', color: '#00BCD4', off: sleeping || System.stats.cleanliness >= 100 },
-      { emoji: sleeping ? '\u2600\ufe0f' : '\ud83d\ude34', text: sleeping ? 'Разбудить' : 'Уложить спать', action: 'sleep', color: sleeping ? '#FFB300' : '#3F51B5' },
-      { emoji: '\ud83d\udc8a', text: 'Лечить', action: 'heal', color: '#E74C3C', off: !sick },
-      { emoji: '\ud83c\udfae', text: 'Играть', action: 'play', color: '#FF8C42', off: sleeping || System.stats.energy <= 10 },
-      { emoji: '\ud83c\udfe2', text: 'Работа', action: 'work', color: '#4D96FF', off: sleeping || System.stats.energy < 40 },
-      { emoji: '\ud83c\udf93', text: 'Учёба', action: 'study', color: '#9B59B6', off: sleeping || System.stats.energy < 40 },
-      { emoji: '\ud83d\uddfa\ufe0f', text: 'Карта', action: 'map', color: '#2ECC71' }
+      { emoji: '\ud83c\udf7d\ufe0f', text: 'Покормить', action: 'feed', color: '#FF6B6B', room: 'kitchen',
+        off: sleeping || System.stats.hunger >= 100, hint: 'Покормить можно на кухне' },
+      { emoji: '\ud83d\udec1', text: 'Искупать', action: 'bathe', color: '#00BCD4', room: 'bathroom',
+        off: sleeping || System.stats.cleanliness >= 100, hint: 'Купаются в ванной' },
+      { emoji: sleeping ? '\u2600\ufe0f' : '\ud83d\ude34', text: sleeping ? 'Разбудить' : 'Уложить спать',
+        action: 'sleep', color: sleeping ? '#FFB300' : '#3F51B5', room: 'bedroom', hint: 'Кроватка в спальне' },
+      { emoji: '\ud83c\udfae', text: 'Играть', action: 'play', color: '#FF8C42', room: 'living',
+        off: sleeping || System.stats.energy <= 5, hint: 'Играют в гостиной' },
+      { emoji: '\ud83c\udfb5', text: 'Музыка', action: 'music', color: '#9B59B6', room: 'living',
+        off: sleeping || this.music > 0, hint: 'Музыка играет в гостиной' },
+      { emoji: '\ud83e\udd2b', text: 'Тихие игры', action: 'quiet', color: '#546E7A', off: false, hint: '' },
+      { emoji: '\ud83d\udecb\ufe0f', text: 'Обстановка', action: 'decorToggle',
+        color: this.decorMode ? '#6BCB77' : '#2ECC71', off: false, hint: '' },
+      { emoji: '\ud83d\uddfa\ufe0f', text: 'Карта', action: 'map', color: '#4D96FF', off: false, hint: '' }
     ];
   }
 
@@ -425,6 +545,7 @@ class HomeScene {
       const row = Math.floor(i / L.btnCols);
       const bx = 10 + col * (L.btnW + L.btnGap);
       const by = L.actionsTop + row * (L.btnH + L.btnGap);
+      const wrongRoom = ab.room && System.activeRoom !== ab.room;
 
       ctx.fillStyle = ab.color;
       roundRect(ctx, bx, by, L.btnW, L.btnH, 12);
@@ -438,15 +559,25 @@ class HomeScene {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       ctx.fillStyle = '#fff';
-      ctx.font = `${Math.min(L.btnW * 0.30, 21)}px Arial`;
-      ctx.fillText(ab.emoji, bx + L.btnW / 2, by + 3);
+      ctx.font = `${Math.min(L.btnW * 0.28, 19)}px Arial`;
+      ctx.fillText(ab.emoji, bx + L.btnW / 2, by + 2);
 
-      const size = fitFontSize(ctx, ab.text, L.btnW - 6, Math.min(L.btnW * 0.16, 11.5), 7.5, true);
+      const size = fitFontSize(ctx, ab.text, L.btnW - 6, Math.min(L.btnW * 0.16, 11.5), 7, true);
       ctx.font = `bold ${size}px Arial`;
       ctx.textBaseline = 'bottom';
       ctx.fillText(ab.text, bx + L.btnW / 2, by + L.btnH - 3);
 
-      this.buttons.push({ x: bx, y: by, w: L.btnW, h: L.btnH, action: ab.action, off: !!ab.off });
+      // Значок комнаты: куда питомец пойдёт за этим действием
+      if (wrongRoom && !ab.off) {
+        const r = (typeof findRoom === 'function') ? findRoom(ab.room) : null;
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.font = '10px Arial';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(r ? r.emoji : '\u2192', bx + 3, by + 2);
+      }
+
+      this.buttons.push({ x: bx, y: by, w: L.btnW, h: L.btnH, action: ab.action, off: !!ab.off, hint: ab.hint || '' });
     });
     ctx.textBaseline = 'alphabetic';
   }
@@ -475,7 +606,7 @@ class HomeScene {
       const f = findFurniture(it.id);
       if (!f) continue;
       const p = RoomView.posFor(it, rect);
-      const size = RoomView.sizeFor(it.id, rect);
+      const size = RoomView.sizeFor(it.id, rect, it.y);
       const isSel = this.selected === it.id;
       const r = size * 0.55;
 
@@ -494,9 +625,13 @@ class HomeScene {
       ctx.restore();
 
       if (isSel) {
-        const bw = 66, bh = 24;
-        const bx = clamp(p.x - bw / 2, 6, L.W - bw - 6);
+        const f2 = findFurniture(it.id);
+        const canPaint = !!(f2 && f2.palette && f2.palette.length);
+        const bw = canPaint ? 62 : 74, bh = 24, gap = 4;
+        const totalW = canPaint ? bw * 2 + gap : bw;
+        const bx = clamp(p.x - totalW / 2, 6, L.W - totalW - 6);
         const by = Math.max(rect.y + 4, p.y - size * 0.5 - bh - 6);
+
         ctx.fillStyle = '#E74C3C';
         roundRect(ctx, bx, by, bw, bh, 8);
         ctx.fill();
@@ -507,6 +642,21 @@ class HomeScene {
         ctx.fillText('\u2716 Убрать', bx + bw / 2, by + bh / 2);
         ctx.textBaseline = 'alphabetic';
         this.buttons.push({ x: bx, y: by, w: bw, h: bh, action: 'removeItem' });
+
+        // Перекраска — платная услуга, цена зависит от стоимости вещи
+        if (canPaint) {
+          const cx2 = bx + bw + gap;
+          ctx.fillStyle = '#4D96FF';
+          roundRect(ctx, cx2, by, bw, bh, 8);
+          ctx.fill();
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 11px Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('\ud83c\udfa8 Цвет', cx2 + bw / 2, by + bh / 2);
+          ctx.textBaseline = 'alphabetic';
+          this.buttons.push({ x: cx2, y: by, w: bw, h: bh, action: 'colorPicker' });
+        }
       }
     }
   }
@@ -525,7 +675,7 @@ class HomeScene {
     ctx.font = `${Math.min(L.W * 0.026, 11)}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText('Перетаскивай мебель · нажми, чтобы убрать', L.W / 2, by - 7);
+    ctx.fillText('Тяни мебель · нажми на вещь, чтобы убрать или перекрасить', L.W / 2, by - 7);
 
     const items = [
       { label: '\ud83e\ude91 Мебель', sub: System.inventory.length + ' шт.', action: 'decor:sheet:furniture', color: '#4D96FF' },
@@ -574,7 +724,7 @@ class HomeScene {
     roundRect(ctx, px, py, pw, ph, 16);
     ctx.stroke();
 
-    const titles = { furniture: '\ud83d\udce6 Свободная мебель', walls: '\ud83c\udfa8 Обои', floors: '\ud83e\uddf1 Пол' };
+    const titles = { furniture: '\ud83d\udce6 Свободная мебель', walls: '\ud83c\udfa8 Обои за монетки', floors: '\ud83e\uddf1 Пол за монетки', paint: '\ud83c\udfa8 Цвет предмета', help: '\u2753 Как это работает' };
     ctx.fillStyle = '#FFD93D';
     ctx.font = `bold ${Math.min(pw * 0.048, 16)}px Arial`;
     ctx.textAlign = 'left';
@@ -594,6 +744,8 @@ class HomeScene {
     this.buttons.push({ x: px + pw - cw - 12, y: py + 10, w: cw, h: 26, action: 'closeSheet' });
 
     if (this.sheet === 'furniture') this.drawSheetFurniture(ctx, px, py, pw, ph);
+    else if (this.sheet === 'paint') this.drawSheetColor(ctx, px, py, pw, ph);
+    else if (this.sheet === 'help') this.drawSheetHelp(ctx, px, py, pw, ph);
     else this.drawSheetPaint(ctx, px, py, pw, ph, this.sheet === 'walls' ? 'wall' : 'floor');
     ctx.textBaseline = 'alphabetic';
   }
@@ -696,6 +848,93 @@ class HomeScene {
     ctx.textBaseline = 'alphabetic';
   }
 
+  // ---------- Шторка «Цвет предмета» (перекраска за монетки) ----------
+  drawSheetColor(ctx, px, py, pw, ph) {
+    const id = this.selected;
+    const f = findFurniture(id);
+    if (!f) { this.sheet = null; return; }
+    const cols = f.palette.length;
+    const price = recolorCost(id);
+    const cur = System.colorIndex(id);
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#e6e9f5';
+    ctx.font = `${Math.min(pw * 0.036, 12)}px Arial`;
+    ctx.fillText(f.name + ' \u00b7 перекраска ' + price + ' \ud83e\ude99', px + 16, py + 52);
+
+    const gap = 10, rows = 2;
+    const perRow = Math.ceil(cols / rows);
+    const cw = (pw - 32 - (perRow - 1) * gap) / perRow;
+    const ch = 46;
+    for (let i = 0; i < cols; i++) {
+      const col = i % perRow, row = Math.floor(i / perRow);
+      const cx = px + 16 + col * (cw + gap);
+      const cy = py + 70 + row * (ch + gap);
+      ctx.fillStyle = f.palette[i];
+      roundRect(ctx, cx, cy, cw, ch, 10);
+      ctx.fill();
+      if (i === cur) {
+        ctx.strokeStyle = '#FFD93D';
+        ctx.lineWidth = 3;
+        roundRect(ctx, cx, cy, cw, ch, 10);
+        ctx.stroke();
+        ctx.fillStyle = '#10121c';
+        ctx.font = 'bold 13px Arial';
+        ctx.textAlign = 'right';
+        ctx.fillText('\u2713', cx + cw - 8, cy + 18);
+      }
+      this.buttons.push({ x: cx, y: cy, w: cw, h: ch, action: 'paintcolor:' + i });
+    }
+
+    ctx.fillStyle = '#c9cfe0';
+    ctx.font = `${Math.min(pw * 0.032, 11)}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.fillText(System.coins + ' \ud83e\ude99 \u0443 \u0442\u0435\u0431\u044f \u0441\u0435\u0439\u0447\u0430\u0441', px + pw / 2, py + ph - 18);
+  }
+
+  // ---------- Шторка-справка: что делает каждая шкала ----------
+  drawSheetHelp(ctx, px, py, pw, ph) {
+    const list = (typeof STAT_HELP !== 'undefined') ? STAT_HELP : [];
+    const perPage = 2;
+    const pages = Math.max(1, Math.ceil(list.length / perPage));
+    if (this.sheetPage >= pages) this.sheetPage = 0;
+    const from = this.sheetPage * perPage;
+    const slice = list.slice(from, from + perPage);
+
+    let y = py + 48;
+    slice.forEach(h => {
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = '#FFD93D';
+      ctx.font = `bold ${Math.min(pw * 0.040, 14)}px Arial`;
+      ctx.fillText(h.emoji + ' ' + h.name, px + 16, y);
+      y += 16;
+      ctx.fillStyle = '#dfe3f0';
+      ctx.font = `${Math.min(pw * 0.032, 11.5)}px Arial`;
+      const what = wrapLines(ctx, h.what, pw - 32, 2);
+      what.forEach(w => { ctx.fillText(w, px + 16, y); y += 13; });
+      y += 2;
+      ctx.fillStyle = '#9be3b0';
+      wrapLines(ctx, '\u2b06 ' + h.up.join('; '), pw - 32, 3).forEach(w => { ctx.fillText(w, px + 16, y); y += 13; });
+      ctx.fillStyle = '#ffb3b3';
+      wrapLines(ctx, '\u2b07 ' + h.down.join('; '), pw - 32, 3).forEach(w => { ctx.fillText(w, px + 16, y); y += 13; });
+      y += 6;
+    });
+
+    if (pages > 1) {
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'center';
+      ctx.font = `bold ${Math.min(pw * 0.038, 12)}px Arial`;
+      ctx.fillText((this.sheetPage + 1) + ' / ' + pages, px + pw / 2, py + ph - 22);
+      this.buttons.push(createButton(ctx, px + 16, py + ph - 40, 44, 32, '\u25c0',
+        { bgColor: 'rgba(255,255,255,0.16)', fgColor: '#fff', fontSize: 13, radius: 8 }));
+      this.buttons.push(createButton(ctx, px + pw - 60, py + ph - 40, 44, 32, '\u25b6',
+        { bgColor: 'rgba(255,255,255,0.16)', fgColor: '#fff', fontSize: 13, radius: 8 }));
+    }
+    ctx.textBaseline = 'alphabetic';
+  }
+
   // ================= ПЕРЕТАСКИВАНИЕ МЕБЕЛИ =================
   beginDrag(mx, my) {
     if (!this.decorMode || this.sheet) return false;
@@ -743,11 +982,25 @@ class HomeScene {
   handleClick(mx, my) {
     if (this.sheet) return this.handleSheetClick(mx, my);
 
+    // Переключатель комнат — проверяем первым: это самое частое нажатие
+    for (const tab of this.roomTabs) {
+      if (!isPointInRect(mx, my, tab.x, tab.y, tab.w, tab.h)) continue;
+      const id = (tab.action || '').slice(5);
+      if (System.setActiveRoom(id)) {
+        this.selected = null;
+        this.sheet = null;
+        const r = (typeof findRoom === 'function') ? findRoom(id) : null;
+        if (r) this.setBubble(r.name + ' ' + r.emoji + ' · ' + r.desc);
+        AudioSys.play('click');
+      }
+      return true;
+    }
+
     for (const btn of this.buttons) {
       if (!isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) continue;
       if (btn.off) {
         AudioSys.play('fail');
-        this.setBubble('Сейчас это не нужно \ud83d\ude42');
+        this.setBubble(btn.hint || 'Сейчас это не нужно \ud83d\ude42');
         return true;
       }
       return this.doAction(btn.action);
@@ -767,17 +1020,65 @@ class HomeScene {
       if (a.indexOf('place:') === 0) {
         const id = a.slice(6);
         const f = findFurniture(id);
-        const spot = System.findFreeSpot(id);
+        const allowed = (typeof furnitureRooms === 'function') ? furnitureRooms(id) : ['living'];
+        if (allowed.indexOf(System.activeRoom) === -1) {
+          const names = allowed.map(r2 => findRoom(r2).name).join(' или ');
+          this.setBubble((f ? f.name : 'Вещь') + ' \u2014 \u043c\u0435\u0441\u0442\u043e: ' + names);
+          AudioSys.play('fail');
+          this.sheet = null;
+          return true;
+        }
+        const spot = System.findFreeSpot(id, System.activeRoom);
         System.placeFurniture(id, spot.x, spot.y);
         this.sheet = null;
         this.selected = id;
-        this.setBubble((f ? f.name : 'Вещь') + ' — на месте! \ud83d\udc4c');
+        this.setBubble((f ? f.name : 'Вещь') + ' \u2014 \u043d\u0430 \u043c\u0435\u0441\u0442\u0435! \ud83d\udc4c');
         AudioSys.play('success');
         return true;
       }
 
-      if (a.indexOf('wall:') === 0) { System.setWall(a.slice(5)); AudioSys.play('click'); return true; }
-      if (a.indexOf('floor:') === 0) { System.setFloor(a.slice(6)); AudioSys.play('click'); return true; }
+      // Перекраска предмета: списываем монеты, цвет меняется сразу
+      if (a.indexOf('paintcolor:') === 0) {
+        const idx = parseInt(a.slice(11), 10);
+        const res = System.paintFurniture(this.selected, idx);
+        if (res.ok) {
+          this.setBubble('\ud83c\udfa8 \u041d\u043e\u0432\u044b\u0439 \u0446\u0432\u0435\u0442! \u2212' + res.price + ' \ud83e\ude99');
+          AudioSys.play('success');
+        } else if (res.reason === 'money') {
+          this.setBubble('\ud83e\ude99 \u041d\u0443\u0436\u043d\u043e ' + res.price + ' \u043c\u043e\u043d\u0435\u0442 \u043d\u0430 \u043f\u0435\u0440\u0435\u043a\u0440\u0430\u0441\u043a\u0443');
+          AudioSys.play('fail');
+        } else if (res.reason === 'same') {
+          this.setBubble('\u042d\u0442\u043e\u0442 \u0446\u0432\u0435\u0442 \u0443\u0436\u0435 \u0432\u044b\u0431\u0440\u0430\u043d');
+        }
+        return true;
+      }
+
+      if (a.indexOf('wall:') === 0) {
+        const id = a.slice(5);
+        const w = (typeof WALLS !== 'undefined') ? WALLS.find(x => x.id === id) : null;
+        const owned = System.ownsWall(id);
+        if (System.setWall(id)) {
+          this.setBubble((w ? w.name : 'Обои') + ' \u2014 ' + ((w && w.cost && !owned) ? ('\u043a\u0443\u043f\u043b\u0435\u043d\u043e \u0437\u0430 ' + w.cost) : '\u043f\u0440\u0438\u043c\u0435\u043d\u0435\u043d\u043e') + ' \ud83c\udfa8');
+          AudioSys.play('success');
+        } else {
+          this.setBubble('\ud83e\ude99 \u041d\u0443\u0436\u043d\u043e ' + (w ? w.cost : 0) + ' \u043c\u043e\u043d\u0435\u0442 \u043d\u0430 \u044d\u0442\u0438 \u043e\u0431\u043e\u0438');
+          AudioSys.play('fail');
+        }
+        return true;
+      }
+      if (a.indexOf('floor:') === 0) {
+        const id = a.slice(6);
+        const fl = (typeof FLOORS !== 'undefined') ? FLOORS.find(x => x.id === id) : null;
+        const ownedF = System.ownsFloor(id);
+        if (System.setFloor(id)) {
+          this.setBubble((fl ? fl.name : 'Пол') + ' \u2014 ' + ((fl && fl.cost && !ownedF) ? ('\u043a\u0443\u043f\u043b\u0435\u043d\u043e \u0437\u0430 ' + fl.cost) : '\u043f\u0440\u0438\u043c\u0435\u043d\u0435\u043d\u043e') + ' \ud83e\uddf1');
+          AudioSys.play('success');
+        } else {
+          this.setBubble('\ud83e\ude99 \u041d\u0443\u0436\u043d\u043e ' + (fl ? fl.cost : 0) + ' \u043c\u043e\u043d\u0435\u0442 \u043d\u0430 \u044d\u0442\u043e\u0442 \u043f\u043e\u043b');
+          AudioSys.play('fail');
+        }
+        return true;
+      }
       if (a.indexOf('\u25c0') === 0) { this.sheetPage = Math.max(0, this.sheetPage - 1); AudioSys.play('click'); return true; }
       if (a.indexOf('\u25b6') === 0) { this.sheetPage = this.sheetPage + 1; AudioSys.play('click'); return true; }
       if (a.indexOf('В магазин') !== -1) {
@@ -806,8 +1107,29 @@ class HomeScene {
   }
 
   // ================= ДЕЙСТВИЯ =================
+  // В какой комнате делается действие
+  roomForAction(action) {
+    switch (action) {
+      case 'feed': return 'kitchen';
+      case 'bathe': return 'bathroom';
+      case 'sleep': return 'bedroom';
+      case 'play': return 'living';
+      case 'music': return 'living';
+      default: return null;
+    }
+  }
+
   doAction(action) {
     const L = this.layout();
+
+    // Если действие делается в другой комнате — питомец идёт туда
+    const targetRoom = this.roomForAction(action);
+    if (targetRoom && System.activeRoom !== targetRoom) {
+      System.setActiveRoom(targetRoom);
+      const r = (typeof findRoom === 'function') ? findRoom(targetRoom) : null;
+      if (r) this.setBubble('Идём в ' + r.name.toLowerCase() + ' ' + r.emoji);
+      AudioSys.play('click');
+    }
 
     switch (action) {
       case 'decorToggle':
@@ -852,6 +1174,35 @@ class HomeScene {
         this.selected = null;
         return true;
       }
+
+      case 'music': {
+        this.music = 8;
+        System.relax(2);
+        System.stats.happiness = Math.min(100, System.stats.happiness + 4);
+        this.setBubble('\ud83c\udfb5 \u0422\u0438\u0445\u0430\u044f \u043c\u0443\u0437\u044b\u043a\u0430: \u0441\u0442\u0440\u0435\u0441\u0441 \u0443\u0445\u043e\u0434\u0438\u0442, \u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u0441\u044f \u0441\u043f\u043e\u043a\u043e\u0439\u043d\u0435\u0435');
+        AudioSys.play('success');
+        break;
+      }
+
+      case 'quiet':
+        System.saveGame();
+        this.game.transitionTo('quiet');
+        return true;
+
+      case 'help':
+        this.sheet = 'help';
+        this.sheetPage = 0;
+        this.sheetBtnFrom = this.buttons.length;
+        AudioSys.play('click');
+        return true;
+
+      case 'colorPicker':
+        if (!this.selected) return true;
+        this.sheet = 'paint';
+        this.sheetPage = 0;
+        this.sheetBtnFrom = this.buttons.length;
+        AudioSys.play('click');
+        return true;
 
       case 'feed': {
         const foods = ['\ud83c\udf4e', '\ud83e\udd55', '\ud83c\udf70', '\ud83c\udf55', '\ud83c\udf4c', '\ud83e\uddc0', '\ud83c\udf52', '\ud83e\udd66'];

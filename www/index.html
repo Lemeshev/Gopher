@@ -52,17 +52,89 @@ html, body {
   transform: translateX(-50%) translateY(0);
 }
 #achievement-popup .ach-emoji { font-size: 22px; }
+/* Панель для кода друга: настоящие поля ввода — WebView умеет их копировать
+   и вставлять штатным меню Android (в canvas это невозможно). */
+#clipPanel {
+  display: none;
+  position: fixed;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  width: min(94vw, 480px);
+  box-sizing: border-box;
+  background: #1f2438;
+  border: 2px solid #FFD93D;
+  border-radius: 14px;
+  padding: 12px 12px 10px;
+  z-index: 900;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.45);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #fff;
+}
+#clipPanel #clipTitle { font-size: 14px; font-weight: bold; color: #FFD93D; margin-bottom: 6px; }
+#clipPanel #clipHint { font-size: 11.5px; color: #c9cfe0; margin-top: 6px; line-height: 1.35; }
+#clipPanel textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 4px 0;
+  padding: 8px;
+  font: 13px/1.4 monospace;
+  color: #10121c;
+  background: #f4f6ff;
+  border: 1px solid #8d93a8;
+  border-radius: 8px;
+  resize: none;
+  min-height: 44px;
+  /* Важно: выделение и системное меню Android должны работать */
+  -webkit-user-select: text;
+  user-select: text;
+  touch-action: auto;
+  -webkit-touch-callout: default;
+}
+#clipPanel #clipField2 { min-height: 40px; }
+#clipBtns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+#clipBtns button {
+  flex: 1 1 auto;
+  min-width: 104px;
+  padding: 10px 8px;
+  font-size: 13px;
+  font-weight: bold;
+  color: #10121c;
+  background: #FFD93D;
+  border: none;
+  border-radius: 10px;
+  touch-action: manipulation;
+}
+#clipBtns button#clipCloseBtn { background: #9aa3bd; }
+#clipBtns button#clipCopyBtn { background: #7FD1F5; }
+#clipBtns button#clipSubmitBtn { background: #6BCB77; }
 </style>
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
 <div id="achievement-popup"><span class="ach-emoji">🎉</span><span class="ach-text"></span></div>
 
+<!-- Панель обмена кодами друзей: настоящие поля ввода (копирование/вставка) -->
+<div id="clipPanel">
+  <div id="clipTitle"></div>
+  <textarea id="clipField" rows="2" spellcheck="false" autocomplete="off"></textarea>
+  <textarea id="clipField2" rows="2" spellcheck="false" autocomplete="off" style="display:none"></textarea>
+  <div id="clipHint"></div>
+  <div id="clipBtns">
+    <button id="clipCopyBtn" type="button">📋 Скопировать</button>
+    <button id="clipPasteBtn" type="button">📤 Отправить</button>
+    <button id="clipSubmitBtn" type="button" style="display:none">➕ Добавить</button>
+    <button id="clipCloseBtn" type="button">Готово</button>
+  </div>
+</div>
+
 <!-- Базовые утилиты -->
 <script src="js/helpers.js"></script>
 
-<!-- Главный персонаж -->
+<!-- Главный персонаж и другие игрушки (задел: герой — не только гофер) -->
 <script src="js/gopher.js"></script>
+<script src="js/characters.js"></script>
 
 <!-- Система характеристик -->
 <script src="js/system.js"></script>
@@ -81,6 +153,8 @@ html, body {
 <script src="js/game_home.js"></script>
 <script src="js/game_shop.js"></script>
 <script src="js/game_minigames.js"></script>
+<script src="js/game_quiet.js"></script>
+<script src="js/game_aerial.js"></script>
 <script src="js/game_stats.js"></script>
 <script src="js/game_clinic.js"></script>
 <script src="js/game_visit.js"></script>
