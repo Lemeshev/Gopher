@@ -62,7 +62,9 @@ const VISIT_DATA = {
     name: '💼 Работа', bg: '#1d2338', kind: 'work',
     content: 'work', count: 6, energyCost: 25,
     perItem: 'задание приносит монеты',
-    reward: { stat: 'schoolSkill', amount: 0, label: 'Смена окончена' },
+    // Смена растит рабочий навык: без этого «Профессионал» (навык 80) был
+    // недостижим вообще — навык нигде не увеличивался.
+    reward: { stat: 'workSkill', amount: 3, label: 'Рабочий навык +3' },
     xp: 12
   },
 

@@ -17,6 +17,34 @@ const System = {
   xpToNext: 100,
   inventory: [],
   achievements: [],
+  // ---- Достижения: счётчики долгого прогресса (v1.2.2) ----
+  // Заказчик: все достижения нельзя получить за первый вечер, должны быть
+  // такие, на которые уходят месяцы. Поэтому цели долгих ступеней стоят на
+  // счётчиках РАЗНЫХ ДНЕЙ и СЕРИИ ДНЕЙ, а не на «сколько раз нажали».
+  progress: {
+    days: 0,          // сколько РАЗНЫХ дней играли (не запусков!)
+    streak: 0,        // дней подряд
+    bestStreak: 0,    // лучшая серия — видна в статистике
+    lastDay: null,    // 'ГГГГ-ММ-ДД' последнего захода
+    trips: 0,         // походов по карте
+    minigames: 0,     // мини-игр начато
+    quiet: 0,         // тихих игр закончено
+    tttWins: 0,       // побед в крестики-нолики
+    feeds: 0,         // покормлено
+    washes: 0,        // искупано
+    plays: 0,         // поиграно дома
+    sleeps: 0,        // уложено спать
+    coinsEarned: 0,   // заработано монет всего (на руках может быть меньше)
+    furniture: 0      // куплено вещей в дом
+  },
+  POPUP_MS: 2400,       // сколько висит плашка «достижение получено»
+  popupQueue: [],       // открытий бывает несколько сразу — показываем по очереди
+  lastPopup: null,      // последняя показанная плашка (для проверок и отладки)
+  _popupShownAt: 0,
+  _dayCheckedAt: 0,
+  // Профиль загружен? Нужно, чтобы до нажатия «Продолжить» игра не считала
+  // день и не сохраняла поверх настоящего сохранения пустое состояние.
+  profileLoaded: false,
   knowledge: {
     artMuseum: 0,
     natureMuseum: 0,
@@ -60,7 +88,13 @@ const System = {
     cinema: 4, park: 5, restaurant: 2, beach: 6, friend: 3, clinic: 0, shop: 0,
     home: 0, stats: 0, minigames: 0, quiet: 0
   },
+  // ---- Что можно, пока гофер спит (v1.2.1) ----
+  // Спит — значит спит: походы (музеи, работа, учёба, спорт, парк, кино, гости,
+  // поликлиника) закрыты. Открыто только то, что от питомца не зависит:
+  // мини-игры, тихие игры, магазин (просто каталог), инфо/настройки и сам дом.
+  SLEEP_ALLOWED: ['home', 'shop', 'stats', 'minigames', 'quiet'],
   offlineReport: null,          // что случилось, пока приложение было закрыто
+  justWoke: false,              // питомец только что выспался (для облачка дома)
   lastTick: 0,
   sleptMinutes: 0,
 
@@ -194,8 +228,11 @@ const System = {
     this.coins -= cost;
   },
 
+  // Монеты + счётчик «заработано всего»: баланс можно потратить, а счётчик
+  // для долгих достижений («2000 монет», «10 000 монет») не уменьшается.
   earnCoins(amount) {
     this.coins += amount;
+    if (amount > 0) this.ensureProgress().coinsEarned += amount;
   },
 
   addXP(amount) {
@@ -206,6 +243,156 @@ const System = {
       this.xpToNext = Math.floor(this.xpToNext * 1.3);
       this.showAchievement('🎉', 'Уровень ' + this.level + '!');
     }
+  },
+
+  // ============ ДОСТИЖЕНИЯ И ДОЛГИЙ ПРОГРЕСС (v1.2.2) ============
+  // Каталог живёт в game_content.js (ACHIEVEMENTS), здесь — механика:
+  // счётчики, честный счёт дней и открытие наград. Список достижений ровно
+  // один: и вкладка статистики, и проверки читают его же (раньше в
+  // game_stats.js лежала вторая копия списка, которую никто не проверял).
+
+  ensureProgress() {
+    const def = () => ({
+      days: 0, streak: 0, bestStreak: 0, lastDay: null,
+      trips: 0, minigames: 0, quiet: 0, tttWins: 0,
+      feeds: 0, washes: 0, plays: 0, sleeps: 0,
+      coinsEarned: 0, furniture: 0
+    });
+    const fresh = def();
+    if (!this.progress || typeof this.progress !== 'object') this.progress = fresh;
+    for (const k of Object.keys(fresh)) {
+      if (k === 'lastDay') continue;
+      if (typeof this.progress[k] !== 'number' || !isFinite(this.progress[k])) this.progress[k] = fresh[k];
+    }
+    if (typeof this.progress.lastDay !== 'string') this.progress.lastDay = null;
+    if (!Array.isArray(this.achievements)) this.achievements = [];
+    // Старые сохранения: неизвестные id (каталог менялся) просто убираем
+    const known = this.achievementList().map(a => a.id);
+    if (known.length) this.achievements = this.achievements.filter(id => known.indexOf(id) !== -1);
+    return this.progress;
+  },
+
+  achievementList() {
+    return (typeof ACHIEVEMENTS !== 'undefined' && Array.isArray(ACHIEVEMENTS)) ? ACHIEVEMENTS : [];
+  },
+
+  achievementTiers() {
+    return (typeof ACHIEVEMENT_TIERS !== 'undefined' && Array.isArray(ACHIEVEMENT_TIERS)) ? ACHIEVEMENT_TIERS : [];
+  },
+
+  // Ключ календарного дня. Считаем по локальной дате, поэтому перевод часов
+  // и часовые пояса не превращают один день в два.
+  dayKey(nowMs) {
+    const d = (nowMs === undefined) ? new Date() : new Date(nowMs);
+    const two = n => (n < 10 ? '0' + n : '' + n);
+    return d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate());
+  },
+
+  // Номер дня от эпохи — чтобы честно понимать «вчера» и «пропустил день»
+  dayIndex(key) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(key || ''));
+    if (!m) return null;
+    return Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000);
+  },
+
+  // Отметить день игры. Сколько бы раз ни открыли игру в один день —
+  // день засчитывается ОДИН раз (иначе «сто дней» накрутили бы за вечер).
+  // nowMs можно передать: так день проверяют тесты и переходы через полночь.
+  registerDay(nowMs) {
+    const p = this.ensureProgress();
+    const key = this.dayKey(nowMs);
+    if (p.lastDay === key) return false;
+    const cur = this.dayIndex(key);
+    const prev = p.lastDay ? this.dayIndex(p.lastDay) : null;
+    if (prev !== null && (cur === null || cur <= prev)) return false;   // часы назад — не считаем
+    p.streak = (prev !== null && cur - prev === 1) ? p.streak + 1 : 1;
+    p.days += 1;
+    p.bestStreak = Math.max(p.bestStreak, p.streak);
+    p.lastDay = key;
+    this.checkAchievements();
+    this.saveGame();
+    return true;
+  },
+
+  // Любое действие питомца или игра: плюс к счётчику и сразу проверка наград
+  countAction(kind, n) {
+    const p = this.ensureProgress();
+    if (typeof p[kind] !== 'number') return false;
+    p[kind] += (n === undefined ? 1 : n);
+    this.checkAchievements();
+    return p[kind];
+  },
+
+  achievementValue(a) {
+    const p = this.ensureProgress();
+    try { return a && a.of ? (a.of(p, this) || 0) : 0; } catch (e) { return 0; }
+  },
+
+  // Сколько уже сделано по достижению: { value, goal, done, pct }
+  achievementProgress(a) {
+    const value = this.achievementValue(a);
+    const goal = Math.max(1, (a && a.goal) || 1);
+    return { value: value, goal: goal, done: value >= goal, pct: clamp(Math.round(value / goal * 100), 0, 100) };
+  },
+
+  isAchUnlocked(id) {
+    return (this.achievements || []).indexOf(id) !== -1;
+  },
+
+  unlockedCount() {
+    let n = 0;
+    for (const a of this.achievementList()) if (this.isAchUnlocked(a.id)) n++;
+    return n;
+  },
+
+  // Проверить весь каталог: что доросло до цели — открывается и попадает в
+  // очередь плашек. Возвращает список открытых сейчас (для проверок).
+  checkAchievements() {
+    const opened = [];
+    for (const a of this.achievementList()) {
+      if (this.isAchUnlocked(a.id)) continue;
+      if (this.achievementValue(a) >= Math.max(1, a.goal || 1)) {
+        this.achievements.push(a.id);
+        opened.push(a);
+      }
+    }
+    if (opened.length) {
+      for (const a of opened) this.queuePopup('🏆', 'Достижение: ' + a.name);
+      this.saveGame();
+    }
+    return opened;
+  },
+
+  // Плашки «получено достижение»: их может прийти несколько сразу, поэтому
+  // показываем по одной (иначе ребёнок увидит только последнюю).
+  queuePopup(emoji, text) {
+    if (!Array.isArray(this.popupQueue)) this.popupQueue = [];
+    this.popupQueue.push({ emoji: emoji, text: text });
+    if (this.popupQueue.length === 1) this.showPopup();
+    return this.popupQueue.length;
+  },
+
+  showPopup() {
+    const next = (this.popupQueue || [])[0];
+    if (!next) return false;
+    this.showAchievement(next.emoji, next.text);
+    this._popupShownAt = Date.now();
+    return true;
+  },
+
+  // Вызывается каждый кадр из tick(): одна плашка висит POPUP_MS, потом
+  // очередь идёт дальше. Без setTimeout — в WebView он может не сработать.
+  updatePopups(nowMs) {
+    const now = (nowMs === undefined) ? Date.now() : nowMs;
+    if (!Array.isArray(this.popupQueue) || !this.popupQueue.length) return false;
+    if (now - this._popupShownAt < this.POPUP_MS) return false;
+    this.popupQueue.shift();
+    this._popupShownAt = now;
+    if (this.popupQueue.length) {
+      const next = this.popupQueue[0];
+      this.showAchievement(next.emoji, next.text);
+    }
+    return true;
   },
 
   // ===== Трекинг просмотренных предметов локаций =====
@@ -223,6 +410,7 @@ const System = {
     if (!this.visitedItems[category]) this.visitedItems[category] = [];
     if (this.visitedItems[category].indexOf(id) === -1) {
       this.visitedItems[category].push(id);
+      this.checkAchievements();     // «Любознательный» и «Коллекционер» следят за этим
     }
   },
 
@@ -230,7 +418,11 @@ const System = {
     return this.getSeen(category).length;
   },
 
+  // Плашка сверху экрана. Кроме достижений её используют уровень, события на
+  // карте и объяснение отказа. lastPopup хранит последний текст — это нужно
+  // проверкам (в WebView DOM не всегда доступен) и отладке.
   showAchievement(emoji, text) {
+    this.lastPopup = { emoji: emoji, text: text, at: Date.now() };
     let el = document.getElementById('achievement-popup');
     if (!el) {
       el = document.createElement('div');
@@ -244,12 +436,16 @@ const System = {
     if (textEl) textEl.textContent = text;
     el.classList.add('show');
     clearTimeout(this._achTimer);
-    this._achTimer = setTimeout(() => el.classList.remove('show'), 2500);
+    // Чуть дольше, чем шаг очереди (POPUP_MS), чтобы плашка не мигала между двумя
+    this._achTimer = setTimeout(() => el.classList.remove('show'), this.POPUP_MS + 200);
   },
 
   // Куда можно пойти. Блокируем только то, что реально не по силам:
   // устал — поспи, голоден — поешь. Всё остальное открыто (v1.2: мягче к ребёнку).
+  // Отдельно (v1.2.1): пока гофер СПИТ, походов нет вовсе — иначе спящий
+  // питомец оказывается в музее, на работе и в спортзале.
   isLocationAvailable(loc) {
+    if (this.sleepBlocks(loc)) return false;
     const energy = this.stats.energy;
     const hunger = this.stats.hunger;
     switch (loc) {
@@ -281,6 +477,9 @@ const System = {
     const energy = this.stats.energy;
     const hunger = this.stats.hunger;
     if (this.isLocationAvailable(loc)) return 'Сюда можно идти 🙂';
+    if (this.sleepBlocks(loc)) {
+      return 'Гофер спит 💤 — походы подождут. Сейчас можно: тихие игры, мини-игры, магазин и инфо';
+    }
 
     const price = {
       cinema: 20, library: 10, museum_art: 30, museum_nature: 30,
@@ -306,6 +505,17 @@ const System = {
   visitCost(loc) {
     const v = this.VISIT_ENERGY[loc];
     return (v === undefined) ? 2 : v;
+  },
+
+  // Нельзя ли это дело просто потому, что питомец спит?
+  sleepBlocks(loc) {
+    if (!this.isSleeping) return false;
+    return this.SLEEP_ALLOWED.indexOf(loc) === -1;
+  },
+
+  // Что открыто, пока гофер спит — одной строкой для подсказок на экране
+  sleepAllowedHint() {
+    return 'тихие игры · мини-игры · магазин · инфо';
   },
 
   spendEnergy(amount) {
@@ -375,6 +585,7 @@ const System = {
       const needMs = Math.max(0, 100 - this.stats.energy) / perMs;
       const effective = Math.min(slept, needMs);
       this.tick(effective);
+      this.justWoke = false;      // про пробуждение расскажет «пока тебя не было»
       const sleptH = effective / 3600000;
       // Во сне гофер не ест — но и тут не проваливаемся ниже «пола»
       this.stats.hunger = Math.max(this.OFFLINE_FLOOR.hunger, this.stats.hunger - sleptH * 1.2);
@@ -416,6 +627,7 @@ const System = {
       xpToNext: this.xpToNext,
       inventory: [...this.inventory],
       achievements: [...this.achievements],
+      progress: { ...this.ensureProgress() },
       knowledge: { ...this.knowledge },
       visitedItems: { ...this.visitedItems },
       timeOfDay: this.timeOfDay,
@@ -455,7 +667,10 @@ const System = {
       this.xp = data.xp || 0;
       this.xpToNext = data.xpToNext || 100;
       this.inventory = data.inventory || [];
-      this.achievements = data.achievements || [];
+      this.achievements = Array.isArray(data.achievements) ? data.achievements.slice() : [];
+      // Достижения и долгий прогресс (дни, серия, накопления) — вместе с ними
+      this.progress = data.progress ? { ...data.progress } : null;
+      this.ensureProgress();
       this.knowledge = { ...this.knowledge, ...data.knowledge };
       this.visitedItems = data.visitedItems || {};
       this.timeOfDay = data.timeOfDay || 'morning';
@@ -508,6 +723,10 @@ const System = {
       // тратит мягко и не ниже «пола» (см. applyOfflineProgress).
       this.offlineReport = null;
       if (data.savedAt) this.applyOfflineProgress(data.savedAt);
+      // Профиль загружен (теперь можно считать дни и сохранять) + засчитываем
+      // сегодняшний заход: «7 дней подряд» считает именно эти отметки.
+      this.profileLoaded = true;
+      this.registerDay();
       return true;
     } catch (e) {
       return false;
@@ -533,6 +752,18 @@ const System = {
     this.xpToNext = 100;
     this.inventory = [];
     this.achievements = [];
+    // Долгий прогресс обнуляем, но сегодняшний день уже считается первым:
+    // новая игра стартует с «1 день», а «7 дней» придёт на седьмой заход.
+    this.progress = null;
+    this.popupQueue = [];
+    this.lastPopup = null;
+    this._popupShownAt = 0;
+    const fresh = this.ensureProgress();
+    fresh.days = 1;
+    fresh.streak = 1;
+    fresh.bestStreak = 1;
+    fresh.lastDay = this.dayKey();
+    this.profileLoaded = true;
     this.knowledge = {
       artMuseum: 0, natureMuseum: 0, spaceMuseum: 0, historyMuseum: 0, library: 0
     };
@@ -557,6 +788,7 @@ const System = {
     this.look = { hat: null, glasses: null, bowtie: false, fur: 'classic', char: (this.look && this.look.char) || 'gopher' };
     this.isSleeping = false;
     this.offlineReport = null;
+    this.justWoke = false;
     this.sleptItems = null;
     this.sleptMinutes = 0;
     this.lastTick = Date.now();
@@ -625,6 +857,17 @@ const System = {
   // Вызывается каждый кадр: пока гофер спит — энергия растёт постепенно.
   tick(dtMs) {
     this.lastTick = Date.now();
+    // Плашки достижений идут по очереди (одна за POPUP_MS), а раз в полминуты
+    // проверяем, не наступил ли новый день: игру иногда оставляют открытой
+    // на ночь, и «дней подряд» должен считаться честно. До нажатия
+    // «Продолжить» (профиль ещё не загружен) ничего не считаем и не сохраняем,
+    // иначе пустое состояние затёрло бы настоящее сохранение ребёнка.
+    this.updatePopups();
+    if (this.profileLoaded && this.lastTick - this._dayCheckedAt > 30000) {
+      this._dayCheckedAt = this.lastTick;
+      this.registerDay(this.lastTick);
+      this.checkAchievements();
+    }
     if (!this.isSleeping) return;
     const perSec = 100 / (this.SLEEP_FULL_MINUTES * 60);
     const d = (dtMs / 1000) * perSec;
@@ -637,14 +880,28 @@ const System = {
       this._restNotified = true;
       this.showAchievement('⚡', 'Энергия полностью восстановлена!');
     }
+    // Выспался — просыпается сам (как и с закрытым приложением). Иначе спящий
+    // питомец «висит» на экране и держит закрытыми все походы.
+    if (this.stats.energy >= 99.5) {
+      this.isSleeping = false;
+      this.justWoke = true;
+      if (this.sleptMinutes >= 5) this.addXP(Math.min(20, Math.round(this.sleptMinutes / 2)));
+      this.sleptMinutes = 0;
+      this.saveGame();
+    }
   },
 
   startSleep() {
     if (this.isSleeping) return false;
+    // Спать есть смысл, только когда есть что восстанавливать: при полной
+    // энергии питомец мгновенно проснётся, и это выглядело бы как поломка.
+    if (this.stats.energy >= 99) return false;
     this.isSleeping = true;
     this._restNotified = false;
+    this.justWoke = false;
     this.sleptMinutes = 0;
     this.lastTick = Date.now();
+    this.countAction('sleeps');
     this.saveGame();
     return true;
   },
@@ -673,6 +930,7 @@ const System = {
     if (!this.rooms[room]) room = 'living';
     const spot = this.findFreeSpot(id, room);
     this.rooms[room].furniture.push({ id: id, x: spot.x, y: spot.y });
+    this.countAction('furniture');
     this.saveGame();
     return true;
   },
@@ -694,11 +952,17 @@ const System = {
     // Впереди, по центру, стоит сам герой: крупную вещь туда не ставим,
     // иначе она закрывает ему лапы и мордочку.
     const colsFront = [0.16, 0.84];
-    // Окно нарисовано в правой части стены: там место не занимаем
-    const colsWallTop = [0.16, 0.385, 0.61];
+    // Окно нарисовано в правой части стены (от 0.64 ширины комнаты): сюда
+    // вещь не ставим ни центром, ни краем — иначе рама окна режет зеркало.
+    const colsWallTop = [0.16, 0.385, 0.565];
     const rows = wall ? rowsWall : rowsFloor;
     const colsFor = (row) => {
-      if (wall) return rows[row] < 0.6 ? colsWallTop : colsWall;
+      if (wall) {
+        if (rows[row] >= 0.6) return colsWall;
+        // Верхняя полоса стены: широкая вещь (картина в раме) в правой колонке
+        // достала бы до окна — ей оставляем только левую часть стены.
+        return (f && (f.k || 1) >= 1.2) ? colsWallTop.slice(0, 2) : colsWallTop;
+      }
       return rows[row] >= 0.8 ? colsFront : [0.16, 0.385, 0.61, 0.835];
     };
     // Из свободных мест берём то, что дальше всего от уже стоящих вещей, но
@@ -1119,10 +1383,15 @@ const System = {
     };
   },
 
-  addAch(id) {
-    if (!this.achievements.includes(id)) {
-      this.achievements.push(id);
-    }
+  // Ручное открытие достижения (например, из проверок или будущих наград).
+  // Проверяем, что id есть в каталоге, и не открываем дважды.
+  addAch(id, opts) {
+    const a = this.achievementList().find(x => x.id === id);
+    if (!a || this.isAchUnlocked(id)) return false;
+    this.achievements.push(id);
+    if (!opts || opts.silent !== true) this.queuePopup('🏆', 'Достижение: ' + a.name);
+    this.saveGame();
+    return true;
   },
 
   getRandomEvent() {

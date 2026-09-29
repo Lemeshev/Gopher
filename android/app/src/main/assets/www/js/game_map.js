@@ -100,7 +100,18 @@ class MapScene {
     ctx.font = `bold ${Math.min(W * 0.045, 20)}px Arial`;
     ctx.textAlign = 'left';
     ctx.fillStyle = '#fff';
-    ctx.fillText('📍 Куда пойдём?', 20, 35);
+    if (System.isSleeping) {
+      // Пока гофер спит, походов нет — говорим это на самой карте, а не после
+      // нажатия: иначе ребёнок тыкает плитки и получает отказ. «Что открыто»
+      // написано под плитками локаций: вторую строку шапки занимает полоса опыта.
+      const msg = '💤 Гофер спит — походы закрыты';
+      const size = fitFontSize(ctx, msg, W - 150, Math.min(W * 0.045, 18), 9.5, true);
+      ctx.font = `bold ${size}px Arial`;
+      ctx.fillStyle = '#FFD93D';
+      ctx.fillText(msg, 20, 35);
+    } else {
+      ctx.fillText('📍 Куда пойдём?', 20, 35);
+    }
 
     ctx.font = `${Math.min(W * 0.03, 13)}px Arial`;
     ctx.textAlign = 'right';
@@ -228,17 +239,36 @@ class MapScene {
         ctx.fillText('⚡' + ev, bx + 3 + ew / 2, by + 3 + eh / 2 + 0.5);
       }
 
-      // Замок, если сейчас нельзя
+      // Замок, если сейчас нельзя. Спящий питомец — это 💤, а не замок:
+      // ребёнок сразу видит причину.
       if (!active) {
         ctx.font = '13px Arial';
         ctx.fillStyle = 'rgba(255,255,255,0.9)';
-        ctx.fillText(canAfford ? '🔒' : '🪙', bx + 13, by + 13);
+        const glyph = System.sleepBlocks(loc.id) ? '💤' : (canAfford ? '🔒' : '🪙');
+        ctx.fillText(glyph, bx + 13, by + 13);
       }
 
       ctx.globalAlpha = 1;
       ctx.textBaseline = 'alphabetic';
       this.locationButtons.push({ x: bx, y: by, w: tileW, h: tileH, loc });
     });
+
+    // Пока гофер спит — под плитками объясняем, что сейчас открыто: в шапке
+    // это место занято полосой опыта, а отказ без объяснения — плохой отказ.
+    if (System.isSleeping) {
+      const hint = 'Открыто: ' + System.sleepAllowedHint();
+      const hs = fitFontSize(ctx, hint, W - 40, Math.min(W * 0.030, 12.5), 8, false);
+      ctx.font = `${hs}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const hw = ctx.measureText(hint).width + 22;
+      ctx.fillStyle = 'rgba(20,20,60,0.7)';
+      roundRect(ctx, (W - hw) / 2, H - 76, hw, 22, 11);
+      ctx.fill();
+      ctx.fillStyle = '#9be3b0';
+      ctx.fillText(hint, W / 2, H - 76 + 11);
+      ctx.textBaseline = 'alphabetic';
+    }
 
     // Close/map back button
     this.buttons = [];
@@ -276,6 +306,7 @@ class MapScene {
       AudioSys.play('coin');
     }
     System.visitedLocations.add(loc.id);
+    System.countAction('trips');
     System.addXP(10);
     // Энергия за поход: 2–8 (см. System.VISIT_ENERGY). Время идёт мягко.
     System.spendEnergy(System.visitCost(loc.id));

@@ -10,6 +10,11 @@ class StatsScene {
   init() {
     this.time = 0;
     this.tab = 'stats';
+    this.achScroll = 0;
+    this.achRows = [];
+    this.achView = null;
+    this.tabButtons = [];
+    this.dragFrom = null;
   }
 
   update(dt) {
@@ -18,6 +23,7 @@ class StatsScene {
 
   draw(ctx) {
     this.buttons = [];
+    this.tabButtons = [];
     const W = this.game.width;
     const H = this.game.height;
     this.buttons = [];
@@ -57,6 +63,7 @@ class StatsScene {
       ctx.textBaseline = 'middle';
       ctx.fillText(tab.label, tabX + tab.w / 2, 68);
       this.buttons.push({ x: tabX, y: 50, w: tab.w, h: 36, action: tab.id });
+      this.tabButtons.push({ x: tabX, y: 50, w: tab.w, h: 36, action: tab.id });
       tabX += tab.w + 8;
     });
 
@@ -152,58 +159,135 @@ class StatsScene {
     ctx.fillText('📅 Время в игре: ' + Math.floor(System.totalPlayTime / 60) + ' мин', W / 2, startY + mainStats.length * rowH + 55);
   }
 
+  // Вкладка достижений (v1.2.2): каталог берём из контента — один список на
+  // всю игру (раньше здесь лежала вторая копия, которую никто не проверял).
+  // Видно четыре ступени по времени: что можно взять сегодня, а что — только
+  // через месяцы (дни и серия дней). Список длинный, поэтому листается.
   drawAchTab(ctx, W, H) {
-    const achievements = [
-      { id: 'first_feed', emoji: '🍽️', name: 'Первая еда', desc: 'Покормите гофера', check: () => System.visitedLocations.has('home') },
-      { id: 'first_work', emoji: '💼', name: 'Первая зарплата', desc: 'Сходите на работу', check: () => System.visitedLocations.has('work') },
-      { id: 'first_pool', emoji: '🏊', name: 'Первый бассейн', desc: 'Поплавайте', check: () => System.visitedLocations.has('pool') },
-      { id: 'rich', emoji: '💰', name: 'Богач', desc: 'Накопите 200 монет', check: () => System.coins >= 200 },
-      { id: 'level5', emoji: '⭐', name: 'Опытный', desc: 'Достигните 5 уровня', check: () => System.level >= 5 },
-      { id: 'level10', emoji: '🌟', name: 'Ветеран', desc: 'Достигните 10 уровня', check: () => System.level >= 10 },
-      { id: 'all_museums', emoji: '🎓', name: 'Коллекционер', desc: 'Увидьте по 12 экспонатов в каждом музее',
-        check: () => ['art_museum','nature_museum','space_museum','history_museum'].every(c => System.seenCount(c) >= 12) },
-      { id: 'tictactoe_win', emoji: '❌', name: 'Победитель', desc: 'Выиграйте в крестики-нолики', check: () => System.achievements.includes('ttt_win') },
-      { id: 'healthy', emoji: '💪', name: 'Здоровяк', desc: 'Все статы > 80', check: () => ['happiness','hunger','energy','health','cleanliness'].every(s => System.stats[s] > 80) },
-      { id: 'scholar', emoji: '📚', name: 'Учёный', desc: 'Интеллект > 80', check: () => System.stats.intelligence > 80 },
-      { id: 'professional', emoji: '👔', name: 'Профессионал', desc: 'Рабочий навык > 80', check: () => System.stats.workSkill > 80 },
-      { id: 'graduator', emoji: '🎓', name: 'Выпускник', desc: 'Учебный навык > 80', check: () => System.stats.schoolSkill > 80 }
-    ];
+    const list = System.achievementList();
+    const tiers = System.achievementTiers();
+    const p = System.ensureProgress();
 
-    const startY = 100;
-    const rowH = 55;
-
-    achievements.forEach((a, i) => {
-      const y = startY + i * (rowH + 8);
-      const unlocked = System.achievements.includes(a.id);
-
-      ctx.fillStyle = unlocked ? 'rgba(255,215,0,0.15)' : 'rgba(255,255,255,0.05)';
-      roundRect(ctx, 15, y, W - 30, rowH, 12);
-      ctx.fill();
-
-      if (!unlocked) {
-        ctx.globalAlpha = 0.4;
-      }
-
-      ctx.font = '24px Arial';
-      ctx.textAlign = 'left';
-      ctx.fillStyle = '#fff';
-      ctx.fillText(unlocked ? a.emoji : '🔒', 25, y + 28);
-
-      ctx.font = `bold ${Math.min(W * 0.035, 15)}px Arial`;
-      ctx.fillText(a.name, 55, y + 22);
-
-      ctx.font = `${Math.min(W * 0.028, 12)}px Arial`;
-      ctx.fillStyle = '#aaa';
-      ctx.fillText(a.desc, 55, y + 42);
-
-      ctx.globalAlpha = 1;
-    });
-
-    // Count
-    ctx.fillStyle = '#FFD93D';
-    ctx.font = `bold ${Math.min(W * 0.04, 18)}px Arial`;
+    // Счётчик и дни — сверху; список начинается ниже, ничего не наезжает
     ctx.textAlign = 'center';
-    ctx.fillText('🏆 ' + System.achievements.length + ' / ' + achievements.length, W / 2, H - 70);
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#FFD93D';
+    ctx.font = `bold ${Math.min(W * 0.04, 17)}px Arial`;
+    ctx.fillText('🏆 ' + System.unlockedCount() + ' / ' + list.length, W / 2, 100);
+    ctx.fillStyle = 'rgba(255,255,255,0.72)';
+    ctx.font = `${Math.min(W * 0.028, 11.5)}px Arial`;
+    ctx.fillText('📅 дней: ' + p.days + '   🔥 серия: ' + p.streak + ' (рекорд ' + p.bestStreak + ')', W / 2, 116);
+
+    const top = 126, bottom = H - 58;      // до кнопки «Назад» остаётся место
+    this.achView = { top: top, bottom: bottom };
+
+    const rows = [];
+    tiers.forEach(t => {
+      const own = list.filter(a => a.tier === t.id);
+      if (!own.length) return;
+      rows.push({ kind: 'tier', tier: t, h: 22 });
+      own.forEach(a => rows.push({ kind: 'ach', ach: a, h: 46 }));
+    });
+    const contentH = rows.reduce((s, r) => s + r.h, 0) + 6;
+    const maxScroll = Math.max(0, contentH - (bottom - top));
+    this.achScroll = clamp(this.achScroll || 0, 0, maxScroll);
+    this.achMaxScroll = maxScroll;
+
+    // Сам список — «под ножницами»: за область списка ничего не выезжает
+    ctx.save();
+    ctx.beginPath();
+    roundRect(ctx, 0, top, W, bottom - top, 0);
+    ctx.clip();
+    this.achRows = [];
+    let y = top - this.achScroll;
+    rows.forEach(r => {
+      if (y + r.h > top && y < bottom) {
+        if (y >= top - 0.5 && y + r.h <= bottom + 0.5) {
+          this.achRows.push({ kind: r.kind, id: r.ach ? r.ach.id : r.tier.id, y: y, h: r.h });
+        }
+        if (r.kind === 'tier') this.drawTierRow(ctx, r.tier, W, y, r.h);
+        else this.drawAchRow(ctx, r.ach, W, y, r.h);
+      }
+      y += r.h;
+    });
+    ctx.restore();
+
+    // Листание: стрелки видны, только когда есть куда листать. Кнопки рисуем
+    // через createButton — иначе они попадали бы в клики, но их не видел ребёнок.
+    if (this.achScroll > 0.5) {
+      const up = createButton(ctx, W - 36, top + 2, 30, 26, '▲', {
+        bgColor: 'rgba(255,255,255,0.22)', fgColor: '#fff', fontSize: 13, radius: 8, shadow: false
+      });
+      up.action = 'achUp';
+      this.buttons.push(up);
+    }
+    if (this.achScroll < maxScroll - 0.5) {
+      const down = createButton(ctx, W - 36, bottom - 30, 30, 26, '▼', {
+        bgColor: 'rgba(255,255,255,0.22)', fgColor: '#fff', fontSize: 13, radius: 8, shadow: false
+      });
+      down.action = 'achDown';
+      this.buttons.push(down);
+    }
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  // Заголовок ступени: «🏅 Месяцы — самые долгие»
+  drawTierRow(ctx, tier, W, y, h) {
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#FFD93D';
+    ctx.font = `bold ${Math.min(W * 0.032, 13)}px Arial`;
+    ctx.fillText(tier.emoji + ' ' + tier.name, 16, y + h / 2);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.font = `${Math.min(W * 0.026, 10.5)}px Arial`;
+    ctx.fillText(tier.hint, W - 42, y + h / 2);
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = 'left';
+  }
+
+  // Строка достижения: открыто — золотое с эмодзи, закрыто — 🔒 с прогрессом.
+  // Открытость берём из списка открытых, а не из «текущего прогресса»: баланс
+  // монет и шкалы могут упасть, но награда уже получена и не отбирается.
+  drawAchRow(ctx, a, W, y, h) {
+    const prog = System.achievementProgress(a);
+    const on = System.isAchUnlocked(a.id);
+    ctx.globalAlpha = on ? 1 : 0.6;
+    ctx.fillStyle = on ? 'rgba(255,215,0,0.16)' : 'rgba(255,255,255,0.06)';
+    roundRect(ctx, 14, y + 1, W - 28, h - 3, 10);
+    ctx.fill();
+    if (on) {
+      ctx.fillStyle = '#FFD93D';
+      roundRect(ctx, 14, y + 1, 4, h - 3, 2);
+      ctx.fill();
+    }
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font = `${Math.min(W * 0.05, 20)}px Arial`;
+    ctx.fillStyle = '#fff';
+    ctx.fillText(on ? a.emoji : '🔒', 24, y + h / 2);
+
+    ctx.font = `bold ${Math.min(W * 0.036, 14)}px Arial`;
+    ctx.fillText(a.name, 50, y + 16);
+
+    ctx.textAlign = 'right';
+    ctx.fillStyle = on ? '#FFD93D' : 'rgba(255,255,255,0.75)';
+    ctx.font = `bold ${Math.min(W * 0.026, 10.5)}px Arial`;
+    ctx.fillText(on ? 'открыто' : (Math.round(prog.value) + ' / ' + prog.goal), W - 22, y + 16);
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.font = `${Math.min(W * 0.028, 11.5)}px Arial`;
+    ctx.fillText(a.desc, 50, y + 31);
+
+    drawProgressBar(ctx, 50, y + h - 9, W - 122, 5, on ? prog.goal : prog.value, prog.goal,
+      'rgba(255,255,255,0.15)', on ? '#FFD93D' : '#4D96FF');
+
+    ctx.globalAlpha = 1;
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = 'left';
   }
 
   drawKnowledgeTab(ctx, W, H) {
@@ -315,13 +399,22 @@ class StatsScene {
   handleClick(mx, my) {
     AudioSys.play('click');
 
+    // Стрелки листания достижений (их нет в списке вкладок)
+    for (const b of this.buttons) {
+      if ((b.action === 'achUp' || b.action === 'achDown') && isPointInRect(mx, my, b.x, b.y, b.w, b.h)) {
+        const step = (this.achView ? (this.achView.bottom - this.achView.top) * 0.7 : 200);
+        this.achScroll = clamp((this.achScroll || 0) + (b.action === 'achDown' ? step : -step), 0, this.achMaxScroll || 0);
+        return true;
+      }
+    }
+
     // Tab buttons
-    for (let i = 0; i < 6; i++) {
-      const btn = this.buttons[i];
-      if (!btn) break;
-      if (!btn.action) break;              // закончились вкладки
+    const tabs = this.tabButtons || this.buttons.slice(0, 5);
+    for (const btn of tabs) {
+      if (!btn || !btn.action) break;              // закончились вкладки
       if (isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) {
         this.tab = btn.action;
+        this.achScroll = 0;
         return true;
       }
     }
@@ -336,6 +429,29 @@ class StatsScene {
     }
 
     return false;
+  }
+
+  // Листание достижений пальцем: тянем список — он едет (как у друзей).
+  // Стрелки листания при этом остаются кнопками, а не перетаскиванием.
+  beginDrag(mx, my) {
+    if (this.tab !== 'ach' || !this.achView) return false;
+    if (my < this.achView.top || my > this.achView.bottom) return false;
+    for (const b of this.buttons) {
+      if ((b.action === 'achUp' || b.action === 'achDown') && isPointInRect(mx, my, b.x, b.y, b.w, b.h)) return false;
+    }
+    this.dragFrom = { y: my, scroll: this.achScroll || 0 };
+    return true;
+  }
+
+  dragMove(mx, my) {
+    if (!this.dragFrom) return false;
+    this.achScroll = clamp(this.dragFrom.scroll + (this.dragFrom.y - my), 0, this.achMaxScroll || 0);
+    return true;
+  }
+
+  endDrag() {
+    this.dragFrom = null;
+    return true;
   }
 }
 window.StatsScene = StatsScene;
