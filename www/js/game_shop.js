@@ -9,6 +9,11 @@ class ShopScene {
     this.notification = null;
     this.notificationTimer = 0;
     this.currentTab = 'food';
+    // Вкладка «Дом»: какая комната и что смотрим (мебель / обои / пол)
+    this.decorRoom = 'living';
+    this.decorKind = 'furniture';
+    this.decorPage = 0;
+    this.decorPages = 1;
   }
 
   init() {
@@ -17,6 +22,14 @@ class ShopScene {
     this.notification = null;
     this.notificationTimer = 0;
     this.currentTab = this.currentTab || 'food';
+    this.decorRoom = this.decorRoom || 'living';
+    this.decorKind = this.decorKind || 'furniture';
+    this.decorPage = 0;
+    // Пришли из дома за мебелью — сразу открываем нужную комнату
+    if (this.currentTab === 'decor' && typeof System !== 'undefined' && System.activeRoom) {
+      this.decorRoom = System.activeRoom;
+      this.decorKind = 'furniture';
+    }
   }
 
   update(dt) {
@@ -176,12 +189,6 @@ class ShopScene {
         cost: f.cost === 0 ? 5 : f.cost, category: 'clothes', fur: f.id
       })),
 
-      // Мебель — общий каталог: купленная вещь сразу появляется в комнате
-      ...FURNITURE.map(f => ({
-        id: f.id, emoji: f.emoji, name: f.name, desc: f.desc, cost: f.cost,
-        category: 'decor', furniture: true
-      })),
-
       // Fun
       { id: 'party', emoji: '🎉', name: 'Вечеринка', desc: '+30 счастья!', cost: 60, category: 'fun', effect: () => { System.stats.happiness = Math.min(100, System.stats.happiness + 30); this.game.gopher.setExpression('excited', 999); } },
       { id: 'fireworks', emoji: '🎆', name: 'Фейерверк', desc: '+25 счастья, +15 XP', cost: 80, category: 'fun', effect: () => { System.stats.happiness = Math.min(100, System.stats.happiness + 25); System.addXP(15); } },
@@ -193,10 +200,18 @@ class ShopScene {
     const itemW = (W - 40) / cols;
     const startX = 20;
     const startY = 130;
-    const filteredItems = items.filter(it => it.category === this.currentTab);
+    // Дом — отдельная логика: комнаты, обои, пол и страницы каталога
+    let filteredItems;
+    if (this.currentTab === 'decor') {
+      filteredItems = this.decorItems();
+    } else {
+      filteredItems = items.filter(it => it.category === this.currentTab);
+    }
     // Карточки обязаны уместиться над кнопкой «Назад», иначе последний ряд обрезается
-    const itemRows = Math.ceil(filteredItems.length / cols);
+    const itemRows = Math.min(3, Math.ceil(filteredItems.length / cols));
     const itemH = Math.min(110, (H - startY - 70) / Math.max(itemRows, 1));
+
+    if (this.currentTab === 'decor') this.drawDecorFilters(ctx, W, H, filteredItems);
 
     filteredItems.forEach((item, i) => {
       const col = i % cols;
@@ -234,6 +249,13 @@ class ShopScene {
       ctx.fillStyle = '#666';
       ctx.fillText(item.desc, ix + 50, iy + itemH * 0.50);
 
+      // Для мебели — подсказка: комната и уровень цены
+      if (item.roomLabel) {
+        ctx.fillStyle = '#8B6B3D';
+        ctx.font = `${Math.min(itemW * 0.095, 10)}px Arial`;
+        ctx.fillText(item.roomLabel + (item.tier ? ' \u00b7 ' + item.tier : ''), ix + 50, iy + itemH * 0.68);
+      }
+
       // Цена / состояние
       ctx.textAlign = 'right';
       ctx.font = `bold ${Math.min(itemW * 0.12, 13)}px Arial`;
@@ -269,6 +291,110 @@ class ShopScene {
     }
   }
 
+  // ================= ВКЛАДКА «ДОМ» =================
+  // Комнат четыре, и у каждой — своя мебель. Плюс обои и пол, которые
+  // покупаются один раз и потом применяются бесплатно.
+  decorItems() {
+    const kind = this.decorKind || 'furniture';
+    const room = this.decorRoom || 'living';
+    let list = [];
+
+    if (kind === 'furniture') {
+      list = ((typeof furnitureForRoom === 'function') ? furnitureForRoom(room) : []).map(f => ({
+        id: f.id, emoji: f.emoji, name: f.name, desc: f.desc, cost: f.cost,
+        category: 'decor', furniture: true,
+        roomLabel: (typeof findRoom === 'function') ? findRoom(room).name : '',
+        tier: (typeof tierOf === 'function') ? tierOf(f.cost) : ''
+      }));
+      // сначала дешёвое — ребёнку понятнее, что можно купить прямо сейчас
+      list.sort((a, b) => a.cost - b.cost);
+    } else if (kind === 'walls') {
+      list = ((typeof WALLS !== 'undefined') ? WALLS : []).map(w => ({
+        id: 'wall_' + w.id, emoji: '\ud83c\udfa8', name: w.name,
+        desc: w.cost === 0 ? 'Бесплатно' : ('Обои за ' + w.cost),
+        cost: w.cost, category: 'decor', wallId: w.id,
+        owned: System.ownsWall(w.id), active: System.currentRoomData().wall === w.id,
+        roomLabel: 'Все комнаты', tier: ''
+      }));
+    } else {
+      list = ((typeof FLOORS !== 'undefined') ? FLOORS : []).map(fl => ({
+        id: 'floor_' + fl.id, emoji: '\ud83e\uddf1', name: fl.name,
+        desc: fl.cost === 0 ? 'Бесплатно' : ('Пол за ' + fl.cost),
+        cost: fl.cost, category: 'decor', floorId: fl.id,
+        owned: System.ownsFloor(fl.id), active: System.currentRoomData().floor === fl.id,
+        roomLabel: 'Все комнаты', tier: ''
+      }));
+    }
+
+    // страницы по 6 карточек
+    const perPage = 6;
+    this.decorPages = Math.max(1, Math.ceil(list.length / perPage));
+    if ((this.decorPage || 0) >= this.decorPages) this.decorPage = 0;
+    const from = (this.decorPage || 0) * perPage;
+    return list.slice(from, from + perPage);
+  }
+
+  // Фильтры над сеткой: комната, вид товара, страницы
+  drawDecorFilters(ctx, W, H, shown) {
+    const rooms = (typeof HOME_ROOMS !== 'undefined') ? HOME_ROOMS : [];
+    const y = 118;
+    const gap = 6, pad = 20;
+    const rw = (W - pad * 2 - gap * (rooms.length - 1)) / rooms.length;
+
+    rooms.forEach((r, i) => {
+      const x = pad + i * (rw + gap);
+      const active = (this.decorRoom || 'living') === r.id && (this.decorKind || 'furniture') === 'furniture';
+      ctx.fillStyle = active ? '#FF8C42' : 'rgba(255,255,255,0.55)';
+      roundRect(ctx, x, y, rw, 24, 8);
+      ctx.fill();
+      ctx.fillStyle = active ? '#fff' : '#4a4a4a';
+      const size = fitFontSize(ctx, r.name, rw - 6, 11.5, 7.5, true);
+      ctx.font = `bold ${size}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.fillText(r.name, x + rw / 2, y + 16);
+      this.buttons.push({ x: x, y: y, w: rw, h: 24, action: 'decorRoom:' + r.id });
+    });
+
+    // вид товара: мебель / обои / пол
+    const kinds = [
+      { id: 'furniture', label: '\ud83e\ude91 Мебель' },
+      { id: 'walls', label: '\ud83c\udfa8 Обои' },
+      { id: 'floors', label: '\ud83e\uddf1 Пол' }
+    ];
+    const kw = (W - pad * 2 - gap * 2) / 3;
+    kinds.forEach((k, i) => {
+      const x = pad + i * (kw + gap);
+      const active = (this.decorKind || 'furniture') === k.id;
+      ctx.fillStyle = active ? '#9B59B6' : 'rgba(255,255,255,0.45)';
+      roundRect(ctx, x, y + 28, kw, 24, 8);
+      ctx.fill();
+      ctx.fillStyle = active ? '#fff' : '#4a4a4a';
+      const size = fitFontSize(ctx, k.label, kw - 6, 11, 7, true);
+      ctx.font = `bold ${size}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.fillText(k.label, x + kw / 2, y + 44);
+      this.buttons.push({ x: x, y: y + 28, w: kw, h: 24, action: 'decorKind:' + k.id });
+    });
+
+    // страницы каталога
+    if ((this.decorPages || 1) > 1) {
+      ctx.fillStyle = '#4a4a4a';
+      ctx.font = 'bold 12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('\u0441\u0442\u0440. ' + ((this.decorPage || 0) + 1) + ' / ' + this.decorPages, W / 2, y + 66);
+      this.buttons.push({ x: W / 2 - 70, y: y + 52, w: 44, h: 22, action: 'decorPage:-1' });
+      this.buttons.push({ x: W / 2 + 26, y: y + 52, w: 44, h: 22, action: 'decorPage:1' });
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      roundRect(ctx, W / 2 - 70, y + 52, 44, 22, 6); ctx.fill();
+      roundRect(ctx, W / 2 + 26, y + 52, 44, 22, 6); ctx.fill();
+      ctx.fillStyle = '#333';
+      ctx.font = 'bold 13px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('\u25c0', W / 2 - 48, y + 67);
+      ctx.fillText('\u25b6', W / 2 + 48, y + 67);
+    }
+  }
+
   handleClick(mx, my) {
     // Check tab clicks
     const W = this.game.width;
@@ -279,6 +405,10 @@ class ShopScene {
       const tx = 20 + i * tabW;
       if (isPointInRect(mx, my, tx + 2, tabStartY + 2, tabW - 4, 36)) {
         this.currentTab = tabIds[i];
+        if (this.currentTab === 'decor') {
+          this.decorPage = 0;
+          if (typeof System !== 'undefined' && System.activeRoom) this.decorRoom = System.activeRoom;
+        }
         AudioSys.play('click');
         return true;
       }
@@ -286,9 +416,78 @@ class ShopScene {
 
     AudioSys.play('click');
 
+    // ---- Фильтры вкладки «Дом» (комната, вид, страницы) ----
+    for (const btn of this.buttons) {
+      if (!btn.action) continue;
+      if (!isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) continue;
+      const a = btn.action;
+      if (a.indexOf('decorRoom:') === 0) {
+        this.decorRoom = a.slice(10);
+        this.decorKind = 'furniture';
+        this.decorPage = 0;
+        AudioSys.play('click');
+        return true;
+      }
+      if (a.indexOf('decorKind:') === 0) {
+        this.decorKind = a.slice(10);
+        this.decorPage = 0;
+        AudioSys.play('click');
+        return true;
+      }
+      if (a.indexOf('decorPage:') === 0) {
+        const d = parseInt(a.slice(10), 10) || 1;
+        const pages = this.decorPages || 1;
+        this.decorPage = ((this.decorPage || 0) + d + pages) % pages;
+        AudioSys.play('click');
+        return true;
+      }
+    }
+
     // Check item buttons
     for (const btn of this.buttons.slice(0, -1)) {
       if (isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) {
+        // Обои и пол: покупаются один раз, применяются к текущей комнате
+        if (btn.wallId) {
+          const id = btn.wallId;
+          const w = WALLS.find(x => x.id === id);
+          if (System.ownsWall(id)) {
+            System.setWall(id);
+            this.showNotification('\ud83c\udfa8', w.name + ' — применено');
+            AudioSys.play('success');
+            return true;
+          }
+          if (!System.canAfford(w.cost)) {
+            this.showNotification('\ud83e\ude99', 'Не хватает монет! Нужно ещё ' + (w.cost - System.coins));
+            AudioSys.play('fail');
+            return true;
+          }
+          System.setWall(id);
+          this.showNotification('\ud83c\udfa8', w.name + ' — куплено за ' + w.cost);
+          System.addXP(6);
+          AudioSys.play('success');
+          return true;
+        }
+        if (btn.floorId) {
+          const id = btn.floorId;
+          const fl = FLOORS.find(x => x.id === id);
+          if (System.ownsFloor(id)) {
+            System.setFloor(id);
+            this.showNotification('\ud83e\uddf1', fl.name + ' — применено');
+            AudioSys.play('success');
+            return true;
+          }
+          if (!System.canAfford(fl.cost)) {
+            this.showNotification('\ud83e\ude99', 'Не хватает монет! Нужно ещё ' + (fl.cost - System.coins));
+            AudioSys.play('fail');
+            return true;
+          }
+          System.setFloor(id);
+          this.showNotification('\ud83e\uddf1', fl.name + ' — куплено за ' + fl.cost);
+          System.addXP(6);
+          AudioSys.play('success');
+          return true;
+        }
+
         // Мебель: купленная вещь сразу встаёт в комнату
         if (btn.furniture) {
           if (System.ownsFurniture(btn.id)) {
@@ -302,7 +501,7 @@ class ShopScene {
             return true;
           }
           System.spendCoins(btn.cost);
-          System.buyFurniture(btn.id);
+          System.buyFurniture(btn.id, this.decorRoom || 'living');
           this.showNotification(btn.emoji, btn.name + ' уже в комнате!');
           System.addXP(8);
           System.saveGame();
