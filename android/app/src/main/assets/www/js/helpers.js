@@ -4,6 +4,91 @@ function lerp(a, b, t) { return a + (b - a) * t; }
 function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 function randFloat(min, max) { return Math.random() * (max - min) + min; }
 
+// ============ ИМЯ ГЕРОЯ В ТЕКСТЕ (v1.3.4) ============
+// Заказчик: «все другие персонажи тоже называются Гоферами, хотя у них есть свои
+// имена. Гофер должен быть только для гофера». Поэтому ни одна подпись в игре не
+// знает, кто именно герой: в тексте пишем шаблон, а слово подставляется из
+// CHARACTERS[i].pet (см. characters.js):
+//   {Pet}       — имя с большой буквы: «Гофер», «Мишка», «Милка»
+//   {pet}       — то же в середине фразы: «гофер», «мишка», «Милка»
+//   {pet_gen}   — кого/чего:  «гофера», «Милки»
+//   {pet_dat}   — кому:       «гоферу», «Милке»
+//   {pet_acc}   — вижу:       «гофера», «Милку»
+//   {pet_ins}   — с кем:      «гофером», «Милкой»
+//   {pet_he} {pet_his} {pet_by} — он/она, его/её, ним/ней
+//   {pet:м|ж}   — выбор по роду героя: «{pet:нашёл|нашла}»
+//   {pet_gen^}  — форма с большой буквы (начало предложения)
+// Подстановка одна на всю игру: любой текст, попадающий на экран, проходит через
+// petFill() — и на канвасе (перехват fillText/measureText ниже), и в HTML-плашке
+// достижений (System.showAchievement). Так «гофер» не останется у другого героя.
+const PET_PRON = {
+  m: { he: 'он', his: 'его', by: 'ним' },
+  f: { he: 'она', his: 'её', by: 'ней' }
+};
+
+// Текущий герой (или гофер по умолчанию, если System ещё не готов)
+function petHero() {
+  if (typeof System !== 'undefined' && System.hero) return System.hero();
+  // До загрузки CHARACTERS текстов ещё нет — имя не важно, лишь бы не врало
+  return (typeof CHARACTERS !== 'undefined') ? CHARACTERS[0] : { name: 'Питомец', gender: 'm', pet: {} };
+}
+
+// Слово героя в нужной форме: petWord('acc') → «гофера» / «Милку»
+function petWord(form) {
+  const h = petHero();
+  const pet = h.pet || {};
+  return pet[form || 'nom'] || h.name;
+}
+
+function petGenderFemale() { return petHero().gender === 'f'; }
+
+// Заполнить шаблон героем: petFill('Покорми {pet_acc}') → «Покорми мишку».
+// Без шаблона строка возвращается как есть (быстрый путь для всех прочих подписей)
+function petFill(text) {
+  // Быстрый путь: шаблонов нет (регистр важен — {Pet} тоже шаблон!)
+  if (typeof text !== 'string' || !/\{pet/i.test(text)) return text;
+  const h = petHero();
+  const pron = PET_PRON[h.gender === 'f' ? 'f' : 'm'];
+  const up = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  return text.replace(/\{pet:[^}]*\}|\{Pet\}|\{pet(?:_(?:nom|gen|dat|acc|ins|he|his|by))?\^?\}/g, (m) => {
+    if (m.indexOf('{pet:') === 0) {                    // {pet:м|ж} — выбор по роду
+      const parts = m.slice(5, -1).split('|');
+      return (h.gender === 'f' && parts[1] !== undefined) ? parts[1] : parts[0];
+    }
+    if (m === '{Pet}') return h.name;                  // имя героя с большой буквы
+    const key = m.slice(5, -1).replace(/^_/, '').replace('^', '') || 'nom';
+    const word = (pron[key] !== undefined) ? pron[key] : (h.pet && h.pet[key]) || h.name;
+    return (m.indexOf('^}') !== -1) ? up(word) : word;
+  });
+}
+
+// Перехват отрисовки текста: подставляем героя в ЛЮБУЮ подпись на канвасе
+// (пузыри, подсказки, достижения, справка). measureText — чтобы ширина строки
+// считалась по уже подставленному тексту и вёрстка не «плыла».
+function installPetText(Proto) {
+  const fillText = Proto.fillText;
+  const strokeText = Proto.strokeText;
+  const measureText = Proto.measureText;
+  Proto.fillText = function (text) {
+    const args = [].slice.call(arguments);
+    args[0] = petFill(text);
+    return fillText.apply(this, args);
+  };
+  if (strokeText) {
+    Proto.strokeText = function (text) {
+      const args = [].slice.call(arguments);
+      args[0] = petFill(text);
+      return strokeText.apply(this, args);
+    };
+  }
+  if (measureText) {
+    Proto.measureText = function (text) {
+      return measureText.call(this, petFill(text));
+    };
+  }
+}
+if (typeof CanvasRenderingContext2D !== 'undefined') installPetText(CanvasRenderingContext2D.prototype);
+
 function roundRect(ctx, x, y, w, h, r) {
   if (typeof r === 'number') r = { tl: r, tr: r, br: r, bl: r };
   ctx.beginPath();
@@ -114,7 +199,7 @@ function wrapLines(ctx, text, maxW, maxLines) {
 }
 
 // ============ ВЕРСИЯ И ВНЕШНИЕ ССЫЛКИ ============
-const GAME_VERSION = '1.3.2';
+const GAME_VERSION = '1.3.5';
 
 // ============ БУФЕР ОБМЕНА И ВВОД ТЕКСТА ============
 // Проблема: в canvas-игре нельзя выделить текст, а значит нельзя скопировать

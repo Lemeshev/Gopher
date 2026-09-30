@@ -197,8 +197,8 @@ class QuietScene {
     ctx.fillText('🤫 Тихие игры', W / 2, H * 0.055);
 
     const status = System.isSleeping
-      ? 'Гофер спит 💤  энергия ' + Math.round(System.stats.energy) + '% (+10% в минуту)'
-      : 'Гофер не спит. Тихие игры не тратят энергию и не мешают отдыху';
+      ? '{Pet} спит 💤  энергия ' + Math.round(System.stats.energy) + '% (+10% в минуту)'
+      : '{Pet} не спит. Тихие игры не тратят энергию и не мешают отдыху';
     const size = fitFontSize(ctx, status, W - 30, Math.min(W * 0.029, 12.5), 8.5, false);
     ctx.fillStyle = System.isSleeping ? '#9be3b0' : '#c9cfe0';
     ctx.font = `${size}px Arial`;

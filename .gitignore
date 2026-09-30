@@ -8,6 +8,11 @@ android/app/build/
 android/keystore.properties
 *.keystore
 
+# Состояние выпуска в RuStore (id черновика) и любые копии ключей API
+.rustore-state.json
+rustore-key*.txt
+store/*.key
+
 # Gradle
 .gradle/
 !gradle/wrapper/gradle-wrapper.jar

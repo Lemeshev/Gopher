@@ -111,7 +111,7 @@ class MinigamesScene {
     // Пока гофер спит, мини-игры — единственное «дело»: они не зависят от
     // питомца и не тратят энергию. Об этом честно написано на экране.
     if (System.isSleeping) {
-      const note = '\ud83d\udca4 Гофер спит — играй, энергия копится сама';
+      const note = '\ud83d\udca4 {Pet} спит — играй, энергия копится сама';
       const nSize = fitFontSize(ctx, note, W - 30, Math.min(W * 0.031, 12.5), 8.5, false);
       ctx.font = `${nSize}px Arial`;
       ctx.textAlign = 'center';
@@ -138,7 +138,7 @@ class MinigamesScene {
 
   drawSelect(ctx, W, H) {
     const games = [
-      { id: 'tictactoe', emoji: '❌⭕', name: 'Крестики-нолики', desc: 'Сыграй против Гофера', color: '#FF6B6B' },
+      { id: 'tictactoe', emoji: '❌⭕', name: 'Крестики-нолики', desc: 'Сыграй против {pet_gen}', color: '#FF6B6B' },
       { id: 'memory', emoji: '🧠', name: 'Memory', desc: 'Найди пары карточек', color: '#9B59B6' },
       { id: 'coinflip', emoji: '🪙', name: 'Монетка: Да или Нет', desc: 'Случайный ответ на вопрос', color: '#FFD93D' }
     ];
@@ -211,9 +211,9 @@ class MinigamesScene {
       ctx.fillStyle = '#fff';
       ctx.font = `bold ${Math.min(W * 0.04, 18)}px Arial`;
       ctx.textAlign = 'center';
-      ctx.fillText(this.ttt.turn === 'X' ? 'Ваш ход! ❌' : 'Гофер думает... ⭕', W / 2, offsetY + cellSize * 3 + 35);
+      ctx.fillText(this.ttt.turn === 'X' ? 'Ваш ход! ❌' : '{Pet} думает... ⭕', W / 2, offsetY + cellSize * 3 + 35);
     } else {
-      const msg = this.ttt.winner === 'draw' ? '🤝 Ничья!' : this.ttt.winner === 'X' ? '🎉 Вы победили!' : '😢 Гофер победил!';
+      const msg = this.ttt.winner === 'draw' ? '🤝 Ничья!' : this.ttt.winner === 'X' ? '🎉 Вы победили!' : '😢 {Pet} {pet:победил|победила}!';
       ctx.fillStyle = this.ttt.winner === 'X' ? '#6BCB77' : this.ttt.winner === 'draw' ? '#FFD93D' : '#FF6B6B';
       ctx.font = `bold ${Math.min(W * 0.05, 22)}px Arial`;
       ctx.fillText(msg, W / 2, offsetY + cellSize * 3 + 35);

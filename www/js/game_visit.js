@@ -146,6 +146,9 @@ class VisitScene {
   init(locationKey) {
     this.buttons = [];
     this.locationId = locationKey;
+    // Музыка знает, куда пришли: в музее и библиотеке звучит спокойная мелодия,
+    // в парке и бассейне — игровая (v1.3.5)
+    if (typeof AudioSys !== 'undefined' && AudioSys.setScene) AudioSys.setScene('visit:' + locationKey);
     this.data = VISIT_DATA[locationKey] || null;
     this.items = [];
     this.viewed = [];

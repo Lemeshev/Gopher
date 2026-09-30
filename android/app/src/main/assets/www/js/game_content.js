@@ -1229,7 +1229,7 @@ const CLINIC_PROCEDURES = [
   { id: 'injection', name: 'Ставят укол', anim: 'injection', emoji: '💉',
     steps: ['Готовит шприц', 'Быстрый укол в лапу', 'Наклеивает пластырь'] },
   { id: 'eyes', name: 'Проверяют зрение', anim: 'eyes', emoji: '👁️',
-    steps: ['Гофер садится к таблице', 'Закрывает лапой глаз', 'Читает буквы вслух'] },
+    steps: ['{Pet} садится к таблице', 'Закрывает лапой глаз', 'Читает буквы вслух'] },
   { id: 'xray', name: 'Делают снимок', anim: 'xray', emoji: '🦴',
     steps: ['Встаёт за экран', 'Аппарат щёлкает', 'Врач смотрит снимок'] },
   { id: 'bandage', name: 'Перевязывают лапу', anim: 'bandage', emoji: '🩹',
@@ -1237,7 +1237,7 @@ const CLINIC_PROCEDURES = [
   { id: 'teeth', name: 'Смотрят зубы', anim: 'teeth', emoji: '🦷',
     steps: ['Открывает рот', 'Врач светит фонариком', 'Полирует резцы'] },
   { id: 'vitamins', name: 'Дают витамины', anim: 'vitamins', emoji: '🍊',
-    steps: ['Достаёт баночку', 'Отсчитывает витаминки', 'Гофер съедает одну'] },
+    steps: ['Достаёт баночку', 'Отсчитывает витаминки', '{Pet} съедает одну'] },
   { id: 'thermo', name: 'Меряют температуру', anim: 'thermo', emoji: '🌡️',
     steps: ['Ставит градусник', 'Ждёт и смотрит на шкалу', 'Температура нормальная'] }
 ];
@@ -1277,22 +1277,22 @@ window.AERIAL = AERIAL;
 // Все шкалы здесь «чем больше, тем лучше» (v1.3.2): стресса в интерфейсе нет,
 // вместо него «Спокойствие» = 100 − стресс.
 const STAT_HELP = [
-  { key: 'happiness', emoji: '❤️', name: 'Счастье', what: 'Насколько гоферу весело.',
+  { key: 'happiness', emoji: '❤️', name: 'Счастье', what: 'Насколько {pet_dat} весело.',
     up: ['🎮 играть дома (+15)', '🎢 парк и кино (+15)', '🎁 подарки друзей', '🎵 музыка дома (+8)'],
-    down: ['😴 голодный гофер', '😟 мало спокойствия'] },
-  { key: 'hunger', emoji: '🍗', name: 'Сытость', what: 'Насколько гофер сыт.',
+    down: ['😴 {pet:голодный|голодная} {pet}', '😟 мало спокойствия'] },
+  { key: 'hunger', emoji: '🍗', name: 'Сытость', what: 'Насколько {pet} {pet:сыт|сыта}.',
     up: ['🍕 Покормить дома (+25)', '🍽️ ресторан (+25)', '🍎 еда из магазина'],
     down: ['⏰ время (около −2.5 в час)'] },
   { key: 'energy', emoji: '⚡', name: 'Энергия', what: 'Силы на походы и дела.',
     up: ['😴 сон: +10% за минуту (полный сон — 10 минут)', '🍕 еда (+5)', '🌙 сон с закрытым приложением — энергия копится'],
     down: ['🚶 поход в локацию (−2…−8)', '🎮 играть (−8)', '💼 работа (−8 за смену)', '⏰ время (около −1.5 в час)'] },
-  { key: 'health', emoji: '🏥', name: 'Здоровье', what: 'Не болеет ли гофер.',
+  { key: 'health', emoji: '🏥', name: 'Здоровье', what: 'Не болеет ли {pet}.',
     up: ['🏥 поликлиника (+30)', '😴 сон (медленно)', '🏋️ спортзал (+10)', '🍊 витамины'],
     down: ['🍽️ долгий голод', '🤒 случайная простуда'] },
   { key: 'cleanliness', emoji: '🧼', name: 'Чистота', what: 'Пора ли в ванную.',
     up: ['🛁 Искупать дома (+30)', '🏊 бассейн (+20)', '🚿 душевая кабина в ванной'],
     down: ['⏰ время (около −0.8 в час)'] },
-  { key: 'calm', emoji: '😌', name: 'Спокойствие', what: 'Как и все полоски: чем БОЛЬШЕ, тем лучше. Если мало — гофер нервничает и хуже учится.',
+  { key: 'calm', emoji: '😌', name: 'Спокойствие', what: 'Как и все полоски: чем БОЛЬШЕ, тем лучше. Если мало — {pet} нервничает и хуже учится.',
     up: ['😴 сон (+15 за полный сон)', '🎵 музыка дома (+8)', '🛁 купание (+5)', '🎮 играть (+5)', '🤫 тихие игры (+4)', '🏥 поликлиника (+15)', '🍽️ ресторан (+6)'],
     down: ['🏃 много походов подряд без отдыха', '🍽️ голод', '⏰ время (около −0.6 в час)'] }
 ];
@@ -1301,7 +1301,7 @@ window.STAT_HELP = STAT_HELP;
 
 // Правила «спокойной» игры: без таймеров и без проигрышей — это детская игра.
 const QUIET_RULES = [
-  'Тихие игры не тратят энергию: пока гофер спит, можно играть спокойно.',
+  'Тихие игры не тратят энергию: пока {pet} спит, можно играть спокойно.',
   'В тихих играх нельзя проиграть — только заработать монетки.',
   'Награда за тихую игру: 8–12 монет и немного опыта.'
 ];
@@ -1332,11 +1332,11 @@ const ACHIEVEMENT_TIERS = [
 
 const ACHIEVEMENTS = [
   // ---------- Ступень 1: первый вечер ----------
-  { id: 'first_feed',  tier: 'today', emoji: '🍽️', name: 'Первая еда', desc: 'Покорми гофера дома', goal: 1, of: p => p.feeds },
-  { id: 'first_wash',  tier: 'today', emoji: '🧼', name: 'Чистюля', desc: 'Искупай гофера', goal: 1, of: p => p.washes },
-  { id: 'first_play',  tier: 'today', emoji: '🎾', name: 'Первый мяч', desc: 'Поиграй с гофером дома', goal: 1, of: p => p.plays },
+  { id: 'first_feed',  tier: 'today', emoji: '🍽️', name: 'Первая еда', desc: 'Покорми {pet_acc} дома', goal: 1, of: p => p.feeds },
+  { id: 'first_wash',  tier: 'today', emoji: '🧼', name: 'Чистюля', desc: 'Искупай {pet_acc}', goal: 1, of: p => p.washes },
+  { id: 'first_play',  tier: 'today', emoji: '🎾', name: 'Первый мяч', desc: 'Поиграй с {pet_ins} дома', goal: 1, of: p => p.plays },
   { id: 'first_trip',  tier: 'today', emoji: '🚌', name: 'Первый поход', desc: 'Сходи куда-нибудь по карте', goal: 1, of: p => p.trips },
-  { id: 'first_sleep', tier: 'today', emoji: '😴', name: 'Сладкий сон', desc: 'Уложи гофера спать', goal: 1, of: p => p.sleeps },
+  { id: 'first_sleep', tier: 'today', emoji: '😴', name: 'Сладкий сон', desc: 'Уложи {pet_acc} спать', goal: 1, of: p => p.sleeps },
   { id: 'first_game',  tier: 'today', emoji: '🎮', name: 'Первая игра', desc: 'Сыграй в мини-игру', goal: 1, of: p => p.minigames },
   { id: 'first_quiet', tier: 'today', emoji: '✨', name: 'Тихие игры', desc: 'Закончи спокойную игру', goal: 1, of: p => p.quiet },
   { id: 'first_win',   tier: 'today', emoji: '❌', name: 'Победитель', desc: 'Выиграй в крестики-нолики', goal: 1, of: p => p.tttWins },
@@ -1351,7 +1351,7 @@ const ACHIEVEMENTS = [
   { id: 'exhibit12', tier: 'soon', emoji: '🖼️', name: 'Любознательный', desc: 'Посмотри 12 экспонатов одного музея', goal: 12, of: (p, S) => Math.max(0, ...MUSEUM_CATEGORIES.map(c => S.seenCount(c))) },
   { id: 'home5',     tier: 'soon', emoji: '🛋️', name: 'Уютный дом', desc: 'Купи 5 вещей в дом', goal: 5, of: p => p.furniture },
   // ---------- Ступень 3: неделя и больше ----------
-  { id: 'streak3',     tier: 'week', emoji: '🔥', name: 'Три дня подряд', desc: 'Заходи к гоферу 3 дня подряд', goal: 3, of: p => p.streak },
+  { id: 'streak3',     tier: 'week', emoji: '🔥', name: 'Три дня подряд', desc: 'Заходи к {pet_dat} 3 дня подряд', goal: 3, of: p => p.streak },
   { id: 'days7',       tier: 'week', emoji: '📅', name: 'Неделя вместе', desc: 'Играть 7 разных дней', goal: 7, of: p => p.days },
   { id: 'streak7',     tier: 'week', emoji: '💛', name: 'Не разлей вода', desc: 'Заходить 7 дней подряд', goal: 7, of: p => p.streak },
   { id: 'level10',     tier: 'week', emoji: '🌟', name: 'Ветеран', desc: 'Достигни 10 уровня', goal: 10, of: (p, S) => S.level },
@@ -1361,7 +1361,7 @@ const ACHIEVEMENTS = [
   { id: 'school80',    tier: 'week', emoji: '🎓', name: 'Выпускник', desc: 'Учебный навык 80 (занятия в школе)', goal: 80, of: (p, S) => S.stats.schoolSkill },
   { id: 'brain80',     tier: 'week', emoji: '📚', name: 'Учёный', desc: 'Интеллект 80 (музеи, библиотека)', goal: 80, of: (p, S) => S.stats.intelligence },
   { id: 'games50',     tier: 'week', emoji: '🎯', name: 'Пятьдесят игр', desc: 'Сыграй 50 игр', goal: 50, of: p => p.minigames + p.quiet },
-  { id: 'washes10',    tier: 'week', emoji: '🛁', name: 'Банный день', desc: 'Искупай гофера 10 раз', goal: 10, of: p => p.washes },
+  { id: 'washes10',    tier: 'week', emoji: '🛁', name: 'Банный день', desc: 'Искупай {pet_acc} 10 раз', goal: 10, of: p => p.washes },
   { id: 'coins2000',   tier: 'week', emoji: '💎', name: 'Копилка', desc: 'Заработай всего 2000 монет', goal: 2000, of: p => p.coinsEarned },
 
   // ---------- Ступень 4: месяцы ----------
@@ -1371,7 +1371,7 @@ const ACHIEVEMENTS = [
   { id: 'coins10000', tier: 'month', emoji: '🏦', name: 'Казна', desc: 'Заработай всего 10 000 монет', goal: 10000, of: p => p.coinsEarned },
   { id: 'days100',    tier: 'month', emoji: '🎂', name: 'Сто дней вместе', desc: 'Играть 100 разных дней (около 3 месяцев)', goal: 100, of: p => p.days },
   { id: 'days180',    tier: 'month', emoji: '🌗', name: 'Полгода вместе', desc: 'Играть 180 разных дней', goal: 180, of: p => p.days },
-  { id: 'days365',    tier: 'month', emoji: '🏆', name: 'Год с гофером', desc: 'Играть 365 разных дней — целый год', goal: 365, of: p => p.days },
+  { id: 'days365',    tier: 'month', emoji: '🏆', name: 'Год с {pet_ins}', desc: 'Играть 365 разных дней — целый год', goal: 365, of: p => p.days },
   { id: 'streak100',  tier: 'month', emoji: '💯', name: 'Сто дней подряд', desc: 'Заходить 100 дней подряд — без единого пропуска', goal: 100, of: p => p.streak },
   { id: 'streak365',  tier: 'month', emoji: '🎖️', name: 'Год без пропусков', desc: 'Заходить 365 дней подряд — целый год ни дня мимо', goal: 365, of: p => p.streak },
   { id: 'level20',    tier: 'month', emoji: '🥇', name: 'Гроссмейстер', desc: 'Достигни 20 уровня — это примерно полгода занятий', goal: 20, of: (p, S) => S.level },

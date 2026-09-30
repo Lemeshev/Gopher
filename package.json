@@ -1,6 +1,6 @@
 {
   "name": "gopher-life",
-  "version": "1.3.2",
+  "version": "1.3.5",
   "description": "Interactive pet game with Go gopher mascot",
   "main": "index.js",
   "scripts": {
@@ -10,7 +10,11 @@
     "verify": "node tools/verify.js",
     "render": "node tools/render-check.js",
     "store:assets": "node tools/store-assets.js",
-    "apk:desktop": "npm run build && node tools/copy-apk.js"
+    "apk:desktop": "npm run build && node tools/copy-apk.js",
+    "rustore:meta": "node tools/rustore-publish.js meta",
+    "rustore:check": "node tools/rustore-publish.js check --go",
+    "rustore:status": "node tools/rustore-publish.js status --go",
+    "rustore:publish": "node tools/rustore-publish.js all"
   },
   "keywords": ["game", "android", "gopher"],
   "author": "Лемешев Виктор (vk.com/VL)",

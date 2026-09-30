@@ -1,4 +1,10 @@
 // ============ СИСТЕМА ХАРАКТЕРИСТИК ============
+// Имя профиля «по умолчанию» (профиль = кто играет: несколько детей на одном
+// устройстве). Пока оно не изменено, в подписи показываем имя героя — см.
+// System.profileLabel(). v1.3.4: заказчик заметил, что у Мишки/Милки в углу
+// меню было написано «Гофер».
+const DEFAULT_PROFILE_NAME = 'Гофер';
+
 const System = {
   stats: {
     happiness: 70,    // Счастье
@@ -105,8 +111,10 @@ const System = {
 
 
   // ---- Профиль (несколько детей на одном устройстве) ----
+  // DEFAULT_PROFILE_NAME — имя профиля «по умолчанию»: пока родитель не переименовал
+  // профиль, в подписях показываем имя героя (см. profileLabel), а не «Гофер»
   profileId: 'p1',
-  profileName: 'Гофер',
+  profileName: DEFAULT_PROFILE_NAME,
   PROFILE_KEY: 'gopherlife_profiles',
   timeOfDay: 'morning',  // morning, afternoon, evening, night
   currentLocation: 'home',
@@ -440,7 +448,10 @@ const System = {
   // карте и объяснение отказа. lastPopup хранит последний текст — это нужно
   // проверкам (в WebView DOM не всегда доступен) и отладке.
   showAchievement(emoji, text) {
-    this.lastPopup = { emoji: emoji, text: text, at: Date.now() };
+    // Имя героя подставляем и в HTML-плашку, и в lastPopup: плашка — не канвас,
+    // перехват fillText её не касается (v1.3.4)
+    const shown = (typeof petFill === 'function') ? petFill(text) : text;
+    this.lastPopup = { emoji: emoji, text: shown, raw: text, at: Date.now() };
     let el = document.getElementById('achievement-popup');
     if (!el) {
       el = document.createElement('div');
@@ -451,7 +462,7 @@ const System = {
     const emojiEl = el.querySelector('.ach-emoji');
     const textEl = el.querySelector('.ach-text');
     if (emojiEl) emojiEl.textContent = emoji;
-    if (textEl) textEl.textContent = text;
+    if (textEl) textEl.textContent = shown;
     el.classList.add('show');
     clearTimeout(this._achTimer);
     // Чуть дольше, чем шаг очереди (POPUP_MS), чтобы плашка не мигала между двумя
@@ -496,7 +507,7 @@ const System = {
     const hunger = this.stats.hunger;
     if (this.isLocationAvailable(loc)) return 'Сюда можно идти 🙂';
     if (this.sleepBlocks(loc)) {
-      return 'Гофер спит 💤 — походы подождут. Сейчас можно: тихие игры, мини-игры, магазин и инфо';
+      return '{Pet} спит 💤 — походы подождут. Сейчас можно: тихие игры, мини-игры, магазин и инфо';
     }
 
     const price = {
@@ -506,15 +517,15 @@ const System = {
     if (price && !this.canAfford(price)) {
       return 'Нужно ' + price + ' \ud83e\ude99 — загляни в магазин или на работу';
     }
-    if ((loc === 'pool' || loc === 'beach') && hunger <= 15) return 'Гофер голодный — сначала покорми 🍕';
-    if (loc === 'restaurant' && hunger >= 95) return 'Гофер сыт — сначала погуляй 🚶';
+    if ((loc === 'pool' || loc === 'beach') && hunger <= 15) return '{Pet} {pet:голодный|голодная} — сначала покорми 🍕';
+    if (loc === 'restaurant' && hunger >= 95) return '{Pet} {pet:сыт|сыта} — сначала погуляй 🚶';
 
     const need = {
       work: 15, school: 10, pool: 5, park: 5, gym: 5,
       cinema: 5, friend: 5, beach: 5, museums: 3
     }[loc];
     if (need && energy < need) {
-      return 'Гофер устал (⚡' + Math.round(energy) + '%) — поспи, сон даёт +10% в минуту 😴';
+      return '{Pet} {pet:устал|устала} (⚡' + Math.round(energy) + '%) — поспи, сон даёт +10% в минуту 😴';
     }
     return 'Сейчас сюда нельзя';
   },
@@ -555,8 +566,8 @@ const System = {
   // Для ребёнка это шкала «Спокойствие»: чем её меньше, тем хуже дела.
   stressHint() {
     const calm = this.calm();
-    if (calm <= 30) return 'Гофер очень нервничает 😰 Поспи с ним или поиграй тихо';
-    if (calm <= 60) return 'Гофер немного напряжён 😟 Помогут сон, музыка или тихие игры';
+    if (calm <= 30) return '{Pet} очень нервничает 😰 Поспи с {pet_by} или поиграй тихо';
+    if (calm <= 60) return '{Pet} немного {pet:напряжён|напряжена} 😟 Помогут сон, музыка или тихие игры';
     return '';
   },
 
@@ -633,9 +644,9 @@ const System = {
     if (!r) return '';
     const mins = r.awayMinutes;
     const human = mins < 60 ? (mins + ' мин') : (Math.floor(mins / 60) + ' ч ' + (mins % 60) + ' мин');
-    if (r.wokeUp) return 'Пока тебя не было (' + human + '), гофер выспался и полон сил! ⚡';
-    if (r.sleptMinutes > 0) return 'Гофер спал ' + r.sleptMinutes + ' мин без тебя: энергия ' + Math.round(this.stats.energy) + '% ⚡';
-    return 'Тебя не было ' + human + ' — гофер скучал, но держится 🐹';
+    if (r.wokeUp) return 'Пока тебя не было (' + human + '), {pet} {pet:выспался|выспалась} и {pet:полон|полна} сил! ⚡';
+    if (r.sleptMinutes > 0) return '{Pet} {pet:спал|спала} ' + r.sleptMinutes + ' мин без тебя: энергия ' + Math.round(this.stats.energy) + '% ⚡';
+    return 'Тебя не было ' + human + ' — {pet} {pet:скучал|скучала}, но держится ' + this.heroEmoji();
   },
 
   saveGame() {
@@ -763,20 +774,29 @@ const System = {
     }
   },
 
-  // Надеть на героя в меню то, что уже куплено (наряд, окрас, персонаж).
-  // Читаем ТОЛЬКО внешний вид из сохранения: прогресс грузится кнопкой
-  // «Продолжить», а вот «купил наряд — в меню герой раздетый» выглядело как
-  // пропажа покупки. Нашлось при прогоне на живом Android.
-  lookFromSave() {
+  // Прочитать из сохранения ТОЛЬКО то, что видно прямо в меню: внешний вид,
+  // уровень, опыт и монеты. Полный прогресс по-прежнему грузится кнопкой
+  // «Продолжить» — меню не подменяет игру, но и врать не должно: раньше ребёнок
+  // с сохранением видел в меню «Уровень 1, 0 / 100 XP», хотя в игре у него были
+  // и уровень, и опыт (нашлось на живом устройстве при подготовке к RuStore).
+  previewFromSave() {
     let data = null;
     try {
       const raw = localStorage.getItem(this.saveKeyFor(this.profileId));
       if (raw) data = JSON.parse(raw);
     } catch (e) { data = null; }
-    if (!data || !data.look) return false;
-    this.look = this.migrateLook(data.look);
+    if (!data) return false;
+    if (data.look) this.look = this.migrateLook(data.look);
+    if (typeof data.level === 'number') this.level = data.level;
+    if (typeof data.xp === 'number') this.xp = data.xp;
+    if (typeof data.xpToNext === 'number') this.xpToNext = data.xpToNext;
+    if (typeof data.coins === 'number') this.coins = data.coins;
     return true;
   },
+
+  // Прежнее имя (v1.3.0): читало только внешний вид. Оставлено, чтобы старые
+  // проверки и сторонний код продолжали работать.
+  lookFromSave() { return this.previewFromSave(); },
 
   resetProgress() {
     this.stats = {
@@ -874,6 +894,61 @@ const System = {
   characterName() {
     if (typeof findCharacter !== 'function') return 'Питомец';
     return findCharacter(this.look.char).name;
+  },
+
+  // Сам герой (описание из CHARACTERS): нужен текстам — по нему берётся имя
+  // в нужной форме, род и эмодзи (см. petFill/petWord в helpers.js)
+  hero() {
+    if (typeof findCharacter !== 'function') return (typeof CHARACTERS !== 'undefined') ? CHARACTERS[0] : null;
+    return findCharacter(this.look.char);
+  },
+
+  // Эмодзи героя: подписи не должны показывать 🐹 питомцу другой породы
+  heroEmoji() {
+    const h = this.hero();
+    return (h && h.emoji) || '🐾';
+  },
+
+  // Как зовут профиль в подписи. Профиль — это «кто играет» (несколько детей на
+  // одном устройстве), но по умолчанию он называется «Гофер». Если имя профиля
+  // не меняли, честнее показать имя героя: иначе у Милки в углу написано «Гофер»
+  profileLabel() {
+    const own = (this.profileName || '').trim();
+    if (own && own !== DEFAULT_PROFILE_NAME) return own;
+    return this.characterName();
+  },
+
+  // Герой, записанный в сохранении конкретного профиля: нужен подписям в списке
+  // профилей и в списке друзей, пока этот профиль не загружен (v1.3.5).
+  characterForProfile(profileId) {
+    try {
+      const raw = localStorage.getItem(this.saveKeyFor(profileId));
+      if (raw) {
+        const d = JSON.parse(raw);
+        const ch = (d && d.look && d.look.char) || (d && d.character);
+        if (ch && typeof findCharacter === 'function') return findCharacter(ch).id;
+      }
+    } catch (e) {}
+    return this.look.char;
+  },
+
+  // Имя профиля для списков. Правило то же, что в profileLabel: если профиль не
+  // переименовывали, показываем имя его героя. Иначе у Милки в списке профилей и
+  // у друзей стоит «Гофер» — ровно то, на что жаловался заказчик в v1.3.4
+  // (нашлось на кадре рендера menu@profiles, v1.3.5).
+  profileLabelFor(profileId) {
+    const pr = this.getProfiles().find(p => p.id === profileId);
+    const own = ((pr && pr.name) || '').trim();
+    if (own && own !== DEFAULT_PROFILE_NAME) return own;
+    if (typeof findCharacter !== 'function') return own || 'Питомец';
+    return findCharacter(this.characterForProfile(profileId)).name;
+  },
+
+  // Эмодзи героя конкретного профиля: в списке профилей вместо 🐹 должно стоять
+  // лицо того, кто там живёт (у Милки — 🐇).
+  emojiForProfile(profileId) {
+    if (typeof findCharacter !== 'function') return '🐾';
+    return findCharacter(this.characterForProfile(profileId)).emoji || '🐾';
   },
 
   // Привести внешний вид к текущему формату: старые сохранения хранили
@@ -1253,7 +1328,7 @@ const System = {
         if (Array.isArray(list) && list.length) return list;
       }
     } catch (e) {}
-    return [{ id: 'p1', name: 'Гофер' }];
+    return [{ id: 'p1', name: DEFAULT_PROFILE_NAME }];
   },
 
   saveProfiles(list) {
@@ -1280,9 +1355,11 @@ const System = {
         const d = JSON.parse(raw);
         out.push({
           id: 'local_' + pr.id,
-          name: pr.name,
+          // Имя в гостях — по тому же правилу: у профиля без своего имени это имя
+          // его героя (v1.3.5), иначе друг-Милка подписан «Гофером»
+          name: this.profileLabelFor(pr.id),
           emoji: '🐹',
-          trait: 'гофер с этого устройства',
+          trait: 'питомец с этого устройства',
           level: d.level || 1,
           friendship: (this.localFriendship && this.localFriendship['local_' + pr.id]) || 25,
           decor: [],
@@ -1385,7 +1462,7 @@ const System = {
 
   // ПОЛНЫЙ код: весь дом со всеми комнатами (копируется кнопкой)
   getMyCode(game) {
-    const name = this.profileName && this.profileName !== 'Гофер'
+    const name = this.profileName && this.profileName !== DEFAULT_PROFILE_NAME
       ? this.profileName
       : this.characterName() + '#' + (this.level * 100 + Math.floor(this.coins / 10)).toString(36);
     const data = {
@@ -1534,13 +1611,13 @@ const System = {
 
   getRandomEvent() {
     const events = [
-      { emoji: '🪙', text: 'Гофер нашёл монетку!', effect: () => { this.earnCoins(10); }, chance: 0.15 },
-      { emoji: '⭐', text: 'Гофер нашёл золотую монетку!', effect: () => { this.earnCoins(25); }, chance: 0.05 },
-      { emoji: '🎁', text: 'Гофер получил подарок!', effect: () => { this.stats.happiness = Math.min(100, this.stats.happiness + 20); }, chance: 0.08 },
-      { emoji: '🤒', text: 'Гофер заболел! Нужно к врачу!', effect: () => { this.isSick = true; this.stats.health = Math.max(10, this.stats.health - 20); }, chance: 0.06 },
-      { emoji: '🌟', text: 'Гофер нашёл опыт!', effect: () => { this.addXP(20); }, chance: 0.1 },
+      { emoji: '🪙', text: '{Pet} {pet:нашёл|нашла} монетку!', effect: () => { this.earnCoins(10); }, chance: 0.15 },
+      { emoji: '⭐', text: '{Pet} {pet:нашёл|нашла} золотую монетку!', effect: () => { this.earnCoins(25); }, chance: 0.05 },
+      { emoji: '🎁', text: '{Pet} {pet:получил|получила} подарок!', effect: () => { this.stats.happiness = Math.min(100, this.stats.happiness + 20); }, chance: 0.08 },
+      { emoji: '🤒', text: '{Pet} {pet:заболел|заболела}! Нужно к врачу!', effect: () => { this.isSick = true; this.stats.health = Math.max(10, this.stats.health - 20); }, chance: 0.06 },
+      { emoji: '🌟', text: '{Pet} {pet:нашёл|нашла} опыт!', effect: () => { this.addXP(20); }, chance: 0.1 },
       { emoji: '🎉', text: 'Угощение от друга! Счастье +10', effect: () => { this.stats.happiness = Math.min(100, this.stats.happiness + 10); }, chance: 0.07 },
-      { emoji: '😴', text: 'Гофер устал. Энергия -10', effect: () => { this.stats.energy = Math.max(0, this.stats.energy - 10); }, chance: 0.1 },
+      { emoji: '😴', text: '{Pet} {pet:устал|устала}. Энергия -10', effect: () => { this.stats.energy = Math.max(0, this.stats.energy - 10); }, chance: 0.1 },
       { emoji: '💰', text: 'Премия! +30 монет', effect: () => { this.earnCoins(30); }, chance: 0.05 },
     ];
     const totalChance = events.reduce((s, e) => s + e.chance, 0);
@@ -1608,5 +1685,6 @@ function code32Checksum(body) {
 }
 
 window.CODE32 = CODE32;
+window.DEFAULT_PROFILE_NAME = DEFAULT_PROFILE_NAME;
 window.System = System;
 
