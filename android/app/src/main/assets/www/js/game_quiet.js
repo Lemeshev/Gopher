@@ -29,13 +29,51 @@ class QuietScene {
   }
 
   // ---------- 1. СОЗВЕЗДИЕ ----------
+  // Рисунок каждый раз новый: раньше созвездие было одно и то же, и игра
+  // быстро надоедала. Строим «путь» из 9 звёзд: каждая следующая на
+  // расстоянии 70–125 px от предыдущей, с плавным поворотом, так что
+  // получается похоже на созвездие, а не на прямую линию. Минимальный
+  // зазор — 56 px: по звёздам легко попадать пальцем (радиус попадания 24).
   initStars() {
-    // «Ковш» из 9 звёзд: соединяем по номерам — получается созвездие
-    const base = [
-      [0.20, 0.30], [0.32, 0.26], [0.44, 0.30], [0.56, 0.38],
-      [0.68, 0.34], [0.74, 0.50], [0.60, 0.56], [0.46, 0.54], [0.34, 0.62]
-    ];
-    this.stars = { points: base, next: 0, done: false };
+    const W = (this.game && this.game.width) || 540;
+    const H = (this.game && this.game.height) || 960;
+    const area = { x: W * 0.08, y: H * 0.16, w: W * 0.84, h: H * 0.54 };
+    const padX = 26, padY = 34;
+    let minGap = 56;
+
+    const pts = [];
+    let cur = {
+      x: randFloat(area.x + padX, area.x + area.w * 0.35),
+      y: randFloat(area.y + padY, area.y + area.h - padY)
+    };
+    pts.push(cur);
+    let dir = randFloat(-0.6, 0.6);          // идём в основном вправо
+    let guard = 0;
+    while (pts.length < 9 && guard++ < 500) {
+      const step = randFloat(70, 125);
+      dir += randFloat(-0.9, 0.9);
+      let nx = cur.x + Math.cos(dir) * step;
+      let ny = cur.y + Math.sin(dir) * step;
+      // У края области разворачиваемся, чтобы созвездие осталось внутри
+      if (nx < area.x + padX || nx > area.x + area.w - padX) {
+        dir = Math.PI - dir;
+        nx = clamp(cur.x + Math.cos(dir) * step, area.x + padX, area.x + area.w - padX);
+      }
+      if (ny < area.y + padY || ny > area.y + area.h - padY) {
+        dir = -dir;
+        ny = clamp(cur.y + Math.sin(dir) * step, area.y + padY, area.y + area.h - padY);
+      }
+      const tooClose = pts.some(p => Math.hypot(p.x - nx, p.y - ny) < minGap);
+      if (tooClose) {
+        if (guard > 250) minGap = Math.max(42, minGap - 2);   // страховка от затора
+        continue;
+      }
+      cur = { x: nx, y: ny };
+      pts.push(cur);
+    }
+    // Доли области — в таком виде звёзды рисует и проверяет игра
+    const points = pts.map(p => [(p.x - area.x) / area.w, (p.y - area.y) / area.h]);
+    this.stars = { points: points, next: 0, done: false };
   }
 
   // ---------- 2. РАСКРАСКА ----------
