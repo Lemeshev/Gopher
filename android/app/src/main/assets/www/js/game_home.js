@@ -1252,6 +1252,7 @@ class HomeScene {
         System.stats.stress = Math.max(0, System.stats.stress - 3);
         this.setBubble('Ням-ням! Вкусно! \ud83d\ude0b');
         AudioSys.play('eat');
+        AudioSys.voice(System.look.char, 'happy');   // герой чавкает своим голосом (v1.3)
         System.addXP(5);
         System.countAction('feeds');
         break;
@@ -1263,6 +1264,7 @@ class HomeScene {
         System.stats.happiness = Math.min(100, System.stats.happiness + 5);
         this.setBubble('Бульк-бульк! Чистый! \ud83e\uddfc');
         AudioSys.play('bath');
+        AudioSys.voice(System.look.char, 'happy');
         System.addXP(5);
         System.countAction('washes');
         break;
@@ -1272,10 +1274,12 @@ class HomeScene {
           if (System.wakeUp()) {
             this.setBubble('Доброе утро! \u2600\ufe0f');
             AudioSys.play('success');
+            AudioSys.voice(System.look.char, 'hello');  // проснулся и поздоровался
           }
         } else if (System.startSleep()) {
           this.setBubble('Спокойной ночи! \ud83d\udca4 Энергия растёт сама');
           AudioSys.play('sleep');
+          AudioSys.voice(System.look.char, 'sleepy');
         } else {
           // Энергия и так полная: спать нечего, и это надо сказать словами
           this.setBubble('Гофер и так полон сил \u26a1 — бегать и играть!');
@@ -1300,6 +1304,7 @@ class HomeScene {
         System.stats.stress = Math.max(0, System.stats.stress - 5);
         this.setBubble('Ура! Весело! \ud83c\udf89');
         AudioSys.play('success');
+        AudioSys.voice(System.look.char, 'happy');
         System.addXP(8);
         System.countAction('plays');
         break;

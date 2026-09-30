@@ -167,21 +167,22 @@ class ShopScene {
       { id: 'robot', emoji: '🤖', name: 'Робот', desc: '+20 счастья, +10 XP', cost: 50, category: 'toys', effect: () => { System.stats.happiness = Math.min(100, System.stats.happiness + 20); System.addXP(10); } },
       { id: 'doll', emoji: '🧸', name: 'Мишка', desc: '+15 счастья, успокаивает', cost: 25, category: 'toys', effect: () => { System.stats.happiness = Math.min(100, System.stats.happiness + 15); System.stats.stress = Math.max(0, System.stats.stress - 10); } },
 
-      // Одежда и аксессуары (внешний вид хранится в System.look)
-      { id: 'no_acc', emoji: '🚫', name: 'Без аксессуаров', desc: 'Снять всё', cost: 0, category: 'clothes',
-        effect: () => { System.look.hat = null; System.look.glasses = null; System.look.bowtie = false; System.saveGame(); } },
-      { id: 'hat_cook', emoji: '👨‍🍳', name: 'Шеф-шапка', desc: 'Поварской колпак', cost: 40, category: 'clothes',
-        effect: () => { System.look.hat = 'chef'; System.saveGame(); } },
-      { id: 'hat_sci', emoji: '🧑‍🔬', name: 'Шапочка учёного', desc: 'Умный вид', cost: 35, category: 'clothes',
-        effect: () => { System.look.hat = 'scientist'; System.saveGame(); } },
-      { id: 'glasses_nerd', emoji: '🤓', name: 'Очки учёного', desc: 'Для чтения', cost: 35, category: 'clothes',
-        effect: () => { System.look.glasses = 'nerd'; System.saveGame(); } },
-      { id: 'cool_shades', emoji: '😎', name: 'Крутые очки', desc: 'Стиль', cost: 45, category: 'clothes',
-        effect: () => { System.look.glasses = 'cool'; System.saveGame(); } },
-      { id: 'bowtie', emoji: '🎀', name: 'Бабочка', desc: 'Нарядный', cost: 30, category: 'clothes',
-        effect: () => { System.look.bowtie = true; System.saveGame(); } },
-      { id: 'crown', emoji: '👑', name: 'Корона', desc: '+20 счастья!', cost: 100, category: 'clothes',
-        effect: () => { System.look.hat = 'crown'; System.stats.happiness = Math.min(100, System.stats.happiness + 20); System.saveGame(); } },
+      // Наряды героев (v1.3). Каталог один на всю игру — OUTFITS в
+      // game_content.js: магазин продаёт ровно то, что умеет нарисовать,
+      // а слот один, поэтому «надел кепку» — шеф-шапка снимается сама.
+      { id: 'no_acc', emoji: '🚫', name: 'Без нарядов', desc: 'Снять всё сразу', cost: 0, category: 'clothes',
+        active: OUTFIT_SLOTS.every(s => !System.look[s]),
+        effect: () => { System.clearOutfits(); } },
+      ...OUTFITS.map(o => ({
+        id: o.slot + '_' + o.value, emoji: o.emoji, name: o.name, desc: o.desc, cost: o.cost,
+        category: 'clothes', slot: o.slot, value: o.value,
+        owned: System.ownsOutfit(o.slot, o.value),
+        active: System.look[o.slot] === o.value,
+        effect: () => {
+          System.setOutfit(o.slot, o.value);
+          if (o.happiness) System.stats.happiness = Math.min(100, System.stats.happiness + o.happiness);
+        }
+      })),
 
       // Окрас шерсти — гофера видно издалека
       ...FURS.map(f => ({
@@ -574,6 +575,41 @@ class ShopScene {
           this.showNotification('\ud83e\uddf1', fl.name + ' — куплено за ' + fl.cost);
           System.addXP(6);
           AudioSys.play('success');
+          return true;
+        }
+
+        // Наряды героев: покупаются один раз, потом надеваются бесплатно
+        if (btn.slot && btn.value) {
+          const o = findOutfit(btn.slot, btn.value);
+          if (!o) return true;
+          if (System.look[btn.slot] === btn.value) {
+            this.showNotification('👗', o.name + ' уже надет');
+            AudioSys.play('fail');
+            return true;
+          }
+          if (System.ownsOutfit(btn.slot, btn.value)) {
+            System.setOutfit(btn.slot, btn.value);
+            System.applyLookTo(this.game.gopher);
+            this.showNotification(o.emoji, o.name + ' — надето');
+            AudioSys.play('success');
+            AudioSys.voice(System.look.char, 'hello');   // герой «здоровается» в обновке
+            return true;
+          }
+          if (!System.canAfford(o.cost)) {
+            this.showNotification('🪙', 'Не хватает монет! Нужно ещё ' + (o.cost - System.coins));
+            AudioSys.play('fail');
+            return true;
+          }
+          System.spendCoins(o.cost);
+          System.buyOutfit(btn.slot, btn.value);
+          System.applyLookTo(this.game.gopher);
+          if (o.happiness) System.stats.happiness = Math.min(100, System.stats.happiness + o.happiness);
+          this.showNotification(o.emoji, o.name + ' — куплено за ' + o.cost);
+          System.addXP(5);
+          System.saveGame();
+          AudioSys.play('success');
+          AudioSys.voice(System.look.char, 'happy');     // герой радуется обновке
+          this.game.gopher.setExpression('excited', 60);
           return true;
         }
 

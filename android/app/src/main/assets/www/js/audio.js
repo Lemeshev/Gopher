@@ -94,6 +94,65 @@ const AudioSys = {
         osc.start(now);
         osc.stop(now + 0.1);
     }
+  },
+
+  // ============ ГОЛОС ГЕРОЯ (v1.3) ============
+  // Заказчик: «Милке нужны наряды и звуки, как и всем другим героям».
+  // У каждого персонажа свой тембр (CHARACTERS[i].voice): гофер пищит, мишка
+  // гудит низко, зайка тараторит, котёнок тянет «мяу», робот пикает, Милка
+  // поёт мягко. Голос звучит при выборе героя, кормлении, купании, игре и
+  // пробуждении — то есть тогда, когда герой «отвечает» ребёнку.
+  voice(charId, mood) {
+    if (!this.ctx) return false;
+    const ch = (typeof findCharacter === 'function') ? findCharacter(charId) : null;
+    const v = (ch && ch.voice) || { base: 660, type: 'sine', steps: [1, 1.5], dur: 0.12, bend: 1.1 };
+    this.playVoice(v, mood);
+    return true;
+  },
+
+  // Как звучит герой — строка для проверок и отладки
+  voiceHint(charId) {
+    const ch = (typeof findCharacter === 'function') ? findCharacter(charId) : null;
+    const v = (ch && ch.voice) || null;
+    if (!v) return '';
+    return (ch.name || charId) + ': ' + v.base + ' Гц, ' + v.type + ', нот ' + v.steps.length;
+  },
+
+  playVoice(v, mood) {
+    try { this.resume(); } catch (e) {}
+    const base = v.base || 660;
+    let seq = (v.steps && v.steps.length) ? v.steps.slice() : [1, 1.5];
+    let bend = v.bend || 1;
+    let dur = v.dur || 0.12;
+    let vol = 0.11;
+    if (mood === 'happy') {
+      seq = seq.concat([seq[seq.length - 1] * 1.25]);
+    } else if (mood === 'sleepy') {
+      seq = seq.map(k => k * 0.72);
+      bend = 0.92; dur = dur * 1.7; vol = 0.06;
+    } else if (mood === 'hello') {
+      bend = 1 + (bend - 1) * 0.5;     // при знакомстве голос короче и мягче
+    }
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = v.type || 'sine';
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    const step = dur + 0.04;
+    seq.forEach((k, i) => {
+      const t = now + i * step;
+      const f = Math.max(60, base * k);
+      osc.frequency.setValueAtTime(f, t);
+      osc.frequency.exponentialRampToValueAtTime(Math.max(60, f * bend), t + dur);
+    });
+    const total = seq.length * step;
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(vol, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + total);
+    osc.start(now);
+    osc.stop(now + total + 0.03);
   }
 };
 window.AudioSys = AudioSys;
