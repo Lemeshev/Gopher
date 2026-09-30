@@ -748,6 +748,15 @@ class HomeScene {
   }
 
   // ---------- Шторка выбора ----------
+  // Системная кнопка «Назад»: сначала закрываем то, что открыто в доме
+  // (перетаскивание, режим расстановки, шторку), и только потом выходим в меню.
+  handleBack() {
+    if (this.dragId) { this.dragId = null; return true; }
+    if (this.decorMode) { this.decorMode = false; return true; }
+    if (this.sheet) { this.sheet = null; return true; }
+    return false;
+  }
+
   drawSheet(ctx, L) {
     const W = L.W, H = L.H;
     ctx.fillStyle = 'rgba(0,0,0,0.55)';

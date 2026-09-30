@@ -3,6 +3,7 @@ package com.gopherlife.app;
 import android.os.Bundle;
 import android.view.View;
 import android.view.WindowManager;
+import android.webkit.ValueCallback;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -57,10 +58,27 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
+        if (webView == null) {
+            super.onBackPressed();
+            return;
+        }
         if (webView.canGoBack()) {
             webView.goBack();
-        } else {
-            super.onBackPressed();
+            return;
         }
+        // Сначала спрашиваем игру: она сама решает — вернуться на шаг назад
+        // (закрыть шторку, выйти из гостей у друга) или закрыть приложение.
+        // Раньше «Назад» всегда закрывала игру, поэтому из гостей выйти было
+        // невозможно: ребёнок выгружал приложение целиком (жалоба 30.09.2026).
+        webView.evaluateJavascript(
+            "(window.onAndroidBack ? String(onAndroidBack()) : 'exit')",
+            new ValueCallback<String>() {
+                @Override
+                public void onReceiveValue(String value) {
+                    if (value == null || value.indexOf("exit") != -1) {
+                        finish();
+                    }
+                }
+            });
     }
 }

@@ -147,9 +147,10 @@ class StatsScene {
       ctx.fillText(Math.floor(val) + '%', bx + bw - 8, y + 27);
     });
 
-    // Info
+    // Info: монеты, время в игре и состояние сохранения (v1.3.6).
+    // Время раньше считалось неверно и всегда показывало «0 мин» (жалоба 30.09.2026).
     ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    roundRect(ctx, W * 0.05, startY + mainStats.length * rowH + 10, W * 0.9, 70, 12);
+    roundRect(ctx, W * 0.05, startY + mainStats.length * rowH + 10, W * 0.9, 92, 12);
     ctx.fill();
 
     ctx.font = `${Math.min(W * 0.03, 14)}px Arial`;
@@ -157,7 +158,11 @@ class StatsScene {
     ctx.fillStyle = '#FFD93D';
     ctx.fillText('🪙 Монет: ' + System.coins, W / 2, startY + mainStats.length * rowH + 32);
     ctx.fillStyle = '#fff';
-    ctx.fillText('📅 Время в игре: ' + Math.floor(System.totalPlayTime / 60) + ' мин', W / 2, startY + mainStats.length * rowH + 55);
+    ctx.fillText('📅 Время в игре: ' + System.playTimeText(), W / 2, startY + mainStats.length * rowH + 55);
+    const health = System.saveHealth();
+    ctx.fillStyle = (health === 'в порядке') ? '#9be3b0' : '#FFB4A2';
+    ctx.font = `${Math.min(W * 0.028, 12.5)}px Arial`;
+    ctx.fillText('💾 Сохранение: ' + health, W / 2, startY + mainStats.length * rowH + 78);
   }
 
   // Вкладка достижений (v1.2.2): каталог берём из контента — один список на
