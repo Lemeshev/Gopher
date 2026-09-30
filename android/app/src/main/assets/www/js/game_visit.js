@@ -210,6 +210,17 @@ class VisitScene {
     }
   }
 
+  // Системная кнопка «Назад»: сначала закрываем карточку предмета, а потом уже
+  // уходим на карту (v1.3.6: «Назад» всегда делает один понятный шаг назад).
+  handleBack() {
+    if (this.state === 'fact' || this.selected !== null) {
+      this.state = 'browse';
+      this.selected = null;
+      return true;
+    }
+    return false;
+  }
+
   // ================= ОТРИСОВКА =================
   draw(ctx) {
     const W = this.game.width, H = this.game.height;

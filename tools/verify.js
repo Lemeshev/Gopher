@@ -2294,6 +2294,9 @@ function reviewerSaveAndExit(rt) {
     /handleBack\(\) \{[\s\S]{0,300}friendVisitData/.test(friendsSrc) &&
     /handleBack\(\) \{[\s\S]{0,300}showSettings/.test(menuSrc) &&
     /handleBack\(\) \{[\s\S]{0,300}this\.sheet/.test(homeSrc));
+  check('Сцена похода тоже умеет «Назад»: карточка предмета закрывается',
+    /handleBack\(\) \{[\s\S]{0,300}this\.state === 'fact'/.test(
+      fs.readFileSync(path.join(WWW, 'js', 'game_visit.js'), 'utf8')));
   check('Системная кнопка «Назад»: Android спрашивает игру, игра решает',
     gameSrc.indexOf('window.onAndroidBack') !== -1 &&
     gameSrc.indexOf("if (this.currentScene === 'menu') return 'exit'") !== -1 &&
