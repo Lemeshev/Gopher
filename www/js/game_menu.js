@@ -25,9 +25,10 @@ class MenuScene {
     this.aboutMode = false;
     this.profilesMode = false;
     this.charMode = false;
-    // Герой в меню — в наряде и со своим окрасом из сохранения: иначе после
-    // перезапуска ребёнок видел «раздетого» питомца и думал, что покупка пропала
-    if (this.hasSave && System.lookFromSave && System.lookFromSave()) {
+    // Герой в меню — в наряде и со своим окрасом из сохранения, а рядом честные
+    // уровень, опыт и монеты: иначе после перезапуска ребёнок видел «раздетого»
+    // питомца и «Уровень 1, 0/100 XP», хотя прогресс на месте (v1.3.3).
+    if (this.hasSave && System.previewFromSave && System.previewFromSave()) {
       if (this.game.ensureCharacter) this.game.ensureCharacter();
       System.applyLookTo(this.game.gopher);
     }
@@ -142,10 +143,11 @@ class MenuScene {
     ctx.fillStyle = '#fff';
     ctx.fillText(System.xp + ' / ' + System.xpToNext + ' XP', W / 2, xpBarY + 12 + xpBarH / 2);
 
-    // Гофер
+    // Герой — НИЖЕ полосы опыта: у Милки длинные уши и шапка сверху, и раньше
+    // они залезали на надпись «38 / 100 XP» (нашлось на живом устройстве, v1.3.4)
     if (this.game.gopher) {
-      const gs = Math.min(W * 0.36, 150);
-      this.game.gopher.draw(ctx, W / 2, H * 0.30, gs / this.game.gopher.size);
+      const gs = Math.min(W * 0.33, 138);
+      this.game.gopher.draw(ctx, W / 2, H * 0.345, gs / this.game.gopher.size);
     }
 
     // === КНОПКИ ===
@@ -189,7 +191,7 @@ class MenuScene {
     ctx.fillStyle = '#c9d2f0';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    const pchip = '👥 ' + (System.profileName || 'Гофер');
+    const pchip = '👥 ' + System.profileLabel();
     const chipFont = fitFontSize(ctx, pchip, chipW - 18, Math.min(chipW * 0.11, 12), 8, false);
     ctx.font = `${chipFont}px Arial`;
     ctx.fillText(pchip, 20, 12 + chipH / 2);
@@ -223,7 +225,7 @@ class MenuScene {
     ctx.fillText('🧸 Кто будет героем?', W / 2, H * 0.10);
     ctx.fillStyle = '#c9cfe0';
     ctx.font = `${Math.min(W * 0.03, 13)}px Arial`;
-    ctx.fillText('Играть можно не только гофером', W / 2, H * 0.135);
+    ctx.fillText('Играть можно любым героем', W / 2, H * 0.135);
 
     const chars = (typeof characterList === 'function') ? characterList() : [];
     const cols = 2, gap = 10, pad = 14;
@@ -338,8 +340,13 @@ class MenuScene {
 
     ctx.textAlign = 'center';
     ctx.fillStyle = '#9fb0d8';
-    ctx.font = `${Math.min(W * 0.027, 11.5)}px Arial`;
-    ctx.fillText('Выключишь музыку — игра станет тихой', W / 2, panelY + 162);
+    // Заказчик: «дети спрашивают — музыка всегда одинаковая или будет меняться?»
+    // Поэтому в настройках видно, какая мелодия играет сейчас и что они меняются (v1.3.5).
+    // Строки подняты ближе к кнопке «Об авторе»: ряд «Музыка» заканчивается на 146,
+    // а подпись шрифтом 11 заезжала под его рамку (нашли на живой проверке).
+    ctx.font = `${Math.min(W * 0.025, 10)}px Arial`;
+    ctx.fillText('🎵 Мелодия: «' + AudioSys.musicTuneName() + '»', W / 2, panelY + 158);
+    ctx.fillText('Мелодии меняются сами', W / 2, panelY + 170);
 
     this.buttons.push(createButton(ctx, panelX + 20, panelY + 176, panelW - 40, 42, '👤 Об авторе', {
       bgColor: '#4D96FF', fgColor: '#fff', fontSize: 15, radius: 12
@@ -438,7 +445,7 @@ class MenuScene {
 
     ctx.fillStyle = '#9fb0d8';
     ctx.font = `${Math.min(W * 0.029, 12)}px Arial`;
-    ctx.fillText('Игра про гофера-питомца · v' + GAME_VERSION, W / 2, py + 214);
+    ctx.fillText('Игра про питомца · v' + GAME_VERSION, W / 2, py + 214);
 
     ctx.fillStyle = '#fff';
     ctx.font = `bold ${Math.min(W * 0.036, 14)}px Arial`;
@@ -493,7 +500,7 @@ class MenuScene {
 
     ctx.fillStyle = '#9fb0d8';
     ctx.font = `${Math.min(W * 0.027, 11)}px Arial`;
-    ctx.fillText('У каждого свой гофер · можно ходить друг к другу', W / 2, py + 54);
+    ctx.fillText('У каждого свой питомец · можно ходить друг к другу', W / 2, py + 54);
 
     let y = py + 70;
     list.forEach(pr => {
@@ -510,13 +517,16 @@ class MenuScene {
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#fff';
       ctx.font = `${Math.min(W * 0.05, 22)}px Arial`;
-      ctx.fillText(active ? '✅' : '🐹', px + 26, y + 27);
+      // Эмодзи героя этого профиля, а не общий 🐹: у Милки в списке должен быть
+      // её зайчик (v1.3.5 — нашлось на кадре рендера menu@profiles)
+      ctx.fillText(active ? '✅' : System.emojiForProfile(pr.id), px + 26, y + 27);
 
       ctx.fillStyle = '#fff';
       ctx.font = `bold ${Math.min(W * 0.038, 15)}px Arial`;
-      const nameSize = fitFontSize(ctx, pr.name, panelW - 110, Math.min(W * 0.038, 15), 9, true);
+      const prLabel = System.profileLabelFor(pr.id);
+      const nameSize = fitFontSize(ctx, prLabel, panelW - 110, Math.min(W * 0.038, 15), 9, true);
       ctx.font = `bold ${nameSize}px Arial`;
-      ctx.fillText(pr.name, px + 58, y + 20);
+      ctx.fillText(prLabel, px + 58, y + 20);
 
       ctx.fillStyle = '#9aa';
       ctx.font = `${Math.min(W * 0.028, 11)}px Arial`;
@@ -530,7 +540,7 @@ class MenuScene {
     });
 
     if (canAdd) {
-      this.buttons.push(createButton(ctx, px + 16, y + 4, panelW - 32, 42, '＋ Новый гофер', {
+      this.buttons.push(createButton(ctx, px + 16, y + 4, panelW - 32, 42, '＋ Новый питомец', {
         bgColor: '#4D96FF', fgColor: '#fff', fontSize: 15, radius: 12
       }));
     }
@@ -567,15 +577,17 @@ class MenuScene {
     this.showSettings = false;
     this.aboutMode = false;
     this.game.transitionTo('map');
-    System.showAchievement('👥', 'Играем за ' + pr.name);
+    System.showAchievement('👥', 'Играем за ' + System.profileLabel());
   }
 
   createProfile() {
     const list = System.getProfiles();
     if (list.length >= 4) return;
-    const fallback = 'Гофер ' + (list.length + 1);
+    // Имя профиля — «кто играет». Питомец может быть любым героем, поэтому и
+    // вопрос, и запасное имя нейтральные (v1.3.4): раньше было «Как зовут гофера?»
+    const fallback = 'Питомец ' + (list.length + 1);
     let name = '';
-    try { name = (window.prompt('Как зовут гофера?', fallback) || '').trim(); } catch (e) { name = ''; }
+    try { name = (window.prompt('Как зовут питомца?', fallback) || '').trim(); } catch (e) { name = ''; }
     if (!name) name = fallback;
     name = name.slice(0, 16);
 
@@ -591,7 +603,7 @@ class MenuScene {
     this.hasSave = true;
     this.profilesMode = false;
     this.game.transitionTo('map');
-    System.showAchievement('🐹', 'Новый гофер: ' + name);
+    System.showAchievement('🐾', 'Новый питомец: ' + name);
   }
 
   handleClick(mx, my) {
@@ -628,7 +640,7 @@ class MenuScene {
       // ---- Профили ----
       if (this.profilesMode) {
         if (t.indexOf('profile_') === 0) { this.switchToProfile(t.slice(8)); return true; }
-        if (t.indexOf('Новый гофер') !== -1) { this.createProfile(); return true; }
+        if (t.indexOf('Новый питомец') !== -1) { this.createProfile(); return true; }
         if (t.indexOf('Закрыть') !== -1 || t.indexOf('Назад') !== -1) { this.profilesMode = false; return true; }
         return true;
       }

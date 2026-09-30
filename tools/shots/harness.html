@@ -167,6 +167,20 @@ console.error = function () {
     show('seed fail: ' + e.message);
   }
 
+  // Тексты, попавшие на кадр (v1.3.4). Перехватываем fillText: render-check
+  // проверяет по ним, что имя героя подставлено («Милка», а не «Гофер») и что
+  // ни в одной подписи не осталось шаблона «{pet…}».
+  var drawn = [];
+  (function hookText(ctx) {
+    var orig = ctx.fillText;
+    ctx.fillText = function (text) {
+      // Записываем то, что реально увидит ребёнок: petFill уже подставил героя
+      var shown = (typeof petFill === 'function') ? petFill(text) : text;
+      if (typeof shown === 'string' && drawn.indexOf(shown) === -1) drawn.push(shown);
+      return orig.apply(this, arguments);
+    };
+  })(g.ctx);
+
   try {
     // Флаг «jpeg»: картинка без альфа-канала — так требуют карточки магазинов
     // (Google Play: JPEG или 24-bit PNG без альфы).
@@ -284,6 +298,8 @@ console.error = function () {
     stats.hash = hash;
     stats.canvas = g.width + 'x' + g.height;
     stats.errors = window.__log.slice();
+    stats.drawn = drawn;
+    stats.petLeftover = drawn.filter(function (t) { return t.indexOf('{pet') !== -1; });
     report(stats);
     document.getElementById('shot').textContent = asJpeg
       ? g.canvas.toDataURL('image/jpeg', 0.92)

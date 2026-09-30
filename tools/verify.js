@@ -558,7 +558,11 @@ function reviewerRender() {
     const at = so.indexOf('[');
     try { res = JSON.parse(so.slice(at)); } catch (err) { res = null; }
     if (!res) {
-      check('Реальный рендер в Chrome выполнен', false, String(e.message).slice(0, 90));
+      // Хвост вывода помогает понять причину: раньше при обрезанном JSON здесь
+      // была только строка «Command failed», и 72 проверки кадров молча пропадали
+      const tail = so.slice(-160).replace(/\s+/g, ' ');
+      check('Реальный рендер в Chrome выполнен', false,
+        String(e.message).slice(0, 60) + ' | хвост вывода: ' + tail);
       return;
     }
   }
@@ -635,7 +639,7 @@ function reviewerV12Static() {
     /SLEEP_ALLOWED:\s*\[/.test(system) && system.indexOf('sleepBlocks(') !== -1 &&
     /isLocationAvailable\(loc\)\s*\{\s*if \(this\.sleepBlocks\(loc\)\) return false;/.test(system));
   check('Отказ во сне объясняется словами, а не «нельзя»',
-    system.indexOf('Гофер спит \ud83d\udca4') !== -1 && system.indexOf('sleepBlocks(loc)') !== -1);
+    system.indexOf('{Pet} спит') !== -1 && system.indexOf('sleepBlocks(loc)') !== -1);
   check('Выспавшийся питомец просыпается сам, без закрытия приложения',
     /if \(this\.stats\.energy >= 99\.5\) \{/.test(system) && system.indexOf('justWoke') !== -1);
   check('С полной энергией спать не укладывают (есть что восстанавливать)',
@@ -1507,7 +1511,8 @@ function reviewerOutfits(rt) {
 
   // --- 8. Что нашлось только на живом Android (эмулятор, не Chrome) ---
   check('Меню надевает на героя наряд из сохранения (после перезапуска герой не «раздет»)',
-    system.indexOf('lookFromSave()') !== -1 && menu.indexOf('System.lookFromSave()') !== -1);
+    system.indexOf('previewFromSave()') !== -1 && system.indexOf('lookFromSave()') !== -1 &&
+    menu.indexOf('System.previewFromSave()') !== -1);
   const lookRes = vmRun(`(function(){
     System.resetProgress();
     System.look = System.migrateLook({ hat: 'cap', neck: 'scarf', back: 'cape', fur: 'sky', char: 'robot' });
@@ -1538,12 +1543,13 @@ function reviewerOutfits(rt) {
      • выключенное запоминается устройством и переживает перезапуск;
      • выключенные звуки не «протекают» ни эффектами, ни голосами героев. */
 function reviewerAudio(rt) {
-  console.log('\n\uD83C\uDFB5 БЛОК 8/8 — Фоновая музыка и настройки звука (v1.3.1)');
+  console.log('\n\uD83C\uDFB5 БЛОК 8/8 — Фоновая музыка, смена мелодий и настройки звука (v1.3.1, v1.3.5)');
   const read = f => fs.readFileSync(path.join(WWW, 'js', f), 'utf8');
   const audio = read('audio.js');
   const gameSrc = read('game.js');
   const menuSrc = read('game_menu.js');
   const homeSrc = read('game_home.js');
+  const visitSrc = read('game_visit.js');
   const index = fs.readFileSync(path.join(WWW, 'index.html'), 'utf8');
   const renderCheck = fs.readFileSync(path.join(ROOT, 'tools', 'render-check.js'), 'utf8');
 
@@ -1559,11 +1565,24 @@ function reviewerAudio(rt) {
   walk(WWW);
   check('Фоновая музыка синтезируется на месте: в www/ нет ни одного аудиофайла',
     audioFiles.length === 0, audioFiles.join(', ') || 'файлов 0, синтез через Web Audio');
-  check('Петля музыки и настроения описаны данными (ноты, доли, bpm, громкость)',
-    /MUSIC_LOOP: \{/.test(audio) && /MUSIC_MOODS: \{/.test(audio) &&
-    /MUSIC_SCALE: \[/.test(audio) && audio.indexOf('MUSIC_LOOKAHEAD') !== -1);
+  check('Мелодии, настроения и сдвиги описаны данными (ноты, доли, bpm, громкость)',
+    /MUSIC_TUNES: \[/.test(audio) && /MUSIC_MOODS: \{/.test(audio) &&
+    /MUSIC_SHIFTS: \[/.test(audio) && /MUSIC_SCALE: \[/.test(audio) &&
+    audio.indexOf('MUSIC_LOOKAHEAD') !== -1);
   check('Музыка играет сама: планировщик вызывается из игрового цикла',
     gameSrc.indexOf('AudioSys.musicTick()') !== -1 && audio.indexOf('musicTick()') !== -1);
+  // v1.3.5: «дети спрашивают — музыка всегда одинаковая или будет меняться?»
+  check('Сцены сообщают музыке, где мы: меню/карта, дом, магазин, музей, сон',
+    gameSrc.indexOf('AudioSys.setScene(sceneName)') !== -1 &&
+    gameSrc.indexOf("AudioSys.setScene('menu')") !== -1 &&
+    visitSrc.indexOf("AudioSys.setScene('visit:' + locationKey)") !== -1 &&
+    /musicMood\(\) \{[\s\S]{0,400}scene === 'home'/.test(audio));
+  check('В настройках видно, какая мелодия играет (и что они меняются)',
+    menuSrc.indexOf('AudioSys.musicTuneName()') !== -1 &&
+    menuSrc.indexOf('Мелодии меняются сами') !== -1);
+  check('Смена мелодий заложена в данные: пулы по настроениям и сдвиги круга',
+    /MUSIC_MOODS: \{[\s\S]{0,900}tunes: \[/.test(audio) &&
+    /musicNextLoop\(\) \{/.test(audio) && audio.indexOf('musicTuneIndex') !== -1);
   check('Музыку глушат, когда приложение свернули (WebView держал бы звук)',
     audio.indexOf('visibilitychange') !== -1 && audio.indexOf('pauseAll()') !== -1 &&
     audio.indexOf('resumeAll()') !== -1);
@@ -1624,9 +1643,13 @@ function reviewerAudio(rt) {
     System.isSleeping = false;
     const started = A.musicTick();
     const first = A.musicState();
-    fake.currentTime = 0.5;                    // полсекунды «кадров»
-    A.musicTick();
-    const after = A.musicNotesPlayed;          // планировщик продолжил петлю
+    // Планировщик продолжаем проверять на целом круге: у спокойных мелодий
+    // (музейная, колыбельная) ноты реже, и «за 0.5 с» там может не быть ни одной
+    for (let s = 0.5; s < A.musicLoopDuration('ambient') - 1; s += 0.5) {
+      fake.currentTime = s;
+      A.musicTick();
+    }
+    const after = A.musicNotesPlayed;          // планировщик продолжил круг
     System.isSleeping = true; A.musicTick();
     const sleep = A.musicState();
     System.isSleeping = false; A.musicTick();
@@ -1646,19 +1669,47 @@ function reviewerAudio(rt) {
     const soundOff = A.musicState();
     const notesWithSoundOff = A.musicNotesPlayed - notesMark;
     A.toggleSound();
-    const scale = {
-      off: 0, lead: true, bass: true, notes: 0, loop: 0, list: ''
-    };
-    // --- разбор петли: «нейтральность» на уровне нот ---
+    // --- разбор всех мелодий: «нейтральность» на уровне нот ---
     const MAJOR = [0, 2, 4, 5, 7, 9, 11];
     const pc = v => ((v % 12) + 12) % 12;
-    scale.off = A.MUSIC_SCALE.filter(i => MAJOR.indexOf(pc(i)) === -1).length;
-    scale.lead = A.MUSIC_LOOP.lead.concat(A.MUSIC_LOOP.sparkle)
-      .every(n => A.MUSIC_SCALE[n.i] !== undefined && MAJOR.indexOf(pc(A.MUSIC_SCALE[n.i])) !== -1);
-    scale.bass = A.MUSIC_LOOP.bass.every(n => MAJOR.indexOf(pc(n.i)) !== -1);
-    scale.notes = A.MUSIC_LOOP.bass.length + A.MUSIC_LOOP.lead.length + A.MUSIC_LOOP.sparkle.length;
-    scale.loop = A.musicLoopDuration('ambient');
-    scale.list = A.MUSIC_SCALE.join(' ');
+    const scale = {
+      off: A.MUSIC_SCALE.filter(i => MAJOR.indexOf(pc(i)) === -1).length,
+      tunes: A.MUSIC_TUNES.length,
+      bad: [], notes: 0, loop: A.musicLoopDuration('ambient'), list: A.MUSIC_SCALE.join(' '),
+      names: A.MUSIC_TUNES.map(t => t.name).join(', '),
+      moods: Object.keys(A.MUSIC_MOODS).length,
+      pools: Object.keys(A.MUSIC_MOODS).map(m => m + ':' + A.MUSIC_MOODS[m].tunes.length).join(' ')
+    };
+    A.MUSIC_TUNES.forEach(t => {
+      const lead = A.musicParseLead(t.lead);
+      const bass = A.musicParseBass(t.bass, 16);
+      const okNotes = lead.every(n => MAJOR.indexOf(pc(A.MUSIC_SCALE[n.i])) !== -1) &&
+        bass.every(n => MAJOR.indexOf(pc(n.i)) !== -1) &&
+        t.sparkle.every(s => MAJOR.indexOf(pc(A.MUSIC_SCALE[s[1]])) !== -1);
+      const moves = new Set(lead.map(n => n.i)).size >= 3;
+      if (!okNotes || !moves) scale.bad.push(t.id);
+    });
+    // Смена музыки: круг за кругом мелодия/высота другие, повторов подряд нет
+    A.musicStart();
+    const keys = [], heard = [];
+    for (let i = 0; i < 8; i++) {
+      const s2 = A.musicState();
+      keys.push(s2.tune + '@' + s2.shift);
+      if (heard.indexOf(s2.tune) === -1) heard.push(s2.tune);
+      A.musicNextLoop();
+    }
+    scale.rotNoRepeat = keys.every((k, i) => i === 0 || k !== keys[i - 1]);
+    scale.rotKeys = keys.slice(0, 4).join(' → ');
+    scale.rotHeard = heard.length;
+    scale.rotMood = A.musicMood();
+    scale.rotPool = A.musicPool(scale.rotMood).length;
+    // Настроение по экранам: где играем — там и музыка
+    const moodOf = sc => { System.isSleeping = false; A.musicScene = null; return A.setScene(sc); };
+    scale.moodsByScene = [moodOf('home'), moodOf('shop'), moodOf('visit:art_museum'), moodOf('visit:park'), moodOf('map')].join('/');
+    System.isSleeping = true; A.musicScene = null;
+    scale.moodSleep = A.setScene('home');   // сон важнее экрана
+    System.isSleeping = false; A.musicScene = null; A.setScene('menu');
+    scale.tuneName = A.musicTuneName();
     // Порядок восстановили: чужой блок проверок не должен остаться без звука
     A.ctx = keepCtx; A.musicGain = keepGain; A.musicPlaying = false;
     A.musicMoodApplied = null; A.musicBoostUntil = 0;
@@ -1676,9 +1727,20 @@ function reviewerAudio(rt) {
     music.started === true && music.first && music.first.playing === true &&
     music.first.played >= 1 && music.after > music.first.played,
     music.first ? ('нот сразу ' + music.first.played + ', через полсекунды ' + music.after) : musicWhy);
-  check('Музыка «нейтральная»: вся петля из до-мажора, фальшивых сочетаний нет',
-    !!music.scale && music.scale.off === 0 && music.scale.lead === true && music.scale.bass === true,
-    music.scale ? (music.scale.notes + ' нот, петля ' + music.scale.loop.toFixed(1) + ' с, гамма ' + music.scale.list) : musicWhy);
+  check('Мелодий шесть, и все «нейтральные»: до-мажор, без фальшивых сочетаний',
+    !!music.scale && music.scale.off === 0 && music.scale.tunes === 6 && music.scale.bad.length === 0,
+    music.scale ? (music.scale.tunes + ' мелодий (' + music.scale.names + '), круг ' +
+      music.scale.loop.toFixed(1) + ' с, гамма ' + music.scale.list) : musicWhy);
+  check('Музыка меняется сама: подряд два круга не звучат одинаково',
+    !!music.scale && music.scale.rotNoRepeat === true &&
+    music.scale.rotHeard === music.scale.rotPool && music.scale.rotPool > 1,
+    music.scale ? ('круги: ' + music.scale.rotKeys + ', мелодий услышано ' +
+      music.scale.rotHeard + ' из ' + music.scale.rotPool + ' (настроение ' + music.scale.rotMood + ')') : musicWhy);
+  check('Мелодия зависит от экрана: дом, магазин, музей, парк, сон — разные',
+    !!music.scale && music.scale.moodsByScene === 'home/play/museum/play/ambient' &&
+    music.scale.moodSleep === 'sleep' && music.scale.moods >= 6,
+    music.scale ? ('экраны: ' + music.scale.moodsByScene + ', во сне: ' + music.scale.moodSleep +
+      ', настроений ' + music.scale.moods + ' (' + music.scale.pools + ')') : musicWhy);
   check('Во сне музыка — колыбельная: медленнее и тише, чем днём',
     !!music.sleep && music.sleep.mood === 'sleep' && music.sleep.bpm < music.awake.bpm &&
     music.sleep.gain < music.awake.gain,
@@ -1828,7 +1890,7 @@ function reviewerAudio(rt) {
    100 − стресс), правило написано словами, справка открывается обычной кнопкой
    «❓», а механика и старые сохранения не тронуты. */
 function reviewerCalm(rt) {
-  console.log('\n\uD83D\uDE0C БЛОК 9/9 — Шкалы понятны ребёнку: спокойствие вместо стресса (v1.3.2)');
+  console.log('\n\uD83D\uDE0C БЛОК 9/11 — Шкалы понятны ребёнку: спокойствие вместо стресса (v1.3.2)');
   const read = f => fs.readFileSync(path.join(WWW, 'js', f), 'utf8');
   const system = read('system.js');
   const home = read('game_home.js');
@@ -1857,7 +1919,7 @@ function reviewerCalm(rt) {
     /key: 'calm'[\s\S]{0,240}чем БОЛЬШЕ, тем лучше/.test(content) &&
     /key: 'calm'[\s\S]{0,600}сон \(\+15/.test(content));
   check('«Как играть» и итоги тихих игр говорят о спокойствии, а не о стрессе',
-    gameSrc.indexOf('Все полоски у гофера одинаковые') !== -1 &&
+    gameSrc.indexOf('Все полоски у {pet_gen} одинаковые') !== -1 &&
     quiet.indexOf('+4 спокойствия') !== -1);
   check('Механика не переписана: внутри остался стресс (старые сохранения целы)',
     system.indexOf('stress: 20') !== -1 && system.indexOf('relax(amount)') !== -1 &&
@@ -1943,7 +2005,243 @@ function reviewerCalm(rt) {
   vmRun('System.stats.stress = 20; System.isSleeping = false;');
 }
 
-console.log('\u2554\u2550\u2550\u2550\u2550\u2550\u2550 Gopher Life \u2014 приёмка качества \u2550\u2550\u2550\u2550\u2550\u2550\u2557');
+/* ---------- БЛОК 10: ГОТОВНОСТЬ К RUSTORE (v1.3.3) ----------
+   Задача: приложение должно без сюрпризов пройти модерацию RuStore, а выпуск
+   следующих версий — быть одной командой. Проверяем: нет лишних разрешений и
+   сетевого кода, политика конфиденциальности на месте и говорит правду,
+   инструмент публикации не выносит ключ за пределы связки ключей, тексты карточки
+   влезают в лимиты магазина, а меню не врёт про прогресс ребёнка. */
+function reviewerRuStore(rt) {
+  console.log('\n\ud83d\udcfa БЛОК 10/11 — Готовность к RuStore: разрешения, политика, публикация (v1.3.3)');
+  const manifest = fs.readFileSync(path.join(ROOT, 'android', 'app', 'src', 'main', 'AndroidManifest.xml'), 'utf8');
+  const pubTool = fs.readFileSync(path.join(ROOT, 'tools', 'rustore-publish.js'), 'utf8');
+  const policy = fs.readFileSync(path.join(ROOT, 'store', 'privacy-policy.html'), 'utf8');
+  const rustoreDoc = fs.readFileSync(path.join(ROOT, 'store', 'RUSTORE.md'), 'utf8');
+  const packageJson = fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8');
+  const gitignore = fs.readFileSync(path.join(ROOT, '.gitignore'), 'utf8');
+  const menu = fs.readFileSync(path.join(WWW, 'js', 'game_menu.js'), 'utf8');
+  const system = fs.readFileSync(path.join(WWW, 'js', 'system.js'), 'utf8');
+  const js = fs.readdirSync(path.join(WWW, 'js'))
+    .filter(f => f.endsWith('.js'))
+    .map(f => fs.readFileSync(path.join(WWW, 'js', f), 'utf8')).join('\n');
+
+  // --- 1. Разрешения и офлайн ---
+  check('APK не запрашивает ни одного разрешения Android',
+    manifest.indexOf('uses-permission') === -1,
+    'строк uses-permission: ' + (manifest.match(/uses-permission/g) || []).length);
+  check('Запрещён открытый HTTP (usesCleartextTraffic=false)',
+    manifest.indexOf('usesCleartextTraffic="false"') !== -1);
+  check('В игре нет сетевого кода (полный офлайн: fetch/XHR/WebSocket)',
+    !/fetch\s*\(|XMLHttpRequest|new WebSocket/.test(js));
+
+  // --- 2. Инструмент публикации и секреты ---
+  check('Есть инструмент публикации через официальный API RuStore',
+    pubTool.indexOf('public-api.rustore.ru') !== -1 &&
+    pubTool.indexOf("'/public/auth/'") !== -1 &&
+    pubTool.indexOf('/version') !== -1);
+  check('Загрузка версии использует официальные методы API (APK, скриншоты v2, модерация)',
+    pubTool.indexOf('/version/\' + versionId + \'/apk') !== -1 &&
+    pubTool.indexOf('/image/screenshot/PORTRAIT/') !== -1 &&
+    pubTool.indexOf('/commit') !== -1);
+  check('Ключ API читается из связки ключей macOS и никуда не пишется в проект',
+    pubTool.indexOf('find-generic-password') !== -1 &&
+    !/writeFileSync\([^)]*privateKey/.test(pubTool) &&
+    pubTool.indexOf('gopherlife-rustore') !== -1);
+  check('По умолчанию — сухой прогон: запросы уходят только с флагом --go',
+    /const GO = has\('go'\)/.test(pubTool) &&
+    /if \(!GO\) \{ warn\('сухой прогон — запрос не отправлен'/.test(pubTool));
+  check('Состояние выпуска и ключи защищены .gitignore',
+    gitignore.indexOf('.rustore-state.json') !== -1 && gitignore.indexOf('store/*.key') !== -1);
+  check('Есть команды npm для выпуска (meta/check/status/publish)',
+    ['rustore:meta', 'rustore:check', 'rustore:status', 'rustore:publish']
+      .every(c => packageJson.indexOf('"' + c + '"') !== -1));
+  check('В инструкции есть предупреждение перевыпустить ключ из переписки',
+    rustoreDoc.indexOf('БЕЗОПАСНОСТЬ') !== -1 && rustoreDoc.indexOf('перевыпустите') !== -1);
+
+  // --- 3. Политика конфиденциальности ---
+  check('Политика конфиденциальности есть и написана для человека',
+    policy.length > 1500 && policy.indexOf('Политика конфиденциальности') !== -1);
+  check('Политика честно говорит: данных не собираем, интернета нет, рекламы нет',
+    /Никакие/.test(policy) && /[Пп]ередачи нет/.test(policy) &&
+    /рекламу/.test(policy) && /не запрашивает ни одного разрешения/.test(policy));
+  check('В политике есть контакты разработчика (для карточки RuStore)',
+    policy.indexOf('mailto:') !== -1 || /\S+@\S+\.\S+/.test(policy));
+
+  // --- 4. Меню не врёт про прогресс (нашлось на живом устройстве) ---
+  check('Меню читает из сохранения уровень, опыт и монеты (не только наряд)',
+    system.indexOf('previewFromSave()') !== -1 && menu.indexOf('previewFromSave') !== -1 &&
+    /typeof data\.level === 'number'/.test(system) && /typeof data\.xp === 'number'/.test(system));
+
+  if (!rt) { check('Публикация проверена в песочнице', false, 'игра не запустилась'); return; }
+  const vmRun = c => { try { return vm.runInContext(c, rt.sandbox); } catch (e) { return 'ОШИБКА: ' + e.message; }; };
+
+  // Живая проверка: сохранили прогресс → меню показывает его, а не нули.
+  const menuRes = vmRun(`(function(){
+    const S = System;
+    S.resetProgress();
+    S.level = 4; S.xp = 250; S.xpToNext = 300; S.coins = 777;
+    S.totalPlayTime = 1234; S.saveGame();
+    S.resetProgress();               // как будто приложение только запустилось
+    const before = { level: S.level, xp: S.xp, coins: S.coins };
+    const g = new Game(); g.init();
+    const m = g.scenes.menu;
+    m.init();
+    return { before: before, after: { level: S.level, xp: S.xp, coins: S.coins } };
+  })()`);
+  const mr = (typeof menuRes === 'string') ? { error: menuRes } : menuRes;
+  check('После перезапуска меню показывает уровень, опыт и монеты из сохранения',
+    !!mr.after && mr.before && mr.before.xp === 0 && mr.after.xp === 250 &&
+    mr.after.level === 4 && mr.after.coins === 777,
+    mr.after ? ('в меню: ур.' + mr.after.level + ', ' + mr.after.xp + '/' + 300 + ' XP, ' + mr.after.coins + ' монет') : mr.error);
+
+  // Приборка: песочница — общее состояние для других проверок
+  vmRun('System.resetProgress(); System.isSleeping = false;');
+}
+
+/* ---------- БЛОК 11: ИМЯ ГЕРОЯ В ТЕКСТАХ (v1.3.3) ----------
+   Замечание заказчика: «все другие персонажи тоже называются Гоферами, хотя у них
+   есть свои имена. Гофер должен быть только для гофера». Проверяем: у каждого
+   героя есть формы имени и род, подстановка склоняет и согласует по роду, ни одна
+   видимая строка не называет питомца «гофером», а в углу меню при непереименованном
+   профиле видно имя героя. Тексты самих кадров проверяет ревьюер рендера. */
+function reviewerHeroNames(rt) {
+  console.log('\n\ud83d\udc3e БЛОК 11/11 — Имя героя в текстах: Милка не «гофер» (v1.3.4)');
+  const helpers = fs.readFileSync(path.join(WWW, 'js', 'helpers.js'), 'utf8');
+  const chars = fs.readFileSync(path.join(WWW, 'js', 'characters.js'), 'utf8');
+  const system = fs.readFileSync(path.join(WWW, 'js', 'system.js'), 'utf8');
+  const menu = fs.readFileSync(path.join(WWW, 'js', 'game_menu.js'), 'utf8');
+  const renderCheck = fs.readFileSync(path.join(ROOT, 'tools', 'render-check.js'), 'utf8');
+  const harness = fs.readFileSync(path.join(ROOT, 'tools', 'shots', 'harness.html'), 'utf8');
+
+  // --- 1. Данные героя: слово для текстов и род ---
+  check('У каждого героя есть формы имени (5 падежей) и род',
+    (chars.match(/^\s*gender: '[mf]',/gm) || []).length === 6 &&
+    (chars.match(/pet: \{ nom:/g) || []).length === 6,
+    'героев с формами: ' + (chars.match(/pet: \{ nom:/g) || []).length);
+  const sectionOf = (src, id) => {
+    const i = src.indexOf("id: '" + id + "'");
+    if (i === -1) return '';
+    const rest = src.slice(i + 1);
+    const j = rest.indexOf("id: '");
+    return rest.slice(0, j === -1 ? rest.length : j);
+  };
+  const aliens = ['bear', 'bunny', 'cat', 'robot', 'milka']
+    .filter(id => /гофер/i.test(sectionOf(chars, id)));
+  check('«Гофер» остался только у самого гофера (не у мишки, зайки, котёнка, робота, Милки)',
+    aliens.length === 0 && /гофер/i.test(sectionOf(chars, 'gopher')),
+    aliens.join(', ') || 'только у гофера');
+
+  // --- 2. Подстановка имени: одна функция на всю игру ---
+  check('Имя героя подставляется одной функцией (petFill): падежи, род, «ней/ним»',
+    helpers.indexOf('function petFill(') !== -1 && helpers.indexOf('{pet:') !== -1 &&
+    helpers.indexOf('pet_gen') !== -1 && helpers.indexOf('pet_dat') !== -1 &&
+    helpers.indexOf('pet_acc') !== -1 && helpers.indexOf('pet_ins') !== -1 &&
+    helpers.indexOf('PET_PRON') !== -1);
+  check('Любой текст на канвасе проходит подстановку (перехват fillText и measureText)',
+    helpers.indexOf('installPetText') !== -1 &&
+    /Proto\.fillText = function/.test(helpers) && /Proto\.measureText = function/.test(helpers) &&
+    helpers.indexOf('installPetText(CanvasRenderingContext2D.prototype)') !== -1);
+  check('HTML-плашка достижений тоже говорит именем героя, а не шаблоном',
+    /showAchievement\(emoji, text\)[\s\S]{0,400}petFill\(text\)/.test(system) &&
+    system.indexOf('text: shown') !== -1);
+
+  // --- 3. Ни одна видимая строка не называет питомца «гофером» ---
+  // Комментарии вырезаем: в них «гофер» — это объяснение для разработчика.
+  const stripComments = src => src.replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .split('\n').map(l => l.replace(/(^|[^:'"`\\])\/\/.*$/, '$1')).join('\n');
+  const dirty = [];
+  fs.readdirSync(path.join(WWW, 'js')).filter(f => f.endsWith('.js')).forEach(f => {
+    if (f === 'characters.js') return;              // у самого гофера «гофер» — законно
+    const src = stripComments(fs.readFileSync(path.join(WWW, 'js', f), 'utf8'))
+      // DEFAULT_PROFILE_NAME — имя профиля из старых сохранений: на экран оно не
+      // попадает (в подписи его заменяет имя героя, см. profileLabel), а менять
+      // его нельзя: у детей уже есть профили с таким именем
+      .replace(/const DEFAULT_PROFILE_NAME = 'Гофер';/, '');
+    const hits = src.match(/гофер/gi);
+    if (hits) dirty.push(f + ' ×' + hits.length);
+  });
+  check('Ни одна видимая строка не называет питомца «гофером» (только шаблоны {pet})',
+    dirty.length === 0, dirty.join(', ') || 'чисто');
+  check('Имя профиля «Гофер» оставлено только ради старых сохранений (в подписи его нет)',
+    system.indexOf("const DEFAULT_PROFILE_NAME = 'Гофер';") !== -1 &&
+    /profileLabel\(\) \{[\s\S]{0,200}characterName\(\)/.test(system));
+
+  // --- 4. Подпись профиля в меню ---
+  check('В углу меню — имя героя, а не всегда «Гофер»',
+    menu.indexOf('System.profileLabel()') !== -1 && system.indexOf('profileLabel()') !== -1 &&
+    /profileLabel\(\) \{\s*const own/.test(system) &&
+    menu.indexOf("System.profileName || 'Гофер'") === -1);
+  check('Список профилей и друзей подписан героем профиля, а не «Гофером»',
+    menu.indexOf('System.profileLabelFor(pr.id)') !== -1 &&
+    menu.indexOf('System.emojiForProfile(pr.id)') !== -1 &&
+    /profileLabelFor\(profileId\) \{/.test(system) && /characterForProfile\(profileId\) \{/.test(system) &&
+    system.indexOf('name: this.profileLabelFor(pr.id)') !== -1,
+    'список профилей, эмодзи и список друзей читают героя из сохранения профиля');
+  check('Профиль создаётся вопросами без «гофера» («Как зовут питомца?»)',
+    menu.indexOf('Как зовут питомца?') !== -1 && menu.indexOf('Новый питомец') !== -1);
+
+  // --- 5. Кадры ревьюера рендера проверяют имя на экране ---
+  check('Кадры с Мишкой и Милкой требуют имя героя на экране и не терпят шаблонов',
+    (renderCheck.match(/needText: \['/g) || []).length >= 5 &&
+    (renderCheck.match(/forbidText: \['/g) || []).length >= 5 &&
+    renderCheck.indexOf('на экран попал шаблон') !== -1 &&
+    harness.indexOf('petLeftover') !== -1 && harness.indexOf('petFill(text)') !== -1);
+
+  if (!rt) { check('Подстановка имени проверена в песочнице', false, 'игра не запустилась'); return; }
+  const vmRun = c => { try { return vm.runInContext(c, rt.sandbox); } catch (e) { return 'ОШИБКА: ' + e.message; }; };
+
+  // Живая проверка: каждый текст игры под каждым героем — без «гофера» и шаблонов
+  const liveRes = vmRun(`(function(){
+    const S = System, out = {};
+    const texts = [];
+    ACHIEVEMENTS.forEach(a => texts.push(a.desc));
+    STAT_HELP.forEach(h => {
+      texts.push(h.what);
+      (h.up || []).forEach(t => texts.push(t));
+      (h.down || []).forEach(t => texts.push(t));
+    });
+    QUIET_RULES.forEach(t => texts.push(t));
+    const bad = [];
+    CHARACTERS.forEach(c => {
+      S.setCharacter(c.id);
+      texts.map(petFill).forEach(t => {
+        if (t.indexOf('{') !== -1 || (c.id !== 'gopher' && /\\u0433\\u043e\\u0444\\u0435\\u0440/i.test(t))) bad.push(c.id + ': ' + t);
+      });
+      out[c.id] = petFill('{Pet} \\u2014 \\u043a\\u043e\\u0440\\u043c\\u0438\\u0442\\u044c {pet_acc}, \\u0438\\u0433\\u0440\\u0430\\u0442\\u044c \\u0441 {pet_ins}, \\u0433\\u043e\\u0432\\u043e\\u0440\\u0438\\u0442\\u044c {pet_dat}');
+    });
+    S.setCharacter('gopher');
+    S.profileName = DEFAULT_PROFILE_NAME;
+    // Список профилей: у профиля без своего имени подпись — имя ЕГО героя (v1.3.5)
+    const keepP = localStorage.getItem(S.PROFILE_KEY);
+    const keepS1 = localStorage.getItem(S.saveKeyFor('p1'));
+    const keepS2 = localStorage.getItem(S.saveKeyFor('p2'));
+    localStorage.setItem(S.PROFILE_KEY, JSON.stringify([
+      { id: 'p1', name: DEFAULT_PROFILE_NAME }, { id: 'p2', name: '\u0412\u0438\u0442\u044f' }
+    ]));
+    localStorage.setItem(S.saveKeyFor('p1'), JSON.stringify({ level: 2, look: { char: 'milka' } }));
+    localStorage.setItem(S.saveKeyFor('p2'), JSON.stringify({ level: 4, look: { char: 'bear' } }));
+    out.profile1 = S.profileLabelFor('p1') + '/' + S.emojiForProfile('p1');
+    out.profile2 = S.profileLabelFor('p2');
+    localStorage.setItem(S.PROFILE_KEY, keepP);
+    if (keepS1 === null) localStorage.removeItem(S.saveKeyFor('p1')); else localStorage.setItem(S.saveKeyFor('p1'), keepS1);
+    if (keepS2 === null) localStorage.removeItem(S.saveKeyFor('p2')); else localStorage.setItem(S.saveKeyFor('p2'), keepS2);
+    return { out: out, bad: bad.slice(0, 2), count: texts.length };
+  })()`);
+  const lv = (typeof liveRes === 'string') ? { bad: [liveRes] } : liveRes;
+  check('Тексты игры (достижения, справка, правила) звучат правильно у всех 6 героев',
+    !!lv.count && lv.bad && lv.bad.length === 0,
+    (lv.bad && lv.bad.length) ? lv.bad.join(' | ') : ('строк: ' + lv.count + ' × 6 героев'));
+  check('У Милки своё имя во всех падежах: «Милка — кормить Милку, играть с Милкой, говорить Милке»',
+    !!lv.out && lv.out.milka === 'Милка — кормить Милку, играть с Милкой, говорить Милке',
+    (lv.out && lv.out.milka) || 'нет данных');
+
+  check('Профиль без своего имени в списке подписан своим героем (🐇 Милка), переименованный — именем ребёнка',
+    !!lv.out && lv.out.profile1 === '\u041c\u0438\u043b\u043a\u0430/\ud83d\udc07' && lv.out.profile2 === '\u0412\u0438\u0442\u044f',
+    lv.out ? ('профиль по умолчанию: ' + lv.out.profile1 + ', переименованный: ' + lv.out.profile2) : 'нет данных');
+
+  vmRun("System.setCharacter('gopher'); System.profileName = DEFAULT_PROFILE_NAME; System.lastPopup = null;");
+}
+
 reviewerStatic();
 reviewerV12Static();
 const rt = reviewerRuntime();
@@ -1953,13 +2251,15 @@ reviewerAchievements(rt);
 reviewerOutfits(rt);
 reviewerAudio(rt);
 reviewerCalm(rt);
+reviewerRuStore(rt);
+reviewerHeroNames(rt);
 reviewerApk();
 reviewerRender();
 
 console.log('\n' + '\u2500'.repeat(56));
 console.log('ИТОГО: пройдено ' + passed + '  |  провалено ' + failed);
 if (failed === 0) {
-  console.log('\u2705 ВСЕ 5 РЕВЬЮЕРОВ + БЛОКИ ДОСТИЖЕНИЙ, НАРЯДОВ, МУЗЫКИ И ШКАЛ ПРИНЯЛИ РЕЗУЛЬТАТ БЕЗ ЗАМЕЧАНИЙ');
+  console.log('\u2705 ВСЕ 5 РЕВЬЮЕРОВ + БЛОКИ ДОСТИЖЕНИЙ, НАРЯДОВ, МУЗЫКИ, ШКАЛ, RUSTORE И ИМЁН ГЕРОЕВ ПРИНЯЛИ РЕЗУЛЬТАТ');
   process.exit(0);
 } else {
   console.log('\u274C ЕСТЬ ЗАМЕЧАНИЯ \u2014 результат НЕ принимается');

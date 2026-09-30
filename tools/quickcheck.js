@@ -1494,39 +1494,103 @@ if (boot) {
   ok('Звук по умолчанию: и музыка, и звуки включены (пока родитель не выключил)',
     A.isMusicOn() && A.isSoundOn(), A.settingsHint());
 
-  const loop = A.MUSIC_LOOP;
-  ok('Петля музыки: 16 долей и три голоса — бас, мелодия и «звёздочки»',
-    loop.beats === 16 && loop.bass.length === 4 && loop.lead.length >= 12 && loop.sparkle.length === 2,
-    'нот в петле: ' + (loop.bass.length + loop.lead.length + loop.sparkle.length));
+  const tunes = A.MUSIC_TUNES;
+  ok('Мелодий шесть, и все разные (раньше на всю игру была одна петля)',
+    tunes.length === 6 &&
+    tunes.every(t => t.name && typeof t.lead === 'string' && typeof t.bass === 'string') &&
+    new Set(tunes.map(t => t.lead)).size === tunes.length,
+    tunes.map(t => t.name).join(', '));
+
+  A.musicScene = 'home';
+  const loop = A.musicTune();
+  ok('Круг мелодии: 16 долей и три голоса — бас, мелодия и «звёздочки»',
+    loop.beats === 16 && loop.bass.length === 4 && loop.lead.length >= 10 && loop.sparkle.length <= 3,
+    '«' + loop.name + '»: нот ' + (loop.bass.length + loop.lead.length + loop.sparkle.length));
 
   const events = A.musicEvents('ambient');
   const sorted = events.every((e, i) => i === 0 || e.t >= events[i - 1].t);
   const inRange = events.every(e => e.freq > 90 && e.freq < 900 && e.vol > 0 && e.dur > 0.2);
   const loopDur = A.musicLoopDuration('ambient');
-  ok('Ноты петли разложены по времени и все в слышимом диапазоне',
+  ok('Ноты круга разложены по времени и все в слышимом диапазоне',
     sorted && inRange && events[0].t === 0 && events[events.length - 1].t < loopDur,
-    'петля ' + loopDur.toFixed(1) + ' с, нот ' + events.length);
+    'круг ' + loopDur.toFixed(1) + ' с, нот ' + events.length);
 
-  // «Нейтральная» музыка: вся гамма — из до-мажора (0 2 4 5 7 9 11 полутонов).
+  // «Нейтральная» музыка: все ноты — из одной пентатоники до-мажора (0 2 4 5 7 9 11).
   // Пентатоника без полутонов: даже случайное сочетание нот не звучит фальшиво.
   // Мелодия задана индексом в гамме, бас — сдвигом в полутонах от C4.
   const MAJOR = [0, 2, 4, 5, 7, 9, 11];
   const pc = v => ((v % 12) + 12) % 12;
   const offMajor = A.MUSIC_SCALE.filter(i => MAJOR.indexOf(pc(i)) === -1);
-  const leadOk = loop.lead.concat(loop.sparkle)
-    .every(n => A.MUSIC_SCALE[n.i] !== undefined && MAJOR.indexOf(pc(A.MUSIC_SCALE[n.i])) !== -1);
-  const bassOk = loop.bass.every(n => MAJOR.indexOf(pc(n.i)) !== -1);
-  ok('Музыка «нейтральная»: все ноты из до-мажора, режущих сочетаний нет',
-    offMajor.length === 0 && leadOk && bassOk,
-    'гамма в полутонах: ' + A.MUSIC_SCALE.join(' ') + ', бас: ' +
-    loop.bass.map(n => A.MUSIC_SCALE[0] + n.i).join(' '));
+  const tuneChecks = tunes.map(t => {
+    const lead = A.musicParseLead(t.lead);
+    const bass = A.musicParseBass(t.bass, 16);
+    const notesOk = lead.every(n => MAJOR.indexOf(pc(A.MUSIC_SCALE[n.i])) !== -1) &&
+      bass.every(n => MAJOR.indexOf(pc(n.i)) !== -1) &&
+      t.sparkle.every(s => MAJOR.indexOf(pc(A.MUSIC_SCALE[s[1]])) !== -1);
+    const moves = new Set(lead.map(n => n.i)).size >= 3;   // это мелодия, а не одна нота
+    return notesOk && moves;
+  });
+  ok('Все шесть мелодий «нейтральные»: до-мажор, без режущих сочетаний, с движением',
+    offMajor.length === 0 && tuneChecks.every(Boolean),
+    'гамма: ' + A.MUSIC_SCALE.join(' ') + '; проблемных мелодий: ' +
+    tuneChecks.filter(c => !c).length);
 
-  ok('Во сне и в тишине музыка медленнее и тише, у «🎵 Музыки» дома — громче',
+  // Смена музыки: круг за кругом мелодия и/или высота другие, повторов подряд нет
+  const rotation = (function () {
+    A.musicStart();                       // сбрасывает счётчики: начинаем с первого
+    const keys = [], played = [];
+    for (let i = 0; i < 8; i++) {
+      const s = A.musicState();
+      keys.push(s.tune + '@' + s.shift);
+      if (played.indexOf(s.tune) === -1) played.push(s.tune);
+      A.musicNextLoop();
+    }
+    const noRepeat = keys.every((k, i) => i === 0 || k !== keys[i - 1]);
+    const pool = A.musicPool('home');
+    return { noRepeat: noRepeat, played: played.length, pool: pool.length, first: keys[0], second: keys[1] };
+  })();
+  ok('Музыка меняется сама: подряд два круга не звучат одинаково',
+    rotation.noRepeat && rotation.played === rotation.pool && rotation.first !== rotation.second,
+    'круги: ' + rotation.first + ' → ' + rotation.second + ', мелодий пула услышано ' +
+    rotation.played + ' из ' + rotation.pool);
+
+  ok('Сдвиг круга (0 / +2 / −2 / +4 полутона) поднимает все голоса вместе',
+    A.MUSIC_SHIFTS.length === 4 && A.MUSIC_SHIFTS.indexOf(0) !== -1 &&
+    A.MUSIC_SHIFTS.every(s => [-2, 0, 2, 4].indexOf(s) !== -1),
+    'сдвиги: ' + A.MUSIC_SHIFTS.join(', '));
+
+  ok('Каждому настроению назначены свои мелодии, лишних нет',
+    Object.keys(A.MUSIC_MOODS).every(m => A.MUSIC_MOODS[m].tunes && A.MUSIC_MOODS[m].tunes.length >= 1) &&
+    A.MUSIC_MOODS.sleep.tunes.join() === 'lullaby' &&
+    tunes.every(t => Object.keys(A.MUSIC_MOODS).some(m => A.MUSIC_MOODS[m].tunes.indexOf(t.id) !== -1)),
+    Object.keys(A.MUSIC_MOODS).map(m => m + ':' + A.MUSIC_MOODS[m].tunes.length).join(' '));
+
+  ok('Колыбельная медленнее и тише всех, «🎵 Музыка» дома — слышнее, игра — живее',
     A.MUSIC_MOODS.sleep.bpm < A.MUSIC_MOODS.ambient.bpm &&
-    A.MUSIC_MOODS.calm.bpm < A.MUSIC_MOODS.ambient.bpm &&
     A.MUSIC_MOODS.sleep.gain < A.MUSIC_MOODS.ambient.gain &&
-    A.MUSIC_MOODS.calm.gain > A.MUSIC_MOODS.ambient.gain,
+    A.MUSIC_MOODS.calm.gain > A.MUSIC_MOODS.ambient.gain &&
+    A.MUSIC_MOODS.play.bpm > A.MUSIC_MOODS.ambient.bpm,
     'bpm фон/дом/сон: ' + [A.MUSIC_MOODS.ambient.bpm, A.MUSIC_MOODS.calm.bpm, A.MUSIC_MOODS.sleep.bpm].join(' / '));
+
+  // Мелодия зависит от экрана: где играем — там и музыка (v1.3.5)
+  const moodOf = scene => {
+    S.isSleeping = false;
+    A.musicScene = null;                 // «переезжаем» заново
+    return A.setScene(scene);
+  };
+  const moodHome = moodOf('home'), moodShop = moodOf('shop'), moodMuseum = moodOf('visit:art_museum'),
+    moodPark = moodOf('visit:park'), moodClinic = moodOf('clinic'), moodMap = moodOf('map');
+  S.isSleeping = true;
+  A.musicScene = null;
+  const moodSleep = A.setScene('home');  // сон важнее экрана
+  S.isSleeping = false;
+  A.musicScene = null;
+  A.setScene('menu');
+  ok('У каждого экрана своя музыка: дом, магазин, музей, парк, поликлиника, сон',
+    moodHome === 'home' && moodShop === 'play' && moodMuseum === 'museum' &&
+    moodPark === 'play' && moodClinic === 'museum' && moodMap === 'ambient' &&
+    moodSleep === 'sleep',
+    [moodHome, moodShop, moodMuseum, moodPark, moodClinic, moodMap, moodSleep].join(' / '));
 
   // ---- фоновая музыка играет сама ----
   S.resetProgress();
@@ -1541,12 +1605,32 @@ if (boot) {
     !!A.musicGain && A.musicGainLevel === A.MUSIC_MOODS.ambient.gain,
     'громкость музыки ' + A.musicGainLevel);
 
-  const playedBefore = A.musicNotesPlayed;
-  A.ctx.currentTime = 0.5;                 // «прошло полсекунды кадров»
+  // Планировщик: за один круг он обязан выдать ровно ноты мелодии (без повторов
+  // и пропусков), а после круга — продолжить, а не начать заново. Раньше проверка
+  // смотрела «сколько нот добавилось за 0.5 с»: со сменой мелодий (v1.3.5) у
+  // спокойных песен ноты реже, и такая проверка врала бы на ровном месте.
+  const dbg = A.musicState();
+  const tuneNotes = dbg.notes;
+  const mark = A.musicNotesPlayed;
+  const loopLen = A.musicLoopDuration('ambient');
+  A.ctx.currentTime = 0;
+  A.musicStart();
   A.musicTick();
-  ok('Планировщик продолжает петлю, а не начинает её заново',
-    A.musicState().playing === true && A.musicNotesPlayed > playedBefore,
-    'нот добавлено ' + (A.musicNotesPlayed - playedBefore));
+  const firstTick = A.musicNotesPlayed - mark;
+  for (let s = 0.5; s < loopLen - 1; s += 0.5) {
+    A.ctx.currentTime = s;
+    A.musicTick();
+  }
+  const inLoop = A.musicNotesPlayed - mark;
+  ok('За круг планировщик выдаёт ровно ноты мелодии — без повторов и пропусков',
+    firstTick >= 1 && inLoop === tuneNotes,
+    '«' + dbg.tuneName + '»: нот в круге ' + tuneNotes + ', выдано ' + inLoop + ' (сразу ' + firstTick + ')');
+
+  A.ctx.currentTime = loopLen + 0.6;
+  A.musicTick();
+  ok('Планировщик продолжает круг, а не начинает его заново',
+    A.musicNotesPlayed > mark + inLoop,
+    'нот после круга: ' + (A.musicNotesPlayed - mark - inLoop));
 
   S.isSleeping = true;
   A.musicTick();
@@ -1611,6 +1695,130 @@ if (boot) {
   A.musicBoostUntil = 0;
   S.isSleeping = false;
 }
+
+// --- Имя героя в текстах (v1.3.4, замечание заказчика) ---
+// «Все другие персонажи тоже называются Гоферами, хотя у них есть свои имена.
+//  Гофер должен быть только для гофера». Проверяем: у каждого героя есть формы
+//  имени и род, подстановка склоняет и согласует, тексты игры берут слово из
+//  шаблона, а в подписи меню видно имя героя, если профиль не переименован.
+const petSample = 'Покорми {pet_acc}: {Pet} {pet:сыт|сыта}';
+ok('У каждого героя есть формы имени для текстов и род',
+  sandbox.CHARACTERS.every(c => c.gender && c.pet &&
+    ['nom', 'gen', 'dat', 'acc', 'ins'].every(f => typeof c.pet[f] === 'string' && c.pet[f].length > 1)),
+  sandbox.CHARACTERS.map(c => c.name + ' → ' + (c.pet && c.pet.acc)).join(', '));
+ok('Милка — девочка, остальные герои мальчики (тексты согласуются по роду)',
+  sandbox.findCharacter('milka').gender === 'f' &&
+  sandbox.CHARACTERS.filter(c => c.gender === 'm').length === 5,
+  'девочек: ' + sandbox.CHARACTERS.filter(c => c.gender === 'f').length);
+
+S.setCharacter('gopher');
+ok('С гофером всё как раньше: «Покорми гофера: Гофер сыт»',
+  sandbox.petFill(petSample) === 'Покорми гофера: Гофер сыт', sandbox.petFill(petSample));
+
+S.setCharacter('milka');
+ok('С Милкой текст называет её по имени (а не «гофером»)',
+  sandbox.petFill(petSample) === 'Покорми Милку: Милка сыта' &&
+  !/гофер/i.test(sandbox.petFill(petSample)), sandbox.petFill(petSample));
+ok('С Милкой падежи и род верные: «{pet} спит», «поспи с {pet_by}», «{pet:нашёл|нашла}»',
+  sandbox.petFill('{Pet} спит 💤') === 'Милка спит 💤' &&
+  sandbox.petFill('Поспи с {pet_by}') === 'Поспи с ней' &&
+  sandbox.petFill('{Pet} {pet:нашёл|нашла} монетку') === 'Милка нашла монетку',
+  sandbox.petFill('Поспи с {pet_by}') + ' · ' + sandbox.petFill('{Pet} {pet:нашёл|нашла} монетку'));
+
+S.setCharacter('bear');
+ok('С Мишкой текст называет его Мишкой (без «гофера»)',
+  sandbox.petFill(petSample) === 'Покорми мишку: Мишка сыт' &&
+  !/гофер/i.test(sandbox.petFill('{Pet} устал: поспи с {pet_by}')),
+  sandbox.petFill(petSample));
+ok('Милка не путается с мишкой: у каждого героя своё слово',
+  (function () {
+    const seen = {};
+    let okAll = true;
+    sandbox.CHARACTERS.forEach(c => {
+      S.setCharacter(c.id);
+      const w = sandbox.petWord('nom');
+      if (seen[w]) okAll = false;
+      seen[w] = c.id;
+    });
+    return okAll && Object.keys(seen).length === 6;
+  })(), sandbox.CHARACTERS.map(c => c.pet.nom).join(', '));
+
+// Тексты игры: подставляем героя в каждый и смотрим, не остался ли «гофер»/шаблон
+const heroTexts = []
+  .concat(sandbox.ACHIEVEMENTS.map(a => a.name).concat(sandbox.ACHIEVEMENTS.map(a => a.desc)))
+  .concat(sandbox.STAT_HELP.map(h => h.what))
+  .concat(sandbox.STAT_HELP.reduce((acc, h) => acc.concat(h.up || [], h.down || []), []))
+  .concat(sandbox.QUIET_RULES)
+  .concat(['{Pet} спит — походы закрыты', '{Pet} {pet:выспался|выспалась}!', 'Сыграй против {pet_gen}']);
+sandbox.CHARACTERS.forEach(c => {
+  S.setCharacter(c.id);
+  const bad = heroTexts.map(t => sandbox.petFill(t)).filter(t => t.indexOf('{') !== -1 || (c.id !== 'gopher' && /гофер/i.test(t)));
+  ok('Тексты игры с героем «' + c.name + '» звучат правильно (нет «гофера» и шаблонов)',
+    bad.length === 0, bad.slice(0, 2).join(' | ') || 'проверено строк: ' + heroTexts.length);
+});
+
+S.setCharacter('milka');
+S.profileName = sandbox.DEFAULT_PROFILE_NAME;
+ok('В подписи профиля — имя героя, если профиль не переименован',
+  S.profileLabel() === 'Милка', S.profileLabel());
+S.profileName = 'Витя';
+ok('Переименованный профиль остаётся именем ребёнка',
+  S.profileLabel() === 'Витя' && S.characterName() === 'Милка', S.profileLabel());
+S.profileName = sandbox.DEFAULT_PROFILE_NAME;   // вернули как было
+
+ok('Имя профиля по умолчанию осталось «Гофер» (старые сохранения не меняются)',
+  sandbox.DEFAULT_PROFILE_NAME === 'Гофер' && S.profileName === sandbox.DEFAULT_PROFILE_NAME, S.profileName);
+
+// Список профилей и друзья: подписи берутся из профиля (v1.3.5). Профиль, который
+// не переименовывали, подписан именем СВОЕГО героя — иначе у Милки в списке
+// профилей и у друга стоит «Гофер» (нашлось на кадре рендера menu@profiles).
+const profilesBefore = S.getProfiles();
+const storedProfiles = sandbox.localStorage.getItem(S.PROFILE_KEY);
+const storedSaves = {};
+S.getProfiles().forEach(pr => { storedSaves[pr.id] = sandbox.localStorage.getItem(S.saveKeyFor(pr.id)); });
+sandbox.localStorage.setItem(S.PROFILE_KEY, JSON.stringify([
+  { id: 'p1', name: sandbox.DEFAULT_PROFILE_NAME },
+  { id: 'p2', name: 'Витя' }
+]));
+sandbox.localStorage.setItem(S.saveKeyFor('p1'), JSON.stringify({ level: 3, look: { char: 'milka' } }));
+sandbox.localStorage.setItem(S.saveKeyFor('p2'), JSON.stringify({ level: 5, look: { char: 'bear' } }));
+const labelDefault = S.profileLabelFor('p1');
+const emojiDefault = S.emojiForProfile('p1');
+const labelNamed = S.profileLabelFor('p2');
+ok('В списке профилей профиль без своего имени подписан именем своего героя',
+  labelDefault === 'Милка' && labelNamed === 'Витя',
+  '«Гофер»-профиль → ' + labelDefault + ', переименованный → ' + labelNamed);
+ok('В списке профилей стоит эмодзи героя этого профиля, а не общий 🐹',
+  emojiDefault === '🐇', emojiDefault);
+// Вернули состояние стенда: профили и сохранения как были
+if (storedProfiles === null) sandbox.localStorage.removeItem(S.PROFILE_KEY);
+else sandbox.localStorage.setItem(S.PROFILE_KEY, storedProfiles);
+Object.keys(storedSaves).forEach(id => {
+  if (storedSaves[id] === null) sandbox.localStorage.removeItem(S.saveKeyFor(id));
+  else sandbox.localStorage.setItem(S.saveKeyFor(id), storedSaves[id]);
+});
+ok('Стенд вернулся в исходное состояние: профили как были',
+  S.getProfiles().length === profilesBefore.length, 'профилей ' + S.getProfiles().length);
+
+const popupText = (function () {
+  S.showAchievement('😴', '{Pet} {pet:устал|устала} — сначала поспи');
+  const t = S.lastPopup.text;
+  S.lastPopup = null;
+  return t;
+})();
+ok('Плашка достижений показывает героя, а не шаблон',
+  popupText === 'Милка устала — сначала поспи', popupText);
+
+ok('Сообщение об офлайне говорит именем героя и его эмодзи',
+  (function () {
+    S.offlineReport = { awayMinutes: 95, sleptMinutes: 0, wokeUp: false };
+    const t = sandbox.petFill(S.offlineMessage());
+    S.offlineReport = null;
+    return t.indexOf('Милка скучала') !== -1 && t.indexOf('🐇') !== -1 && !/гофер/i.test(t);
+  })(), sandbox.petFill('Тебя не было 1 ч 35 мин — {pet} {pet:скучал|скучала}, но держится ' + S.heroEmoji()));
+
+S.setCharacter('gopher');
+S.profileName = sandbox.DEFAULT_PROFILE_NAME;
 
 console.log('\n' + '─'.repeat(50));
 console.log('ИТОГО: пройдено ' + pass + ' | провалено ' + fail);

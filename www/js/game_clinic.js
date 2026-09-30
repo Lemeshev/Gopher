@@ -419,7 +419,7 @@ class ClinicScene {
 
     ctx.fillStyle = '#5B7C8D';
     ctx.font = `${Math.min(W * 0.030, 12)}px Arial`;
-    const fact = this.treatment ? this.treatment.fact : 'Врач осмотрел гофера и всё проверил.';
+    const fact = this.treatment ? this.treatment.fact : 'Врач осмотрел {pet_acc} и всё проверил.';
     wrapLines(ctx, fact, W * 0.84, 2).forEach((l, i) => {
       ctx.fillText(l, W / 2, py + panelH * 0.62 + i * 13);
     });

@@ -62,6 +62,19 @@ const SCENES = [
   { hash: 'home~look=char:cat,hat:cap,back:cape,fur:mint',        minColors: 25, minNonBg: 3 },
   { hash: 'home~look=char:milka,hat:bow,glasses:cool,neck:bowtie', minColors: 25, minNonBg: 3 },
   { hash: 'home~look=char:milka,back:backpack,fur:sky',           minColors: 25, minNonBg: 3 },
+  // Имя героя в текстах (v1.3.4). Заказчик: «все персонажи назывались Гоферами».
+  // На этих кадрах герой — Мишка и Милка, поэтому кадр ОБЯЗАН показать их имя,
+  // а шаблон «{pet…}» не должен попасть на экран (проверяет needText/petLeftover).
+  { hash: 'menu~look=char:milka',       minColors: 20, minNonBg: 3, needText: ['Милка'] , forbidText: ['гофер'] },
+  { hash: 'menu~look=char:bear',        minColors: 20, minNonBg: 3, needText: ['Мишка'] , forbidText: ['гофер'] },
+  { hash: 'menu@profiles~look=char:milka', minColors: 20, minNonBg: 3, needText: ['Новый питомец'] , forbidText: ['гофер'] },
+  { hash: 'home~look=char:milka',       minColors: 25, minNonBg: 3 , forbidText: ['гофер'] },
+  { hash: 'home~look=char:milka,stats=calm-15', minColors: 25, minNonBg: 3, forbidText: ['гофер'] },
+  { hash: 'home@help~look=char:milka',  minColors: 20, minNonBg: 3, needText: ['Милке'] , forbidText: ['гофер'] },
+  { hash: 'minigames~look=char:milka',  minColors: 20, minNonBg: 3, needText: ['Милки'] , forbidText: ['гофер'] },
+  { hash: 'minigames@sleeping~look=char:milka', minColors: 20, minNonBg: 3, needText: ['Милка'] , forbidText: ['гофер'] },
+  { hash: 'quiet~look=char:bear',       minColors: 20, minNonBg: 3, needText: ['Мишка'] , forbidText: ['гофер'] },
+  { hash: 'stats~look=char:milka',      minColors: 20, minNonBg: 3 , forbidText: ['гофер'] },
   { hash: 'home@music',         minColors: 25, minNonBg: 3 },
   { hash: 'quiet',              minColors: 20, minNonBg: 3 },
   { hash: 'quiet@stars',        minColors: 20, minNonBg: 3 },
@@ -77,7 +90,7 @@ const SCENES = [
   { hash: 'friends@codes+open_add',        minColors: 20, minNonBg: 3 },
   { hash: 'friends@visit_0',    minColors: 20, minNonBg: 3 },
   { hash: 'menu@profiles',      minColors: 20, minNonBg: 3 },
-  { hash: 'menu@settings',      minColors: 20, minNonBg: 3 },
+  { hash: 'menu@settings',      minColors: 20, minNonBg: 3, needText: ['Мелодия'] },
   // Шкалы в крайних состояниях (v1.3.2): все полоски устроены одинаково
   // («чем больше, тем лучше»), поэтому и выглядят одинаково.
   // Внимание: значения разделяем «-», а не «:» — двоеточие в имени файла кадра
@@ -98,6 +111,7 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
 function serve() {
   return new Promise(resolve => {
     const srv = http.createServer((req, res) => {
+      // keep-alive держим коротким: иначе закрытие сервера ждёт Chrome (v1.3.5)
       const rel = decodeURIComponent(req.url.split('?')[0].replace(/^\/+/, ''));
       const file = path.join(ROOT, rel);
       if (!file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
@@ -106,6 +120,7 @@ function serve() {
       res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
       fs.createReadStream(file).pipe(res);
     });
+    srv.keepAliveTimeout = 1000;
     srv.listen(0, '127.0.0.1', () => resolve({ srv, port: srv.address().port }));
   });
 }
@@ -187,6 +202,17 @@ function chrome(hash, port, shotPath, timeoutMs) {
       if (rep.errors && rep.errors.length) problems.push('ошибки JS: ' + rep.errors.join(' | '));
       if (rep.distinctColors < scene.minColors) problems.push('слишком мало цветов: ' + rep.distinctColors + ' < ' + scene.minColors);
       if (rep.nonBackgroundPct < scene.minNonBg) problems.push('кадр почти пустой: нефон ' + rep.nonBackgroundPct + '% < ' + scene.minNonBg + '%');
+      // Имя героя в подписях (v1.3.3): на кадре должен быть именно герой, а
+      // шаблон «{pet…}» не имеет права попасть на экран ни в одном кадре.
+      const drawn = Array.isArray(rep.drawn) ? rep.drawn : [];
+      (scene.needText || []).forEach(t => {
+        if (!drawn.some(s => s.indexOf(t) !== -1)) problems.push('нет надписи «' + t + '» (герой не назван своим именем)');
+      });
+      (rep.petLeftover || []).forEach(s => problems.push('на экран попал шаблон: ' + s));
+      (scene.forbidText || []).forEach(t => {
+        const hit = drawn.filter(s => s.toLowerCase().indexOf(t.toLowerCase()) !== -1)[0];
+        if (hit) problems.push('на кадре лишнее слово «' + t + '»: ' + hit);
+      });
     }
     // Кадр обязан реально лечь на диск: раньше имя с «:» молча не сохранялось,
     // а проверка этого не замечала (казалось, что кадры есть).
@@ -233,7 +259,20 @@ function chrome(hash, port, shotPath, timeoutMs) {
     }
   }
 
+  // Закрываем сервер ЖЁСТКО: Chrome держит keep-alive соединения, а srv.close()
+  // ждёт их закрытия и может ждать вечно — прогон выглядел «зависшим» уже после
+  // отрисовки всех кадров (нашло само-ревью v1.3.5).
+  if (typeof srv.closeAllConnections === 'function') srv.closeAllConnections();
   srv.close();
-  if (asJson) console.log(JSON.stringify(results, null, 2));
-  process.exit(failed ? 1 : 0);
+  // process.exit() обрывает незакрытый вывод: при 70+ кадрах JSON (сотни КБ)
+  // не успевал уйти в пайп, verify.js не мог его разобрать и терял ВСЕ проверки
+  // кадров, показывая одну строку «Command failed» (нашло само-ревью v1.3.5).
+  // Поэтому не выходим принудительно: даём потоку закрыться, а код возврата
+  // ставим через exitCode.
+  // Вывод обязательно досылаем (verify.js читает его из пайпа) и только потом
+  // выходим: без явного exit процесс мог остаться жить из-за висящих дескрипторов
+  // Chrome, а с прежним process.exit() — наоборот, терял хвост JSON (v1.3.5).
+  const done = () => process.exit(failed ? 1 : 0);
+  if (asJson) process.stdout.write(JSON.stringify(results, null, 2) + '\n', done);
+  else done();
 })();

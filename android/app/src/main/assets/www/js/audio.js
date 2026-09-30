@@ -7,11 +7,16 @@
 //    игра весит 220 КБ и работает без интернета, файл музыки был бы тяжелее
 //    самой игры.
 //  • Мелодия «нейтральная»: пентатоника до-мажор (в ней нет полутонов, а
-//    значит нет и режущих слух сочетаний) — петлю можно слушать часами.
+//    значит нет и режущих слух сочетаний) — музыку можно слушать часами.
 //  • Три голоса: бас по такту, мелодия на 16 долей и редкие «звёздочки»
-//    сверху — так петля не звучит как одна пищалка.
-//  • Настроение (mood) меняет темп и громкость, а не ноты: во сне музыка
-//    медленнее и тише, у домашнего действия «🎵 Музыка» — громче.
+//    сверху — так круг не звучит как одна пищалка.
+//  • Мелодий ШЕСТЬ (v1.3.5, MUSIC_TUNES): домашняя, прогулка, игра, музейная,
+//    звёздная, колыбельная. Заказчик передал вопрос детей: «музыка всегда такая
+//    заунывная и одинаковая или она будет меняться?» — раньше была одна петля на
+//    всю игру, менялись только темп и громкость. Теперь у каждого настроения свой
+//    пул песен (в доме играет одна, в магазине другая, в музее третья, во сне —
+//    колыбельная), круг меняется сам: каждый круг сдвигается по высоте, каждый
+//    второй круг меняет мелодию. Музыка синтезируется на месте: файлов нет.
 //  • Переключатели независимые, настройка хранится на устройстве
 //    (gopherlife_audio), а не в профиле: это про «тихо в комнате», а не про
 //    конкретного ребёнка.
@@ -24,35 +29,63 @@ const AudioSys = {
   MUSIC_ROOT: 261.63,                    // C4 — от него считаем всю гамму
   // Пентатоника от C4: 0 2 4 7 9 12 14 16 19 21 полутона
   MUSIC_SCALE: [0, 2, 4, 7, 9, 12, 14, 16, 19, 21],
-  // Петля: 16 долей (4 такта по 4/4). Ноты заданы долей b и индексом i в гамме,
+  // Круг: 16 долей (4 такта по 4/4). Ноты заданы долей b и индексом i в гамме,
   // d — длительность в долях, v — индивидуальная громкость (0..1).
-  MUSIC_LOOP: {
-    beats: 16,
-    bass: [
-      { b: 0,  i: -12, d: 3.8 },        // C3
-      { b: 4,  i: -15, d: 3.8 },        // A2
-      { b: 8,  i: -7,  d: 3.8 },        // F3
-      { b: 12, i: -5,  d: 3.8 }         // G3
-    ],
-    lead: [
-      { b: 0,    i: 0, d: 1 }, { b: 1,   i: 2, d: 1 }, { b: 2, i: 3, d: 1 },   { b: 3,   i: 2, d: 1 },
-      { b: 4,    i: 4, d: 0.5 }, { b: 4.5, i: 3, d: 0.5 }, { b: 5, i: 2, d: 1 },
-      { b: 6,    i: 1, d: 1 }, { b: 7,   i: 0, d: 1 },
-      { b: 8,    i: 0, d: 1 }, { b: 9,   i: 2, d: 1 }, { b: 10, i: 3, d: 1 },  { b: 11, i: 5, d: 1 },
-      { b: 12,   i: 3, d: 1 }, { b: 13,  i: 2, d: 1 }, { b: 14, i: 1, d: 1 },  { b: 15, i: 0, d: 1 }
-    ],
-    sparkle: [
-      { b: 4,  i: 7, d: 1.5, v: 0.8 },
-      { b: 12, i: 8, d: 1.5, v: 0.6 }
-    ]
-  },
-  // Настроение: темп, общая громкость и тембр мелодии
+  // Настроение: темп, общая громкость, тембр и ПУЛ мелодий (какие песни звучат
+  // в этом настроении — v1.3.5). Заказчик: «дети спрашивают — музыка всегда такая
+  // заунывная и одинаковая или она будет меняться?» Поэтому мало темпа: у каждого
+  // настроения свой набор мелодий, а внутри круга музыка ещё и меняется.
   MUSIC_MOODS: {
-    ambient: { bpm: 76, gain: 0.55, lead: 'triangle' },   // обычный фон: тихо и ненавязчиво
-    calm:    { bpm: 58, gain: 0.95, lead: 'sine' },       // «🎵 Музыка» дома: слышнее
-    sleep:   { bpm: 50, gain: 0.35, lead: 'sine' }        // колыбельная, пока питомец спит
+    home:    { bpm: 88, gain: 0.55, lead: 'triangle', tunes: ['home', 'walk'] },   // дома: живее
+    ambient: { bpm: 76, gain: 0.50, lead: 'triangle', tunes: ['star', 'walk', 'home'] }, // фон и карта
+    calm:    { bpm: 84, gain: 0.95, lead: 'triangle', tunes: ['home', 'play', 'walk'] }, // «🎵 Музыка» дома: слышнее
+    museum:  { bpm: 62, gain: 0.45, lead: 'sine',     tunes: ['museum', 'star'] },   // музеи, библиотека, учёба
+    play:    { bpm: 96, gain: 0.60, lead: 'triangle', tunes: ['play', 'walk'] },    // магазин, парк, мини-игры
+    sleep:   { bpm: 50, gain: 0.35, lead: 'sine',     tunes: ['lullaby'] }          // колыбельная
   },
-  musicBoostUntil: 0,
+  // Сдвиги (в полутонах) для следующего круга: мелодия не повторяется «нота в ноту».
+  // Все голоса сдвигаются вместе, поэтому созвучие сохраняется: 0 / +2 / −2 / +4.
+  MUSIC_SHIFTS: [0, 2, -2, 4],
+  musicShiftIndex: 0,
+  musicTuneIndex: 0,                     // какая мелодия из пула играет
+  musicLoops: 0,                         // сколько кругов сыграно (для проверок)
+  musicScene: 'menu',                    // где мы: сцена задаёт настроение (setScene)
+  // ============ ШЕСТЬ МЕЛОДИЙ (v1.3.5) ============
+  // Заказчик: «дети спрашивают — музыка всегда такая заунывная и одинаковая или она
+  // будет меняться?» Раньше петля была одна на всю игру: менялись только темп и
+  // громкость, поэтому ребёнок слышал одно и то же. Теперь мелодий шесть, и они
+  // разные по характеру: домашняя, прогулка, игра, музейная, звёздная, колыбельная.
+  // Мелодия записана строкой: одна доля — один знак, число — индекс в гамме,
+  // «.» — продлить предыдущую ноту, «-» — пауза. Так шесть песен видно целиком.
+  musicParseLead(pattern) {
+    const out = [];
+    let prev = null;
+    String(pattern).trim().split(/\s+/).forEach((tok, b) => {
+      if (tok === '-') { prev = null; return; }
+      if (tok === '.') { if (prev) prev.d += 1; return; }
+      prev = { b: b, i: parseInt(tok, 10) || 0, d: 1 };
+      out.push(prev);
+    });
+    return out;
+  },
+  // Бас: четыре аккорда за круг, индексы — полутоны от C4 (как было: −12, −15, −7, −5)
+  musicParseBass(spec, beats) {
+    const parts = String(spec).trim().split(/\s+/);
+    const step = beats / parts.length;
+    return parts.map((tok, k) => ({ b: k * step, i: parseInt(tok, 10) || 0, d: step - 0.2 }));
+  },
+  // Мелодии — данными: id, имя для экрана настроек, строка мелодии, бас, «звёздочки».
+  // Разбор строки делает musicTune() (см. ниже) — так данные остаются читаемыми.
+  MUSIC_TUNES: [
+    { id: 'home',    name: 'Домашняя',    lead: '0 2 3 2 4 3 2 1 - 3 4 5 4 2 3 0', bass: '-12 -7 -5 -7',   sparkle: [[4, 7], [12, 8]] },
+    { id: 'walk',    name: 'Прогулка',    lead: '0 1 2 1 3 2 1 2 4 3 2 3 1 2 1 0', bass: '-12 -5 -15 -7',  sparkle: [[8, 8]] },
+    { id: 'play',    name: 'Игра',        lead: '0 . 2 . 4 2 4 5 - 4 . 2 . 3 2 0', bass: '-12 -10 -5 -7',  sparkle: [[4, 8], [12, 7]] },
+    { id: 'museum',  name: 'Музейная',    lead: '0 . . . 2 . . . 1 . . . 3 . . .', bass: '-12 -15 -7 -12', sparkle: [] },
+    { id: 'star',    name: 'Звёздная',    lead: '4 . 3 . 2 . 3 . 4 . 5 . 4 . 2 .', bass: '-12 -7 -12 -5',  sparkle: [[2, 9], [6, 8], [10, 9]] },
+    { id: 'lullaby', name: 'Колыбельная', lead: '4 . . 2 . . 1 . . 0 . . 1 . - -', bass: '-12 -15 -12 -7', sparkle: [[6, 7]] }
+  ],
+  MUSIC_BEATS: 16,
+
   musicPlaying: false,
   musicLoopAt: 0,                        // время ctx, с которого играет текущая петля
   musicCursor: 0,                        // какую ноту петли расписываем следующей
@@ -266,47 +299,110 @@ const AudioSys = {
   },
 
   // ============ ФОНОВАЯ МУЗЫКА ============
-  // Ноты петли для настроения: считаем время в секундах (доля = 60/bpm) и
+  // Разобрать мелодию в ноты: считаем время в секундах (доля = 60/bpm) и
   // сортируем — планировщик сыпет их в хронологическом порядке.
+  musicTune() {
+    const pool = this.musicPool(this.musicMood());
+    const id = pool[this.musicTuneIndex % pool.length] || pool[0];
+    if (!this.musicTuneCache) this.musicTuneCache = {};
+    if (this.musicTuneCache[id]) return this.musicTuneCache[id];
+    const raw = this.MUSIC_TUNES.filter(t => t.id === id)[0] || this.MUSIC_TUNES[0];
+    const beats = raw.beats || this.MUSIC_BEATS;
+    const tune = {
+      id: raw.id, name: raw.name, beats: beats,
+      lead: this.musicParseLead(raw.lead),
+      bass: this.musicParseBass(raw.bass, beats),
+      sparkle: raw.sparkle.map(s => ({ b: s[0], i: s[1], d: 1.5, v: s[0] === 4 ? 0.8 : 0.6 }))
+    };
+    this.musicTuneCache[id] = tune;
+    return tune;
+  },
+
+  // Какие мелодии звучат в этом настроении (у каждого экрана свой набор)
+  musicPool(mood) {
+    const m = this.MUSIC_MOODS[mood] || this.MUSIC_MOODS.ambient;
+    return m.tunes && m.tunes.length ? m.tunes : ['walk'];
+  },
+
+  // Имя мелодии для панели настроек: «Домашняя», «Колыбельная»…
+  musicTuneName() { return this.musicTune().name; },
+
+  // Ноты круга: бас + мелодия + «звёздочки». Сдвиг (shift) поднимает/опускает
+  // ВСЕ голоса вместе — созвучие сохраняется, а круг не повторяется «нота в ноту».
   musicEvents(mood) {
     const m = this.MUSIC_MOODS[mood] || this.MUSIC_MOODS.ambient;
+    const tune = this.musicTune();
+    const shift = this.MUSIC_SHIFTS[this.musicShiftIndex % this.MUSIC_SHIFTS.length] || 0;
     const beat = 60 / m.bpm;
     const out = [];
     const add = (list, type, vol) => {
       (list || []).forEach(n => out.push({
         t: n.b * beat,
-        freq: this.musicFreq(n.i),
+        freq: this.musicFreq(n.i + shift),
         dur: Math.max(0.22, n.d * beat),
         vol: vol * (n.v === undefined ? 1 : n.v),
         type: type
       }));
     };
-    add(this.MUSIC_LOOP.bass, 'sine', 0.30);
-    add(this.MUSIC_LOOP.lead, m.lead, 0.20);
-    add(this.MUSIC_LOOP.sparkle, 'sine', 0.09);
+    add(tune.bass, 'sine', 0.30);
+    add(tune.lead, m.lead, 0.20);
+    add(tune.sparkle, 'sine', 0.09);
     out.sort((a, b) => a.t - b.t);
     return out;
   },
 
-  // Ноты не пересобираем по 60 раз в секунду — кэш на каждое настроение
+  // Ноты не пересобираем по 60 раз в секунду — кэш на каждую мелодию и сдвиг
   musicEventsCached(mood) {
+    const key = this.musicTune().id + '@' + this.MUSIC_SHIFTS[this.musicShiftIndex % this.MUSIC_SHIFTS.length];
     if (!this.musicCache) this.musicCache = {};
-    if (!this.musicCache[mood]) this.musicCache[mood] = this.musicEvents(mood);
-    return this.musicCache[mood];
+    if (!this.musicCache[key]) this.musicCache[key] = this.musicEvents(mood);
+    return this.musicCache[key];
   },
 
   musicFreq(i) { return this.MUSIC_ROOT * Math.pow(2, i / 12); },
 
   musicLoopDuration(mood) {
     const m = this.MUSIC_MOODS[mood] || this.MUSIC_MOODS.ambient;
-    return this.MUSIC_LOOP.beats * (60 / m.bpm);
+    return this.MUSIC_BEATS * (60 / m.bpm);
   },
 
-  // Настроение: питомец спит — колыбельная; недавно нажали «🎵 Музыка» дома —
-  // слышнее; в остальное время обычный тихий фон.
+  // Круг доиграл: берём другую мелодию из пула и/или другой сдвиг, чтобы музыка
+  // не была «одной и той же» (v1.3.5). Каждый второй круг меняет мелодию, а
+  // сдвиг меняется каждый круг — то есть подряд две одинаковые петли не звучат.
+  musicNextLoop() {
+    this.musicLoops++;
+    this.musicShiftIndex = (this.musicShiftIndex + 1) % this.MUSIC_SHIFTS.length;
+    const pool = this.musicPool(this.musicMood());
+    if (this.musicLoops % 2 === 0 && pool.length > 1) {
+      this.musicTuneIndex = (this.musicTuneIndex + 1) % pool.length;
+    }
+    return this.musicTune();
+  },
+
+  // Сцена сообщает, где играет музыка: у каждого экрана свой характер.
+  // Настроение не «залипает»: перешли в музей — зазвучала музейная мелодия.
+  setScene(name) {
+    const next = String(name || 'menu');
+    if (next === this.musicScene) return this.musicMood();
+    this.musicScene = next;
+    this.musicCache = {};                  // ноты другого настроения пересоберём
+    return this.musicMood();
+  },
+
+  // Настроение: спит — колыбельная; недавно нажали «🎵 Музыка» дома — слышнее;
+  // в остальное время его задаёт экран (дом, магазин, мини-игры, музей, карта…).
   musicMood() {
     if (typeof System !== 'undefined' && System.isSleeping) return 'sleep';
     if (this.musicBoostUntil > Date.now()) return 'calm';
+    const scene = this.musicScene || 'menu';
+    if (scene === 'home') return 'home';
+    if (scene === 'shop' || scene === 'minigames' || scene === 'quiet' ||
+        scene === 'aerial' || scene === 'friends') return 'play';
+    if (scene === 'clinic') return 'museum';
+    if (scene.indexOf('visit:') === 0) {
+      const quiet = ['art_museum', 'nature_museum', 'space_museum', 'history_museum', 'museums', 'library', 'school'];
+      return quiet.indexOf(scene.slice(6)) !== -1 ? 'museum' : 'play';
+    }
     return 'ambient';
   },
 
@@ -345,6 +441,9 @@ const AudioSys = {
   musicApplyMood(mood) {
     const m = this.MUSIC_MOODS[mood] || this.MUSIC_MOODS.ambient;
     if (this.musicGain && this.musicMoodApplied !== mood) {
+      // Сменился экран или сон: начинаем с первой мелодии нового настроения —
+      // так ребёнок замечает, что музыка другая, а не «та же, но тише» (v1.3.5)
+      if (this.musicMoodApplied !== null) this.musicTuneIndex = 0;
       this.musicMoodApplied = mood;
       this.setGainValue(this.musicGain.gain, m.gain, 0.6);
     }
@@ -357,6 +456,11 @@ const AudioSys = {
     this.musicMoodApplied = null;          // громкость текущего настроения применим заново
     this.musicLoopAt = (this.ctx ? this.ctx.currentTime : 0) + 0.12;
     this.musicCursor = 0;
+    // Новый запуск музыки — начинаем с первой мелодии без сдвига: так проверки и
+    // ребёнок видят предсказуемое начало, а дальше музыка меняется сама (v1.3.5)
+    this.musicShiftIndex = 0;
+    this.musicTuneIndex = 0;
+    this.musicLoops = 0;
     return true;
   },
 
@@ -419,6 +523,9 @@ const AudioSys = {
     if (this.musicCursor >= events.length) {
       this.musicLoopAt += loopDur;
       this.musicCursor = 0;
+      // Круг доиграл — следующая мелодия (и/или сдвиг): музыка не повторяется
+      const next = this.musicNextLoop();
+      if (next && this.musicState) this.musicEventsCached(this.musicMood());
     }
     return true;
   },
@@ -427,6 +534,7 @@ const AudioSys = {
   musicState() {
     const mood = this.musicMood();
     const m = this.MUSIC_MOODS[mood] || this.MUSIC_MOODS.ambient;
+    const tune = this.musicTune();
     return {
       music: this.isMusicOn(),
       sound: this.isSoundOn(),
@@ -434,9 +542,15 @@ const AudioSys = {
       mood: mood,
       bpm: m.bpm,
       gain: this.musicGainLevel,
-      notes: this.MUSIC_LOOP.bass.length + this.MUSIC_LOOP.lead.length + this.MUSIC_LOOP.sparkle.length,
+      notes: tune.bass.length + tune.lead.length + tune.sparkle.length,
       loop: Math.round(this.musicLoopDuration(mood) * 10) / 10,
       played: this.musicNotesPlayed,
+      tune: tune.id,
+      tuneName: tune.name,
+      tunesCount: this.MUSIC_TUNES.length,
+      pool: this.musicPool(mood),
+      shift: this.MUSIC_SHIFTS[this.musicShiftIndex % this.MUSIC_SHIFTS.length] || 0,
+      loops: this.musicLoops,
       hint: this.settingsHint()
     };
   },

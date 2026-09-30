@@ -132,7 +132,7 @@ class HomeScene {
     // ребёнок не поймёт, почему «Разбудить» превратилось в «Уложить спать».
     if (System.justWoke) {
       System.justWoke = false;
-      this.setBubble('\u2600\ufe0f Гофер выспался! Энергия 100% \u26a1');
+      this.setBubble('\u2600\ufe0f {Pet} {pet:выспался|выспалась}! Энергия 100% \u26a1');
       AudioSys.play('success');
     }
 
@@ -546,7 +546,7 @@ class HomeScene {
   actionsList() {
     const sleeping = System.isSleeping;
     // Пока питомец спит, действия с ним закрыты и подсказка говорит почему.
-    const sleepHint = 'Гофер спит 💤 — сначала разбуди';
+    const sleepHint = '{Pet} спит 💤 — сначала разбуди';
     return [
       { emoji: '\ud83c\udf7d\ufe0f', text: 'Покормить', action: 'feed', color: '#FF6B6B', room: 'kitchen',
         off: sleeping || System.stats.hunger >= 100, hint: sleeping ? sleepHint : 'Покормить можно на кухне' },
@@ -554,7 +554,7 @@ class HomeScene {
         off: sleeping || System.stats.cleanliness >= 100, hint: sleeping ? sleepHint : 'Купаются в ванной' },
       { emoji: sleeping ? '\u2600\ufe0f' : '\ud83d\ude34', text: sleeping ? 'Разбудить' : 'Уложить спать',
         action: 'sleep', color: sleeping ? '#FFB300' : '#3F51B5', room: 'bedroom',
-        off: !sleeping && System.stats.energy >= 99, hint: 'Гофер и так полон сил ⚡' },
+        off: !sleeping && System.stats.energy >= 99, hint: '{Pet} и так {pet:полон|полна} сил ⚡' },
       { emoji: '\ud83c\udfae', text: 'Играть', action: 'play', color: '#FF8C42', room: 'living',
         off: sleeping || System.stats.energy <= 5, hint: sleeping ? sleepHint : 'Играют в гостиной' },
       { emoji: '\ud83c\udfb5', text: 'Музыка', action: 'music', color: '#9B59B6', room: 'living',
@@ -1168,7 +1168,7 @@ class HomeScene {
     // иначе спящий гофер идёт работать, гулять и лечиться.
     const awakeOnly = ['feed', 'bathe', 'play', 'music', 'heal', 'work', 'study'];
     if (System.isSleeping && awakeOnly.indexOf(action) !== -1) {
-      this.setBubble('Гофер спит 💤 — сначала разбуди или поиграй тихо 🤫');
+      this.setBubble('{Pet} спит 💤 — сначала разбуди или поиграй тихо 🤫');
       AudioSys.play('fail');
       return true;
     }
@@ -1235,7 +1235,7 @@ class HomeScene {
         // действие честно об этом говорит, а не делает вид, что играет.
         AudioSys.musicBoost(8);
         if (AudioSys.isMusicOn()) {
-          this.setBubble('\ud83c\udfb5 Тихая музыка: спокойствие растёт, гоферу легче');
+          this.setBubble('\ud83c\udfb5 Тихая музыка: спокойствие растёт, {pet_dat} легче');
         } else {
           this.setBubble('\ud83c\udfb5 Музыка выключена в настройках — включить можно в меню \u2699\ufe0f');
         }
@@ -1303,7 +1303,7 @@ class HomeScene {
           AudioSys.voice(System.look.char, 'sleepy');
         } else {
           // Энергия и так полная: спать нечего, и это надо сказать словами
-          this.setBubble('Гофер и так полон сил \u26a1 — бегать и играть!');
+          this.setBubble('{Pet} и так {pet:полон|полна} сил \u26a1 — бегать и играть!');
           AudioSys.play('fail');
         }
         break;

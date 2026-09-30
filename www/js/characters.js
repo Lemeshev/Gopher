@@ -7,10 +7,17 @@
 // не нужно: сцены работают с game.gopher через общий интерфейс
 // (draw, setExpression, hat, glasses, bowtie, outfit, heldEmoji, shower...).
 
+// Кроме вида, у героя есть ИМЯ В ТЕКСТЕ: pet — формы имени для подстановки в
+// подписи ({pet}, {pet_gen}, {pet_dat}, {pet_acc}, {pet_ins} — см. petFill в
+// helpers.js), gender — род для согласования («нашёл» / «нашла»).
+// Заказчик (v1.3.4): «Гофер должен быть только для гофера» — поэтому тексты берут
+// слово отсюда, а не пишут «гофер» руками.
 const CHARACTERS = [
   {
     id: 'gopher', name: 'Гофер', emoji: '🐹', toy: 'гофер',
     desc: 'Классический Go-маскот',
+    gender: 'm',
+    pet: { nom: 'гофер', gen: 'гофера', dat: 'гоферу', acc: 'гофера', ins: 'гофером' },
     body: '#7FDBE8', limb: '#F7D8A8', nose: '#3A2618',
     ears: { style: 'gopher' }, tail: 'none', muzzle: true, teeth: 'incisors',
     shape: 'capsule',
@@ -20,6 +27,8 @@ const CHARACTERS = [
   {
     id: 'bear', name: 'Мишка', emoji: '🐻', toy: 'мишка',
     desc: 'Мягкий и уютный',
+    gender: 'm',
+    pet: { nom: 'мишка', gen: 'мишки', dat: 'мишке', acc: 'мишку', ins: 'мишкой' },
     body: '#C9A06A', limb: '#EFDCC0', nose: '#4A2E1E',
     ears: { style: 'round', r: 0.105, spread: 0.255, dy: -0.345, inner: '#EFDCC0' },
     tail: 'puff', belly: '#E7D3B4', muzzle: true, teeth: 'none', shape: 'oval',
@@ -28,6 +37,8 @@ const CHARACTERS = [
   {
     id: 'bunny', name: 'Зайка', emoji: '🐰', toy: 'зайка',
     desc: 'Прыгает выше всех',
+    gender: 'm',
+    pet: { nom: 'зайка', gen: 'зайки', dat: 'зайке', acc: 'зайку', ins: 'зайкой' },
     body: '#EFE6E0', limb: '#FFFBF6', nose: '#F095A5',
     ears: { style: 'long', w: 0.082, h: 0.30, spread: 0.135, dy: -0.415, inner: '#FADCE2' },
     tail: 'puff', belly: '#FFFBF6', muzzle: true, teeth: 'incisors', shape: 'oval',
@@ -36,6 +47,8 @@ const CHARACTERS = [
   {
     id: 'cat', name: 'Котёнок', emoji: '🐱', toy: 'котёнок',
     desc: 'Мурчит и играет',
+    gender: 'm',
+    pet: { nom: 'котёнок', gen: 'котёнка', dat: 'котёнку', acc: 'котёнка', ins: 'котёнком' },
     body: '#F0B27A', limb: '#FDF2E3', nose: '#D9736F',
     ears: { style: 'pointy', w: 0.115, h: 0.145, spread: 0.175, dy: -0.375, inner: '#FAD9C6' },
     tail: 'thin', belly: '#FDF2E3', muzzle: true, teeth: 'fangs', whiskers: true, shape: 'oval',
@@ -44,6 +57,8 @@ const CHARACTERS = [
   {
     id: 'robot', name: 'Робот', emoji: '🤖', toy: 'робот',
     desc: 'Пикает и мигает огоньками',
+    gender: 'm',
+    pet: { nom: 'робот', gen: 'робота', dat: 'роботу', acc: 'робота', ins: 'роботом' },
     body: '#B8C6D9', limb: '#DCE6F2', nose: '#33475C',
     ears: { style: 'antenna', spread: 0.16, dy: -0.40, ball: '#FF6B6B' },
     tail: 'none', muzzle: false, teeth: 'none', shape: 'capsule', visor: true, antenna: true,
@@ -55,6 +70,10 @@ const CHARACTERS = [
     // подушечками и розовыми подушечками на лапах.
     id: 'milka', name: 'Милка', emoji: '🐇', toy: 'плюшевая милка',
     desc: 'Белая, зелёные ушки',
+    // Милка — имя (пишется с большой буквы всегда) и она девочка: тексты
+    // согласуются («выспалась», «нашла»), поэтому gender: 'f'
+    gender: 'f',
+    pet: { nom: 'Милка', gen: 'Милки', dat: 'Милке', acc: 'Милку', ins: 'Милкой' },
     body: '#FFFFFF', limb: '#FFFFFF', nose: '#F09BA8',
     ears: { style: 'long', w: 0.100, h: 0.320, spread: 0.108, dy: -0.418, tilt: 0.20, inner: '#2BB24C' },
     tail: 'plush', belly: '#F3EFE6', muzzle: false, teeth: 'none', shape: 'oval',

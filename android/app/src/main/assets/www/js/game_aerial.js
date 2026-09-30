@@ -38,7 +38,7 @@ class AerialScene {
     if (this.paid) return true;
     const cost = (typeof AERIAL !== 'undefined') ? AERIAL.energy : 5;
     if (System.stats.energy < cost + 2) {
-      System.showAchievement('😴', 'Гофер устал — сначала поспи');
+      System.showAchievement('😴', '{Pet} {pet:устал|устала} — сначала поспи');
       return false;
     }
     System.spendEnergy(cost);
@@ -75,7 +75,7 @@ class AerialScene {
       this.lastResult = 'Хороший перелёт! +' + coins + ' 🪙';
     } else {
       this.miss++;
-      this.lastResult = 'Мимо — но гофер держится крепко 😅';
+      this.lastResult = 'Мимо — но {pet} держится крепко 😅';
     }
 
     this.coinsWon += coins;
