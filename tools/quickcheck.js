@@ -1384,6 +1384,168 @@ if (boot) {
   S.isSleeping = false;
 }
 
+/* ---------- ФОНОВАЯ МУЗЫКА И ДВЕ ГАЛОЧКИ ЗВУКА (v1.3.1) ---------- */
+// Заказчик: «хорошо бы сделать какую-нибудь фоновую музыку нейтральную, конечно,
+// с возможностью отключения как музыки, так и звуков вообще, в настройках игры».
+// Проверяем ровно это: петля есть и она «нейтральная», ноты расписываются,
+// музыку и звуки можно выключить ПО ОТДЕЛЬНОСТИ, выбор помнит устройство.
+{
+  const A = sandbox.AudioSys;
+  const store = sandbox.localStorage;
+
+  // Заглушка звуковой системы: считает осцилляторы, как настоящий Web Audio
+  const fakeCtx = () => {
+    const ctx = {
+      currentTime: 0, state: 'running', destination: {}, oscillators: 0,
+      resume() { ctx.state = 'running'; },
+      suspend() { ctx.state = 'suspended'; },
+      createOscillator() {
+        ctx.oscillators++;
+        return {
+          type: '', frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} },
+          connect() {}, start() {}, stop() {}
+        };
+      },
+      createGain() {
+        return {
+          gain: { value: 1, setValueAtTime() {}, linearRampToValueAtTime() {},
+                  exponentialRampToValueAtTime() {}, setTargetAtTime() {} },
+          connect() {}
+        };
+      }
+    };
+    return ctx;
+  };
+
+  store.removeItem('gopherlife_audio');
+  A.ctx = null;
+  A.musicGain = null;
+  A.musicPlaying = false;
+  A.musicNotesPlayed = 0;
+  A.musicCache = null;
+  A.musicBoostUntil = 0;
+  A.loadSettings();
+  ok('Звук по умолчанию: и музыка, и звуки включены (пока родитель не выключил)',
+    A.isMusicOn() && A.isSoundOn(), A.settingsHint());
+
+  const loop = A.MUSIC_LOOP;
+  ok('Петля музыки: 16 долей и три голоса — бас, мелодия и «звёздочки»',
+    loop.beats === 16 && loop.bass.length === 4 && loop.lead.length >= 12 && loop.sparkle.length === 2,
+    'нот в петле: ' + (loop.bass.length + loop.lead.length + loop.sparkle.length));
+
+  const events = A.musicEvents('ambient');
+  const sorted = events.every((e, i) => i === 0 || e.t >= events[i - 1].t);
+  const inRange = events.every(e => e.freq > 90 && e.freq < 900 && e.vol > 0 && e.dur > 0.2);
+  const loopDur = A.musicLoopDuration('ambient');
+  ok('Ноты петли разложены по времени и все в слышимом диапазоне',
+    sorted && inRange && events[0].t === 0 && events[events.length - 1].t < loopDur,
+    'петля ' + loopDur.toFixed(1) + ' с, нот ' + events.length);
+
+  // «Нейтральная» музыка: вся гамма — из до-мажора (0 2 4 5 7 9 11 полутонов).
+  // Пентатоника без полутонов: даже случайное сочетание нот не звучит фальшиво.
+  // Мелодия задана индексом в гамме, бас — сдвигом в полутонах от C4.
+  const MAJOR = [0, 2, 4, 5, 7, 9, 11];
+  const pc = v => ((v % 12) + 12) % 12;
+  const offMajor = A.MUSIC_SCALE.filter(i => MAJOR.indexOf(pc(i)) === -1);
+  const leadOk = loop.lead.concat(loop.sparkle)
+    .every(n => A.MUSIC_SCALE[n.i] !== undefined && MAJOR.indexOf(pc(A.MUSIC_SCALE[n.i])) !== -1);
+  const bassOk = loop.bass.every(n => MAJOR.indexOf(pc(n.i)) !== -1);
+  ok('Музыка «нейтральная»: все ноты из до-мажора, режущих сочетаний нет',
+    offMajor.length === 0 && leadOk && bassOk,
+    'гамма в полутонах: ' + A.MUSIC_SCALE.join(' ') + ', бас: ' +
+    loop.bass.map(n => A.MUSIC_SCALE[0] + n.i).join(' '));
+
+  ok('Во сне и в тишине музыка медленнее и тише, у «🎵 Музыки» дома — громче',
+    A.MUSIC_MOODS.sleep.bpm < A.MUSIC_MOODS.ambient.bpm &&
+    A.MUSIC_MOODS.calm.bpm < A.MUSIC_MOODS.ambient.bpm &&
+    A.MUSIC_MOODS.sleep.gain < A.MUSIC_MOODS.ambient.gain &&
+    A.MUSIC_MOODS.calm.gain > A.MUSIC_MOODS.ambient.gain,
+    'bpm фон/дом/сон: ' + [A.MUSIC_MOODS.ambient.bpm, A.MUSIC_MOODS.calm.bpm, A.MUSIC_MOODS.sleep.bpm].join(' / '));
+
+  // ---- фоновая музыка играет сама ----
+  S.resetProgress();
+  S.isSleeping = false;
+  A.ctx = fakeCtx();
+  const ticked = A.musicTick();
+  const st = A.musicState();
+  ok('Фоновая музыка стартует сама и расписывает ноты вперёд',
+    ticked === true && st.playing === true && st.played > 0 && st.mood === 'ambient',
+    'сыграно нот ' + st.played + ', настроение ' + st.mood);
+  ok('Ноты идут через общий регулятор музыки (выключение = тишина)',
+    !!A.musicGain && A.musicGainLevel === A.MUSIC_MOODS.ambient.gain,
+    'громкость музыки ' + A.musicGainLevel);
+
+  const playedBefore = A.musicNotesPlayed;
+  A.ctx.currentTime = 0.5;                 // «прошло полсекунды кадров»
+  A.musicTick();
+  ok('Планировщик продолжает петлю, а не начинает её заново',
+    A.musicState().playing === true && A.musicNotesPlayed > playedBefore,
+    'нот добавлено ' + (A.musicNotesPlayed - playedBefore));
+
+  S.isSleeping = true;
+  A.musicTick();
+  const sleepState = A.musicState();
+  S.isSleeping = false;
+  ok('Пока питомец спит — колыбельная: медленнее и тише',
+    sleepState.mood === 'sleep' && sleepState.bpm === A.MUSIC_MOODS.sleep.bpm &&
+    sleepState.gain === A.MUSIC_MOODS.sleep.gain,
+    'сон: ' + sleepState.bpm + ' bpm, громкость ' + sleepState.gain);
+
+  A.musicBoost(8);
+  A.musicTick();
+  const calmState = A.musicState();
+  A.musicBoostUntil = 0;
+  A.musicTick();
+  ok('Домашнее действие «🎵 Музыка» делает фон слышнее и возвращает обратно',
+    calmState.mood === 'calm' && calmState.gain > A.MUSIC_MOODS.ambient.gain &&
+    A.musicState().mood === 'ambient',
+    'дом: ' + calmState.gain + ' → фон: ' + A.MUSIC_MOODS.ambient.gain);
+
+  // ---- галочки независимые ----
+  A.toggleMusic();
+  const offMusicTick = A.musicTick();
+  const offState = A.musicState();
+  ok('Музыку можно выключить: петля замолкает, ноты больше не расписываются',
+    offMusicTick === false && offState.music === false && offState.playing === false && offState.gain < 0.01,
+    'громкость музыки ' + offState.gain);
+
+  const clickWithMusicOff = A.play('click');
+  ok('Звуки при выключенной музыке работают (это разные галочки)',
+    clickWithMusicOff === true && A.ctx.oscillators > 0, 'осцилляторов: ' + A.ctx.oscillators);
+
+  A.toggleMusic();                         // музыку вернули
+  const notesMark = A.musicNotesPlayed;
+  A.toggleSound();                         // а звуки выключили
+  const musicAlive = A.musicTick();
+  ok('Музыка играет при выключенных звуках (и наоборот)',
+    musicAlive === true && A.musicState().playing === true && A.musicNotesPlayed > notesMark,
+    'нот добавилось ' + (A.musicNotesPlayed - notesMark));
+
+  const silentClick = A.play('click');
+  const silentVoice = A.voice('gopher', 'happy');
+  ok('Звуки выключены — ни эффектов, ни голосов героев',
+    silentClick === false && silentVoice === false);
+
+  const raw = store.getItem('gopherlife_audio');
+  A.settings = { music: true, sound: true };   // «перезапустили приложение»
+  A.loadSettings();
+  ok('Выбор помнит устройство: после перезапуска музыка вкл, звуки выкл',
+    !!raw && A.isMusicOn() === true && A.isSoundOn() === false, 'в памяти: ' + raw);
+
+  A.setSound(true);
+  store.removeItem('gopherlife_audio');
+  A.loadSettings();
+  ok('Без сохранённой настройки игра снова со звуком (по умолчанию всё включено)',
+    A.isMusicOn() && A.isSoundOn(), A.settingsHint());
+
+  A.ctx = null;
+  A.musicGain = null;
+  A.musicPlaying = false;
+  A.musicMoodApplied = null;
+  A.musicBoostUntil = 0;
+  S.isSleeping = false;
+}
+
 console.log('\n' + '─'.repeat(50));
 console.log('ИТОГО: пройдено ' + pass + ' | провалено ' + fail);
 process.exit(fail ? 1 : 0);

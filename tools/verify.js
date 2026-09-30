@@ -206,6 +206,9 @@ function createSandbox() {
   };
   sandbox.window = sandbox;
   sandbox.__ctxStub = ctxStub;
+  // Хранилище устройства доступно снаружи: нужно, чтобы проверить «перезапуск
+  // приложения» (настройки звука читаются из localStorage при старте).
+  sandbox.__store = store;
   vm.createContext(sandbox);
   return sandbox;
 }
@@ -1257,7 +1260,7 @@ function reviewerAchievements(rt) {
    Android при прогоне на эмуляторе: меню обязано показывать наряд из
    сохранения, а кнопка буфера — объяснять, что делать, если буфер недоступен. */
 function reviewerOutfits(rt) {
-  console.log('\n\uD83D\uDC57 БЛОК 7/7 — Наряды и голоса героев (v1.3)');
+  console.log('\n\uD83D\uDC57 БЛОК 7/8 — Наряды и голоса героев (v1.3)');
   const read = f => fs.readFileSync(path.join(WWW, 'js', f), 'utf8');
   const content = read('game_content.js');
   const gopherSrc = read('gopher.js');
@@ -1525,7 +1528,297 @@ function reviewerOutfits(rt) {
   vmRun('System.resetProgress(); System.isSleeping = false;');
 }
 
-/* ---------- ЗАПУСК ---------- */
+/* ---------- БЛОК 8: ФОНОВАЯ МУЗЫКА И ДВЕ ГАЛОЧКИ ЗВУКА (v1.3.1) ----------
+   Заказчик: «хорошо бы сделать какую-нибудь фоновую музыку нейтральную,
+   конечно, с возможностью отключения как музыки, так и звуков вообще, в
+   настройках игры». Проверяем буквально:
+     • музыка есть, она фоновая (играет сама, петлёй, без mp3-файлов);
+     • музыка «нейтральная»: вся из до-мажора, фальшивых сочетаний нет;
+     • в настройках ДВЕ независимые галочки: «Звуки» и «Музыка»;
+     • выключенное запоминается устройством и переживает перезапуск;
+     • выключенные звуки не «протекают» ни эффектами, ни голосами героев. */
+function reviewerAudio(rt) {
+  console.log('\n\uD83C\uDFB5 БЛОК 8/8 — Фоновая музыка и настройки звука (v1.3.1)');
+  const read = f => fs.readFileSync(path.join(WWW, 'js', f), 'utf8');
+  const audio = read('audio.js');
+  const gameSrc = read('game.js');
+  const menuSrc = read('game_menu.js');
+  const homeSrc = read('game_home.js');
+  const index = fs.readFileSync(path.join(WWW, 'index.html'), 'utf8');
+  const renderCheck = fs.readFileSync(path.join(ROOT, 'tools', 'render-check.js'), 'utf8');
+
+  // --- 1. Музыка — это синтез, а не файл: игра остаётся офлайн и лёгкой ---
+  const audioFiles = [];
+  const walk = dir => {
+    for (const name of fs.readdirSync(dir)) {
+      const p = path.join(dir, name);
+      if (fs.statSync(p).isDirectory()) walk(p);
+      else if (/\.(mp3|ogg|wav|m4a|aac)$/i.test(name)) audioFiles.push(path.relative(ROOT, p));
+    }
+  };
+  walk(WWW);
+  check('Фоновая музыка синтезируется на месте: в www/ нет ни одного аудиофайла',
+    audioFiles.length === 0, audioFiles.join(', ') || 'файлов 0, синтез через Web Audio');
+  check('Петля музыки и настроения описаны данными (ноты, доли, bpm, громкость)',
+    /MUSIC_LOOP: \{/.test(audio) && /MUSIC_MOODS: \{/.test(audio) &&
+    /MUSIC_SCALE: \[/.test(audio) && audio.indexOf('MUSIC_LOOKAHEAD') !== -1);
+  check('Музыка играет сама: планировщик вызывается из игрового цикла',
+    gameSrc.indexOf('AudioSys.musicTick()') !== -1 && audio.indexOf('musicTick()') !== -1);
+  check('Музыку глушат, когда приложение свернули (WebView держал бы звук)',
+    audio.indexOf('visibilitychange') !== -1 && audio.indexOf('pauseAll()') !== -1 &&
+    audio.indexOf('resumeAll()') !== -1);
+
+  // --- 2. Две независимые галочки в настройках ---
+  check('В настройках две галочки: «Звуки» и «Музыка» (не один тумблер «звук»)',
+    menuSrc.indexOf("'toggle_sound'") !== -1 && menuSrc.indexOf("'toggle_music'") !== -1 &&
+    menuSrc.indexOf('AudioSys.isSoundOn()') !== -1 && menuSrc.indexOf('AudioSys.isMusicOn()') !== -1);
+  check('Галочка рисуется как переключатель с состоянием ВКЛ/ВЫКЛ (видно, что выбрано)',
+    menuSrc.indexOf('drawToggleRow(') !== -1 && menuSrc.indexOf("'ВКЛ'") !== -1 && menuSrc.indexOf("'ВЫКЛ'") !== -1);
+  check('Настройка хранится на устройстве отдельно от профиля (gopherlife_audio)',
+    audio.indexOf("SETTINGS_KEY: 'gopherlife_audio'") !== -1 &&
+    /loadSettings\(\)[\s\S]{0,400}localStorage\.getItem\(this\.SETTINGS_KEY\)/.test(audio) &&
+    /saveSettings\(\)[\s\S]{0,200}localStorage\.setItem\(this\.SETTINGS_KEY/.test(audio) &&
+    audio.indexOf('AudioSys.loadSettings();') !== -1);
+  check('Выключенная музыка и выключенные звуки — разные вещи (у каждой галочки свой флаг)',
+    /isSoundOn\(\) \{ return this\.settings\.sound !== false; \}/.test(audio) &&
+    /isMusicOn\(\) \{ return this\.settings\.music !== false; \}/.test(audio) &&
+    /setMusic\(on\)[\s\S]{0,200}this\.musicStop\(\)/.test(audio));
+  check('Звуки не «протекают» при выключенной галочке: play()/voice() возвращают false',
+    /play\(type\) \{\s*if \(!this\.isSoundOn\(\)/.test(audio) &&
+    /voice\(charId, mood\) \{\s*if \(!this\.isSoundOn\(\)/.test(audio));
+  check('Подсказка про настройки есть и в «Как играть» (ребёнок знает, где выключить)',
+    gameSrc.indexOf('музыку\\nи звуки можно выключить') !== -1 || gameSrc.indexOf('шестерёнка в углу меню') !== -1);
+  check('Домашнее действие «🎵 Музыка» связано с фоновой музыкой (musicBoost)',
+    homeSrc.indexOf('AudioSys.musicBoost(') !== -1 && homeSrc.indexOf('AudioSys.isMusicOn()') !== -1);
+  check('Кадры настроек в стенде рендера: видно и «ВКЛ», и «ВЫКЛ»',
+    renderCheck.indexOf('menu@settings+toggle_music') !== -1 &&
+    renderCheck.indexOf('menu@settings+toggle_music+toggle_sound') !== -1);
+
+  check('index.html подключает audio.js до сцен (музыка есть с первого кадра)',
+    index.indexOf('js/audio.js') !== -1 && index.indexOf('js/audio.js') < index.indexOf('js/game.js'));
+
+  // --- 3. Как музыка себя ведёт (заглушка Web Audio, считаем ноты) ---
+  if (!rt) { check('Музыка и настройки проверены в браузерной песочнице', false, 'игра не запустилась'); return; }
+  const vmRun = c => { try { return vm.runInContext(c, rt.sandbox); } catch (e) { return 'ОШИБКА: ' + e.message; }; };
+
+  const musicRaw = vmRun(`(function(){
+    const A = AudioSys;
+    const made = { osc: 0 };
+    const fake = {
+      currentTime: 0, state: 'running', destination: {},
+      resume() {}, suspend() {},
+      createOscillator() {
+        made.osc++;
+        return { type: '', frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} },
+                 connect() {}, start() {}, stop() {} };
+      },
+      createGain() {
+        return { gain: { value: 1, setValueAtTime() {}, linearRampToValueAtTime() {},
+                         exponentialRampToValueAtTime() {}, setTargetAtTime() {} }, connect() {} };
+      }
+    };
+    const keepCtx = A.ctx, keepGain = A.musicGain;
+    A.ctx = fake; A.musicGain = null; A.musicPlaying = false; A.musicNotesPlayed = 0;
+    A.musicMoodApplied = null; A.musicBoostUntil = 0; A.musicCache = null;
+    A.settings = { music: true, sound: true };
+    System.isSleeping = false;
+    const started = A.musicTick();
+    const first = A.musicState();
+    fake.currentTime = 0.5;                    // полсекунды «кадров»
+    A.musicTick();
+    const after = A.musicNotesPlayed;          // планировщик продолжил петлю
+    System.isSleeping = true; A.musicTick();
+    const sleep = A.musicState();
+    System.isSleeping = false; A.musicTick();
+    const awake = A.musicState();
+    // Галочка «Музыка» выключена
+    A.toggleMusic();
+    const tickOff = A.musicTick();
+    const off = A.musicState();
+    const clickWithMusicOff = A.play('click');  // звуки при этом живы
+    A.toggleMusic();
+    // Галочка «Звуки» выключена: эффектов и голосов нет, музыка идёт
+    const notesMark = A.musicNotesPlayed;
+    A.toggleSound();
+    const musicTickWithSoundOff = A.musicTick();
+    const clickOff = A.play('click');
+    const voiceOff = A.voice('milka', 'happy');
+    const soundOff = A.musicState();
+    const notesWithSoundOff = A.musicNotesPlayed - notesMark;
+    A.toggleSound();
+    const scale = {
+      off: 0, lead: true, bass: true, notes: 0, loop: 0, list: ''
+    };
+    // --- разбор петли: «нейтральность» на уровне нот ---
+    const MAJOR = [0, 2, 4, 5, 7, 9, 11];
+    const pc = v => ((v % 12) + 12) % 12;
+    scale.off = A.MUSIC_SCALE.filter(i => MAJOR.indexOf(pc(i)) === -1).length;
+    scale.lead = A.MUSIC_LOOP.lead.concat(A.MUSIC_LOOP.sparkle)
+      .every(n => A.MUSIC_SCALE[n.i] !== undefined && MAJOR.indexOf(pc(A.MUSIC_SCALE[n.i])) !== -1);
+    scale.bass = A.MUSIC_LOOP.bass.every(n => MAJOR.indexOf(pc(n.i)) !== -1);
+    scale.notes = A.MUSIC_LOOP.bass.length + A.MUSIC_LOOP.lead.length + A.MUSIC_LOOP.sparkle.length;
+    scale.loop = A.musicLoopDuration('ambient');
+    scale.list = A.MUSIC_SCALE.join(' ');
+    // Порядок восстановили: чужой блок проверок не должен остаться без звука
+    A.ctx = keepCtx; A.musicGain = keepGain; A.musicPlaying = false;
+    A.musicMoodApplied = null; A.musicBoostUntil = 0;
+    System.isSleeping = false;
+    return { started, first, after, sleep, awake, tickOff, off, clickWithMusicOff,
+             musicTickWithSoundOff, clickOff, voiceOff, soundOff, notesWithSoundOff,
+             scale, osc: made.osc };
+  })()`);
+  // Если песочница ответила ошибкой, дальше работаем с пустым отчётом:
+  // проверки должны честно упасть с текстом ошибки, а не уронить ревьюера
+  const music = (typeof musicRaw === 'string') ? { error: musicRaw } : musicRaw;
+  const musicWhy = (music && music.error) ? music.error : 'нет данных';
+
+  check('Фоновая музыка играет сама: петля стартует, ноты расписываются вперёд',
+    music.started === true && music.first && music.first.playing === true &&
+    music.first.played >= 1 && music.after > music.first.played,
+    music.first ? ('нот сразу ' + music.first.played + ', через полсекунды ' + music.after) : musicWhy);
+  check('Музыка «нейтральная»: вся петля из до-мажора, фальшивых сочетаний нет',
+    !!music.scale && music.scale.off === 0 && music.scale.lead === true && music.scale.bass === true,
+    music.scale ? (music.scale.notes + ' нот, петля ' + music.scale.loop.toFixed(1) + ' с, гамма ' + music.scale.list) : musicWhy);
+  check('Во сне музыка — колыбельная: медленнее и тише, чем днём',
+    !!music.sleep && music.sleep.mood === 'sleep' && music.sleep.bpm < music.awake.bpm &&
+    music.sleep.gain < music.awake.gain,
+    music.sleep ? ('днём ' + music.awake.bpm + ' bpm / ' + music.awake.gain + ', во сне ' +
+      music.sleep.bpm + ' bpm / ' + music.sleep.gain) : musicWhy);
+  check('Галочка «Музыка» выключена — петля замолкает и ноты не расписываются',
+    !!music.off && music.tickOff === false && music.off.music === false &&
+    music.off.playing === false && music.off.gain < 0.01,
+    music.off ? ('громкость музыки ' + music.off.gain) : musicWhy);
+  check('Галочки независимые: при выключенной музыке звуки по-прежнему звучат',
+    music.clickWithMusicOff === true && music.osc > 0,
+    music.osc === undefined ? musicWhy : ('осцилляторов создано: ' + music.osc));
+  check('Галочка «Звуки» выключена — тишина и в эффектах, и в голосах, а музыка идёт',
+    !!music.soundOff && music.musicTickWithSoundOff === true && music.clickOff === false &&
+    music.voiceOff === false && music.soundOff.sound === false && music.notesWithSoundOff > 0,
+    music.notesWithSoundOff === undefined ? musicWhy : ('нот при выключенных звуках: ' + music.notesWithSoundOff));
+
+  // --- 4. Галочки в настройках: нажатие работает, состояние видно на панели ---
+  const uiRaw = vmRun(`(function(){
+    const g = __game;
+    g.currentScene = 'menu';
+    const menu = g.scenes.menu;
+    menu.init();
+    menu.showSettings = true;
+    menu.draw(g.ctx);
+    const rows = (menu.buttons || []).filter(b => b.text === 'toggle_sound' || b.text === 'toggle_music');
+    const pick = t => rows.filter(b => b.text === t)[0];
+    const click = b => menu.handleClick(b.x + b.w / 2, b.y + b.h / 2);
+    const before = { music: AudioSys.isMusicOn(), sound: AudioSys.isSoundOn() };
+    click(pick('toggle_music'));                       // выключили музыку
+    const afterMusic = { music: AudioSys.isMusicOn(), saved: localStorage.getItem('gopherlife_audio') };
+    click(pick('toggle_music'));                       // вернули обратно
+    click(pick('toggle_sound'));                       // выключили звуки
+    const afterSound = { sound: AudioSys.isSoundOn(), music: AudioSys.isMusicOn(),
+                         saved: localStorage.getItem('gopherlife_audio') };
+    click(pick('toggle_sound'));                       // вернули обратно
+    // Рисуем панель «в пиксели»: пилюли обязаны показывать состояние, а не врать
+    const pills = [];
+    const grad = { addColorStop() {} };
+    const rec = new Proxy({
+      canvas: { width: 400, height: 700 }, measureText: () => ({ width: 10 }),
+      createLinearGradient: () => grad, createRadialGradient: () => grad,
+      fillText: (t) => { pills.push(String(t)); }
+    }, { get(t, p) { return p in t ? t[p] : function () {}; }, set(t, p, v) { t[p] = v; return true; } });
+    AudioSys.setMusic(false);
+    menu.draw(rec);
+    const pillsMusicOff = pills.filter(t => t === 'ВКЛ' || t === 'ВЫКЛ').join('/');
+    pills.length = 0;
+    AudioSys.setSound(false);
+    menu.draw(rec);
+    const pillsBothOff = pills.filter(t => t === 'ВКЛ' || t === 'ВЫКЛ').join('/');
+    pills.length = 0;
+    AudioSys.setMusic(true); AudioSys.setSound(true);
+    menu.draw(rec);
+    const pillsBothOn = pills.filter(t => t === 'ВКЛ' || t === 'ВЫКЛ').join('/');
+    menu.showSettings = false;
+    return { rows: rows.length, before, afterMusic, afterSound,
+             restored: AudioSys.isMusicOn() && AudioSys.isSoundOn(),
+             pillsMusicOff, pillsBothOff, pillsBothOn };
+  })()`);
+  const ui = (typeof uiRaw === 'string') ? { error: uiRaw } : uiRaw;
+  const uiWhy = (ui && ui.error) ? ui.error : 'нет данных';
+
+  check('В настройках обе галочки нарисованы и по ним можно нажать пальцем',
+    ui.rows === 2, ui.rows === undefined ? uiWhy : ('переключателей найдено: ' + ui.rows));
+  check('Нажатие «Музыка» выключает музыку и сразу пишет выбор в память устройства',
+    !!ui.before && ui.before.music === true && ui.afterMusic && ui.afterMusic.music === false &&
+    /"music":false/.test(ui.afterMusic.saved || ''),
+    ui.afterMusic ? ('в памяти: ' + ui.afterMusic.saved) : uiWhy);
+  check('Нажатие «Звуки» выключает только звуки: музыка играет дальше',
+    !!ui.afterSound && ui.afterSound.sound === false && ui.afterSound.music === true,
+    ui.afterSound ? ('после нажатия: музыка ' + (ui.afterSound.music ? 'вкл' : 'выкл') +
+      ', звуки ' + (ui.afterSound.sound ? 'вкл' : 'выкл')) : uiWhy);
+  check('Панель настроек не врёт: пилюли показывают ВКЛ/ВЫКЛ по текущим галочкам',
+    ui.pillsMusicOff === 'ВКЛ/ВЫКЛ' && ui.pillsBothOff === 'ВЫКЛ/ВЫКЛ' && ui.pillsBothOn === 'ВКЛ/ВКЛ' &&
+    ui.restored === true,
+    ui.pillsBothOn === undefined ? uiWhy : ('звуки/музыка: ' + ui.pillsMusicOff + ' → ' +
+      ui.pillsBothOff + ' → ' + ui.pillsBothOn));
+
+  // --- 5. Перезапуск приложения и независимость от профиля ---
+  const restarted = (() => {
+    const boot2 = createSandbox();
+    boot2.__store.set('gopherlife_audio', JSON.stringify({ music: false, sound: true }));
+    try {
+      bootGame(boot2);
+      return { music: boot2.AudioSys.isMusicOn(), sound: boot2.AudioSys.isSoundOn(),
+               hint: boot2.AudioSys.settingsHint() };
+    } catch (e) { return 'ОШИБКА: ' + e.message; }
+  })();
+  check('Перезапуск приложения: выключенная музыка так и остаётся выключенной',
+    typeof restarted === 'object' && restarted.music === false && restarted.sound === true,
+    typeof restarted === 'string' ? restarted : ('после перезапуска: ' + restarted.hint));
+
+  const firstRun = (() => {
+    const boot3 = createSandbox();
+    try {
+      bootGame(boot3);
+      return { music: boot3.AudioSys.isMusicOn(), sound: boot3.AudioSys.isSoundOn(),
+               hint: boot3.AudioSys.settingsHint() };
+    } catch (e) { return 'ОШИБКА: ' + e.message; }
+  })();
+  check('Первый запуск: игра со звуком (по умолчанию музыка и звуки включены)',
+    typeof firstRun === 'object' && firstRun.music === true && firstRun.sound === true,
+    typeof firstRun === 'string' ? firstRun : ('на чистом устройстве: ' + firstRun.hint));
+
+  const perDevice = vmRun(`(function(){
+    AudioSys.setMusic(false);
+    System.resetProgress();
+    System.saveGame();
+    System.loadGame();
+    const after = AudioSys.isMusicOn();
+    const inSave = (localStorage.getItem('gopherlife_save') || '').indexOf('gopherlife_audio') !== -1;
+    AudioSys.setMusic(true);
+    return { after: after, inSave: inSave };
+  })()`);
+  check('Настройка звука живёт отдельно от профиля: сброс прогресса её не включает обратно',
+    perDevice && perDevice.after === false && perDevice.inSave === false,
+    perDevice && perDevice.inSave !== undefined
+      ? ('музыка после сброса и загрузки: ' + (perDevice.after ? 'вкл' : 'выкл'))
+      : String(perDevice));
+
+  const noCtx = vmRun(`(function(){
+    const keep = AudioSys.ctx;
+    AudioSys.ctx = null;
+    const tick = AudioSys.musicTick();
+    const click = AudioSys.play('click');
+    const voice = AudioSys.voice('gopher', 'hello');
+    AudioSys.ctx = keep;
+    return { tick: tick, click: click, voice: voice };
+  })()`);
+  check('Без звуковой системы игра не падает: музыка и звуки молча отключаются',
+    noCtx && noCtx.tick === false && noCtx.click === false && noCtx.voice === false,
+    noCtx && noCtx.tick !== undefined ? 'musicTick/play/voice вернули false без исключений' : String(noCtx));
+
+  // Приборку за собой: другим блокам проверок музыка не нужна
+  vmRun('AudioSys.setSound(true); AudioSys.setMusic(true); ' +
+        'localStorage.removeItem("gopherlife_audio"); AudioSys.loadSettings(); ' +
+        'System.isSleeping = false; System.resetProgress(); System.isSleeping = false;');
+}
+
 console.log('\u2554\u2550\u2550\u2550\u2550\u2550\u2550 Gopher Life \u2014 приёмка качества \u2550\u2550\u2550\u2550\u2550\u2550\u2557');
 reviewerStatic();
 reviewerV12Static();
@@ -1534,13 +1827,14 @@ reviewerClicks(rt);
 reviewerV12Runtime(rt);
 reviewerAchievements(rt);
 reviewerOutfits(rt);
+reviewerAudio(rt);
 reviewerApk();
 reviewerRender();
 
 console.log('\n' + '\u2500'.repeat(56));
 console.log('ИТОГО: пройдено ' + passed + '  |  провалено ' + failed);
 if (failed === 0) {
-  console.log('\u2705 ВСЕ 5 РЕВЬЮЕРОВ + БЛОКИ ДОСТИЖЕНИЙ И НАРЯДОВ ПРИНЯЛИ РЕЗУЛЬТАТ БЕЗ ЗАМЕЧАНИЙ');
+  console.log('\u2705 ВСЕ 5 РЕВЬЮЕРОВ + БЛОКИ ДОСТИЖЕНИЙ, НАРЯДОВ И МУЗЫКИ ПРИНЯЛИ РЕЗУЛЬТАТ БЕЗ ЗАМЕЧАНИЙ');
   process.exit(0);
 } else {
   console.log('\u274C ЕСТЬ ЗАМЕЧАНИЯ \u2014 результат НЕ принимается');

@@ -1217,7 +1217,15 @@ class HomeScene {
         this.music = 8;
         System.relax(2);
         System.stats.happiness = Math.min(100, System.stats.happiness + 4);
-        this.setBubble('\ud83c\udfb5 \u0422\u0438\u0445\u0430\u044f \u043c\u0443\u0437\u044b\u043a\u0430: \u0441\u0442\u0440\u0435\u0441\u0441 \u0443\u0445\u043e\u0434\u0438\u0442, \u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u0441\u044f \u0441\u043f\u043e\u043a\u043e\u0439\u043d\u0435\u0435');
+        // Фоновая музыка (v1.3.1): на эти 8 секунд петля становится слышнее и
+        // медленнее — «включили музыку». Если музыку выключили в настройках,
+        // действие честно об этом говорит, а не делает вид, что играет.
+        AudioSys.musicBoost(8);
+        if (AudioSys.isMusicOn()) {
+          this.setBubble('\ud83c\udfb5 Тихая музыка: стресс уходит, становится спокойнее');
+        } else {
+          this.setBubble('\ud83c\udfb5 Музыка выключена в настройках — включить можно в меню \u2699\ufe0f');
+        }
         AudioSys.play('success');
         break;
       }

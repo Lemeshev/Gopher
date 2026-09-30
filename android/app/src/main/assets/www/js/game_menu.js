@@ -309,7 +309,9 @@ class MenuScene {
     ctx.fill();
 
     const panelW = Math.min(W * 0.86, 320);
-    const panelH = 268;
+    // Панель выросла в v1.3.1: добавились музыка и звуки. Высоту ограничиваем
+    // экраном, чтобы на невысоких телефонах кнопка «Закрыть» не уехала вниз.
+    const panelH = Math.min(392, H - 20);
     const panelX = (W - panelW) / 2;
     const panelY = (H - panelH) / 2;
 
@@ -327,33 +329,77 @@ class MenuScene {
     ctx.textBaseline = 'alphabetic';
     ctx.fillText('⚙️ Настройки', W / 2, panelY + 34);
 
-    this.buttons.push(createButton(ctx, panelX + 20, panelY + 50, panelW - 40, 44, '👤 Об авторе', {
+    // Музыка и звуки — два независимых переключателя (v1.3.1, просьба заказчика).
+    // Сверху звуки: их замечают чаще, и первым делом родитель обычно глушит их.
+    this.drawToggleRow(ctx, panelX + 20, panelY + 46, panelW - 40, 46,
+      '🔊', 'Звуки', AudioSys.isSoundOn(), 'toggle_sound');
+    this.drawToggleRow(ctx, panelX + 20, panelY + 100, panelW - 40, 46,
+      '🎵', 'Музыка', AudioSys.isMusicOn(), 'toggle_music');
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#9fb0d8';
+    ctx.font = `${Math.min(W * 0.027, 11.5)}px Arial`;
+    ctx.fillText('Выключишь музыку — игра станет тихой', W / 2, panelY + 162);
+
+    this.buttons.push(createButton(ctx, panelX + 20, panelY + 176, panelW - 40, 42, '👤 Об авторе', {
       bgColor: '#4D96FF', fgColor: '#fff', fontSize: 15, radius: 12
     }));
 
     if (!this.confirmReset) {
       ctx.fillStyle = '#aaa';
       ctx.font = `${Math.min(W * 0.029, 12.5)}px Arial`;
-      ctx.fillText('Сброс нельзя отменить — будь осторожен', W / 2, panelY + 116);
-      this.buttons.push(createButton(ctx, panelX + 20, panelY + 128, panelW - 40, 44, '🗑️ Сбросить прогресс', {
+      ctx.fillText('Сброс нельзя отменить — будь осторожен', W / 2, panelY + 238);
+      this.buttons.push(createButton(ctx, panelX + 20, panelY + 250, panelW - 40, 42, '🗑️ Сбросить прогресс', {
         bgColor: '#E74C3C', fgColor: '#fff', fontSize: 15, radius: 12
       }));
     } else {
       ctx.fillStyle = '#E74C3C';
       ctx.font = `bold ${Math.min(W * 0.035, 15)}px Arial`;
-      ctx.fillText('Вы уверены? Это необратимо!', W / 2, panelY + 116);
+      ctx.fillText('Вы уверены? Это необратимо!', W / 2, panelY + 238);
       const halfW = (panelW - 50) / 2;
-      this.buttons.push(createButton(ctx, panelX + 20, panelY + 128, halfW, 44, '✅ Да, сбросить', {
+      this.buttons.push(createButton(ctx, panelX + 20, panelY + 250, halfW, 42, '✅ Да, сбросить', {
         bgColor: '#E74C3C', fgColor: '#fff', fontSize: 13, radius: 10
       }));
-      this.buttons.push(createButton(ctx, panelX + 30 + halfW, panelY + 128, halfW, 44, '❌ Отмена', {
+      this.buttons.push(createButton(ctx, panelX + 30 + halfW, panelY + 250, halfW, 42, '❌ Отмена', {
         bgColor: '#6BCB77', fgColor: '#fff', fontSize: 13, radius: 10
       }));
     }
 
-    this.buttons.push(createButton(ctx, panelX + 20, panelY + panelH - 58, panelW - 40, 42, '← Закрыть', {
+    this.buttons.push(createButton(ctx, panelX + 20, panelY + panelH - 56, panelW - 40, 42, '← Закрыть', {
       bgColor: 'rgba(255,255,255,0.2)', fgColor: '#fff', fontSize: 15, radius: 10
     }));
+  }
+
+  // Строка-переключатель: слева название, справа пилюля «ВКЛ/ВЫКЛ».
+  // Состояние видно сразу (зелёное = работает), а не угадывается по щелчку.
+  drawToggleRow(ctx, x, y, w, h, emoji, label, on, text) {
+    ctx.fillStyle = on ? 'rgba(107,203,119,0.22)' : 'rgba(255,255,255,0.08)';
+    roundRect(ctx, x, y, w, h, 12);
+    ctx.fill();
+    ctx.strokeStyle = on ? '#6BCB77' : 'rgba(255,255,255,0.22)';
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, x, y, w, h, 12);
+    ctx.stroke();
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${Math.min(w * 0.095, 15)}px Arial`;
+    ctx.fillText(emoji + ' ' + label, x + 12, y + h / 2);
+
+    const pillW = Math.min(w * 0.34, 78), pillH = h - 16;
+    const pillX = x + w - pillW - 8, pillY = y + 8;
+    ctx.fillStyle = on ? '#6BCB77' : '#8d93a8';
+    roundRect(ctx, pillX, pillY, pillW, pillH, pillH / 2);
+    ctx.fill();
+    ctx.fillStyle = on ? '#10121c' : '#f0f2f8';
+    ctx.font = `bold ${Math.min(pillW * 0.26, 13)}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.fillText(on ? 'ВКЛ' : 'ВЫКЛ', pillX + pillW / 2, pillY + pillH / 2);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+
+    this.buttons.push({ x: x, y: y, w: w, h: h, text: text });
   }
 
   // ---------- ОБ АВТОРЕ ----------
@@ -589,6 +635,22 @@ class MenuScene {
 
       // ---- Настройки ----
       if (this.showSettings) {
+        // Музыка и звуки (v1.3.1). Две независимые галочки: можно оставить звуки
+        // и выключить музыку — и наоборот.
+        if (t === 'toggle_sound') {
+          const on = AudioSys.toggleSound();
+          // Включая звук, сразу даём короткий сигнал: слышно, что он заработал
+          if (on) {
+            if (!AudioSys.ctx) AudioSys.init();
+            AudioSys.play('success');
+          }
+          return true;
+        }
+        if (t === 'toggle_music') {
+          AudioSys.toggleMusic();
+          AudioSys.musicTick();       // слышно (или тихо) сразу, не ждём кадра
+          return true;
+        }
         if (t.indexOf('Об авторе') !== -1) { this.aboutMode = true; return true; }
         if (t.indexOf('Сбросить прогресс') !== -1) { this.confirmReset = true; return true; }
         if (t.indexOf('Да, сбросить') !== -1) {

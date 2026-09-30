@@ -73,6 +73,9 @@ const SCENES = [
   { hash: 'friends@visit_0',    minColors: 20, minNonBg: 3 },
   { hash: 'menu@profiles',      minColors: 20, minNonBg: 3 },
   { hash: 'menu@settings',      minColors: 20, minNonBg: 3 },
+  // Настройки с выключенной музыкой (v1.3.1): видно, что галочки работают
+  { hash: 'menu@settings+toggle_music', minColors: 20, minNonBg: 3 },
+  { hash: 'menu@settings+toggle_music+toggle_sound', minColors: 20, minNonBg: 3 },
   { hash: 'menu@settings+Об авторе', minColors: 20, minNonBg: 3 },
   { hash: 'friends',            minColors: 20, minNonBg: 3 },
   { hash: 'menu@@tutorial',     minColors: 20, minNonBg: 3 }
