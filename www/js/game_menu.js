@@ -305,6 +305,16 @@ class MenuScene {
   }
 
   // ---------- ПАНЕЛЬ НАСТРОЕК ----------
+  // Системная кнопка «Назад»: закрываем окна по одному, а на главном экране меню
+  // возвращаем false — тогда игра закрывается по-настоящему (v1.3.6).
+  handleBack() {
+    if (this.showSettings) { this.showSettings = false; this.confirmReset = false; return true; }
+    if (this.aboutMode) { this.aboutMode = false; return true; }
+    if (this.profilesMode) { this.profilesMode = false; return true; }
+    if (this.charMode) { this.charMode = false; return true; }
+    return false;
+  }
+
   drawSettings(ctx, W, H) {
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     roundRect(ctx, 0, 0, W, H, 0);

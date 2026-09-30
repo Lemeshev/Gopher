@@ -401,8 +401,9 @@ class FriendsScene {
     const f = this.friendVisitData;
     if (!f) { this.tab = 'list'; return; }
 
-    ctx.fillStyle = '#141428';
-    ctx.fillRect(0, 0, W, H);
+    // Фон НЕ заливаем: сцена уже залила его в draw(), а полная заливка стирала
+    // угловую кнопку «← Назад» — она оставалась кликабельной, но невидимой, и
+    // ребёнок не мог выйти из гостей (жалоба 30.09.2026).
 
     // Имя и статус друга
     ctx.textAlign = 'center';
@@ -473,6 +474,21 @@ class FriendsScene {
     ctx.fillStyle = 'rgba(255,255,255,0.55)';
     ctx.font = `${Math.min(W * 0.026, 10.5)}px Arial`;
     ctx.fillText('Свою комнату обустраивай дома \u2014 кнопка \ud83d\udecb\ufe0f сверху', W / 2, rect.y + rect.h + 36);
+
+    // ВЫХОД из гостей. Раньше его не было вовсе: ребёнок заходил к другу и не мог
+    // вернуться — приходилось выгружать игру целиком (жалоба от 30.09.2026).
+    // Слева сверху — «← Назад» (рисует draw(): теперь она не стирается), справа
+    // добавляем «🏠 Домой», чтобы из гостей можно было выйти одним нажатием.
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const homeW = Math.min(W * 0.28, 104);
+    ctx.fillStyle = 'rgba(107,203,119,0.35)';
+    roundRect(ctx, W - 12 - homeW, 12, homeW, 32, 16);
+    ctx.fill();
+    ctx.fillStyle = '#e8ffee';
+    ctx.fillText('🏠 Домой', W - 12 - homeW / 2, 28);
+    this.buttons.push({ x: W - 12 - homeW, y: 12, w: homeW, h: 32, text: 'to_home' });
+    ctx.textBaseline = 'alphabetic';
 
     // Действия в гостях
     const btnW = Math.min(W * 0.8, 260);
@@ -623,6 +639,19 @@ class FriendsScene {
     this.drawNotif(ctx, W, H);
   }
 
+  // Системная кнопка «Назад»: из дома друга — в список друзей, из списка — на карту
+  // (решает игра). Без этого «Назад» закрывала всё приложение (v1.3.6).
+  handleBack() {
+    if (this.tab === 'visit' || this.friendVisitData || this.newFriend) {
+      this.tab = 'list';
+      this.newFriend = null;
+      this.friendVisitData = null;
+      return true;
+    }
+    if (this.tab !== 'list') { this.tab = 'list'; return true; }
+    return false;
+  }
+
   drawNotif(ctx, W, H) {
     if (!this.notification) return;
     ctx.fillStyle = 'rgba(0,0,0,0.78)';
@@ -689,7 +718,8 @@ class FriendsScene {
         return true;
       }
       if (t === 'meet') { this.meet(); return true; }
-      if (t === 'to_list') { AudioSys.play('click'); this.tab = 'list'; this.newFriend = null; return true; }
+      if (t === 'to_list') { AudioSys.play('click'); this.tab = 'list'; this.newFriend = null; this.friendVisitData = null; return true; }
+      if (t === 'to_home') { AudioSys.play('click'); this.friendVisitData = null; this.game.transitionTo('home'); return true; }
       if (t === 'codes') { AudioSys.play('click'); this.tab = 'mycode'; return true; }
       if (t === 'open_add') { AudioSys.play('click'); this.tab = 'add'; this.inputText = ''; return true; }
 

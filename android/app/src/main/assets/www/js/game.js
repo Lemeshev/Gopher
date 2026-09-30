@@ -175,10 +175,14 @@ class Game {
     // сохранять нечего, а пустое состояние затёрло бы сохранение ребёнка.
     setInterval(() => { if (System.profileLoaded) System.saveGame(); }, 30000);
     setInterval(() => {
-      if (System.totalPlayTime !== undefined) System.totalPlayTime++;
-      // Время в игре тоже идёт: за час-другой достижения должны пересчитаться
+      // Каждую минуту пересчитываем достижения по времени (само время копит
+      // игровой цикл реальными секундами — см. loop())
       if (System.profileLoaded) System.checkAchievements();
     }, 60000);
+
+    // Мост для системной кнопки «Назад»: MainActivity спрашивает игру и
+    // закрывает приложение только если игра ответила «exit»
+    window.onAndroidBack = () => this.handleAndroidBack();
 
     document.addEventListener('click', () => this.tryFullscreen(), { once: true });
     document.addEventListener('touchstart', () => this.tryFullscreen(), { once: true });
@@ -265,6 +269,9 @@ class Game {
     const scene = this.scenes[this.currentScene];
     try {
       System.tick(this.dt);   // сон: энергия растёт постепенно в реальном времени
+      // Время в игре: раньше счётчик прибавлялся раз в минуту, а статистика
+      // делила его на 60 — поэтому у всех было «0 мин» (v1.3.6)
+      if (System.profileLoaded) System.addPlaySeconds(Math.min(this.dt / 1000, 5));
       AudioSys.musicTick();   // фоновая музыка: ноты расписываются вперёд на доли секунды
       this.ensureCharacter();
       scene.update(this.dt);
@@ -277,6 +284,28 @@ class Game {
     }
 
     requestAnimationFrame(() => this.loop());
+  }
+
+  // ================= КНОПКА «НАЗАД» НА ANDROID (v1.3.6) =================
+  // Раньше «Назад» сразу закрывала игру: из гостей у друга выйти было нельзя,
+  // приходилось выгружать приложение (жалоба 30.09.2026). Теперь сначала
+  // закрываем то, что открыто, и только с главного экрана игра закрывается.
+  handleAndroidBack() {
+    try {
+      if (this.tutorialVisible) { this.tutorialVisible = false; return 'back'; }
+      const scene = this.scenes[this.currentScene];
+      if (scene && typeof scene.handleBack === 'function' && scene.handleBack()) return 'back';
+      // Цепочка «назад»: любая сцена → карта → дом → меню → выход из игры.
+      // Так «Назад» всегда что-то делает и никогда не выкидывает ребёнка из игры
+      // посреди дела.
+      if (this.currentScene === 'menu') return 'exit';
+      if (this.currentScene === 'home') { this.transitionTo('menu'); return 'back'; }
+      if (this.currentScene === 'map') { this.transitionTo('home'); return 'back'; }
+      this.transitionTo('map');
+      return 'back';
+    } catch (e) {
+      return 'exit';
+    }
   }
 
   drawTutorial() {

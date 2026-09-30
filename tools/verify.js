@@ -2242,6 +2242,182 @@ function reviewerHeroNames(rt) {
   vmRun("System.setCharacter('gopher'); System.profileName = DEFAULT_PROFILE_NAME; System.lastPopup = null;");
 }
 
+/* ---------- БЛОК 12: ДОМ НЕ ТЕРЯЕТСЯ И ИЗ ГОСТЕЙ МОЖНО ВЫЙТИ (v1.3.6) ----------
+   Жалобы заказчика от 30.09.2026:
+   • «когда зашёл к другу, от него никак нельзя выйти» — кнопка «← Назад» в сцене
+     друзей была, но экран дома друга заливал фон во весь экран и стирал её;
+   • «в какой-то момент сбросилась вся купленная мебель» — при обрыве записи
+     (приложение выгружали целиком) сохранение становилось нечитаемым, игра
+     молча начинала «с нуля» и первым же действием затирала дом ребёнка;
+   • «время в игре всегда показывается ноль» — счётчик прибавлялся раз в минуту,
+     а статистика делила его на 60, поэтому час игры выглядел как «0 мин».
+   Проверяем: резервную копию и восстановление, честную реакцию на ошибку записи,
+   реальные секунды времени, видимый выход из гостей и системную кнопку «Назад». */
+function reviewerSaveAndExit(rt) {
+  console.log('\n\ud83d\udcbe БЛОК 12/12 — Дом не теряется, выход из гостей, время в игре (v1.3.6)');
+  const system = fs.readFileSync(path.join(WWW, 'js', 'system.js'), 'utf8');
+  const gameSrc = fs.readFileSync(path.join(WWW, 'js', 'game.js'), 'utf8');
+  const friendsSrc = fs.readFileSync(path.join(WWW, 'js', 'game_friends.js'), 'utf8');
+  const statsSrc = fs.readFileSync(path.join(WWW, 'js', 'game_stats.js'), 'utf8');
+  const menuSrc = fs.readFileSync(path.join(WWW, 'js', 'game_menu.js'), 'utf8');
+  const homeSrc = fs.readFileSync(path.join(WWW, 'js', 'game_home.js'), 'utf8');
+  const actSrc = fs.readFileSync(path.join(ROOT, 'android', 'app', 'src', 'main', 'java',
+    'com', 'gopherlife', 'app', 'MainActivity.java'), 'utf8');
+
+  // --- 1. Статика: механизмы на месте ---
+  check('Сохранение держит резервную копию и поднимается из неё',
+    /backupKeyFor\(profileId\)/.test(system) &&
+    /setItem\(this\.backupKeyFor/.test(system) &&
+    /const bak = localStorage\.getItem\(this\.backupKeyFor/.test(system) &&
+    /fromBackup/.test(system));
+  check('Ошибка записи видна, а не глотается молча (saveFailed, saveHealth)',
+    /this\.saveFailed = true;/.test(system) && /saveHealth\(\) \{/.test(system) &&
+    statsSrc.indexOf('System.saveHealth()') !== -1);
+  check('Прогресс считается существующим, даже если цела только копия',
+    /hasSave\(\) \{[\s\S]{0,400}backupKeyFor/.test(system));
+  check('Запись проверяется чтением обратно (обрыв виден сразу, а не при запуске)',
+    /back\.length === json\.length/.test(system));
+  check('Время из старых сохранений (оно было в минутах) переводится в секунды',
+    /playTimeUnit: 'sec'/.test(system) &&
+    /data\.playTimeUnit === 'sec'/.test(system));
+  check('Старая мебель переносится один раз и не двоится при загрузках',
+    /const legacyFurniture = data\.rooms \? \[\] :/.test(system));
+  check('Время в игре копится реальными секундами и показывается словами',
+    /addPlaySeconds\(sec\)/.test(system) && /playTimeText\(\) \{/.test(system) &&
+    gameSrc.indexOf('System.addPlaySeconds(Math.min(this.dt / 1000, 5))') !== -1 &&
+    gameSrc.indexOf('System.totalPlayTime++') === -1 &&
+    statsSrc.indexOf('System.playTimeText()') !== -1);
+  check('В доме друга выход виден: фон не заливается поверх кнопки, есть «Домой»',
+    friendsSrc.indexOf("'to_home'") !== -1 && friendsSrc.indexOf('🏠 Домой') !== -1 &&
+    !/drawFriendHome\(ctx, W, H\) \{[\s\S]{0,600}fillRect\(0, 0, W, H\)/.test(friendsSrc));
+  check('Сцены умеют «Назад»: гости, меню, дом (закрываем то, что открыто)',
+    /handleBack\(\) \{[\s\S]{0,300}friendVisitData/.test(friendsSrc) &&
+    /handleBack\(\) \{[\s\S]{0,300}showSettings/.test(menuSrc) &&
+    /handleBack\(\) \{[\s\S]{0,300}this\.sheet/.test(homeSrc));
+  check('Системная кнопка «Назад»: Android спрашивает игру, игра решает',
+    gameSrc.indexOf('window.onAndroidBack') !== -1 &&
+    gameSrc.indexOf("if (this.currentScene === 'menu') return 'exit'") !== -1 &&
+    actSrc.indexOf('evaluateJavascript') !== -1 && actSrc.indexOf('onAndroidBack') !== -1 &&
+    actSrc.indexOf('finish()') !== -1);
+
+  if (!rt) {
+    check('Дом, время и выход из гостей проверены в песочнице', false, 'игра не запустилась');
+    return;
+  }
+  const vmRun = c => { try { return vm.runInContext(c, rt.sandbox); } catch (e) { return 'ОШИБКА: ' + e.message; }; };
+
+  // --- 2. Живая песочница: копия, восстановление, время ---
+  const live = vmRun(`(function(){
+    const S = System, out = {};
+    const key = S.saveKeyFor('p1'), bak = S.backupKeyFor('p1');
+    const keep = { s: localStorage.getItem(key), b: localStorage.getItem(bak) };
+    S.profileId = 'p1';
+    localStorage.removeItem(key);
+    localStorage.removeItem(bak);
+    S.resetProgress();
+    S.rooms = null; S.ensureRooms();
+    S.rooms.living.furniture.push({ id: 'sofa', x: 0.3, y: 0.5 });
+    S.rooms.bedroom.furniture.push({ id: 'bed', x: 0.4, y: 0.5 });
+    S.saveGame();
+    out.copy = !!localStorage.getItem(bak);
+    const good = localStorage.getItem(key);
+    localStorage.setItem(key, good.slice(0, Math.floor(good.length / 2)));   // обрыв записи
+    S.rooms = null;
+    out.loaded = S.loadGame();
+    out.items = Object.keys(S.rooms || {}).reduce((a, k) => a + S.rooms[k].furniture.length, 0);
+    out.fromBackup = S.restoredFromBackup;
+    const before = out.items;
+    S.loadGame();
+    out.afterTwoLoads = Object.keys(S.rooms || {}).reduce((a, k) => a + S.rooms[k].furniture.length, 0);
+    out.noDouble = before === out.afterTwoLoads;
+    S.totalPlayTime = 0;
+    out.min = S.addPlaySeconds(90) && S.playTimeText();
+    S.totalPlayTime = 0;
+    out.zero = S.playTimeText();
+    S.totalPlayTime = 3725;
+    out.hours = S.playTimeText();
+    if (keep.s === null) localStorage.removeItem(key); else localStorage.setItem(key, keep.s);
+    if (keep.b === null) localStorage.removeItem(bak); else localStorage.setItem(bak, keep.b);
+    S.restoredFromBackup = false; S.saveFailed = false; S.totalPlayTime = 0;
+    return out;
+  })()`);
+  const lv = (typeof live === 'string') ? { error: live } : live;
+  const liveWhy = lv.error ? lv.error : 'нет данных';
+  check('Первое сохранение сразу делает копию',
+    !!lv.copy, lv.copy ? 'копия создана' : liveWhy);
+  check('Битое сохранение поднимается из копии: дом и мебель на месте',
+    lv.loaded === true && lv.fromBackup === true && lv.items === 2,
+    lv.error ? liveWhy : ('предметов после восстановления: ' + lv.items));
+  check('Повторные загрузки не двоят мебель',
+    !!lv.noDouble, 'предметов: ' + lv.items + ' → ' + lv.afterTwoLoads);
+  check('Время в игре считается: 1.5 минуты — это «1 мин», ноль — «меньше минуты», час — часы',
+    lv.min === '1 мин' && lv.zero === 'меньше минуты' && lv.hours === '1 ч 2 мин',
+    lv.error ? liveWhy : ('90 с → ' + lv.min + ', 0 → ' + lv.zero + ', 3725 с → ' + lv.hours));
+
+  // --- 3. Клики: выход из гостей и системная «Назад» ---
+  const clicks = vmRun(`(function(){
+    const G = __game, out = {};
+    if (!System.friends || !System.friends.length) {
+      System.friends = System.friends || [];
+      System.friends.push(createNPC([]));
+    }
+    G.transitionTo('friends');
+    const sc = G.scenes.friends;
+    sc.init();
+    sc.visit(System.friends[0].id);
+    sc.draw(G.ctx);
+    const labels = sc.buttons.map(b => b.text);
+    out.inVisit = sc.tab;
+    out.hasBack = labels.indexOf('← Назад') !== -1;
+    out.hasHome = labels.indexOf('to_home') !== -1;
+    const back = sc.buttons.filter(b => b.text === '← Назад')[0];
+    out.clicked = back ? sc.handleClick(back.x + back.w / 2, back.y + back.h / 2) : false;
+    out.tabAfterClick = sc.tab;
+    return out;
+  })()`);
+  const ck = (typeof clicks === 'string') ? { error: clicks } : clicks;
+  const ckWhy = ck.error ? ck.error : 'нет данных';
+  check('В доме друга нарисованы оба выхода: «← Назад» и «🏠 Домой»',
+    ck.hasBack === true && ck.hasHome === true && ck.inVisit === 'visit',
+    ck.error ? ckWhy : ('в гостях: ' + ck.inVisit + ', кнопок выхода: ' + ((ck.hasBack ? 1 : 0) + (ck.hasHome ? 1 : 0))));
+  check('Нажатие «← Назад» в гостях возвращает к списку друзей',
+    ck.clicked === true && ck.tabAfterClick === 'list',
+    ck.error ? ckWhy : ('вкладка после нажатия: ' + ck.tabAfterClick));
+
+  const androidBack = vmRun(`(function(){
+    const G = __game, out = {};
+    G.transitionTo('friends');
+    const sc = G.scenes.friends;
+    sc.init();
+    sc.visit(System.friends[0].id);
+    out.answer1 = G.handleAndroidBack();
+    out.tab1 = sc.tab;
+    G.transitionTo('menu');
+    G.scenes.menu.showSettings = true;
+    out.answerPanel = G.handleAndroidBack();
+    out.panelClosed = !G.scenes.menu.showSettings;
+    out.answerRoot = G.handleAndroidBack();
+    G.transitionTo('map');
+    out.fromMap = G.handleAndroidBack();
+    out.mapTo = G.currentScene;
+    G.transitionTo('home');
+    out.fromHome = G.handleAndroidBack();
+    out.homeTo = G.currentScene;
+    return out;
+  })()`);
+  const ab = (typeof androidBack === 'string') ? { error: androidBack } : androidBack;
+  const abWhy = ab.error ? ab.error : 'нет данных';
+  check('Системная «Назад» из гостей у друга ведёт в список друзей, а не выгружает игру',
+    ab.answer1 === 'back' && ab.tab1 === 'list',
+    ab.error ? abWhy : ('ответ игры: ' + ab.answer1 + ', вкладка: ' + ab.tab1));
+  check('Системная «Назад» закрывает окна меню, а игру закрывает только с главного экрана',
+    ab.answerPanel === 'back' && ab.panelClosed === true && ab.answerRoot === 'exit',
+    ab.error ? abWhy : ('настройки: ' + ab.answerPanel + ', главный экран: ' + ab.answerRoot));
+  check('Системная «Назад» нигде не упирается в тупик: карта → дом → меню',
+    ab.fromMap === 'back' && ab.mapTo === 'home' && ab.fromHome === 'back' && ab.homeTo === 'menu',
+    ab.error ? abWhy : ('с карты: ' + ab.mapTo + ', из дома: ' + ab.homeTo));
+}
+
 reviewerStatic();
 reviewerV12Static();
 const rt = reviewerRuntime();
@@ -2253,6 +2429,7 @@ reviewerAudio(rt);
 reviewerCalm(rt);
 reviewerRuStore(rt);
 reviewerHeroNames(rt);
+reviewerSaveAndExit(rt);
 reviewerApk();
 reviewerRender();
 

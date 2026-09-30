@@ -122,6 +122,10 @@ const System = {
   isSick: false,
   visitedLocations: new Set(),
   totalPlayTime: 0,
+  // Состояние сохранения (v1.3.6): видно в статистике и проверках
+  saveFailed: false,        // запись не удалась (кончилось место)
+  restoredFromBackup: false, // дом подняли из резервной копии
+  saveCopies: 0,            // сколько раз резервная копия выручала (для отладки)
   lastSaveTime: Date.now(),
 
   // ================= ШКАЛЫ ДЛЯ РЕБЁНКА (v1.3.2) =================
@@ -664,6 +668,7 @@ const System = {
       timeOfDay: this.timeOfDay,
       visitedLocations: [...this.visitedLocations],
       totalPlayTime: this.totalPlayTime,
+      playTimeUnit: 'sec',       // до v1.3.6 время хранилось в целых минутах
       isSick: this.isSick,
       homeDecor: [...this.homeDecor],
       friends: [...this.friends],
@@ -683,16 +688,51 @@ const System = {
       profileName: this.profileName,
       savedAt: Date.now()
     };
+    const key = this.saveKeyFor(this.profileId);
+    const json = JSON.stringify(data);
+    // Перед перезаписью забираем предыдущее состояние в резервную копию: тогда
+    // есть куда вернуться, если новая запись окажется битой.
+    let prev = null;
+    try { prev = localStorage.getItem(key); } catch (e) { prev = null; }
     try {
-      localStorage.setItem(this.saveKeyFor(this.profileId), JSON.stringify(data));
-    } catch (e) {}
+      localStorage.setItem(key, json);
+      // Читаем обратно и сверяем длину: так мы замечаем обрыв записи сразу, а не
+      // на следующем запуске, когда игра открыла бы пустой дом (v1.3.6).
+      const back = localStorage.getItem(key);
+      const ok = typeof back === 'string' && back.length === json.length;
+      if (prev && prev.length > 40 && prev !== json) {
+        try { localStorage.setItem(this.backupKeyFor(this.profileId), prev); } catch (e) {}
+      } else if (!prev) {
+        // Самое первое сохранение: сразу делаем копию, иначе потерять его нечем
+        try { localStorage.setItem(this.backupKeyFor(this.profileId), json); } catch (e) {}
+      }
+      this.saveFailed = !ok;
+    } catch (e) {
+      // Молча терять прогресс нельзя: родитель увидит это в статистике
+      this.saveFailed = true;
+    }
   },
 
   loadGame() {
+    // Читаем сохранение. Если оно побилось (приложение убили в момент записи),
+    // поднимаем предыдущее удачное состояние из резервной копии. Раньше в этом
+    // случае игра молча начинала «с нуля» и первым же действием затирала дом —
+    // именно так у ребёнка «в какой-то момент сбросилась вся мебель» (v1.3.6).
+    let data = null;
+    let fromBackup = false;
     try {
       const raw = localStorage.getItem(this.saveKeyFor(this.profileId));
-      if (!raw) return false;
-      const data = JSON.parse(raw);
+      if (raw) { try { data = JSON.parse(raw); } catch (e) { data = null; } }
+      if (!data) {
+        const bak = localStorage.getItem(this.backupKeyFor(this.profileId));
+        if (bak) {
+          try { data = JSON.parse(bak); fromBackup = !!data; } catch (e) { data = null; }
+        }
+      }
+    } catch (e) { data = null; }
+    if (!data) return false;
+    if (typeof data !== 'object') return false;
+    try {
       this.stats = { ...this.stats, ...data.stats };
       this.coins = data.coins || 100;
       this.level = data.level || 1;
@@ -707,7 +747,11 @@ const System = {
       this.visitedItems = data.visitedItems || {};
       this.timeOfDay = data.timeOfDay || 'morning';
       this.visitedLocations = new Set(data.visitedLocations || []);
-      this.totalPlayTime = data.totalPlayTime || 0;
+      // Сохранения до v1.3.6 копили время в ЦЕЛЫХ минутах (счётчик прибавлялся раз
+      // в минуту) — переводим в секунды, чтобы наигранное время не обнулилось
+      this.totalPlayTime = data.playTimeUnit === 'sec'
+        ? (data.totalPlayTime || 0)
+        : (data.totalPlayTime || 0) * 60;
       this.isSick = data.isSick || false;
       this.homeDecor = data.homeDecor || [];
       this.friends = data.friends || [];
@@ -724,7 +768,11 @@ const System = {
       };
       this.furnitureColors = data.furnitureColors || {};
       this.outfitsOwned = (data.outfitsOwned || []).slice();
-      const legacyFurniture = (data.furniture || []);
+      // Старые сохранения (до v1.2) хранили одну комнату и плоский список мебели.
+      // Переносим их в комнаты ТОЛЬКО если комнат в сохранении нет: иначе при
+      // каждой загрузке предметы заново «переезжали» в свою основную комнату и
+      // двоились (нашлось пробой сохранения в v1.3.6).
+      const legacyFurniture = data.rooms ? [] : (data.furniture || []);
       for (const f of legacyFurniture) {
         const roomId = (typeof furnitureRooms === 'function') ? (furnitureRooms(f.id)[0] || 'living') : 'living';
         const target = this.rooms[roomId] || this.rooms.living;
@@ -760,15 +808,61 @@ const System = {
       // сегодняшний заход: «7 дней подряд» считает именно эти отметки.
       this.profileLoaded = true;
       this.registerDay();
+      if (fromBackup) {
+        // Дом спасли: говорим об этом ребёнку и переписываем основное сохранение,
+        // чтобы копия снова стала «предыдущей», а не единственной.
+        this.restoredFromBackup = true;
+        this.saveCopies = (this.saveCopies || 0) + 1;
+        this.saveGame();
+        // Плашка — украшение: если она почему-то не нарисуется, загрузка всё
+        // равно должна считаться успешной (иначе игра решит, что дом не открылся)
+        try {
+          if (typeof this.showAchievement === 'function') {
+            this.showAchievement('🛟', '{Pet} дома: дом восстановили из резервной копии');
+          }
+        } catch (e) {}
+      }
+      this.lastLoadError = null;
       return true;
     } catch (e) {
+      // Ошибку запоминаем: с ней в отчёте видно, обо что споткнулась загрузка
+      this.lastLoadError = String(e && e.message ? e.message : e);
       return false;
     }
   },
 
+  // ================= ВРЕМЯ В ИГРЕ (v1.3.6) =================
+  // Раньше счётчик прибавлялся ОДИН раз в минуту, а статистика делила его на 60 —
+  // поэтому «Время в игре» у всех показывало 0 мин (жалоба 30.09.2026).
+  addPlaySeconds(sec) {
+    const s = Number(sec);
+    // Мусор и «телепорты» времени после сворачивания не считаем
+    if (!isFinite(s) || s <= 0 || s > 3600) return this.totalPlayTime;
+    this.totalPlayTime = (this.totalPlayTime || 0) + s;
+    return this.totalPlayTime;
+  },
+
+  // Время в игре словами — для экрана статистики и проверок
+  playTimeText() {
+    const mins = Math.floor((this.totalPlayTime || 0) / 60);
+    if (mins < 1) return 'меньше минуты';
+    if (mins < 60) return mins + ' мин';
+    return Math.floor(mins / 60) + ' ч ' + (mins % 60) + ' мин';
+  },
+
+  // Состояние сохранения словами: видно на экране статистики, проверяется тестами
+  saveHealth() {
+    if (this.saveFailed) return 'не пишется (кончилось место)';
+    if (this.restoredFromBackup) return 'восстановлено из копии';
+    return 'в порядке';
+  },
+
   hasSave() {
     try {
-      return !!localStorage.getItem(this.saveKeyFor(this.profileId));
+      if (localStorage.getItem(this.saveKeyFor(this.profileId))) return true;
+      // Основное сохранение побилось, но есть копия — значит прогресс есть,
+      // и «Начать игру» (которое всё стирает) показывать нельзя
+      return !!localStorage.getItem(this.backupKeyFor(this.profileId));
     } catch (e) {
       return false;
     }
@@ -1318,6 +1412,13 @@ const System = {
   // ================= ПРОФИЛИ (несколько гоферов на устройстве) =================
   saveKeyFor(profileId) {
     return profileId === 'p1' ? 'gopherlife_save' : 'gopherlife_save_' + profileId;
+  },
+
+  // Резервная копия сохранения: в неё кладём ПРЕДЫДУЩЕЕ удачное состояние.
+  // Нужна, если приложение убьют в момент записи и файл сохранения побьётся
+  // (жалоба «сбросилась вся купленная мебель», v1.3.6).
+  backupKeyFor(profileId) {
+    return this.saveKeyFor(profileId) + '_bak';
   },
 
   getProfiles() {

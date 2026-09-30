@@ -1813,6 +1813,102 @@ ok('Сообщение об офлайне говорит именем геро�
   (function () {
     S.offlineReport = { awayMinutes: 95, sleptMinutes: 0, wokeUp: false };
     const t = sandbox.petFill(S.offlineMessage());
+
+/* ---------- Дом, сохранение, время и выход из гостей (v1.3.6) ---------- */
+
+// Время в игре: жалоба «всегда показывается ноль»
+S.totalPlayTime = 0;
+S.addPlaySeconds(90);
+ok('Время в игре считается секундами, а не «+1 раз в минуту»',
+  S.playTimeText() === '1 мин' && Math.round(S.totalPlayTime) === 90, S.playTimeText());
+S.totalPlayTime = 0;
+ok('Первую минуту честно пишем «меньше минуты»', S.playTimeText() === 'меньше минуты', S.playTimeText());
+// Старые сохранения держали время в минутах: переносим их честно
+sandbox.localStorage.setItem(S.saveKeyFor('p1'), JSON.stringify({ level: 2, totalPlayTime: 42, rooms: { living: { wall: 'warm', floor: 'wood', furniture: [] } } }));
+S.profileId = 'p1';
+S.totalPlayTime = 0;
+S.loadGame();
+ok('Время из старых сохранений (в минутах) переводится в секунды',
+  S.totalPlayTime === 42 * 60, '42 мин → ' + S.totalPlayTime + ' с (' + S.playTimeText() + ')');
+sandbox.localStorage.setItem(S.saveKeyFor('p1'), JSON.stringify({ level: 2, totalPlayTime: 42, playTimeUnit: 'sec', rooms: { living: { wall: 'warm', floor: 'wood', furniture: [] } } }));
+S.totalPlayTime = 0;
+S.loadGame();
+ok('Новые сохранения (в секундах) читаются как есть',
+  S.totalPlayTime === 42, '42 с → ' + S.playTimeText());
+S.totalPlayTime = 3725;
+ok('Долгая игра показывается часами и минутами', S.playTimeText() === '1 ч 2 мин', S.playTimeText());
+S.totalPlayTime = 0;
+
+// Мебель, резервная копия и восстановление после обрыва записи
+const lstore = sandbox.localStorage;
+const saveK = S.saveKeyFor('p1'), bakK = S.backupKeyFor('p1');
+const keepRaw = lstore.getItem(saveK), keepBak = lstore.getItem(bakK);
+S.profileId = 'p1';
+lstore.removeItem(saveK);
+lstore.removeItem(bakK);
+S.resetProgress();
+S.rooms = null;
+S.ensureRooms();
+S.rooms.living.furniture.push({ id: 'sofa', x: 0.3, y: 0.5 });
+S.rooms.bedroom.furniture.push({ id: 'bed', x: 0.4, y: 0.5 });
+S.saveGame();
+ok('Первое сохранение сразу делает резервную копию',
+  !!lstore.getItem(bakK), 'копия ' + (lstore.getItem(bakK) || '').length + ' байт');
+
+const goodSave = lstore.getItem(saveK);
+lstore.setItem(saveK, goodSave.slice(0, Math.floor(goodSave.length * 0.5)));   // обрыв записи
+S.rooms = null;
+const restored = S.loadGame();
+const restoredItems = Object.keys(S.rooms || {}).reduce((a, k) => a + S.rooms[k].furniture.length, 0);
+ok('Битое сохранение поднимается из копии — дом не пропадает',
+  restored === true && S.restoredFromBackup === true && restoredItems === 2,
+  'предметов после восстановления: ' + restoredItems);
+ok('Сразу после восстановления основное сохранение снова целое',
+  (function () { try { return JSON.parse(lstore.getItem(saveK)).level === S.level; } catch (e) { return false; } })(),
+  'файл сохранения разбирается');
+
+// Старая мебель (плоский список) переносится один раз, а не при каждой загрузке
+const before = Object.keys(S.rooms).reduce((a, k) => a + S.rooms[k].furniture.length, 0);
+S.loadGame();
+const afterTwoLoads = Object.keys(S.rooms).reduce((a, k) => a + S.rooms[k].furniture.length, 0);
+ok('Повторная загрузка не двоит мебель', before === afterTwoLoads, before + ' → ' + afterTwoLoads);
+
+// Ошибка записи не должна разрушать прежнее сохранение
+const realSet = lstore.setItem;
+lstore.setItem = () => { throw new Error('QuotaExceededError'); };
+S.coins = 7;
+S.saveGame();
+lstore.setItem = realSet;
+let keptCoins = null;
+try { keptCoins = JSON.parse(lstore.getItem(saveK)).coins; } catch (e) { keptCoins = 'ошибка'; }
+ok('Ошибка записи не затирает прежний дом ребёнка',
+  keptCoins !== 7 && S.saveFailed === true && S.saveHealth() === 'не пишется (кончилось место)',
+  'в файле монет: ' + keptCoins + ', здоровье сохранения: ' + S.saveHealth());
+
+// hasSave видит и копию: иначе в меню показали бы «Начать игру» и всё стёрли
+lstore.removeItem(saveK);
+ok('Прогресс считается существующим, даже если осталась только копия',
+  S.hasSave() === true, 'копия есть: ' + !!lstore.getItem(bakK));
+if (keepRaw === null) lstore.removeItem(saveK); else lstore.setItem(saveK, keepRaw);
+if (keepBak === null) lstore.removeItem(bakK); else lstore.setItem(bakK, keepBak);
+S.saveFailed = false; S.restoredFromBackup = false;
+
+// Выход из гостей: кнопка была, но её стирала заливка фона
+const friendsSrc = fs.readFileSync(path.join(WWW, 'game_friends.js'), 'utf8');
+ok('В доме друга видны выходы: «← Назад» и «🏠 Домой»',
+  friendsSrc.indexOf("'to_home'") !== -1 && friendsSrc.indexOf('🏠 Домой') !== -1 &&
+  !/drawFriendHome[\s\S]{0,400}fillRect\(0, 0, W, H\)/.test(friendsSrc) &&
+  /handleBack\(\) \{/.test(friendsSrc),
+  'фон больше не заливается поверх угловой кнопки');
+const gameSrc = fs.readFileSync(path.join(WWW, 'game.js'), 'utf8');
+ok('Системная кнопка «Назад» сначала спрашивает игру, а не закрывает её',
+  gameSrc.indexOf('window.onAndroidBack') !== -1 && gameSrc.indexOf('handleAndroidBack()') !== -1 &&
+  gameSrc.indexOf("if (this.currentScene === 'menu') return 'exit'") !== -1,
+  'выход из игры — только с главного меню');
+const actSrc = fs.readFileSync(path.join(ROOT, 'android', 'app', 'src', 'main', 'java', 'com', 'gopherlife', 'app', 'MainActivity.java'), 'utf8');
+ok('Android отдаёт «Назад» игре (иначе игра выгружается сразу)',
+  actSrc.indexOf('evaluateJavascript') !== -1 && actSrc.indexOf('onAndroidBack') !== -1 &&
+  actSrc.indexOf('finish()') !== -1, 'MainActivity спрашивает window.onAndroidBack');
     S.offlineReport = null;
     return t.indexOf('Милка скучала') !== -1 && t.indexOf('🐇') !== -1 && !/гофер/i.test(t);
   })(), sandbox.petFill('Тебя не было 1 ч 35 мин — {pet} {pet:скучал|скучала}, но держится ' + S.heroEmoji()));
