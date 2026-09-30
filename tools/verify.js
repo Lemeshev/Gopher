@@ -125,9 +125,10 @@ function reviewerStatic() {
         gearSize ? gearSize[1] + ' px' : 'размер не найден');
   check('Раздел «Об авторе»: копирайт Лемешев Виктор', menu.indexOf('Лемешев Виктор') !== -1);
   const helpersSrc = fs.readFileSync(path.join(WWW, 'js/helpers.js'), 'utf8');
-  check('Раздел «Об авторе»: ссылка vk.com/VL открывается',
-        menu.indexOf('vk.com/VL') !== -1 && menu.indexOf('openExternalLink') !== -1 &&
-        helpersSrc.indexOf('function openExternalLink') !== -1);
+  check('Раздел «Об авторе»: ссылка vk.com/VL показана текстом, без перехода наружу',
+        menu.indexOf('vk.com/VL') !== -1 && menu.indexOf('openExternalLink') === -1 &&
+        helpersSrc.indexOf('function openExternalLink') !== -1,
+        'кликов наружу в детской игре нет (требование Google Play)');
   check('В меню можно завести второй профиль (гофер на каждого ребёнка)',
         menu.indexOf('createProfile') !== -1 && menu.indexOf('switchToProfile') !== -1);
   check('createButton() возвращает поле text (корень бага с кнопками)',
@@ -757,6 +758,109 @@ function reviewerV12Runtime(rt) {
       vmRes(`System.coins`) + ' монет, энергия ' + vmRes(`System.stats.energy`));
     ok('Тихая игра снижает стресс', vmRes(`System.stats.stress < 50`), vmRes(`System.stats.stress`));
 
+    // --- РЕГРЕССИИ v1.2.3 (замечания заказчика) ---
+    // Баг 1: в крестиках-ноликах кнопка «Заново» не работала после конца
+    // партии — обработчик стоял внутри «партия ещё идёт».
+    const tttRes = vmRes(`(function(){
+      const ms = __game.scenes.minigames;
+      ms.init(); ms.initTTT();
+      // Доигрываем партию: победная линия X
+      ms.ttt.board = ['X','X','X','O','O',null,'O',null,null];
+      ms.ttt.over = true; ms.ttt.winner = 'X';
+      ms.buttons = [];
+      ms.draw(__ctxStub);
+      const btn = ms.buttons[1];
+      const clicked = ms.handleClick(btn.x + btn.w / 2, btn.y + btn.h / 2);
+      return { clicked: clicked, over: ms.ttt.over, winner: ms.ttt.winner,
+               empty: ms.ttt.board.every(c => c === null), mode: ms.mode };
+    })()`);
+    ok('Крестики-нолики: «Заново» работает и после победы (партия сбрасывается)',
+      tttRes && tttRes.clicked === true && tttRes.over === false && tttRes.winner === null &&
+      tttRes.empty === true && tttRes.mode === 'ticTacToe',
+      tttRes && tttRes.empty ? 'доска очищена' : 'доска не сбросилась');
+    const tttDrawRes = vmRes(`(function(){
+      const ms = __game.scenes.minigames;
+      ms.init(); ms.initTTT();
+      ms.ttt.board = ['X','O','X','X','O','O','O','X','X'];
+      ms.ttt.over = true; ms.ttt.winner = 'draw';
+      ms.buttons = []; ms.draw(__ctxStub);
+      const btn = ms.buttons[1];
+      ms.handleClick(btn.x + btn.w / 2, btn.y + btn.h / 2);
+      return { over: ms.ttt.over, empty: ms.ttt.board.every(c => c === null), label: btn.text };
+    })()`);
+    ok('Ничья в крестиках-ноликах: тоже можно начать заново (кнопка подписана)',
+      tttDrawRes.over === false && tttDrawRes.empty === true && tttDrawRes.label.indexOf('Заново') !== -1,
+      'надпись: «' + tttDrawRes.label + '»');
+
+    // Баг 2: в «Мозаике» (память) монеты капали на каждый клик после победы
+    const memRes = vmRes(`(function(){
+      const ms = __game.scenes.minigames;
+      ms.init(); ms.initMemory(); ms.draw(__ctxStub);
+      System.coins = 0;
+      const cols = 4, cs = Math.min(__game.width * 0.2, 70), gap = 6;
+      const ox = (__game.width - (cols * (cs + gap) - gap)) / 2, oy = __game.height * 0.12;
+      const at = i => ({ x: ox + (i % cols) * (cs + gap) + cs / 2, y: oy + Math.floor(i / cols) * (cs + gap) + cs / 2 });
+      const m = ms.memory, seen = {};
+      for (let i = 0; i < m.cards.length; i++) {
+        const k = m.cards[i];
+        if (seen[k] === undefined) { seen[k] = i; continue; }
+        const a = at(seen[k]), b = at(i);
+        ms.handleClick(a.x, a.y); ms.handleClick(b.x, b.y);
+      }
+      const afterWin = System.coins;
+      const extra = at(0);
+      ms.handleClick(extra.x, extra.y); ms.handleClick(extra.x, extra.y);
+      const afterExtra = System.coins;
+      const btn = ms.buttons[1];
+      const clicked = ms.handleClick(btn.x + btn.w / 2, btn.y + btn.h / 2);
+      const afterRestart = System.coins;
+      // initMemory() создаёт НОВЫЙ объект памяти — смотрим на свежий
+      const nm = ms.memory;
+      const restarted = nm !== m && nm.matched.every(x => x === false) && nm.done === false;
+      return { all: m.matched.every(x => x), afterWin: afterWin, afterExtra: afterExtra,
+               afterRestart: afterRestart, restarted: restarted, clicked: clicked };
+    })()`);
+    ok('Мозаика: награда ровно одна, лишние клики после победы монет не дают',
+      memRes.all === true && memRes.afterWin === 15 && memRes.afterExtra === 15 && memRes.afterRestart === 15,
+      'после победы ' + memRes.afterWin + ', после лишних кликов ' + memRes.afterExtra);
+    ok('Мозаика: «Заново» после победы начинает игру с чистого поля',
+      memRes.clicked === true && memRes.restarted === true);
+
+    // Замечание заказчика: созвездие каждый раз должно быть новым
+    const starsRes = vmRes(`(function(){
+      const qs = __game.scenes.quiet;
+      qs.init();
+      const A = { x: __game.width * 0.08, y: __game.height * 0.16, w: __game.width * 0.84, h: __game.height * 0.54 };
+      const shapes = {}; let minGap = 1e9, outside = 0, stars = 0, collected = 0;
+      for (let n = 0; n < 12; n++) {
+        qs.initStars();
+        const pts = qs.stars.points.map(p => ({ x: A.x + A.w * p[0], y: A.y + A.h * p[1] }));
+        stars += pts.length;
+        shapes[qs.stars.points.map(p => p[0].toFixed(3) + ',' + p[1].toFixed(3)).join(';')] = 1;
+        pts.forEach(p => {
+          if (p.x < A.x || p.x > A.x + A.w || p.y < A.y || p.y > A.y + A.h) outside++;
+        });
+        for (let i = 0; i < pts.length; i++) {
+          for (let j = i + 1; j < pts.length; j++) {
+            minGap = Math.min(minGap, Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y));
+          }
+        }
+        // Созвездие всё ещё собирается тапами по порядку
+        pts.forEach(p => qs.clickStars(p.x, p.y));
+        if (qs.stars.done) collected++;
+      }
+      return { unique: Object.keys(shapes).length, stars: stars / 12, collected: collected,
+               minGap: Math.round(minGap), outside: outside };
+    })()`);
+    ok('Созвездие каждый раз новое: 12 запусков — 12 разных рисунков',
+      starsRes.unique >= 11 && starsRes.stars === 9,
+      starsRes.unique + ' уникальных из 12, звёзд ' + starsRes.stars);
+    ok('Звёзды не налезают друг на друга и остаются в области (по ним можно попадать)',
+      starsRes.minGap >= 40 && starsRes.outside === 0,
+      'минимальное расстояние ' + starsRes.minGap + ' px (радиус тапа 24)');
+    ok('Новое созвездие собирается по номерам без тупиков', starsRes.collected === 12,
+      starsRes.collected + ' из 12 созвездий собраны тапами');
+
     // Воздушная гимнастика
     vmRes(`System.stats.energy = 90; const ae = __game.scenes.aerial; ae.init(); ae.payEntry();`);
     ok('Воздушная гимнастика тратит немного энергии',
@@ -868,12 +972,22 @@ function reviewerAchievements(rt) {
     badEntry || 'все записи полные');
   check('id достижений уникальны',
     vmRes('new Set(System.achievementList().map(a => a.id)).size') === catSize);
-  const longMissing = vmRun(`['streak3','days7','streak7','days30','streak30','days100','days365']
+  const longMissing = vmRun(`['streak3','days7','streak7','days30','streak30','days100','days180','days365','streak100','streak365','level20','trips200','museumsFull']
     .filter(id => !System.achievementList().some(a => a.id === id)).join(', ')`);
-  const monthsOk = vmRun(`System.achievementList().filter(a => ['days30','days100','days365'].indexOf(a.id) !== -1 && a.goal >= 30).length`);
-  check('Есть достижения «на месяцы»: 30, 100 и 365 разных дней',
-    longMissing === '' && monthsOk === 3 && vmRes(`System.achievementList().find(a => a.id === 'days365').goal`) === 365,
-    longMissing ? ('нет: ' + longMissing) : '3 дня подряд, 7/30/100/365 дней + серия 7 и 30');
+  const monthRes = vmRun(`(function(){
+    const list = System.achievementList();
+    const months = list.filter(a => a.tier === 'month');
+    return { count: months.length, total: list.length,
+             days: list.filter(a => a.id === 'days365' && a.goal === 365).length,
+             streak: list.filter(a => a.id === 'streak365' && a.goal === 365).length,
+             tierSize: System.achievementTiers().filter(t => t.id === 'month').length };
+  })()`);
+  check('Есть достижения «на месяцы»: 30/100/180/365 разных дней и серия 365 дней',
+    longMissing === '' && monthRes.days === 1 && monthRes.streak === 1,
+    longMissing ? ('нет: ' + longMissing) : 'долгие цели на месте');
+  check('Долгих достижений стало больше, чем коротких (месяцы — не «вишенка» на торте)',
+    monthRes.count >= 12 && monthRes.count >= Math.ceil(monthRes.total * 0.3),
+    monthRes.count + ' из ' + monthRes.total + ' — ступень «Месяцы»');
   const uniq = vmRun(`(function(){
     const p = System.ensureProgress();
     return System.achievementList().filter(a => { const v = a.of(p, System); return !isFinite(v) || v < 0; }).map(a => a.id).join(', ');
@@ -942,7 +1056,7 @@ function reviewerAchievements(rt) {
     return { opened: System.unlockedCount(), total: System.achievementList().length,
              locked: System.achievementList().filter(a => !System.isAchUnlocked(a.id)).map(a => a.id) };
   })()`);
-  const stillLocked = ['days7', 'streak7', 'days30', 'streak30', 'days100', 'days365']
+  const stillLocked = ['days7', 'streak7', 'days30', 'streak30', 'days100', 'days180', 'days365', 'streak100', 'streak365']
     .filter(id => hardDay.locked.indexOf(id) === -1);
   check('Хоть обмажься достижениями: за один день недостижимы цели на дни и серию дней',
     stillLocked.length === 0 && hardDay.opened < hardDay.total,
@@ -962,7 +1076,7 @@ function reviewerAchievements(rt) {
       p.feeds += full ? 3 : 2; p.washes += 1; p.plays += full ? 3 : 1; p.tttWins += 1;
       if (full) p.furniture += 1;
       System.stats.energy = 45; System.startSleep(); System.tick(600000);
-      System.earnCoins(full ? 120 : 40); System.addXP(full ? 250 : 60);
+      System.earnCoins(full ? 120 : 40); System.addXP(full ? 250 : 70);
       System.stats.workSkill = Math.min(100, System.stats.workSkill + (full ? 8 : 3));
       System.stats.schoolSkill = Math.min(100, System.stats.schoolSkill + (full ? 6 : 2));
       System.stats.intelligence = Math.min(100, System.stats.intelligence + (full ? 6 : 1));
@@ -982,7 +1096,12 @@ function reviewerAchievements(rt) {
       if (i === 363) at.onDay364 = System.isAchUnlocked('days365');
     }
     at.day400 = System.unlockedCount();
+    at.level = System.level; at.xp = System.xp;
     at.openedOn = openedOn;
+    // Когда открылись самые долгие цели — видно, что они не «за неделю»
+    at.longDays = { days180: openedOn.days180, streak100: openedOn.streak100,
+                    streak365: openedOn.streak365, level20: openedOn.level20,
+                    trips200: openedOn.trips200, museumsFull: openedOn.museumsFull };
     at.total = System.achievementList().length;
     at.locked = System.achievementList().filter(a => !System.isAchUnlocked(a.id)).map(a => a.id);
     return at;
@@ -990,10 +1109,17 @@ function reviewerAchievements(rt) {
   check('Темп: обычный первый вечер даёт меньше трети каталога',
     realDay.day1 >= 5 && realDay.day1 <= Math.ceil(realDay.total * 0.35),
     realDay.day1 + ' из ' + realDay.total + ' за первый вечер');
-  check('Темп растянут на месяцы: неделя → 22, месяц → 28, сто дней → 30, год → весь каталог',
+  check('Темп растянут на месяцы: неделя → месяц → сто дней → год, каталог растёт ступенями',
     realDay.day7 < realDay.day30 && realDay.day30 < realDay.day100 && realDay.day100 < realDay.day400 &&
     realDay.day400 === realDay.total,
     realDay.day1 + ' → ' + realDay.day7 + ' → ' + realDay.day30 + ' → ' + realDay.day100 + ' → ' + realDay.day400);
+  const long = realDay.longDays || {};
+  check('Долгие цели открываются месяцами, а не в первую неделю',
+    ['days180', 'streak100', 'level20', 'trips200', 'museumsFull'].every(k => (long[k] || 0) >= 30) &&
+    long.streak365 === 365,
+    'полгода — день ' + long.days180 + ', серия 100 — день ' + long.streak100 +
+    ', уровень 20 — день ' + long.level20 + ' (ур. ' + realDay.level + '), двести походов — день ' + long.trips200 +
+    ', вся коллекция музеев — день ' + long.museumsFull);
   check('Границы ступеней соблюдены: «30 дней» закрыто на 29-й день, «год» — на 364-й',
     realDay.onDay29 === false && realDay.onDay364 === false &&
     realDay.openedOn.days30 === 30 && realDay.openedOn.streak30 === 30 && realDay.openedOn.days365 === 365,

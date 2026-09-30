@@ -594,7 +594,7 @@ if (boot) {
   const playable = { stars: false, color: false, fish: false, clicks: 0 };
   try {
     const qs = boot.scenes.quiet;
-    const wW = 360, wH = 640;
+    const wW = boot.width, wH = boot.height;
 
     // 1) Созвездие: нажимаем звёзды по номерам
     qs.init();
@@ -633,6 +633,81 @@ if (boot) {
     'созвездие ' + (playable.stars ? 'ок' : 'нет') +
     ', раскраска ' + (playable.color ? 'ок за ' + playable.clicks + ' тапов' : 'нет') +
     ', рыбалка ' + (playable.fish ? 'ок' : 'нет'));
+
+  /* ---------- Созвездие каждый раз новое (замечание заказчика) ---------- */
+  const starsUniq = (function () {
+    const qs = boot.scenes.quiet;
+    const wW = boot.width, wH = boot.height;
+    const A = { x: wW * 0.08, y: wH * 0.16, w: wW * 0.84, h: wH * 0.54 };
+    const shapes = {}; let minGap = 1e9, outside = 0, collected = 0, count = 0;
+    qs.init();
+    for (let n = 0; n < 12; n++) {
+      qs.initStars();
+      const pts = qs.stars.points.map(p => ({ x: A.x + A.w * p[0], y: A.y + A.h * p[1] }));
+      count += pts.length;
+      shapes[qs.stars.points.map(p => p[0].toFixed(3) + ',' + p[1].toFixed(3)).join(';')] = 1;
+      pts.forEach(p => { if (p.x < A.x || p.x > A.x + A.w || p.y < A.y || p.y > A.y + A.h) outside++; });
+      for (let i = 0; i < pts.length; i++) {
+        for (let j = i + 1; j < pts.length; j++) {
+          minGap = Math.min(minGap, Math.sqrt(Math.pow(pts[i].x - pts[j].x, 2) + Math.pow(pts[i].y - pts[j].y, 2)));
+        }
+      }
+      pts.forEach(p => qs.clickStars(p.x, p.y));
+      if (qs.stars.done) collected++;
+    }
+    return { unique: Object.keys(shapes).length, stars: count / 12,
+             minGap: Math.round(minGap), outside: outside, collected: collected };
+  })();
+  ok('Созвездие каждый раз новое (12 запусков — 12 разных рисунков)',
+    starsUniq.unique >= 11 && starsUniq.stars === 9,
+    starsUniq.unique + ' уникальных из 12, звёзд по 9');
+  ok('Звёзды не налезают друг на друга, но созвездие собирается тапами',
+    starsUniq.minGap >= 40 && starsUniq.outside === 0 && starsUniq.collected === 12,
+    'зазор ' + starsUniq.minGap + ' px, собрано ' + starsUniq.collected + ' из 12');
+
+  /* ---------- Мини-игры: «Заново» и награда за партию (баги v1.2.3) ---------- */
+  const mini = (function () {
+    const ms = boot.scenes.minigames;
+    const out = {};
+    // 1. Крестики-нолики: доигранная партия сбрасывается кнопкой «Заново»
+    ms.init(); ms.initTTT();
+    ms.ttt.board = ['X', 'X', 'X', 'O', 'O', null, 'O', null, null];
+    ms.ttt.over = true; ms.ttt.winner = 'X';
+    ms.buttons = []; ms.draw(sandbox.__ctx);
+    const tb = ms.buttons[1];
+    out.tttClicked = ms.handleClick(tb.x + tb.w / 2, tb.y + tb.h / 2);
+    out.tttCleared = ms.ttt.over === false && ms.ttt.winner === null && ms.ttt.board.every(c => c === null);
+    // 2. Мозаика: награда ровно одна, и «Заново» работает после победы
+    ms.init(); ms.initMemory(); ms.draw(sandbox.__ctx);
+    S.coins = 0;
+    const cols = 4, cs = Math.min(boot.width * 0.2, 70), gap = 6;
+    const ox = (boot.width - (cols * (cs + gap) - gap)) / 2, oy = boot.height * 0.12;
+    const at = i => ({ x: ox + (i % cols) * (cs + gap) + cs / 2, y: oy + Math.floor(i / cols) * (cs + gap) + cs / 2 });
+    const m = ms.memory, seen = {};
+    for (let i = 0; i < m.cards.length; i++) {
+      const k = m.cards[i];
+      if (seen[k] === undefined) { seen[k] = i; continue; }
+      const a = at(seen[k]), b = at(i);
+      ms.handleClick(a.x, a.y); ms.handleClick(b.x, b.y);
+    }
+    out.memAll = m.matched.every(x => x);
+    out.afterWin = S.coins;
+    const extra = at(0);
+    ms.handleClick(extra.x, extra.y); ms.handleClick(extra.x, extra.y);
+    out.afterExtra = S.coins;
+    const mb = ms.buttons[1];
+    out.memClicked = ms.handleClick(mb.x + mb.w / 2, mb.y + mb.h / 2);
+    out.afterRestart = S.coins;
+    out.memRestarted = ms.memory !== m && ms.memory.matched.every(x => x === false) && ms.memory.done === false;
+    return out;
+  })();
+  ok('Крестики-нолики: «Заново» работает и после победы',
+    mini.tttClicked === true && mini.tttCleared === true);
+  ok('Мозаика: награда одна за партию, лишние клики монет не дают',
+    mini.memAll === true && mini.afterWin === 15 && mini.afterExtra === 15 && mini.afterRestart === 15,
+    'после победы ' + mini.afterWin + ', после лишних кликов ' + mini.afterExtra);
+  ok('Мозаика: «Заново» после победы начинает партию с чистого поля',
+    mini.memClicked === true && mini.memRestarted === true);
 
   /* ---------- Магазин «Дом»: фильтры, страницы, покупка обоев и пола ---------- */
   let shopOk = true, shopInfo = '';
@@ -729,9 +804,13 @@ if (boot) {
       if (out.length) throw new Error('шкалы вне диапазона (' + out.join(', ') + ') в сцене ' + n);
     }
   } catch (e) { fuzzErr = e; }
-  // Фаззинг мог случайно уложить питомца спать — состояние стенда возвращаем сами,
-  // иначе следующие проверки видят «сон» и валятся на пустом месте.
+  // Фаззинг мог случайно уложить питомца спать или открыть туториал (случайный
+  // клик по «❓» в меню) — состояние стенда возвращаем сами, иначе следующие
+  // проверки видят «сон» или туториал и валятся на пустом месте: именно это
+  // делало проверку похода по карте «мигающей».
   S.isSleeping = false;
+  boot.tutorialVisible = false;
+  boot.currentScene = 'map';
   ok('Случайные нажатия не ломают игру', !fuzzErr,
     fuzzErr ? fuzzErr.message : fuzzClicks + ' кликов, монеты и шкалы в порядке');
 
@@ -886,10 +965,13 @@ if (boot) {
   ok('У каждого достижения есть цель и описание, id не повторяются',
     broken.length === 0 && new Set(cat.map(a => a.id)).size === cat.length,
     broken.length ? ('сломаны: ' + broken.map(a => a.id).join(', ')) : cat.length + ' записей');
-  const longTerm = ['days7', 'streak7', 'days30', 'streak30', 'days100', 'days365'].filter(id => cat.some(a => a.id === id));
-  ok('Есть достижения «на месяцы»: 7/30/100/365 разных дней и серии подряд',
-    longTerm.length === 6 && cat.find(a => a.id === 'days365').goal === 365,
-    longTerm.join(', '));
+  const longTerm = ['days7', 'streak7', 'days30', 'streak30', 'days100', 'days180', 'days365',
+    'streak100', 'streak365', 'level20', 'trips200', 'museumsFull'].filter(id => cat.some(a => a.id === id));
+  ok('Есть достижения «на месяцы»: 30/100/180/365 дней, серии 100/365 и вся коллекция музеев',
+    longTerm.length === 12 && cat.find(a => a.id === 'days365').goal === 365 &&
+    cat.filter(a => a.tier === 'month').length >= 12,
+    'долгих целей ' + longTerm.length + ', «месячных» ' + cat.filter(a => a.tier === 'month').length +
+    ' из ' + cat.length);
 
   S.resetProgress();
   const feedAch = (function () {
@@ -908,6 +990,9 @@ if (boot) {
   const tripAch = (function () {
     S.resetProgress();
     const map = boot.scenes.map;
+    // Клик уходит в активную сцену: ставим карту явно (до этого активной
+    // оставалась «тихая игра» из соседнего блока — проверка была хрупкой)
+    boot.currentScene = 'map';
     map.init(); map.draw(sandbox.__ctx);
     const tile = (map.locationButtons || []).filter(b => b.loc && b.loc.id === 'park')[0];
     boot.handleClick(tile.x + tile.w / 2, tile.y + tile.h / 2);
@@ -957,7 +1042,8 @@ if (boot) {
     return cat.filter(a => !S.isAchUnlocked(a.id)).map(a => a.id);
   })();
   ok('Даже с заполненными счётчиками дневные достижения за один день не взять',
-    ['days7', 'streak7', 'days30', 'streak30', 'days100', 'days365'].every(id => hard.indexOf(id) !== -1) &&
+    ['days7', 'streak7', 'days30', 'streak30', 'days100', 'days180', 'days365', 'streak100', 'streak365']
+      .every(id => hard.indexOf(id) !== -1) &&
     hard.length >= 6 && hard.length <= cat.length * 0.4,
     'закрыты за первый день: ' + hard.length + ' из ' + cat.length);
 
@@ -974,7 +1060,7 @@ if (boot) {
       p.feeds += full ? 3 : 2; p.washes += 1; p.plays += full ? 3 : 1; p.tttWins += 1;
       if (full) p.furniture += 1;
       S.stats.energy = 45; S.startSleep(); S.tick(600000);
-      S.earnCoins(full ? 120 : 40); S.addXP(full ? 250 : 60);
+      S.earnCoins(full ? 120 : 40); S.addXP(full ? 250 : 70);
       S.stats.workSkill = Math.min(100, S.stats.workSkill + (full ? 8 : 3));
       S.stats.schoolSkill = Math.min(100, S.stats.schoolSkill + (full ? 6 : 2));
       S.stats.intelligence = Math.min(100, S.stats.intelligence + (full ? 6 : 1));

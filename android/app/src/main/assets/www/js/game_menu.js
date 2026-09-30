@@ -376,9 +376,15 @@ class MenuScene {
     ctx.font = `${Math.min(W * 0.027, 11)}px Arial`;
     ctx.fillText('Связаться и посмотреть другие проекты:', W / 2, py + 262);
 
-    this.buttons.push(createButton(ctx, px + 30, py + 276, panelW - 60, 40, '🔗 vk.com/VL', {
-      bgColor: '#4C75A3', fgColor: '#fff', fontSize: 15, radius: 10
-    }));
+    // Ссылка — просто текстом: в детской игре нет кликабельных переходов
+    // во внешние приложения (Google Play для детских приложений этого не
+    // разрешает, да и ребёнок не должен случайно уйти из игры).
+    ctx.fillStyle = '#8FC7FF';
+    ctx.font = `bold ${Math.min(W * 0.034, 14)}px Arial`;
+    ctx.fillText('vk.com/VL', W / 2, py + 288);
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.font = `${Math.min(W * 0.024, 10)}px Arial`;
+    ctx.fillText('(адрес можно переписать или отсканировать)', W / 2, py + 306);
 
     this.buttons.push(createButton(ctx, px + 30, py + panelH - 54, panelW - 60, 40, '← Назад', {
       bgColor: 'rgba(255,255,255,0.2)', fgColor: '#fff', fontSize: 15, radius: 10
@@ -536,9 +542,8 @@ class MenuScene {
         return true;
       }
 
-      // ---- Об авторе ----
+      // ---- Об авторе ---- (переходов наружу нет: ссылка показана текстом)
       if (this.aboutMode) {
-        if (t.indexOf('vk.com') !== -1) { openExternalLink('https://vk.com/VL'); return true; }
         if (t.indexOf('Назад') !== -1 || t.indexOf('Закрыть') !== -1) { this.aboutMode = false; return true; }
         return true;
       }

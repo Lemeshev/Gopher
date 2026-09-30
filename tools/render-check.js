@@ -63,6 +63,7 @@ const SCENES = [
   { hash: 'friends@visit_0',    minColors: 20, minNonBg: 3 },
   { hash: 'menu@profiles',      minColors: 20, minNonBg: 3 },
   { hash: 'menu@settings',      minColors: 20, minNonBg: 3 },
+  { hash: 'menu@settings+Об авторе', minColors: 20, minNonBg: 3 },
   { hash: 'friends',            minColors: 20, minNonBg: 3 },
   { hash: 'menu@@tutorial',     minColors: 20, minNonBg: 3 }
 ];

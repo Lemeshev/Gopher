@@ -6,7 +6,7 @@ class MinigamesScene {
     this.time = 0;
     this.mode = 'select'; // select, ticTacToe, memory, coinFlip
     this.ttt = { board: Array(9).fill(null), turn: 'X', over: false, winner: null };
-    this.memory = { cards: [], flipped: [], matched: [], moves: 0, ready: false };
+    this.memory = { cards: [], flipped: [], matched: [], moves: 0, ready: false, done: false };
     this.coinFlip = { state: 'ready', timer: 0, result: null, angle: 0, flipDur: 1100 };
   }
 
@@ -27,7 +27,7 @@ class MinigamesScene {
       const j = Math.floor(Math.random() * (i + 1));
       [emojis[i], emojis[j]] = [emojis[j], emojis[i]];
     }
-    this.memory = { cards: emojis, flipped: [], matched: Array(16).fill(false), moves: 0, ready: false };
+    this.memory = { cards: emojis, flipped: [], matched: Array(16).fill(false), moves: 0, ready: false, done: false };
     this.mode = 'memory';
   }
 
@@ -408,6 +408,18 @@ class MinigamesScene {
       return true;
     }
 
+    // Кнопка «Заново» — вторая в каждой игре (после «Назад»). Проверяем её
+    // ДО логики партии: раньше обработчик стоял внутри «партия ещё идёт», и
+    // после победы или ничьей кнопка не нажималась — это и был баг.
+    if ((this.mode === 'ticTacToe' || this.mode === 'memory') && this.buttons.length > 1) {
+      const b = this.buttons[1];
+      if (isPointInRect(mx, my, b.x, b.y, b.w, b.h)) {
+        if (this.mode === 'ticTacToe') this.initTTT();
+        else this.initMemory();
+        return true;
+      }
+    }
+
     if (this.mode === 'select') {
       for (let i = 1; i < this.buttons.length; i++) {
         const btn = this.buttons[i];
@@ -423,11 +435,6 @@ class MinigamesScene {
     }
 
     if (this.mode === 'ticTacToe' && !this.ttt.over) {
-      // Check restart
-      if (this.buttons.length > 1 && isPointInRect(mx, my, this.buttons[1].x, this.buttons[1].y, this.buttons[1].w, this.buttons[1].h)) {
-        this.initTTT();
-        return true;
-      }
       // Board click
       const cellSize = Math.min(this.game.width * 0.22, 80);
       const offsetX = (this.game.width - cellSize * 3) / 2;
@@ -467,30 +474,12 @@ class MinigamesScene {
           return true;
         }
       }
-      // Restart
-      if (this.buttons.length > 1 && isPointInRect(mx, my, this.buttons[1].x, this.buttons[1].y, this.buttons[1].w, this.buttons[1].h)) {
-        this.initTTT();
-        return true;
-      }
     }
 
     if (this.mode === 'memory') {
       const m = this.memory;
-      if (m.matched.every(x => x)) {
-        System.earnCoins(15);
-        System.addXP(8);
-        System.stats.happiness = Math.min(100, System.stats.happiness + 10);
-        System.saveGame();
-        AudioSys.play('success');
-        if (this.buttons.length > 1 && isPointInRect(mx, my, this.buttons[1].x, this.buttons[1].y, this.buttons[1].w, this.buttons[1].h)) {
-          this.initMemory();
-        }
-        return true;
-      }
-      if (this.buttons.length > 1 && isPointInRect(mx, my, this.buttons[1].x, this.buttons[1].y, this.buttons[1].w, this.buttons[1].h)) {
-        this.initMemory();
-        return true;
-      }
+      // Партия окончена: награда уже выдана, остаётся «Заново» (обработана выше)
+      if (m.done) return true;
       const cols = 4;
       const cellSize = Math.min(this.game.width * 0.2, 70);
       const gap = 6;
@@ -511,6 +500,15 @@ class MinigamesScene {
               m.matched[b] = true;
               m.flipped = [];
               AudioSys.play('success');
+              // Награда — ровно один раз за партию (раньше монетки капали
+              // на каждый клик после победы, пока не нажмёшь «Заново»)
+              if (m.matched.every(x => x) && !m.done) {
+                m.done = true;
+                System.earnCoins(15);
+                System.addXP(8);
+                System.stats.happiness = Math.min(100, System.stats.happiness + 10);
+                System.saveGame();
+              }
             } else {
               setTimeout(() => {
                 m.flipped = [];

@@ -1279,7 +1279,8 @@ window.QUIET_RULES = QUIET_RULES;
 //   today — реально взять в первый вечер (покормил, сходил, сыграл);
 //   soon  — несколько дней (навыки, накопления, походы);
 //   week  — неделя и больше (полный музей, сто игр, 2000 монет);
-//   month — месяцы: 30 и 100 разных дней, 10000 монет, 15 уровень, год.
+//   month — месяцы: 30/100/180/365 разных дней, серия 30/100/365 дней,
+//   20 уровень, 10 000 монет, 200 походов, вся коллекция музеев.
 // Долгие ступени стоят на счётчиках РАЗНЫХ ДНЕЙ и СЕРИИ ДНЕЙ
 // (System.progress.days / streak): день засчитывается один раз, сколько бы
 // раз приложение ни открыли, поэтому «накрутить» их за вечер нельзя.
@@ -1317,7 +1318,7 @@ const ACHIEVEMENTS = [
   { id: 'days7',       tier: 'week', emoji: '📅', name: 'Неделя вместе', desc: 'Играть 7 разных дней', goal: 7, of: p => p.days },
   { id: 'streak7',     tier: 'week', emoji: '💛', name: 'Не разлей вода', desc: 'Заходить 7 дней подряд', goal: 7, of: p => p.streak },
   { id: 'level10',     tier: 'week', emoji: '🌟', name: 'Ветеран', desc: 'Достигни 10 уровня', goal: 10, of: (p, S) => S.level },
-  { id: 'exhibitsAll', tier: 'week', emoji: '🎓', name: 'Коллекционер', desc: 'По 12 экспонатов в каждом из 4 музеев', goal: 4,
+  { id: 'exhibitsAll', tier: 'week', emoji: '🏺', name: 'Коллекционер', desc: 'По 12 экспонатов в каждом из 4 музеев', goal: 4,
     of: (p, S) => MUSEUM_CATEGORIES.filter(c => S.seenCount(c) >= 12).length },
   { id: 'work80',      tier: 'week', emoji: '👔', name: 'Профессионал', desc: 'Рабочий навык 80 (расти на работе)', goal: 80, of: (p, S) => S.stats.workSkill },
   { id: 'school80',    tier: 'week', emoji: '🎓', name: 'Выпускник', desc: 'Учебный навык 80 (занятия в школе)', goal: 80, of: (p, S) => S.stats.schoolSkill },
@@ -1332,7 +1333,14 @@ const ACHIEVEMENTS = [
   { id: 'level15',    tier: 'month', emoji: '👑', name: 'Мастер', desc: 'Достигни 15 уровня — это месяцы занятий', goal: 15, of: (p, S) => S.level },
   { id: 'coins10000', tier: 'month', emoji: '🏦', name: 'Казна', desc: 'Заработай всего 10 000 монет', goal: 10000, of: p => p.coinsEarned },
   { id: 'days100',    tier: 'month', emoji: '🎂', name: 'Сто дней вместе', desc: 'Играть 100 разных дней (около 3 месяцев)', goal: 100, of: p => p.days },
-  { id: 'days365',    tier: 'month', emoji: '🏆', name: 'Год с гофером', desc: 'Играть 365 разных дней — целый год', goal: 365, of: p => p.days }
+  { id: 'days180',    tier: 'month', emoji: '🌗', name: 'Полгода вместе', desc: 'Играть 180 разных дней', goal: 180, of: p => p.days },
+  { id: 'days365',    tier: 'month', emoji: '🏆', name: 'Год с гофером', desc: 'Играть 365 разных дней — целый год', goal: 365, of: p => p.days },
+  { id: 'streak100',  tier: 'month', emoji: '💯', name: 'Сто дней подряд', desc: 'Заходить 100 дней подряд — без единого пропуска', goal: 100, of: p => p.streak },
+  { id: 'streak365',  tier: 'month', emoji: '🎖️', name: 'Год без пропусков', desc: 'Заходить 365 дней подряд — целый год ни дня мимо', goal: 365, of: p => p.streak },
+  { id: 'level20',    tier: 'month', emoji: '🥇', name: 'Гроссмейстер', desc: 'Достигни 20 уровня — это примерно полгода занятий', goal: 20, of: (p, S) => S.level },
+  { id: 'trips200',   tier: 'month', emoji: '🗺️', name: 'Двести походов', desc: 'Сходить по карте 200 раз', goal: 200, of: p => p.trips },
+  { id: 'museumsFull', tier: 'month', emoji: '🏛️', name: 'Хранитель музеев', desc: 'Посмотреть все 100 экспонатов в каждом из 4 музеев', goal: 4,
+    of: (p, S) => MUSEUM_CATEGORIES.filter(c => S.seenCount(c) >= 100).length }
 ];
 
 // Категории музеев: нужны и вкладке «Знания», и достижениям коллекционера
