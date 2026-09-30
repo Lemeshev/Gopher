@@ -83,9 +83,11 @@ class HomeScene {
     const actionsTop = H - 8 - actionsH;
 
     const pad = 9, labelH = 11, barH = 12, rowGap = 5, statRows = 3;
-    // +hintH: под шкалами идёт строка-подсказка «нажми на „Стресс“…». Раньше
-    // её рисовали поверх нижней шкалы (Здоровье/Стресс) — это и было видно.
-    const hintH = 10;
+    // +hintH: под шкалами идёт строка-правило «все полоски: чем больше, тем
+    // лучше» и маленькая кнопка «❓» (v1.3.2). Раньше тут была надпись «нажми
+    // на „Стресс“», а сама кнопка справки стояла в чужой ячейке — по стрессу
+    // нажатие не срабатывало (замечание заказчика).
+    const hintH = 20;
     const panelH = pad * 2 + statRows * (labelH + barH) + (statRows - 1) * rowGap + hintH;
     const panelTop = actionsTop - 8 - panelH;
 
@@ -148,7 +150,7 @@ class HomeScene {
     // Купание
     if (this.bath > 0) this.bath -= sec;
 
-    // Тихая музыка: нотки летят, стресс понемногу уходит
+    // Тихая музыка: нотки летят, спокойствие понемногу растёт
     if (this.music > 0) {
       this.music -= sec;
       if (Math.random() < 0.10) {
@@ -470,13 +472,16 @@ class HomeScene {
   // ---------- Панель характеристик ----------
   drawStats(ctx, L) {
     const W = L.W;
+    // Все шкалы «чем больше, тем лучше» (v1.3.2). Стресса в интерфейсе нет:
+    // вместо него «Спокойствие» = 100 − стресс, иначе единственная пустая
+    // полоска выглядела как поломка (замечание заказчика).
     const stats = [
       { key: 'happiness', emoji: '\u2764\ufe0f', name: 'Счастье' },
       { key: 'hunger', emoji: '\ud83c\udf57', name: 'Сытость' },
       { key: 'energy', emoji: '\u26a1', name: 'Энергия' },
       { key: 'cleanliness', emoji: '\ud83e\uddfc', name: 'Чистота' },
       { key: 'health', emoji: '\ud83c\udfe5', name: 'Здоровье' },
-      { key: 'stress', emoji: '\ud83d\ude30', name: 'Стресс' }
+      { key: 'calm', emoji: '\ud83d\ude0c', name: 'Спокойствие' }
     ];
 
     ctx.fillStyle = 'rgba(0,0,0,0.62)';
@@ -490,14 +495,13 @@ class HomeScene {
       const cx = 10 + L.pad + col * (cellW + colGap);
       const rowTop = L.panelTop + L.pad + row * (L.labelH + L.barH + L.rowGap);
       const baseline = rowTop + L.labelH - 1;
-      const val = System.stats[s.key];
+      const val = System.statValue(s.key);
 
       ctx.font = `bold ${Math.min(L.labelH - 1, 11)}px Arial`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'alphabetic';
       ctx.fillStyle = '#ffffff';
-      // У «Стресса» стоит знак вопроса: строка нажимаемая, там справка
-      ctx.fillText(s.emoji + ' ' + s.name + (s.key === 'stress' ? ' ❓' : ''), cx, baseline);
+      ctx.fillText(s.emoji + ' ' + s.name, cx, baseline);
 
       ctx.font = `${Math.min(L.labelH - 2, 10)}px Arial`;
       ctx.textAlign = 'right';
@@ -508,22 +512,31 @@ class HomeScene {
         'rgba(255,255,255,0.18)', System.getStatColor(s.key));
     });
 
-    // Подсказка и нажимаемая строка «Стресс»: именно на неё ребёнок ткнёт,
-    // когда спросит «а как сделать стресс нормальным?» — откроется справка.
-    ctx.font = `${Math.min(L.labelH - 2, 9.5)}px Arial`;
+    // Одна общая подсказка вместо «нажми на стресс» (v1.3.2): детям нужно
+    // правило, а не ещё одно нажатие. Кнопка «❓» рядом — привычная справка.
+    const helpW = 26, helpH = 15;
+    const helpX = W - 10 - L.pad - helpW;
+    const helpY = L.panelTop + L.panelH - helpH - 4;
+
+    const ruleText = 'Все полоски: чем больше, тем лучше 🙂';
+    const ruleMax = helpX - (10 + L.pad) - 6;
+    const ruleSize = fitFontSize(ctx, ruleText, ruleMax, Math.min(L.labelH - 2, 9.5), 7, false);
+    ctx.font = `${ruleSize}px Arial`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    ctx.fillText('нажми на «Стресс» — расскажу, как его снизить', 10 + L.pad, L.panelTop + L.panelH - 5);
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fillText(ruleText, 10 + L.pad, L.panelTop + L.panelH - 8);
 
-    const rowH = L.labelH + L.barH + L.rowGap;
-    this.buttons.push({
-      x: 10 + L.pad - 2,
-      y: L.panelTop + L.pad + 2 * rowH - 2,
-      w: (W - 20 - L.pad * 2 - 12) / 2 + 4,
-      h: rowH,
-      action: 'help'
-    });
+    ctx.fillStyle = 'rgba(255,255,255,0.14)';
+    roundRect(ctx, helpX, helpY, helpW, helpH, 7);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.font = `bold ${Math.min(helpH - 4, 11)}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('❓', helpX + helpW / 2, helpY + helpH / 2 + 0.5);
+    ctx.textBaseline = 'alphabetic';
+    this.buttons.push({ x: helpX, y: helpY, w: helpW, h: helpH, action: 'help' });
   }
 
   // ---------- Кнопки действий ----------
@@ -1222,7 +1235,7 @@ class HomeScene {
         // действие честно об этом говорит, а не делает вид, что играет.
         AudioSys.musicBoost(8);
         if (AudioSys.isMusicOn()) {
-          this.setBubble('\ud83c\udfb5 Тихая музыка: стресс уходит, становится спокойнее');
+          this.setBubble('\ud83c\udfb5 Тихая музыка: спокойствие растёт, гоферу легче');
         } else {
           this.setBubble('\ud83c\udfb5 Музыка выключена в настройках — включить можно в меню \u2699\ufe0f');
         }

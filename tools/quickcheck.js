@@ -200,12 +200,76 @@ S.isSleeping = false;
 ok('Проснувшись, можно снова идти в музей', S.isLocationAvailable('museums') === true);
 S.resetProgress();
 
-/* ---------- Стресс ---------- */
+/* ---------- Спокойствие вместо стресса (v1.3.2) ---------- */
+// Замечание заказчика: «стресс — единственная полоска, которая работает
+// наоборот; детям кажется, что все идеальные показатели должны быть полными».
+// Теперь в интерфейсе «Спокойствие» = 100 − стресс, все шкалы одинаковые,
+// подсказки «нажми на стресс» нет, а справка открывается обычной кнопкой «❓».
 S.stats.stress = 80;
 S.relax(15);
-ok('Стресс снимается (сон/музыка/игры)', S.stats.stress === 65, 'стало ' + S.stats.stress);
-ok('Подсказка про стресс есть', S.stressHint().length > 0, S.stressHint());
-ok('Справка объясняет, как снизить стресс', sandbox.STAT_HELP.some(h => h.key === 'stress' && h.down.length >= 5));
+ok('Механика не изменилась: стресс по-прежнему снимается (сон/музыка/игры)',
+  S.stats.stress === 65, 'стало ' + S.stats.stress);
+ok('Ребёнку показывается обратная шкала: спокойствие = 100 − стресс',
+  S.calm() === 35 && S.statValue('calm') === 35 && S.statValue('hunger') === S.stats.hunger,
+  'стресс ' + S.stats.stress + ' → спокойствие ' + S.calm());
+
+const calmColor = (stress) => { S.stats.stress = stress; return S.getStatColor('calm'); };
+ok('Все шкалы одного типа: полная — зелёная, пустая — красная (перевёрнутых нет)',
+  calmColor(0) === '#4ade80' && calmColor(90) === '#ef4444' && S.getStatColor('energy') === S.getStatColor('energy'),
+  'спокойствие 100 → ' + calmColor(0) + ', спокойствие 10 → ' + calmColor(90));
+
+S.stats.stress = 65;
+ok('Подсказка «гофер нервничает» осталась и говорит словами, без названий шкал',
+  S.stressHint().length > 0, S.stressHint());
+ok('Справка объясняет спокойствие: и что это, и как поднять',
+  sandbox.STAT_HELP.some(h => h.key === 'calm' && h.up.length >= 5 && /БОЛЬШЕ/.test(h.what)),
+  'способов поднять: ' + ((sandbox.STAT_HELP.filter(h => h.key === 'calm')[0] || {}).up || []).length);
+ok('Из справки убраны шкала «Стресс» и правило «чем меньше, тем лучше»',
+  sandbox.STAT_HELP.every(h => h.key !== 'stress') &&
+  sandbox.STAT_HELP.every(h => !/МЕНЬШЕ, тем лучше/.test(h.what || '')));
+
+/* Что РЕАЛЬНО нарисовано в панели дома (поддельный контекст записывает надписи) */
+{
+  const texts = [];
+  const grad = { addColorStop() {} };
+  const rec = new Proxy({
+    canvas: { width: 390, height: 744 }, measureText: () => ({ width: 10 }),
+    createLinearGradient: () => grad, createRadialGradient: () => grad,
+    fillText: (t) => { texts.push(String(t)); }
+  }, { get(t, p) { return p in t ? t[p] : function () {}; }, set(t, p, v) { t[p] = v; return true; } });
+
+  const g2 = vm.runInContext('(function(){ var g = new Game(); g.init(); return g; })()', sandbox);
+  const home = g2.scenes.home;
+  home.init();
+  home.draw(rec);
+  const painted = texts.join(' | ');
+
+  ok('В панели дома больше нет шкалы «Стресс» — все полоски одинаковые',
+    painted.indexOf('Стресс') === -1 && painted.indexOf('Спокойствие') !== -1,
+    texts.filter(t => /Спокойствие|Стресс/.test(t)).join(' / '));
+  ok('Вместо «нажми на стресс» — правило одной строкой, без призывов нажимать',
+    painted.indexOf('чем больше, тем лучше') !== -1 && painted.toLowerCase().indexOf('нажми на «стресс»') === -1);
+
+  const helpBtn = (home.buttons || []).filter(b => b.action === 'help')[0];
+  ok('Кнопка справки — обычная кнопка «❓» в панели (её видно и легко попасть)',
+    !!helpBtn && helpBtn.w <= 40 && helpBtn.h <= 24,
+    helpBtn ? ('размер ' + Math.round(helpBtn.w) + '×' + Math.round(helpBtn.h)) : 'кнопки нет');
+  if (helpBtn) home.handleClick(helpBtn.x + helpBtn.w / 2, helpBtn.y + helpBtn.h / 2);
+  ok('Нажатие на «❓» открывает справку (раньше область стояла в чужой ячейке)',
+    home.sheet === 'help', 'открылось: ' + String(home.sheet));
+
+  texts.length = 0;
+  const statsScene = g2.scenes.stats;
+  statsScene.init();
+  statsScene.draw(rec);
+  const statsText = texts.join(' | ');
+  ok('В «Инфо» та же шкала «Спокойствие» (единообразие по всей игре)',
+    statsText.indexOf('Спокойствие') !== -1 && statsText.indexOf('Стресс') === -1);
+
+  const quietSrc = fs.readFileSync(path.join(WWW, 'game_quiet.js'), 'utf8');
+  ok('Тихая игра хвалит ребёнка «+4 спокойствия», а не «−4 стресса»',
+    quietSrc.indexOf('+4 спокойствия') !== -1 && quietSrc.indexOf('−4 стресса') === -1);
+}
 
 /* ---------- Коды друзей ---------- */
 S.resetProgress();
@@ -541,9 +605,11 @@ ok('Все тихие игры обрабатываются сценой (по i
 ok('Тихие игры дают награду и не тратят энергию',
   sandbox.QUIET_GAMES.every(g => g.reward >= 5 && g.reward <= 20));
 
-const panelKeys = ['happiness', 'hunger', 'energy', 'cleanliness', 'health', 'stress'];
+// Панель дома показывает «спокойствие» (v1.3.2), внутри это 100 − стресс:
+// справка обязана объяснять ровно те шкалы, которые ребёнок видит.
+const panelKeys = ['happiness', 'hunger', 'energy', 'cleanliness', 'health', 'calm'];
 const helpKeys = sandbox.STAT_HELP.map(h => h.key);
-ok('Справка объясняет все шкалы на панели дома',
+ok('Справка объясняет все шкалы на панели дома (и ничего лишнего)',
   panelKeys.every(k => helpKeys.indexOf(k) !== -1) && helpKeys.length === panelKeys.length,
   helpKeys.join(', '));
 ok('В справке есть что повышает и что понижает',

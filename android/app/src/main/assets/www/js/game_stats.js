@@ -116,7 +116,7 @@ class StatsScene {
       { key: 'intelligence', emoji: '🧠', name: 'Интеллект' },
       { key: 'workSkill', emoji: '💼', name: 'Рабочий навык' },
       { key: 'schoolSkill', emoji: '🎓', name: 'Учебный навык' },
-      { key: 'stress', emoji: '😰', name: 'Стресс' }
+      { key: 'calm', emoji: '😌', name: 'Спокойствие' }
     ];
 
     const startY = 180;
@@ -138,12 +138,13 @@ class StatsScene {
       ctx.fillStyle = '#fff';
       ctx.fillText(s.emoji + ' ' + s.name, bx + 8, y + 13);
 
-      drawProgressBar(ctx, bx + 4, y + 20, bw - 8, 10, System.stats[s.key], 100, 'rgba(255,255,255,0.15)', System.getStatColor(s.key));
+      const val = System.statValue(s.key);
+      drawProgressBar(ctx, bx + 4, y + 20, bw - 8, 10, val, 100, 'rgba(255,255,255,0.15)', System.getStatColor(s.key));
 
       ctx.font = 'bold 10px Arial';
       ctx.textAlign = 'right';
       ctx.fillStyle = '#fff';
-      ctx.fillText(Math.floor(System.stats[s.key]) + '%', bx + bw - 8, y + 27);
+      ctx.fillText(Math.floor(val) + '%', bx + bw - 8, y + 27);
     });
 
     // Info
@@ -355,7 +356,7 @@ class StatsScene {
     ctx.fillText('📖 Собрано ' + totalSeen + ' / ' + totalAll + ' (' + pctAll + '%)', W / 2, H - 40);
   }
 
-  // ---------- СПРАВКА: «как сделать стресс нормальным» и остальные шкалы ----------
+  // ---------- СПРАВКА: «почему полоска не зелёная» и остальные шкалы ----------
   drawHelpTab(ctx, W, H) {
     const list = (typeof STAT_HELP !== 'undefined') ? STAT_HELP : [];
     let y = 104;

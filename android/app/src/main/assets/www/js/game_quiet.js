@@ -106,7 +106,7 @@ class QuietScene {
     AudioSys.play('click');
   }
 
-  // Награда за спокойную игру: монеты, опыт, меньше стресса, без затрат энергии
+  // Награда за спокойную игру: монеты, опыт, больше спокойствия, без затрат энергии
   reward(gameId, title) {
     const meta = (typeof QUIET_GAMES !== 'undefined') ? QUIET_GAMES.find(g => g.id === gameId) : null;
     const coins = meta ? meta.reward : 8;
@@ -116,7 +116,7 @@ class QuietScene {
     System.relax(4);
     System.saveGame();
     AudioSys.play('success');
-    this.result = title + '  🪙+' + coins + '  😌−4 стресса';
+    this.result = title + '  🪙+' + coins + '  😌+4 спокойствия';
     this.resultTimer = 4.5;
     System.showAchievement('✨', title);
   }

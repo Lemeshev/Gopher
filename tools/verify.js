@@ -610,12 +610,12 @@ function reviewerV12Static() {
   check('В друзьях есть кнопка копирования и поле вставки',
     friends.indexOf('ClipBridge') !== -1 && friends.indexOf('doAddFriend') !== -1);
 
-  // --- 2. Стресс: объяснение в игре ---
+  // --- 2. Шкалы: объяснение в игре (v1.3.2 — «спокойствие» вместо стресса) ---
   check('Есть справка по шкалам (что повышает, что понижает)',
-    content.indexOf('STAT_HELP') !== -1 && content.indexOf("'stress'") !== -1 || content.indexOf('key: \'stress\'') !== -1);
-  check('Справка про стресс перечисляет способы снижения',
-    /stress[\s\S]{0,700}сон/.test(content) && /stress[\s\S]{0,900}музыка/.test(content));
-  check('В доме есть кнопка «?» и музыка (снижает стресс)',
+    content.indexOf('STAT_HELP') !== -1 && content.indexOf("key: 'calm'") !== -1);
+  check('Справка про спокойствие перечисляет способы поднять',
+    /key: 'calm'[\s\S]{0,600}сон/.test(content) && /key: 'calm'[\s\S]{0,900}музыка/.test(content));
+  check('В доме есть кнопка «❓» и музыка (поднимает спокойствие)',
     home.indexOf("action: 'help'") !== -1 && home.indexOf("action: 'music'") !== -1);
   check('В статистике есть вкладка справки',
     stats.indexOf("id: 'help'") !== -1 && stats.indexOf('drawHelpTab') !== -1);
@@ -1819,6 +1819,130 @@ function reviewerAudio(rt) {
         'System.isSleeping = false; System.resetProgress(); System.isSleeping = false;');
 }
 
+/* ---------- БЛОК 9: ШКАЛЫ ПОНЯТНЫ РЕБЁНКУ (v1.3.2) ----------
+   Замечание заказчика: «стресс — единственная полоска, которая работает
+   наоборот; детям кажется, что все идеальные показатели должны быть полными,
+   а стресс из всех выделяется» + подсказка «нажми на стресс» ничего не делала
+   (кнопка справки стояла в чужой ячейке панели).
+   Проверяем: в интерфейсе больше нет перевёрнутых шкал (есть «Спокойствие» =
+   100 − стресс), правило написано словами, справка открывается обычной кнопкой
+   «❓», а механика и старые сохранения не тронуты. */
+function reviewerCalm(rt) {
+  console.log('\n\uD83D\uDE0C БЛОК 9/9 — Шкалы понятны ребёнку: спокойствие вместо стресса (v1.3.2)');
+  const read = f => fs.readFileSync(path.join(WWW, 'js', f), 'utf8');
+  const system = read('system.js');
+  const home = read('game_home.js');
+  const stats = read('game_stats.js');
+  const content = read('game_content.js');
+  const gameSrc = read('game.js');
+  const quiet = read('game_quiet.js');
+  const renderCheck = fs.readFileSync(path.join(ROOT, 'tools', 'render-check.js'), 'utf8');
+
+  // --- 1. Статика ---
+  check('Есть одна шкала для показа: statValue, «спокойствие» считается из стресса',
+    /calm\(\) \{ return 100 - this\.stats\.stress; \}/.test(system) &&
+    /statValue\(key\) \{/.test(system) && system.indexOf("if (key === 'calm') return this.calm();") !== -1);
+  check('Цвет шкал больше не перевёрнут: у стресса нет отдельной ветки в getStatColor',
+    /getStatColor\(stat\) \{[\s\S]{0,300}const val = this\.statValue\(stat\)/.test(system) &&
+    system.indexOf("if (stat === 'stress')") === -1);
+  check('В доме и в «Инфо» показывается «Спокойствие», а «Стресс» из интерфейса убран',
+    home.indexOf("key: 'calm'") !== -1 && stats.indexOf("key: 'calm'") !== -1 &&
+    home.indexOf("key: 'stress'") === -1 && stats.indexOf("key: 'stress'") === -1 &&
+    content.indexOf("key: 'stress'") === -1);
+  check('Мёртвая подсказка «нажми на „Стресс“» убрана, вместо неё правило словами',
+    home.indexOf('нажми на «Стресс»') === -1 &&
+    home.indexOf('чем больше, тем лучше') !== -1 &&
+    home.indexOf("action: 'help'") !== -1);
+  check('Справка объясняет спокойствие как «чем больше, тем лучше» и как его поднять',
+    /key: 'calm'[\s\S]{0,240}чем БОЛЬШЕ, тем лучше/.test(content) &&
+    /key: 'calm'[\s\S]{0,600}сон \(\+15/.test(content));
+  check('«Как играть» и итоги тихих игр говорят о спокойствии, а не о стрессе',
+    gameSrc.indexOf('Все полоски у гофера одинаковые') !== -1 &&
+    quiet.indexOf('+4 спокойствия') !== -1);
+  check('Механика не переписана: внутри остался стресс (старые сохранения целы)',
+    system.indexOf('stress: 20') !== -1 && system.indexOf('relax(amount)') !== -1 &&
+    system.indexOf('this.stats.stress') !== -1 && system.indexOf('addStress(amount)') !== -1);
+  check('В стенде рендера есть кадры крайних состояний шкал (видно глазами)',
+    (renderCheck.match(/stats=calm/g) || []).length >= 2,
+    'кадров: ' + (renderCheck.match(/stats=calm/g) || []).length);
+  check('Кадры гарантированно сохраняются: «:» в имени файла заменяется, файл проверяется на диске',
+    renderCheck.indexOf(".replace(/[@#:]/g, '_')") !== -1 &&
+    renderCheck.indexOf('кадр не записан на диск') !== -1);
+
+  // --- 2. Песочница: значения, цвета, надписи и клик по справке ---
+  if (!rt) { check('Шкалы проверены в песочнице', false, 'игра не запустилась'); return; }
+  const vmRun = c => { try { return vm.runInContext(c, rt.sandbox); } catch (e) { return 'ОШИБКА: ' + e.message; }; };
+  const resRaw = vmRun(`(function(){
+    const S = System;
+    const back = S.stats.stress;
+    S.stats.stress = 20;
+    const calmLow = { calm: S.calm(), shown: S.statValue('calm'), internal: S.stats.stress };
+    // Цвета: полная шкала зелёная, пустая красная — у ВСЕХ шкал одинаково
+    S.stats.stress = 0;  const calmFull = S.getStatColor('calm');
+    S.stats.stress = 90; const calmEmpty = S.getStatColor('calm');
+    S.stats.hunger = 90; const hungerFull = S.getStatColor('hunger');
+    S.stats.hunger = 5;  const hungerEmpty = S.getStatColor('hunger');
+    S.stats.stress = 80;
+    const hint = S.stressHint();
+    // Что РЕАЛЬНО нарисовано на панели дома и в «Инфо»
+    const texts = [];
+    const grad = { addColorStop() {} };
+    const rec = new Proxy({ canvas: { width: 390, height: 744 }, measureText: () => ({ width: 10 }),
+      createLinearGradient: () => grad, createRadialGradient: () => grad,
+      fillText: (t) => { texts.push(String(t)); } },
+      { get(t, p) { return p in t ? t[p] : function () {}; }, set(t, p, v) { t[p] = v; return true; } });
+    const g = new Game();
+    g.init();
+    const house = g.scenes.home;
+    house.init();
+    house.draw(rec);
+    const painted = texts.join(' | ');
+    const paintedCalm = texts.filter(t => /Спокойствие|Стресс/.test(t));
+    const helpBtn = (house.buttons || []).filter(b => b.action === 'help')[0] || null;
+    if (helpBtn) house.handleClick(helpBtn.x + helpBtn.w / 2, helpBtn.y + helpBtn.h / 2);
+    const sheetOpened = house.sheet;
+    texts.length = 0;
+    const st = g.scenes.stats;
+    st.init();
+    st.draw(rec);
+    const info = texts.join(' | ');
+    S.stats.stress = back;
+    return { calmLow: calmLow, calmFull: calmFull, calmEmpty: calmEmpty,
+             hungerFull: hungerFull, hungerEmpty: hungerEmpty, hint: hint,
+             painted: painted, paintedCalm: paintedCalm,
+             helpBtn: helpBtn ? { w: Math.round(helpBtn.w), h: Math.round(helpBtn.h) } : null,
+             sheetOpened: sheetOpened, info: info };
+  })()`);
+  const res = (typeof resRaw === 'string') ? { error: resRaw } : resRaw;
+  const why = res.error || 'нет данных';
+
+  check('Спокойствие на экране — это 100 − стресс (внутри ничего не поменялось)',
+    !!res.calmLow && res.calmLow.calm === 80 && res.calmLow.shown === 80 && res.calmLow.internal === 20,
+    res.calmLow ? ('стресс 20 → показано ' + res.calmLow.shown + '%') : why);
+  check('Все шкалы одного типа: полная зелёная, пустая красная — и у спокойствия тоже',
+    res.calmFull === '#4ade80' && res.calmEmpty === '#ef4444' &&
+    res.hungerFull === res.calmFull && res.hungerEmpty === res.calmEmpty,
+    res.calmFull ? ('спокойствие 100 → ' + res.calmFull + ', 10 → ' + res.calmEmpty +
+      '; сытость 90 → ' + res.hungerFull + ', 5 → ' + res.hungerEmpty) : why);
+  check('Низкое спокойствие объясняется словами («нервничает»), а не названием шкалы',
+    typeof res.hint === 'string' && res.hint.length > 10 && res.hint.indexOf('Спокойствие') === -1 &&
+    /нервничает/.test(res.hint), res.hint || why);
+  check('На панели дома нарисовано «Спокойствие» и НЕТ слова «Стресс»',
+    typeof res.painted === 'string' && res.painted.indexOf('Спокойствие') !== -1 &&
+    res.painted.indexOf('Стресс') === -1,
+    Array.isArray(res.paintedCalm) ? res.paintedCalm.join(' / ') : why);
+  check('Кнопка справки «❓» в панели открывает справку (раньше попасть было нельзя)',
+    !!res.helpBtn && res.sheetOpened === 'help',
+    res.helpBtn ? ('кнопка ' + res.helpBtn.w + '×' + res.helpBtn.h + ' → открылось: ' + res.sheetOpened) : why);
+  check('В «Инфо» та же шкала «Спокойствие» (единообразие по всей игре)',
+    typeof res.info === 'string' && res.info.indexOf('Спокойствие') !== -1 &&
+    res.info.indexOf('Стресс') === -1,
+    typeof res.info === 'string' ? 'надписи совпадают с панелью дома' : why);
+
+  // Приборку за собой: песочница должна остаться в нормальном состоянии
+  vmRun('System.stats.stress = 20; System.isSleeping = false;');
+}
+
 console.log('\u2554\u2550\u2550\u2550\u2550\u2550\u2550 Gopher Life \u2014 приёмка качества \u2550\u2550\u2550\u2550\u2550\u2550\u2557');
 reviewerStatic();
 reviewerV12Static();
@@ -1828,13 +1952,14 @@ reviewerV12Runtime(rt);
 reviewerAchievements(rt);
 reviewerOutfits(rt);
 reviewerAudio(rt);
+reviewerCalm(rt);
 reviewerApk();
 reviewerRender();
 
 console.log('\n' + '\u2500'.repeat(56));
 console.log('ИТОГО: пройдено ' + passed + '  |  провалено ' + failed);
 if (failed === 0) {
-  console.log('\u2705 ВСЕ 5 РЕВЬЮЕРОВ + БЛОКИ ДОСТИЖЕНИЙ, НАРЯДОВ И МУЗЫКИ ПРИНЯЛИ РЕЗУЛЬТАТ БЕЗ ЗАМЕЧАНИЙ');
+  console.log('\u2705 ВСЕ 5 РЕВЬЮЕРОВ + БЛОКИ ДОСТИЖЕНИЙ, НАРЯДОВ, МУЗЫКИ И ШКАЛ ПРИНЯЛИ РЕЗУЛЬТАТ БЕЗ ЗАМЕЧАНИЙ');
   process.exit(0);
 } else {
   console.log('\u274C ЕСТЬ ЗАМЕЧАНИЯ \u2014 результат НЕ принимается');

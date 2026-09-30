@@ -205,6 +205,23 @@ console.error = function () {
       System.applyLookTo(g.gopher);
       initArg = null;      // дальше — обычное поведение сцены
     }
+    // Аргумент «stats=…»: выставить шкалы для кадра (#home~stats=calm-15,hunger-25).
+    // Нужен, чтобы глазами увидеть КРАЙНИЕ состояния: все полоски устроены
+    // одинаково («чем больше, тем лучше»), поэтому и выглядят одинаково.
+    // Значение отделяется «-» (двоеточие нельзя: оно ломает имя файла кадра в
+    // macOS — файл молча не сохраняется). Для «calm» значение задаётся как
+    // спокойствие (внутри это 100 − стресс).
+    if (initArg && initArg.indexOf('stats=') === 0) {
+      initArg.slice(6).split(',').forEach(function (pair) {
+        var parts = pair.split(/[-:]/);
+        var key = (parts[0] || '').trim(), val = parseFloat(parts[1]);
+        if (!key || isNaN(val)) return;
+        val = Math.max(0, Math.min(100, val));
+        if (key === 'calm') System.stats.stress = 100 - val;
+        else if (System.stats.hasOwnProperty(key)) System.stats[key] = val;
+      });
+      initArg = null;
+    }
     if (parts[0]) g.transitionTo(parts[0], initArg);
     var scene = g.scenes[g.currentScene];
     for (var i = 0; i < 60; i++) scene.update(16);

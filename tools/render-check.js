@@ -4,7 +4,12 @@
 
    Запуск: node tools/render-check.js [--shots=dir] [--json]
    Зачем: тесты на заглушке canvas проверяют только логику — «чёрный экран»
-   они не видят. Этот ревьюер смотрит на реальные пиксели. */
+   они не видят. Этот ревьюер смотрит на реальные пиксели.
+
+   Про кадры (--shots=dir): имя файла — это хэш сцены, в котором «@», «#» и «:»
+   заменены на «_»; так имя остаётся валидным и переносимым. После съёмки кадр
+   ОБЯЗАН оказаться на диске (проверяется размер файла) — иначе это ошибка
+   проверки: ровно так кадры с «:» в имени однажды молча пропали (само-ревью v1.3.2). */
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
@@ -73,6 +78,13 @@ const SCENES = [
   { hash: 'friends@visit_0',    minColors: 20, minNonBg: 3 },
   { hash: 'menu@profiles',      minColors: 20, minNonBg: 3 },
   { hash: 'menu@settings',      minColors: 20, minNonBg: 3 },
+  // Шкалы в крайних состояниях (v1.3.2): все полоски устроены одинаково
+  // («чем больше, тем лучше»), поэтому и выглядят одинаково.
+  // Внимание: значения разделяем «-», а не «:» — двоеточие в имени файла кадра
+  // в macOS ломает сохранение (файл молча не появлялся, нашло само-ревью).
+  { hash: 'home~stats=calm-15,hunger-20,cleanliness-25', minColors: 25, minNonBg: 3 },
+  { hash: 'home~stats=calm-100,hunger-100,energy-100,health-100,cleanliness-100,happiness-100',
+    minColors: 25, minNonBg: 3 },
   // Настройки с выключенной музыкой (v1.3.1): видно, что галочки работают
   { hash: 'menu@settings+toggle_music', minColors: 20, minNonBg: 3 },
   { hash: 'menu@settings+toggle_music+toggle_sound', minColors: 20, minNonBg: 3 },
@@ -151,7 +163,10 @@ function chrome(hash, port, shotPath, timeoutMs) {
   let failed = 0;
 
   async function runOne(scene) {
-    const shot = shotDir ? path.join(shotDir, scene.hash.replace(/[@#]/g, '_') + '.png') : null;
+    // В имени файла кадра не должно быть «:» (macOS не может записать такой файл,
+    // и кадр молча пропадал — нашло само-ревью v1.3.2). Прочие служебные знаки
+    // тоже заменяем, чтобы имя всегда было валидным.
+    const shot = shotDir ? path.join(shotDir, scene.hash.replace(/[@#:]/g, '_') + '.png') : null;
 
     // Chrome иногда не успевает ответить (машина занята) — это ложный провал,
     // поэтому делаем до 3 попыток, а не падаем сразу.
@@ -172,6 +187,12 @@ function chrome(hash, port, shotPath, timeoutMs) {
       if (rep.errors && rep.errors.length) problems.push('ошибки JS: ' + rep.errors.join(' | '));
       if (rep.distinctColors < scene.minColors) problems.push('слишком мало цветов: ' + rep.distinctColors + ' < ' + scene.minColors);
       if (rep.nonBackgroundPct < scene.minNonBg) problems.push('кадр почти пустой: нефон ' + rep.nonBackgroundPct + '% < ' + scene.minNonBg + '%');
+    }
+    // Кадр обязан реально лечь на диск: раньше имя с «:» молча не сохранялось,
+    // а проверка этого не замечала (казалось, что кадры есть).
+    if (shot) {
+      const size = fs.existsSync(shot) ? fs.statSync(shot).size : 0;
+      if (size < 1000) problems.push('кадр не записан на диск: ' + path.basename(shot));
     }
 
     return { hash: scene.hash, report: rep, problems, shot };
