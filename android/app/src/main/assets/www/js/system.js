@@ -126,6 +126,7 @@ const System = {
   saveFailed: false,        // запись не удалась (кончилось место)
   restoredFromBackup: false, // дом подняли из резервной копии
   saveCopies: 0,            // сколько раз резервная копия выручала (для отладки)
+  lastLoadError: null,      // текст последней ошибки загрузки сохранения
   lastSaveTime: Date.now(),
 
   // ================= ШКАЛЫ ДЛЯ РЕБЁНКА (v1.3.2) =================
@@ -732,6 +733,7 @@ const System = {
     } catch (e) { data = null; }
     if (!data) return false;
     if (typeof data !== 'object') return false;
+    this.restoredFromBackup = fromBackup;   // флаг всегда про последнюю загрузку
     try {
       this.stats = { ...this.stats, ...data.stats };
       this.coins = data.coins || 100;
