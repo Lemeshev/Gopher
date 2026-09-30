@@ -25,6 +25,12 @@ class MenuScene {
     this.aboutMode = false;
     this.profilesMode = false;
     this.charMode = false;
+    // Герой в меню — в наряде и со своим окрасом из сохранения: иначе после
+    // перезапуска ребёнок видел «раздетого» питомца и думал, что покупка пропала
+    if (this.hasSave && System.lookFromSave && System.lookFromSave()) {
+      if (this.game.ensureCharacter) this.game.ensureCharacter();
+      System.applyLookTo(this.game.gopher);
+    }
     if (this.game.gopher) this.game.gopher.setExpression('excited', 999999);
   }
 
@@ -274,6 +280,26 @@ class MenuScene {
       bgColor: '#6BCB77', fgColor: '#fff', fontSize: 16, radius: 12
     });
     this.buttons.push({ x: W * 0.2, y: H - 62, w: W * 0.6, h: 44, text: 'close_chars' });
+
+    // Голос героя (v1.3): у каждого свой тембр — можно послушать до выбора
+    createButton(ctx, W * 0.2, H - 116, W * 0.6, 44, '🔊 Послушать голос', {
+      bgColor: 'rgba(255,255,255,0.16)', fgColor: '#fff', fontSize: 15, radius: 12
+    });
+    this.buttons.push({ x: W * 0.2, y: H - 116, w: W * 0.6, h: 44, text: 'voice_demo' });
+
+    // Что надето на герое — видно прямо здесь (наряды покупаются в магазине)
+    const worn = (typeof System !== 'undefined' && System.lookOutfit) ? System.lookOutfit() : {};
+    const wornNames = (typeof OUTFIT_SLOTS !== 'undefined')
+      ? OUTFIT_SLOTS.filter(s => worn[s]).map(s => worn[s])
+      : [];
+    const wornTxt = wornNames.length
+      ? ('Наряды: ' + wornNames.join(' · '))
+      : 'Наряды покупаются в магазине, раздел «Одежда»';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,255,255,0.62)';
+    const wornSize = fitFontSize(ctx, wornTxt, W * 0.9, Math.min(W * 0.028, 12), 8, false);
+    ctx.font = `${wornSize}px Arial`;
+    ctx.fillText(wornTxt, W / 2, H - 130);
   }
 
   // ---------- ПАНЕЛЬ НАСТРОЕК ----------
@@ -536,6 +562,11 @@ class MenuScene {
           this.game.ensureCharacter();
           System.applyLookTo(this.game.gopher);
           System.showAchievement('🧸', 'Герой: ' + System.characterName());
+          AudioSys.voice(id, 'hello');            // герой «здоровается» своим голосом
+          return true;
+        }
+        if (t === 'voice_demo') {
+          AudioSys.voice(System.look.char, 'hello');
           return true;
         }
         if (t === 'close_chars' || t.indexOf('Готово') !== -1 || t.indexOf('Назад') !== -1) { this.charMode = false; return true; }

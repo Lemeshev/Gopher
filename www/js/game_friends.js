@@ -5,6 +5,13 @@
 //   3) На 100% дружбы — статус «Лучший друг» и бонусы
 // Плюс есть обмен кодами для реальных друзей по переписке.
 
+// Уровень друга: в коротком коде он занимает 3 бита, поэтому у «взрослого»
+// героя показываем честное «8+», а не выдуманное число (v1.3).
+function friendLevelText(f) {
+  const lv = (f && f.level) || 1;
+  return (f && f.levelCapped) ? lv + '+' : String(lv);
+}
+
 const NPC_NAMES = [
   'Гоша', 'Грызя', 'Нора', 'Пух', 'Шустрик', 'Бусинка', 'Кекс', 'Соня',
   'Тимка', 'Лаки', 'Семечка', 'Барсик', 'Нюша', 'Тор', 'Пиксель', 'Мята',
@@ -305,7 +312,7 @@ class FriendsScene {
 
       ctx.fillStyle = '#9aa';
       ctx.font = `${Math.min(W * 0.028, 11)}px Arial`;
-      const traitTxt = f.trait + ' · Ур.' + (f.level || 1) + ' · 🏠' + ((f.furniture || f.decor || []).length);
+      const traitTxt = f.trait + ' · Ур.' + friendLevelText(f) + ' · 🏠' + ((f.furniture || f.decor || []).length);
       const traitSize = fitFontSize(ctx, traitTxt, btnW - 110, Math.min(W * 0.028, 11), 7.5, false);
       ctx.font = `${traitSize}px Arial`;
       ctx.fillText(traitTxt, btnX + 62, y + 36);
@@ -370,7 +377,7 @@ class FriendsScene {
 
     ctx.fillStyle = '#9aa';
     ctx.font = `${Math.min(W * 0.033, 14)}px Arial`;
-    ctx.fillText('Уровень ' + f.level + ' · Дружба 10%', W / 2, H * 0.55);
+    ctx.fillText('Уровень ' + friendLevelText(f) + ' · Дружба 10%', W / 2, H * 0.55);
 
     if (f.decor && f.decor.length) {
       ctx.fillStyle = '#b9c3ff';
@@ -436,7 +443,12 @@ class FriendsScene {
       if (host) {
         host.hat = f.hat || null;
         host.glasses = f.glasses || null;
-        host.bowtie = !!f.bowtie;
+        // Наряды друга (v1.3): шея и спина. Старые друзья хранят только bowtie.
+        const fNeck = f.neck || (f.bowtie ? 'bowtie' : null);
+        host.bowtie = fNeck === 'bowtie';
+        host.scarf = fNeck === 'scarf';
+        host.backpack = f.back === 'backpack';
+        host.cape = f.back === 'cape';
         host.bodyColor = (f.fur && f.fur !== 'classic' && typeof findFur === 'function') ? findFur(f.fur).color : null;
         host.outfit = null;
         host.heldEmoji = null;
@@ -525,7 +537,7 @@ class FriendsScene {
 
     ctx.fillStyle = '#9be3b0';
     ctx.font = `${Math.min(W * 0.024, 10.5)}px Arial`;
-    ctx.fillText('в нём: обои, пол, окрас, персонаж и 6 предметов', W / 2, py + 104);
+    ctx.fillText('в нём: обои, пол, окрас, персонаж, наряды и 6 предметов', W / 2, py + 104);
 
     ctx.fillStyle = '#aaa';
     ctx.font = `${Math.min(W * 0.024, 10.5)}px Arial`;

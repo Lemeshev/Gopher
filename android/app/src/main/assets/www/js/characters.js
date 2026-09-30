@@ -13,35 +13,41 @@ const CHARACTERS = [
     desc: 'Классический Go-маскот',
     body: '#7FDBE8', limb: '#F7D8A8', nose: '#3A2618',
     ears: { style: 'gopher' }, tail: 'none', muzzle: true, teeth: 'incisors',
-    shape: 'capsule'
+    shape: 'capsule',
+    // Голос: у каждого героя свой тембр (AudioSys.voice)
+    voice: { base: 660, type: 'sine', steps: [1, 1.5], dur: 0.12, bend: 1.10 }
   },
   {
     id: 'bear', name: 'Мишка', emoji: '🐻', toy: 'мишка',
     desc: 'Мягкий и уютный',
     body: '#C9A06A', limb: '#EFDCC0', nose: '#4A2E1E',
     ears: { style: 'round', r: 0.105, spread: 0.255, dy: -0.345, inner: '#EFDCC0' },
-    tail: 'puff', belly: '#E7D3B4', muzzle: true, teeth: 'none', shape: 'oval'
+    tail: 'puff', belly: '#E7D3B4', muzzle: true, teeth: 'none', shape: 'oval',
+    voice: { base: 240, type: 'triangle', steps: [1, 1.26], dur: 0.20, bend: 0.97 }
   },
   {
     id: 'bunny', name: 'Зайка', emoji: '🐰', toy: 'зайка',
     desc: 'Прыгает выше всех',
     body: '#EFE6E0', limb: '#FFFBF6', nose: '#F095A5',
     ears: { style: 'long', w: 0.082, h: 0.30, spread: 0.135, dy: -0.415, inner: '#FADCE2' },
-    tail: 'puff', belly: '#FFFBF6', muzzle: true, teeth: 'incisors', shape: 'oval'
+    tail: 'puff', belly: '#FFFBF6', muzzle: true, teeth: 'incisors', shape: 'oval',
+    voice: { base: 820, type: 'sine', steps: [1, 1.33, 1.5], dur: 0.10, bend: 1.15 }
   },
   {
     id: 'cat', name: 'Котёнок', emoji: '🐱', toy: 'котёнок',
     desc: 'Мурчит и играет',
     body: '#F0B27A', limb: '#FDF2E3', nose: '#D9736F',
     ears: { style: 'pointy', w: 0.115, h: 0.145, spread: 0.175, dy: -0.375, inner: '#FAD9C6' },
-    tail: 'thin', belly: '#FDF2E3', muzzle: true, teeth: 'fangs', whiskers: true, shape: 'oval'
+    tail: 'thin', belly: '#FDF2E3', muzzle: true, teeth: 'fangs', whiskers: true, shape: 'oval',
+    voice: { base: 540, type: 'triangle', steps: [1, 1.18], dur: 0.30, bend: 1.45 }
   },
   {
     id: 'robot', name: 'Робот', emoji: '🤖', toy: 'робот',
     desc: 'Пикает и мигает огоньками',
     body: '#B8C6D9', limb: '#DCE6F2', nose: '#33475C',
     ears: { style: 'antenna', spread: 0.16, dy: -0.40, ball: '#FF6B6B' },
-    tail: 'none', muzzle: false, teeth: 'none', shape: 'capsule', visor: true, antenna: true
+    tail: 'none', muzzle: false, teeth: 'none', shape: 'capsule', visor: true, antenna: true,
+    voice: { base: 320, type: 'square', steps: [1, 1.5, 1.5], dur: 0.09, bend: 1.00 }
   },
   {
     // Милка — плюшевая игрушка заказчика: белая, с длинными ушами и зелёной
@@ -55,7 +61,10 @@ const CHARACTERS = [
     eyeStyle: 'oval', eyeColor: '#2E8B57', cheeks: '#F7B7C4',
     mouth: '#E8637A', noseScale: 0.55, tuft: true,
     wings: { spread: 0.455, dy: 0.055, rx: 0.138, ry: 0.082, tilt: 0.30, pad: '#2FA84F' },
-    pads: '#F58CA0'
+    pads: '#F58CA0',
+    voice: { base: 700, type: 'sine', steps: [1, 1.25, 1.5], dur: 0.16, bend: 1.05 },
+    // У Милки длинные уши — шапка садится чуть ниже и уже, иначе спорит с ушами
+    hat: { shift: 0.018, scale: 0.92 }
   }
 ];
 
@@ -101,6 +110,7 @@ class ToyCharacter extends Gopher {
 
     this.drawTail(ctx, s, C, lw);
     this.drawWings(ctx, s, C, lw);      // крылышки (Милка) — за телом
+    this.drawBackItems(ctx, s, C, lw);  // рюкзак и плащ — тоже за телом
     this.drawEars(ctx, s, C, lw);
     this.drawTuft(ctx, s, C, lw);       // хохолок между ушами
     this.drawFeet(ctx, s, C, lw);

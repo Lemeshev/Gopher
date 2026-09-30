@@ -1139,6 +1139,41 @@ window.FURS = FURS;
 window.findFur = findFur;
 window.randomFurId = randomFurId;
 
+// ============ НАРЯДЫ ДЛЯ ГЕРОЕВ (v1.3) ============
+// Заказчик: «Милке нужны наряды и звуки, как и всем другим героям».
+// Наряд — это слот и значение, а не отдельная картинка: слот говорит, КУДА
+// рисовать (hat — на макушку, glasses — на глаза, neck — на шею, back — за
+// спину), а значение выбирает форму. Поэтому один и тот же наряд надевается
+// на любого героя — гофера, мишку, зайку, котёнка, робота и Милку.
+// Каталог один на всех: магазин продаёт ровно то, что умеет нарисовать
+// (OUTFITS читают магазин, код друга и проверки), «мёртвых» товаров нет.
+const OUTFITS = [
+  { slot: 'hat',     value: 'chef',      emoji: '👨‍🍳', name: 'Шеф-шапка',       desc: 'Поварской колпак',        cost: 40 },
+  { slot: 'hat',     value: 'scientist', emoji: '🧑‍🔬', name: 'Шапочка учёного',  desc: 'Умный вид',               cost: 35 },
+  { slot: 'hat',     value: 'crown',     emoji: '👑',   name: 'Корона',            desc: '+20 счастья надену!',     cost: 100, happiness: 20 },
+  { slot: 'hat',     value: 'cap',       emoji: '🧢',   name: 'Кепка',             desc: 'Для прогулок',            cost: 30 },
+  { slot: 'hat',     value: 'bow',       emoji: '🎀',   name: 'Бантик на макушку', desc: 'Нарядный бант',           cost: 25 },
+  { slot: 'glasses', value: 'nerd',      emoji: '🤓',   name: 'Очки учёного',      desc: 'Для чтения',              cost: 35 },
+  { slot: 'glasses', value: 'cool',      emoji: '😎',   name: 'Крутые очки',       desc: 'Стильные, тёмные',        cost: 45 },
+  { slot: 'neck',    value: 'bowtie',    emoji: '🤵',   name: 'Бабочка',           desc: 'Как на праздник',         cost: 30 },
+  { slot: 'neck',    value: 'scarf',     emoji: '🧣',   name: 'Шарф',              desc: 'Тёплый, полосатый',       cost: 35 },
+  { slot: 'back',    value: 'backpack',  emoji: '🎒',   name: 'Рюкзачок',          desc: 'Для походов по карте',    cost: 50 },
+  { slot: 'back',    value: 'cape',      emoji: '🦸',   name: 'Плащ героя',        desc: 'Летает, как ветер',       cost: 90 }
+];
+const OUTFIT_SLOTS = ['hat', 'glasses', 'neck', 'back'];
+function outfitsFor(slot) { return OUTFITS.filter(o => o.slot === slot); }
+function findOutfit(slot, value) { return OUTFITS.find(o => o.slot === slot && o.value === value) || null; }
+function outfitById(id) {
+  const parts = String(id || '').split(':');            // 'hat:cap' → слот и значение
+  return findOutfit(parts[0], parts[1]);
+}
+
+window.OUTFITS = OUTFITS;
+window.OUTFIT_SLOTS = OUTFIT_SLOTS;
+window.outfitsFor = outfitsFor;
+window.findOutfit = findOutfit;
+window.outfitById = outfitById;
+
 // ============ ВЫБОРКА КОНТЕНТА ============
 // Случайная подборка без повторов, с приоритетом на непросмотренные.
 function shuffleArray(arr) {

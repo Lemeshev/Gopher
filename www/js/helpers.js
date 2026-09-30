@@ -114,7 +114,7 @@ function wrapLines(ctx, text, maxW, maxLines) {
 }
 
 // ============ ВЕРСИЯ И ВНЕШНИЕ ССЫЛКИ ============
-const GAME_VERSION = '1.2.3';
+const GAME_VERSION = '1.3.0';
 
 // ============ БУФЕР ОБМЕНА И ВВОД ТЕКСТА ============
 // Проблема: в canvas-игре нельзя выделить текст, а значит нельзя скопировать
@@ -176,7 +176,22 @@ const ClipBridge = {
 
     if (copy) copy.onclick = () => {
       if (this.mode === 'paste') {
-        this.readFromClipboard((ok) => this.notify(ok ? '📥 Вставили из буфера' : 'Нажми на поле и удерживай → «Вставить»'));
+        this.readFromClipboard((ok) => {
+          if (ok) { this.notify('📥 Вставили из буфера'); return; }
+          // В WebView из file:// системный буфер прочитать нельзя — раньше кнопка
+          // молча ничего не делала. Теперь объясняем путь через меню Android и
+          // сразу ставим курсор в поле кода: остаётся удержать палец → «Вставить».
+          if (this.hintEl()) {
+            this.hintEl().textContent = 'Буфер недоступен приложению. Нажми на поле кода и удерживай палец — появится меню Android, выбери «Вставить». Или набери 16 знаков руками.';
+          }
+          const f2v = this.field2();
+          const visible2 = f2v && f2v.style && f2v.style.display !== 'none';
+          const target = visible2 ? f2v : this.field();
+          if (target && target.focus) {
+            try { target.focus(); if (target.select) target.select(); } catch (e) {}
+          }
+          this.notify('Удерживай палец в поле кода — меню Android → «Вставить»');
+        });
       } else {
         this.copy(this.plainCode(), (ok) => this.notify(ok ? '📋 Код скопирован!' : 'Выдели код в поле и скопируй вручную'));
       }

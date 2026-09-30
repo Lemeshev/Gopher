@@ -47,6 +47,16 @@ const SCENES = [
   { hash: 'home@kitchen',       minColors: 25, minNonBg: 3 },
   { hash: 'home@bathroom',      minColors: 25, minNonBg: 3 },
   { hash: 'home@help',          minColors: 20, minNonBg: 3 },
+  // Наряды на всех героях (v1.3): видно, что кепка/бантик/шарф/рюкзак/плащ
+  // садятся и на гофера, и на мишку, зайку, котёнка, робота и Милку.
+  { hash: 'home~look=char:milka,hat:cap,neck:scarf,back:backpack', minColors: 25, minNonBg: 3 },
+  { hash: 'home~look=char:bunny,hat:bow,neck:bowtie,back:cape',   minColors: 25, minNonBg: 3 },
+  { hash: 'home~look=char:bunny,hat:crown,glasses:nerd',          minColors: 25, minNonBg: 3 },
+  { hash: 'home~look=char:robot,hat:scientist,glasses:cool,back:backpack', minColors: 25, minNonBg: 3 },
+  { hash: 'home~look=char:bear,hat:chef,neck:scarf,fur:lemon',    minColors: 25, minNonBg: 3 },
+  { hash: 'home~look=char:cat,hat:cap,back:cape,fur:mint',        minColors: 25, minNonBg: 3 },
+  { hash: 'home~look=char:milka,hat:bow,glasses:cool,neck:bowtie', minColors: 25, minNonBg: 3 },
+  { hash: 'home~look=char:milka,back:backpack,fur:sky',           minColors: 25, minNonBg: 3 },
   { hash: 'home@music',         minColors: 25, minNonBg: 3 },
   { hash: 'quiet',              minColors: 20, minNonBg: 3 },
   { hash: 'quiet@stars',        minColors: 20, minNonBg: 3 },
@@ -166,7 +176,9 @@ function chrome(hash, port, shotPath, timeoutMs) {
 
   const onlyArg = process.argv.find(a => a.startsWith('--only='));
   const only = onlyArg ? onlyArg.split('=')[1].split(',') : null;
-  const scenes = only ? SCENES.filter(s => only.indexOf(s.hash) !== -1) : SCENES;
+  // --only=подстрока[,ещё]: рендерим только нужные сцены (например
+  // --only=look= — все кадры с нарядами). Это ускоряет проверку глазами.
+  const scenes = only ? SCENES.filter(s => only.some(o => s.hash.indexOf(o) !== -1)) : SCENES;
 
   const CONCURRENCY = 3;
   const queue = scenes.slice();

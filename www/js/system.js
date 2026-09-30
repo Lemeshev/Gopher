@@ -69,8 +69,13 @@ const System = {
   furnitureColors: {},   // { sofa: 2 } — выбранный цвет предмета (индекс палитры)
 
   // ---- Внешний вид (для гостей и кода друга) ----
-  // char — персонаж: 'gopher' | 'bear' | 'bunny' | 'cat' | 'robot'
-  look: { hat: null, glasses: null, bowtie: false, fur: 'classic', char: 'gopher' },
+  // char — персонаж: 'gopher' | 'bear' | 'bunny' | 'cat' | 'robot' | 'milka'
+  // Наряды (v1.3) — по слотам: hat (голова), glasses (глаза), neck (шея),
+  // back (за спиной). Слот — один: надета кепка — снимается шеф-шапка.
+  // bowtie оставлен для старых сохранений: migrateLook() переносит его в neck.
+  look: { hat: null, glasses: null, neck: null, back: null, bowtie: false, fur: 'classic', char: 'gopher' },
+  OUTFIT_SLOT_DEFAULT: { hat: null, glasses: null, neck: null, back: null },
+  outfitsOwned: [],        // купленные наряды: 'hat:cap', 'neck:scarf' — надевай бесплатно
 
   // ---- СОН, ЭНЕРГИЯ И ОФЛАЙН (v1.2) ----
   SLEEP_FULL_MINUTES: 10,       // 0 → 100 энергии за 10 минут сна (требование заказчика)
@@ -641,6 +646,7 @@ const System = {
       activeRoom: this.activeRoom,
       paint: { walls: this.paint.walls.slice(), floors: this.paint.floors.slice() },
       furnitureColors: { ...this.furnitureColors },
+      outfitsOwned: (this.outfitsOwned || []).slice(),
       // legacy-поля: их читают старые коды друзей и сторонние проверки
       room: { wall: this.currentRoomData().wall, floor: this.currentRoomData().floor },
       furniture: this.currentRoomData().furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
@@ -691,6 +697,7 @@ const System = {
         floors: (data.paint && data.paint.floors) ? data.paint.floors.slice() : ['wood']
       };
       this.furnitureColors = data.furnitureColors || {};
+      this.outfitsOwned = (data.outfitsOwned || []).slice();
       const legacyFurniture = (data.furniture || []);
       for (const f of legacyFurniture) {
         const roomId = (typeof furnitureRooms === 'function') ? (furnitureRooms(f.id)[0] || 'living') : 'living';
@@ -715,7 +722,7 @@ const System = {
           target.furniture.push({ id: id, x: 0.22 + (i % 4) * 0.19, y: 0.30 + Math.floor(i / 4) * 0.26 });
         });
       }
-      this.look = Object.assign({ hat: null, glasses: null, bowtie: false, fur: 'classic', char: 'gopher' }, data.look || {});
+      this.look = this.migrateLook(Object.assign({ hat: null, glasses: null, neck: null, back: null, bowtie: false, fur: 'classic', char: 'gopher' }, data.look || {}));
       this.isSleeping = !!data.isSleeping;
       this.sleptMinutes = data.sleptMinutes || 0;
       if (data.profileName) this.profileName = data.profileName;
@@ -739,6 +746,21 @@ const System = {
     } catch (e) {
       return false;
     }
+  },
+
+  // Надеть на героя в меню то, что уже куплено (наряд, окрас, персонаж).
+  // Читаем ТОЛЬКО внешний вид из сохранения: прогресс грузится кнопкой
+  // «Продолжить», а вот «купил наряд — в меню герой раздетый» выглядело как
+  // пропажа покупки. Нашлось при прогоне на живом Android.
+  lookFromSave() {
+    let data = null;
+    try {
+      const raw = localStorage.getItem(this.saveKeyFor(this.profileId));
+      if (raw) data = JSON.parse(raw);
+    } catch (e) { data = null; }
+    if (!data || !data.look) return false;
+    this.look = this.migrateLook(data.look);
+    return true;
   },
 
   resetProgress() {
@@ -783,9 +805,10 @@ const System = {
     this.activeRoom = 'living';
     this.paint = { walls: ['warm'], floors: ['wood'] };
     this.furnitureColors = {};
+    this.outfitsOwned = [];
     this.inventory = [];
     // Персонаж — это «кто играет», он сохраняется между сбросами прогресса
-    this.look = { hat: null, glasses: null, bowtie: false, fur: 'classic', char: (this.look && this.look.char) || 'gopher' };
+    this.look = { hat: null, glasses: null, neck: null, back: null, bowtie: false, fur: 'classic', char: (this.look && this.look.char) || 'gopher' };
     this.isSleeping = false;
     this.offlineReport = null;
     this.justWoke = false;
@@ -838,12 +861,82 @@ const System = {
     return findCharacter(this.look.char).name;
   },
 
+  // Привести внешний вид к текущему формату: старые сохранения хранили
+  // только «бабочку» флагом bowtie — переносим её в слот neck, а из слота
+  // обратно в bowtie (его читает рисущий код и старые коды друзей).
+  migrateLook(look) {
+    const l = Object.assign({ hat: null, glasses: null, neck: null, back: null, bowtie: false, fur: 'classic', char: 'gopher' }, look || {});
+    if (!l.neck) l.neck = l.bowtie ? 'bowtie' : null;
+    l.bowtie = l.neck === 'bowtie';
+    // Мусор из будущих версий: неизвестный наряд просто снимаем
+    if (l.hat && !findOutfit('hat', l.hat)) l.hat = null;
+    if (l.glasses && !findOutfit('glasses', l.glasses)) l.glasses = null;
+    if (l.neck && !findOutfit('neck', l.neck)) l.neck = null;
+    if (l.back && !findOutfit('back', l.back)) l.back = null;
+    return l;
+  },
+
+  // Надеть наряд: setOutfit('hat', 'cap'). value=null — снять слот.
+  setOutfit(slot, value) {
+    if (OUTFIT_SLOTS.indexOf(slot) === -1) return false;
+    if (value && !findOutfit(slot, value)) return false;
+    this.look[slot] = value || null;
+    if (slot === 'neck') this.look.bowtie = (value === 'bowtie');
+    this.saveGame();
+    return true;
+  },
+
+  // Наряд куплен? Как обои и пол: покупка один раз, потом надевай бесплатно
+  ownsOutfit(slot, value) {
+    if (!value) return true;
+    return (this.outfitsOwned || []).indexOf(slot + ':' + value) !== -1;
+  },
+
+  // Купить и сразу надеть (списание делает магазин, здесь только учёт)
+  buyOutfit(slot, value) {
+    if (!findOutfit(slot, value)) return false;
+    if (!this.outfitsOwned) this.outfitsOwned = [];
+    const key = slot + ':' + value;
+    if (this.outfitsOwned.indexOf(key) === -1) this.outfitsOwned.push(key);
+    this.setOutfit(slot, value);
+    return true;
+  },
+
+  // Список купленных нарядов (для статистики «что надето»)
+  ownedOutfits() {
+    return (this.outfitsOwned || []).map(id => {
+      const parts = id.split(':');
+      const o = findOutfit(parts[0], parts[1]);
+      return o ? o.name : id;
+    });
+  },
+
+  // Что сейчас надето: { hat: 'Кепка', neck: 'Шарф', ... } — для статистики и меню
+  lookOutfit() {
+    const out = {};
+    OUTFIT_SLOTS.forEach(slot => {
+      const o = findOutfit(slot, this.look[slot]);
+      if (o) out[slot] = o.name;
+    });
+    return out;
+  },
+
+  // Снять всё (кнопка «Без аксессуаров» в магазине)
+  clearOutfits() {
+    OUTFIT_SLOTS.forEach(slot => { this.look[slot] = null; });
+    this.look.bowtie = false;
+    this.saveGame();
+  },
+
   // Применить внешний вид к фигурке (единственный источник правды)
   applyLookTo(g) {
     if (!g) return;
     g.hat = this.look.hat || null;
     g.glasses = this.look.glasses || null;
-    g.bowtie = !!this.look.bowtie;
+    g.bowtie = this.look.neck === 'bowtie';
+    g.scarf = this.look.neck === 'scarf';
+    g.backpack = this.look.back === 'backpack';
+    g.cape = this.look.back === 'cape';
     g.bodyColor = (this.look.fur && this.look.fur !== 'classic') ? findFur(this.look.fur).color : null;
   },
 
@@ -1182,6 +1275,8 @@ const System = {
           furniture: (d.furniture || []).slice(),
           hat: (d.look && d.look.hat) || null,
           glasses: (d.look && d.look.glasses) || null,
+          neck: (d.look && d.look.neck) || ((d.look && d.look.bowtie) ? 'bowtie' : null),
+          back: (d.look && d.look.back) || null,
           bowtie: !!(d.look && d.look.bowtie),
           fur: (d.look && d.look.fur) || 'classic',
           local: true
@@ -1250,6 +1345,7 @@ const System = {
       emoji: '🐹',
       trait: data.trait || 'друг по переписке',
       level: data.level || 1,
+      levelCapped: !!data.levelCapped,   // в коротком коде уровень ограничен «8+»
       friendship: 20,
       decor: [],
       room: room,
@@ -1257,6 +1353,8 @@ const System = {
       rooms: rooms,
       hat: (look && look.hat) || null,
       glasses: (look && look.glasses) || null,
+      neck: (look && look.neck) || ((look && look.bowtie) ? 'bowtie' : null),
+      back: (look && look.back) || null,
       bowtie: !!(look && look.bowtie),
       fur: (look && look.fur) || 'classic',
       char: (look && look.char) || 'gopher'
@@ -1292,6 +1390,13 @@ const System = {
 
   // КОРОТКИЙ код: 16 символов группами по 4 — можно надиктовать по телефону
   // или набрать руками (длинный код руками не набрать, поэтому он и не нужен).
+  //
+  // Формат v2 (v1.3): добавились наряды на шею и за спину, поэтому биты
+  // пересобраны (75 бит = 15 символов по 5 бит + контрольный символ):
+  //   версия 2 · персонаж 3 · окрас 3 · обои 4 · пол 3 · шляпа 3 · очки 2 ·
+  //   шея 2 · спина 2 · уровень 3 · 6 × (предмет 5 + место 3)
+  // Старые коды (версия 1) по-прежнему ЧИТАЮТСЯ — их присылают друзья
+  // со старыми версиями приложения (см. unpackShortCode).
   getShortCode() {
     const bits = [];
     const room = this.currentRoomData();
@@ -1305,15 +1410,18 @@ const System = {
     const floorIdx = (typeof FLOORS !== 'undefined') ? idxOf(FLOORS, room.floor) : 0;
     const hatIdx = SHORT_HATS.indexOf(this.look.hat || null);
     const glassIdx = SHORT_GLASSES.indexOf(this.look.glasses || null);
-    pushBits(bits, 1, 2);                                       // версия формата
+    const neckIdx = SHORT_NECK.indexOf(this.look.neck || null);
+    const backIdx = SHORT_BACK.indexOf(this.look.back || null);
+    pushBits(bits, 2, 2);                                       // версия формата (v2)
     pushBits(bits, charIdx & 7, 3);                             // персонаж
-    pushBits(bits, furIdx & 15, 4);                             // окрас
+    pushBits(bits, furIdx & 7, 3);                              // окрас (7 окрасов)
     pushBits(bits, (wallIdx & 15), 4);                          // обои
-    pushBits(bits, (floorIdx & 15), 4);                         // пол
-    pushBits(bits, hatIdx < 0 ? 0 : hatIdx, 2);                 // шляпа
+    pushBits(bits, (floorIdx & 7), 3);                          // пол
+    pushBits(bits, hatIdx < 0 ? 0 : hatIdx, 3);                 // шляпа (5 видов)
     pushBits(bits, glassIdx < 0 ? 0 : glassIdx, 2);             // очки
-    pushBits(bits, this.look.bowtie ? 1 : 0, 1);                // бабочка
-    pushBits(bits, Math.max(0, Math.min(31, this.level - 1)), 5); // уровень
+    pushBits(bits, neckIdx < 0 ? 0 : neckIdx, 2);               // шея: шарф/бабочка
+    pushBits(bits, backIdx < 0 ? 0 : backIdx, 2);               // спина: рюкзак/плащ
+    pushBits(bits, Math.max(0, Math.min(SHORT_LEVEL_MAX - 1, this.level - 1)), 3); // уровень (8 = «8+»)
     const items = (room.furniture || []).slice(0, 6);
     for (let i = 0; i < 6; i++) {
       const it = items[i];
@@ -1332,7 +1440,8 @@ const System = {
     return full.replace(/(.{4})(?=.)/g, '$1-');
   },
 
-  // Разбор короткого кода: строгая проверка контрольной суммы
+  // Разбор короткого кода: строгая проверка контрольной суммы.
+  // Поддерживаются обе версии: 1 (старые приложения) и 2 (с нарядами).
   unpackShortCode(raw) {
     const clean = String(raw || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
     if (clean.length !== 16) return null;
@@ -1342,15 +1451,26 @@ const System = {
     if (!bits) return null;
     let p = 0;
     const ver = readBits(bits, p, 2); p += 2;
-    if (ver !== 1) return null;
+    if (ver !== 1 && ver !== 2) return null;
+
+    // Общая часть у обеих версий (в v2 окрас/пол занимают меньше бит)
     const charIdx = readBits(bits, p, 3); p += 3;
-    const furIdx = readBits(bits, p, 4); p += 4;
+    const furIdx = readBits(bits, p, ver === 1 ? 4 : 3); p += (ver === 1 ? 4 : 3);
     const wallIdx = readBits(bits, p, 4); p += 4;
-    const floorIdx = readBits(bits, p, 4); p += 4;
-    const hatIdx = readBits(bits, p, 2); p += 2;
+    const floorIdx = readBits(bits, p, ver === 1 ? 4 : 3); p += (ver === 1 ? 4 : 3);
+    const hatIdx = readBits(bits, p, ver === 1 ? 2 : 3); p += (ver === 1 ? 2 : 3);
     const glassIdx = readBits(bits, p, 2); p += 2;
-    const bowtie = readBits(bits, p, 1); p += 1;
-    const level = readBits(bits, p, 5) + 1; p += 5;
+    let neck = null, back = null;
+    if (ver === 1) {
+      neck = readBits(bits, p, 1) ? 'bowtie' : null; p += 1;
+    } else {
+      neck = SHORT_NECK[readBits(bits, p, 2)] || null; p += 2;
+      back = SHORT_BACK[readBits(bits, p, 2)] || null; p += 2;
+    }
+    const levelBits = ver === 1 ? 5 : 3;
+    const levelRaw = readBits(bits, p, levelBits); p += levelBits;
+    const levelCapped = ver === 2 && levelRaw >= SHORT_LEVEL_MAX - 1;
+    const level = levelRaw + 1;
     const furniture = [];
     for (let i = 0; i < 6; i++) {
       const itemIdx = readBits(bits, p, 5); p += 5;
@@ -1366,6 +1486,7 @@ const System = {
     return {
       name: null,
       level: level,
+      levelCapped: levelCapped,
       trait: 'друг по короткому коду',
       room: {
         wall: ((typeof WALLS !== 'undefined' ? WALLS[wallIdx] : null) || {}).id || 'warm',
@@ -1378,7 +1499,9 @@ const System = {
         fur: (furs[furIdx] || furs[0]).id,
         hat: SHORT_HATS[hatIdx] || null,
         glasses: SHORT_GLASSES[glassIdx] || null,
-        bowtie: !!bowtie
+        neck: neck,
+        back: back,
+        bowtie: neck === 'bowtie'
       }
     };
   },
@@ -1423,8 +1546,13 @@ const System = {
 // Длинный код руками не набрать, поэтому для диктовки есть короткий: 16
 // символов группами по 4 + контрольный символ (защита от опечатки).
 const CODE32 = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-const SHORT_HATS = [null, 'scientist', 'chef', 'crown'];
+// Наборы для короткого кода: индекс — это биты в коде. v2 (v1.3) добавил
+// кепку и бантик к шляпам, шарф к шее и рюкзак/плащ за спину.
+const SHORT_HATS = [null, 'scientist', 'chef', 'crown', 'cap', 'bow'];
 const SHORT_GLASSES = [null, 'nerd', 'cool'];
+const SHORT_NECK = [null, 'bowtie', 'scarf'];
+const SHORT_BACK = [null, 'backpack', 'cape'];
+const SHORT_LEVEL_MAX = 8;      // в коротком коде уровень 1..8, дальше — «8+»
 
 function pushBits(bits, value, n) {
   for (let i = n - 1; i >= 0; i--) bits.push((value >> i) & 1);

@@ -1248,6 +1248,283 @@ function reviewerAchievements(rt) {
   vmRun('System.resetProgress();');
 }
 
+/* ---------- БЛОК 7: НАРЯДЫ И ГОЛОСА ГЕРОЕВ (v1.3)
+   Заказчик: «Милке конечно нужны наряды и звуки (как и всем другим героям),
+   пока ещё новых героев не плодим». Проверяем, что наряды — не картинки в
+   магазине, а общая система: один каталог, слот вместо отдельной шкурки,
+   посадка под уши каждого героя, покупка один раз, перенос старых «бабочек»
+   и голос у каждого героя. Плюс (пункт 8) — то, что нашлось ТОЛЬКО на живом
+   Android при прогоне на эмуляторе: меню обязано показывать наряд из
+   сохранения, а кнопка буфера — объяснять, что делать, если буфер недоступен. */
+function reviewerOutfits(rt) {
+  console.log('\n\uD83D\uDC57 БЛОК 7/7 — Наряды и голоса героев (v1.3)');
+  const read = f => fs.readFileSync(path.join(WWW, 'js', f), 'utf8');
+  const content = read('game_content.js');
+  const gopherSrc = read('gopher.js');
+  const charsSrc = read('characters.js');
+  const audioSrc = read('audio.js');
+  const helpers = read('helpers.js');
+  const system = read('system.js');
+  const shop = read('game_shop.js');
+  const menu = read('game_menu.js');
+  const home = read('game_home.js');
+  const friends = read('game_friends.js');
+  const renderCheck = fs.readFileSync(path.join(ROOT, 'tools', 'render-check.js'), 'utf8');
+
+  // --- 1. Один каталог нарядов: магазин, код друга и рисование смотрят в него ---
+  check('Наряды живут одним каталогом в контенте (OUTFITS: слот → значение)',
+    /const OUTFITS = \[/.test(content) && content.indexOf('window.OUTFITS') !== -1 &&
+    /const OUTFIT_SLOTS = \['hat', 'glasses', 'neck', 'back'\]/.test(content));
+  check('Магазин продаёт наряды из каталога, а не списком «на память»',
+    shop.indexOf('...OUTFITS.map(') !== -1 && shop.indexOf('System.ownsOutfit(') !== -1 &&
+    shop.indexOf('System.setOutfit(') !== -1);
+  check('У каждого слота есть ветка рисования (товар не может быть «мёртвым»)',
+    ['chef', 'scientist', 'crown', 'cap', 'bow'].every(v => gopherSrc.indexOf("this.hat === '" + v + "'") !== -1) &&
+    ['nerd', 'cool'].every(v => gopherSrc.indexOf("this.glasses === '" + v + "'") !== -1) &&
+    gopherSrc.indexOf('if (this.scarf)') !== -1 && gopherSrc.indexOf('if (this.bowtie)') !== -1 &&
+    gopherSrc.indexOf('if (this.backpack)') !== -1 && gopherSrc.indexOf('if (this.cape)') !== -1);
+  check('Рюкзак и плащ рисуются ЗА телом, а не поверх героя (порядок в draw)',
+    gopherSrc.indexOf('drawBackItems(ctx, s, C, lw)') !== -1 &&
+    gopherSrc.indexOf('this.drawBackItems(ctx, s, C, lw);') < gopherSrc.indexOf('this.bodyPath(ctx, s);\n    ctx.fillStyle'));
+  check('Все игрушки рисуют те же аксессуары: ToyCharacter extends Gopher и зовёт общие методы',
+    /class ToyCharacter extends Gopher/.test(charsSrc) &&
+    charsSrc.indexOf('this.drawAccessories(') !== -1 && charsSrc.indexOf('this.drawBackItems(') !== -1);
+  check('Шляпа садится под героя: у Милки своя посадка (у неё длинные уши)',
+    /hat: \{ shift: 0\.018, scale: 0\.92 \}/.test(charsSrc) &&
+    gopherSrc.indexOf('const hatShift = hatCfg.shift') !== -1 && gopherSrc.indexOf('ctx.scale(hatScale, hatScale)') !== -1);
+
+  // --- 2. Слоты, покупка и старые сохранения ---
+  check('Слот один: setOutfit пишет в слот, а bowtie живёт в слоте neck',
+    /setOutfit\(slot, value\)[\s\S]{0,400}if \(slot === 'neck'\) this\.look\.bowtie/.test(system));
+  check('Наряд покупается один раз: ownsOutfit/buyOutfit + список купленного в сохранении',
+    system.indexOf('ownsOutfit(slot, value)') !== -1 && system.indexOf('buyOutfit(slot, value)') !== -1 &&
+    /outfitsOwned: \(this\.outfitsOwned \|\| \[\]\)\.slice\(\)/.test(system) &&
+    system.indexOf('this.outfitsOwned = (data.outfitsOwned || []).slice()') !== -1);
+  check('Старые сохранения «бабочку» не теряют: migrateLook переносит bowtie в слот neck',
+    /migrateLook\(look\)/.test(system) &&
+    /if \(!l\.neck\) l\.neck = l\.bowtie \? 'bowtie' : null/.test(system) &&
+    system.indexOf('this.look = this.migrateLook(') !== -1);
+  check('Короткий код (v2) несёт наряды и читает старые коды (v1)',
+    system.indexOf('pushBits(bits, 2, 2);') !== -1 && system.indexOf('ver !== 1 && ver !== 2') !== -1 &&
+    system.indexOf("const SHORT_NECK = [null, 'bowtie', 'scarf']") !== -1 &&
+    system.indexOf("const SHORT_BACK = [null, 'backpack', 'cape']") !== -1);
+  check('Гость видит наряды друга: в сцене друзей ставится шея и спина',
+    friends.indexOf('host.scarf =') !== -1 && friends.indexOf('host.backpack =') !== -1 &&
+    friends.indexOf('host.cape =') !== -1);
+
+  // --- 3. Голоса героев ---
+  const voiceBlocks = charsSrc.match(/voice: \{[^}]*\}/g) || [];
+  check('Голос есть у каждого героя (6 героев — 6 голосов в CHARACTERS)',
+    voiceBlocks.length === 6, 'голосов: ' + voiceBlocks.length);
+  check('Голос звучит из сцен: выбор героя, кормление/купание/игра/сон, покупка наряда',
+    menu.indexOf('AudioSys.voice(') !== -1 && shop.indexOf('AudioSys.voice(') !== -1 &&
+    home.indexOf("AudioSys.voice(System.look.char, 'sleepy')") !== -1);
+  check('Голос — синтезатор, а не «пустышка»: playVoice строит ноты по описанию героя',
+    audioSrc.indexOf('voice(charId, mood)') !== -1 && audioSrc.indexOf('playVoice(v, mood)') !== -1 &&
+    audioSrc.indexOf('osc.frequency.setValueAtTime(') !== -1 && audioSrc.indexOf('voiceHint(charId)') !== -1);
+  check('Кадры нарядов на всех героях есть в стенде рендера (видно глазами)',
+    (renderCheck.match(/home~look=char:/g) || []).length >= 6,
+    'кадров с нарядами: ' + (renderCheck.match(/home~look=char:/g) || []).length);
+
+  if (!rt) { check('Наряды и голоса проверены в браузерной песочнице', false, 'игра не запустилась'); return; }
+  const vmRun = c => { try { return vm.runInContext(c, rt.sandbox); } catch (e) { return 'ОШИБКА: ' + e.message; } };
+
+  // --- 4. Наряды на всех героях: 66 сочетаний без ошибок и «видно, что надето» ---
+  const combos = vmRun(`(function(){
+    // Имя поля фигурки для слота: hat/glasses — своим значением, шея и спина — флагом
+    const flag = (o) => o.slot === 'hat' ? 'hat'
+      : o.slot === 'glasses' ? 'glasses'
+      : o.slot === 'neck' ? (o.value === 'scarf' ? 'scarf' : 'bowtie')
+      : (o.value === 'cape' ? 'cape' : 'backpack');
+    const value = (o) => (o.slot === 'hat' || o.slot === 'glasses') ? o.value : true;
+    // Считаем вызовы рисования: у фигурки с нарядом их обязано быть больше,
+    // чем у той же фигурки без него (иначе «товар есть, а на герое не видно»).
+    const count = (chId, apply) => {
+      let n = 0;
+      const grad = { addColorStop() {} };
+      const rec = new Proxy({ canvas: { width: 400, height: 400 }, measureText: () => ({ width: 10 }),
+        createLinearGradient: () => grad, createRadialGradient: () => grad },
+        { get(t, p) { return p in t ? t[p] : function () { n++; }; }, set(t, p, v) { t[p] = v; return true; } });
+      const f = createCharacter(chId, 100);
+      if (apply) apply(f);
+      try { f.draw(rec, 200, 200, 1); } catch (e) { return 'ОШИБКА: ' + e.message; }
+      return n;
+    };
+    const out = [];
+    CHARACTERS.forEach(ch => {
+      const base = count(ch.id, null);
+      OUTFITS.forEach(o => {
+        const got = count(ch.id, fig => { fig[flag(o)] = value(o); });
+        if (typeof got === 'string') out.push(ch.name + '/' + o.name + ': ' + got);
+        else if (got <= base) out.push(ch.name + '/' + o.name + ': вызовов ' + base + ' → ' + got);
+      });
+    });
+    return { out: out, total: CHARACTERS.length * OUTFITS.length };
+  })()`);
+  check('Каждый наряд виден на каждом герое — 66 сочетаний без «невидимых» товаров',
+    !!(combos && combos.out) && combos.out.length === 0,
+    (combos && combos.out) ? (combos.out.slice(0, 3).join('; ') || (combos.total + ' сочетаний в порядке')) : String(combos));
+
+  // --- 5. Слот один, «снять всё», покупка один раз, старые сохранения ---
+  vmRun('System.resetProgress(); System.coins = 300;');
+  const slotsRes = vmRun(`(function(){
+    const one = System.setOutfit('hat', 'cap') && System.setOutfit('neck', 'scarf');
+    const state = Object.assign({}, System.look);
+    System.setOutfit('hat', 'chef');
+    const after = Object.assign({}, System.look);
+    const bad = System.setOutfit('tail', 'fluffy') === false && System.setOutfit('hat', 'sombrero') === false;
+    System.clearOutfits();
+    return { one, state, after, bad, empty: Object.keys(System.lookOutfit()).length === 0 };
+  })()`);
+  check('Слот один: кепка и шарф надеваются вместе, а шеф-шапка снимает кепку',
+    slotsRes.one === true && slotsRes.state.hat === 'cap' && slotsRes.state.neck === 'scarf' &&
+    slotsRes.after.hat === 'chef' && slotsRes.after.neck === 'scarf');
+  check('«Снять всё» очищает слоты; несуществующий наряд и слот не принимаются',
+    slotsRes.empty === true && slotsRes.bad === true);
+  const buyRes = vmRun(`(function(){
+    System.resetProgress(); System.coins = 500;
+    const price = findOutfit('back', 'cape').cost;
+    // Берём настоящую сцену магазина из запущенной игры: у неё есть размеры
+    // холста (фейковая сцена давала NaN в координатах карточек).
+    const scene = __game.scenes.shop;
+    const shopCtx = __game.ctx;
+    const openTab = (page) => { scene.init(); scene.currentTab = 'clothes'; scene.page = page; scene.draw(shopCtx); };
+    const findCard = (slot, value) => {
+      for (let p = 0; p < 8; p++) {
+        openTab(p);
+        const b = scene.buttons.find(x => x.slot === slot && x.value === value);
+        if (b) return b;
+        if (p + 1 >= (scene.pages || 1)) break;
+      }
+      return null;
+    };
+    const click = (slot, value) => {
+      const b = findCard(slot, value);
+      return b ? !!scene.handleClick(b.x + 4, b.y + 4) : false;
+    };
+    const before = System.coins;
+    const first = click('back', 'cape');
+    const afterBuy = System.coins;
+    const card = findCard('back', 'cape');
+    const cardWorn = card ? { active: !!card.active, owned: !!card.owned } : null;
+    System.setOutfit('back', null);
+    const second = click('back', 'cape');
+    const afterWear = System.coins;
+    return { price, first, second, before, afterBuy, afterWear, cardWorn,
+             owned: System.ownsOutfit('back', 'cape'), look: System.look.back };
+  })()`);
+  check('Наряд покупается за монеты один раз, второе надевание — бесплатно',
+    buyRes.first === true && buyRes.second === true && buyRes.afterBuy === buyRes.before - buyRes.price &&
+    buyRes.afterWear === buyRes.afterBuy && buyRes.look === 'cape' && buyRes.owned === true,
+    'цена ' + buyRes.price + ': монет ' + buyRes.before + ' → ' + buyRes.afterBuy + ' → ' + buyRes.afterWear);
+  check('Карточка наряда в магазине не врёт: «надето» и «куплено» показаны',
+    !!buyRes.cardWorn && buyRes.cardWorn.active === true && buyRes.cardWorn.owned === true);
+  const legacy = vmRun(`(function(){
+    const a = System.migrateLook({ hat: null, glasses: null, bowtie: true, fur: 'mint', char: 'bear' });
+    const b = System.migrateLook({ hat: 'sombrero', glasses: 'monocle', neck: 'tie', back: 'wings' });
+    const fig = createCharacter('bear', 100);
+    System.look = a; System.applyLookTo(fig);
+    const figOk = fig.bowtie === true && fig.scarf === false && fig.backpack === false;
+    System.look = { hat: null, glasses: null, neck: 'scarf', back: 'cape', bowtie: false, fur: 'classic', char: 'milka' };
+    System.applyLookTo(fig);
+    return { a, b, figOk, scarf: fig.scarf, cape: fig.cape, bowtie: fig.bowtie };
+  })()`);
+  check('Старое сохранение с «бабочкой» превращается в слот neck и рисуется на герое',
+    legacy.a.neck === 'bowtie' && legacy.figOk === true);
+  check('Наряды из будущих версий снимаются (игра не падает на незнакомом наряде)',
+    legacy.b.hat === null && legacy.b.glasses === null && legacy.b.neck === null && legacy.b.back === null);
+  check('Фигурка получает шарф и плащ из одного места — System.applyLookTo',
+    legacy.scarf === true && legacy.cape === true && legacy.bowtie === false);
+
+  // --- 6. Код друга: наряды едут к другу, старые коды читаются ---
+  const codes = vmRun(`(function(){
+    System.resetProgress();
+    System.setCharacter('milka'); System.setFur('rose');
+    System.setOutfit('hat', 'cap'); System.setOutfit('neck', 'scarf'); System.setOutfit('back', 'backpack');
+    const code = System.getShortCode();
+    const back = System.unpackShortCode(code.replace(/-/g, ''));
+    const fig = createCharacter(back.look.char, 100);
+    System.applyLookTo(fig);
+    const v1a = System.unpackShortCode('A206RG0000000 004'.replace(/[^0-9A-Z]/g, ''));
+    const v1b = System.unpackShortCode('DC4T1JQE86HE0001');
+    return { code, back: back.look,
+             guest: { scarf: fig.scarf, backpack: fig.backpack, cap: fig.hat },
+             v1a: { look: v1a.look, level: v1a.level },
+             v1b: { look: v1b.look, wall: v1b.room.wall, floor: v1b.room.floor, furn: v1b.room.furniture.length },
+             broken: System.unpackShortCode('AAAAAAAAAAAAAAAA') === null };
+  })()`);
+  check('Короткий код (v2) везёт наряды: гость увидит кепку, шарф и рюкзак друга',
+    codes.back.char === 'milka' && codes.back.fur === 'rose' && codes.back.hat === 'cap' &&
+    codes.back.neck === 'scarf' && codes.back.back === 'backpack' &&
+    codes.guest.scarf === true && codes.guest.backpack === true && codes.guest.cap === 'cap',
+    codes.code);
+  check('Старые коды друзей (v1) читаются как раньше — друзья не теряются',
+    codes.v1a.look.char === 'bunny' && codes.v1a.look.fur === 'mint' && codes.v1a.look.hat === 'crown' &&
+    codes.v1a.look.glasses === 'nerd' && codes.v1a.look.neck === 'bowtie' && codes.v1a.level === 7 &&
+    codes.v1b.look.char === 'milka' && codes.v1b.wall === 'mint' && codes.v1b.floor === 'blue' &&
+    codes.v1b.furn === 4, 'проверено на двух кодах из прошлой версии');
+  check('Испорченный короткий код отвергается (контрольный символ работает)',
+    codes.broken === true);
+
+  // --- 7. Голос героя: ноты, тембр и «не падает без звука» ---
+  const voiceRes = vmRun(`(function(){
+    const notes = {};
+    const spec = { base: 300, type: 'square', steps: [1, 1.5], dur: 0.1, bend: 1.2 };
+    let start = [];
+    const fake = {
+      currentTime: 0, state: 'running', resume() {}, destination: {},
+      createOscillator() {
+        return { type: '',
+                 frequency: { setValueAtTime: (v) => start.push(v), exponentialRampToValueAtTime() {} },
+                 connect() {}, start() {}, stop() {} };
+      },
+      createGain() {
+        return { gain: { setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} },
+                 connect() {} };
+      }
+    };
+    const keep = AudioSys.ctx;
+    AudioSys.ctx = fake;
+    AudioSys.playVoice(spec, 'hello'); notes.hello = start.length;
+    start = []; AudioSys.playVoice(spec, 'happy'); notes.happy = start.length;
+    start = []; AudioSys.playVoice(spec, 'sleepy'); notes.sleepy = start.length;
+    const firstSleepy = start[0];
+    AudioSys.ctx = null;
+    const silent = AudioSys.voice('milka', 'hello');
+    AudioSys.ctx = keep;
+    return { notes, firstSleepy, base: spec.base, silent, hint: AudioSys.voiceHint('robot'),
+             all: CHARACTERS.every(c => !!c.voice && c.voice.base > 0) };
+  })()`);
+  check('Голос героя — это ноты: радость длиннее знакомства, сон мягче и ниже',
+    voiceRes.notes.hello === 2 && voiceRes.notes.happy === 3 && voiceRes.notes.sleepy === 2 &&
+    voiceRes.firstSleepy < voiceRes.base, 'нот: ' + JSON.stringify(voiceRes.notes));
+  check('Голос есть у каждого героя; без звуковой системы игра не падает',
+    voiceRes.silent === false && voiceRes.all === true && voiceRes.hint.indexOf('Робот') === 0,
+    voiceRes.hint);
+
+  // --- 8. Что нашлось только на живом Android (эмулятор, не Chrome) ---
+  check('Меню надевает на героя наряд из сохранения (после перезапуска герой не «раздет»)',
+    system.indexOf('lookFromSave()') !== -1 && menu.indexOf('System.lookFromSave()') !== -1);
+  const lookRes = vmRun(`(function(){
+    System.resetProgress();
+    System.look = System.migrateLook({ hat: 'cap', neck: 'scarf', back: 'cape', fur: 'sky', char: 'robot' });
+    System.saveGame();
+    System.look = System.migrateLook({ fur: 'classic', char: 'gopher' });
+    const got = System.lookFromSave();
+    const fig = createCharacter('gopher', 100);
+    System.applyLookTo(fig);
+    return { got: got, look: System.look, hat: fig.hat, scarf: fig.scarf, cape: fig.cape, char: System.look.char };
+  })()`);
+  check('Внешний вид из сохранения возвращается целиком (наряд, окрас, персонаж)',
+    lookRes.got === true && lookRes.hat === 'cap' && lookRes.scarf === true && lookRes.cape === true &&
+    lookRes.char === 'robot' && lookRes.look.fur === 'sky',
+    'надето: ' + lookRes.hat + '/' + (lookRes.scarf ? 'шарф' : '—') + '/' + (lookRes.cape ? 'плащ' : '—'));
+  check('Кнопка «Вставить из буфера» не молчит: объясняет путь через меню Android',
+    helpers.indexOf('Буфер недоступен приложению') !== -1 && helpers.indexOf('target.select()') !== -1);
+
+  vmRun('System.resetProgress(); System.isSleeping = false;');
+}
+
 /* ---------- ЗАПУСК ---------- */
 console.log('\u2554\u2550\u2550\u2550\u2550\u2550\u2550 Gopher Life \u2014 приёмка качества \u2550\u2550\u2550\u2550\u2550\u2550\u2557');
 reviewerStatic();
@@ -1256,13 +1533,14 @@ const rt = reviewerRuntime();
 reviewerClicks(rt);
 reviewerV12Runtime(rt);
 reviewerAchievements(rt);
+reviewerOutfits(rt);
 reviewerApk();
 reviewerRender();
 
 console.log('\n' + '\u2500'.repeat(56));
 console.log('ИТОГО: пройдено ' + passed + '  |  провалено ' + failed);
 if (failed === 0) {
-  console.log('\u2705 ВСЕ 5 РЕВЬЮЕРОВ + БЛОК ДОСТИЖЕНИЙ ПРИНЯЛИ РЕЗУЛЬТАТ БЕЗ ЗАМЕЧАНИЙ');
+  console.log('\u2705 ВСЕ 5 РЕВЬЮЕРОВ + БЛОКИ ДОСТИЖЕНИЙ И НАРЯДОВ ПРИНЯЛИ РЕЗУЛЬТАТ БЕЗ ЗАМЕЧАНИЙ');
   process.exit(0);
 } else {
   console.log('\u274C ЕСТЬ ЗАМЕЧАНИЯ \u2014 результат НЕ принимается');

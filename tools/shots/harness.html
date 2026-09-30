@@ -189,6 +189,22 @@ console.error = function () {
       System.isSleeping = true;
       System.stats.energy = 45;
     }
+    // Аргумент «look=…»: надеть на героя наряды прямо в кадре (#home~look=char:milka,hat:cap)
+    // — так видно, что наряды садятся на любого героя, а не только на гофера.
+    if (initArg && initArg.indexOf('look=') === 0) {
+      var wantChar = null;
+      initArg.slice(5).split(',').forEach(function (pair) {
+        var kv = pair.split(':');
+        var key = (kv[0] || '').trim(), val = (kv[1] || '').trim();
+        if (!key || !val) return;
+        if (key === 'char') { System.setCharacter(val); wantChar = val; }
+        else if (key === 'fur') System.setFur(val);
+        else if (System.OUTFIT_SLOT_DEFAULT.hasOwnProperty(key)) System.setOutfit(key, val === 'none' ? null : val);
+      });
+      if (wantChar && typeof g.ensureCharacter === 'function') g.ensureCharacter();
+      System.applyLookTo(g.gopher);
+      initArg = null;      // дальше — обычное поведение сцены
+    }
     if (parts[0]) g.transitionTo(parts[0], initArg);
     var scene = g.scenes[g.currentScene];
     for (var i = 0; i < 60; i++) scene.update(16);
