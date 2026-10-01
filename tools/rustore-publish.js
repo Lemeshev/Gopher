@@ -129,6 +129,14 @@ async function api(method, urlPath, { token, body, form, query } = {}) {
   if (res.status >= 400 || (data.code && data.code !== 'OK')) {
     bad(method + ' ' + urlPath + ' → HTTP ' + res.status,
       (data.message || data.raw || '').toString().slice(0, 200));
+    // Живая проверка 01.10.2026: RuStore отказывает в создании версии, пока у
+    // приложения нет ОПУБЛИКОВАННОЙ версии — «на модерации» активной не считается.
+    const why = (data.message || data.raw || '').toString();
+    if (why.indexOf('active version') !== -1) {
+      log('  ⓘ Это ограничение RuStore, а не ошибка данных: нужна опубликованная версия.');
+      log('    Дождитесь публикации первой версии (или загрузите её вручную в консоли) —');
+      log('    после этого та же команда пройдёт без изменений.');
+    }
   } else {
     ok(method + ' ' + urlPath);
   }
@@ -189,8 +197,9 @@ function draftBody() {
     whatsNew: c.whatsNew || ('Версия ' + v.versionName),
     moderInfo: 'Детская офлайн-игра про питомца: ничего не собирает, интернета не требует.',
     publishType: 'INSTANTLY',        // опубликовать сразу после модерации
-    minAndroidVersion: 5,            // соответствует minSdk 21
-    developerContacts: [{ email: flag('email', 'Lemeshev@mail.ru') }]
+    // Контакты — объектом, как в примере документации RuStore (массив API отверг
+    // с «400 Invalid request format. Unexpected value», v1.3.9)
+    developerContacts: { email: flag('email', 'Lemeshev@mail.ru') }
   };
 }
 
@@ -252,7 +261,7 @@ async function main() {
     ok('что нового', (c.whatsNew || '').split('\n')[0] + ' … (' + c.whatsNew.length + ' симв.)');
     ok('версия', v.versionName + ' (versionCode ' + v.versionCode + ')');
     ok('тип и возраст', b.appType + ', ' + b.ageLegal + ', категории ' + b.categories.join(' + '));
-    ok('контакты', ((b.developerContacts[0] || {}).email || '') + (b.developerContacts[0].email === 'TODO@example.com' ? '  ← заглушка, нужен реальный e-mail' : ''));
+    ok('контакты', (((b.developerContacts || {}).email) || '') + ((b.developerContacts || {}).email === 'TODO@example.com' ? '  ← заглушка, нужен реальный e-mail' : ''));
     ok('файлы', 'APK ' + (apkPath() ? 'есть' : 'нет') + ', скриншотов ' + shotFiles().length);
     return;
   }
