@@ -259,13 +259,25 @@ async function main() {
 
   const token = await getToken();
 
-  if (['check', 'status', 'categories', 'tags'].indexOf(cmd) !== -1) {
-    if (cmd === 'check') {
+  if (['check', 'status', 'categories', 'tags', 'apps'].indexOf(cmd) !== -1) {
+    if (cmd === 'check' || cmd === 'apps') {
       const apps = await api('GET', '/public/v1/application', { token, query: { packageName: PACKAGE } });
       const list = (apps.body && (apps.body.content || apps.body)) || [];
       const mine = Array.isArray(list) ? list.filter(a => a.packageName === PACKAGE)[0] : null;
+      if (cmd === 'apps' || !mine) {
+        const shown = Array.isArray(list) ? list : [];
+        if (!shown.length) {
+          warn('ключ не видит ни одного приложения',
+            'при создании ключа приложение не было отмечено (или создано позже ключа)');
+        } else {
+          log('  приложения, доступные ключу:');
+          shown.forEach(a => log('    · ' + (a.appName || '?') + '  ' + (a.packageName || '?') +
+            '  appId ' + (a.appId || '?')));
+        }
+      }
       if (mine) ok('Приложение найдено в аккаунте', 'appId ' + (mine.appId || '?') + ', ' + (mine.appName || ''));
       else if (GO) warn('Приложение с таким packageName в списке не найдено', PACKAGE);
+      if (cmd === 'apps') return;
     }
     if (cmd === 'status') {
       const vs = await api('GET', '/public/v1/application/' + PACKAGE + '/version', { token });

@@ -1572,6 +1572,32 @@ if (boot) {
     A.MUSIC_MOODS.play.bpm > A.MUSIC_MOODS.ambient.bpm,
     'bpm фон/дом/сон: ' + [A.MUSIC_MOODS.ambient.bpm, A.MUSIC_MOODS.calm.bpm, A.MUSIC_MOODS.sleep.bpm].join(' / '));
 
+  // v1.3.8: отзыв пользователей «музыка по-прежнему заунывная и грустная» —
+  // проверяем ровно то, из-за чего она такой была: темпы, регистр мелодий и
+  // неподвижный бас (он держал один звук четыре доли).
+  const brisk = Object.keys(A.MUSIC_MOODS)
+    .filter(m => m !== 'sleep')
+    .every(m => A.MUSIC_MOODS[m].bpm >= 100);
+  ok('Музыка бодрая: у всех настроений, кроме колыбельной, не меньше 100 уд/мин',
+    brisk, Object.keys(A.MUSIC_MOODS).map(m => m + ':' + A.MUSIC_MOODS[m].bpm).join(' '));
+
+  const leadAvg = tunes.map(t => {
+    const ns = A.musicParseLead(t.lead);
+    return ns.reduce((s, n) => s + n.i, 0) / ns.length;
+  });
+  ok('Мелодии в верхнем регистре (от G4), а не внизу: раньше вся песня шла C4–C5',
+    Math.min.apply(null, leadAvg.slice(0, 5)) >= 3,
+    'средний индекс ноты по песням: ' + leadAvg.map(v => v.toFixed(1)).join(' '));
+
+  const stabBuf = [];
+  A.musicStabs(A.musicTune(), 0.5, 0, stabBuf);
+  ok('У баса есть ритм-«подскок» на слабые доли, а в музее и во сне — тишина',
+    A.MUSIC_MOODS.home.pulse === true && A.MUSIC_MOODS.play.pulse === true &&
+    A.MUSIC_MOODS.museum.pulse === false && A.MUSIC_MOODS.sleep.pulse === false &&
+    stabBuf.length === A.musicTune().bass.length * A.MUSIC_STABS_PER_BASS,
+    'подскоков за аккорд: ' + A.MUSIC_STABS_PER_BASS + ', в музее/сне: нет; ' +
+    Object.keys(A.MUSIC_MOODS).map(m => m + ':' + (A.MUSIC_MOODS[m].pulse ? 'есть' : 'нет')).join(' '));
+
   // Мелодия зависит от экрана: где играем — там и музыка (v1.3.5)
   const moodOf = scene => {
     S.isSleeping = false;

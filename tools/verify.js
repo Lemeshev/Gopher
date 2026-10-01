@@ -1711,6 +1711,20 @@ function reviewerAudio(rt) {
     scale.rotHeard = heard.length;
     scale.rotMood = A.musicMood();
     scale.rotPool = A.musicPool(scale.rotMood).length;
+    // v1.3.8: жалоба «музыка заунывная и грустная» — темпы, регистр мелодий и
+    // неподвижный бас. Проверяем, что музыка снова бодрая.
+    scale.bpmMin = Math.min.apply(null, Object.keys(A.MUSIC_MOODS)
+      .filter(m => m !== 'sleep').map(m => A.MUSIC_MOODS[m].bpm));
+    scale.bpmAll = Object.keys(A.MUSIC_MOODS).map(m => m + ':' + A.MUSIC_MOODS[m].bpm).join(' ');
+    scale.leadAvgMin = Math.min.apply(null, A.MUSIC_TUNES.slice(0, 5).map(t => {
+      const ns = A.musicParseLead(t.lead);
+      return ns.reduce((sum, n) => sum + n.i, 0) / ns.length;
+    }));
+    const stabBuf = [];
+    A.musicStabs(A.musicTune(), 0.5, 0, stabBuf);
+    scale.stabOk = stabBuf.length === A.musicTune().bass.length * A.MUSIC_STABS_PER_BASS;
+    scale.pulseOk = A.MUSIC_MOODS.home.pulse === true && A.MUSIC_MOODS.play.pulse === true &&
+      A.MUSIC_MOODS.museum.pulse === false && A.MUSIC_MOODS.sleep.pulse === false;
     // Настроение по экранам: где играем — там и музыка
     const moodOf = sc => { System.isSleeping = false; A.musicScene = null; return A.setScene(sc); };
     scale.moodsByScene = [moodOf('home'), moodOf('shop'), moodOf('visit:art_museum'), moodOf('visit:park'), moodOf('map')].join('/');
@@ -1754,6 +1768,13 @@ function reviewerAudio(rt) {
     music.sleep.gain < music.awake.gain,
     music.sleep ? ('днём ' + music.awake.bpm + ' bpm / ' + music.awake.gain + ', во сне ' +
       music.sleep.bpm + ' bpm / ' + music.sleep.gain) : musicWhy);
+  check('Музыка бодрая, а не заунывная: темпы 100+, мелодии в верхнем регистре (v1.3.8)',
+    !!music.scale && music.scale.bpmMin >= 100 && music.scale.leadAvgMin >= 3,
+    music.scale ? ('темпы ' + music.scale.bpmAll + '; средний индекс ноты не ниже ' +
+      music.scale.leadAvgMin.toFixed(1)) : musicWhy);
+  check('У баса есть ритм-«подскок» на слабые доли, в музее и во сне — тишина (v1.3.8)',
+    !!music.scale && music.scale.stabOk === true && music.scale.pulseOk === true,
+    music.scale ? ('подскоков за аккорд: ' + (music.scale.stabOk ? 'включены' : 'нет')) : musicWhy);
   check('Галочка «Музыка» выключена — петля замолкает и ноты не расписываются',
     !!music.off && music.tickOff === false && music.off.music === false &&
     music.off.playing === false && music.off.gain < 0.01,
