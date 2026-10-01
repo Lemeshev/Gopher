@@ -214,8 +214,19 @@ async function main() {
   log('🎯 RuStore: ' + PACKAGE + ' · команда «' + cmd + '»' + (GO ? ' · РЕАЛЬНЫЕ ЗАПРОСЫ' : ' · сухой прогон'));
 
   if (cmd === 'save-key') {
-    const keyId = args[1], privateKey = args[2];
-    if (!keyId || !privateKey) { bad('нужно: save-key <keyId> <приватный ключ base64>'); process.exit(2); }
+    const keyId = args[1];
+    let privateKey = args[2];
+    if (!keyId) { bad('нужно: save-key <keyId> [приватный ключ | --clipboard]'); process.exit(2); }
+    if (!privateKey || privateKey === '--clipboard') {
+      // Ключ берём из буфера обмена: он не попадёт ни в историю команд,
+      // ни в переписку, ни в файлы проекта.
+      try { privateKey = execFileSync('pbpaste', { encoding: 'utf8' }).trim(); } catch (e) { privateKey = ''; }
+      if (privateKey.indexOf('MII') !== 0) {
+        bad('в буфере обмена нет приватного ключа: скопируйте его из консоли RuStore и повторите');
+        process.exit(2);
+      }
+      log('  ключ прочитан из буфера обмена (pbpaste)');
+    }
     if (privateKey.indexOf('MII') !== 0) warn('ключ не похож на base64 PKCS#8 (обычно начинается с «MII…»)');
     execFileSync('security', ['add-generic-password', '-U', '-s', KEYCHAIN_SERVICE,
       '-a', KEYCHAIN_ACCOUNT, '-w', JSON.stringify({ keyId: String(keyId), privateKey: privateKey.trim() })]);
