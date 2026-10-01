@@ -14,7 +14,14 @@ const STAGE_DATA = {
   art_museum:    { sky: ['#221a2e', '#3f2d4c'], outfit: null,     held: '🔍',   floor: '#4a3a45', kind: 'gallery', tint: '#E91E63' },
   nature_museum: { sky: ['#16301c', '#2b5730'], outfit: null,     held: '🔍',   floor: '#3e3a2a', kind: 'gallery', tint: '#4CAF50' },
   space_museum:  { sky: ['#0a0a2a', '#1c1c50'], outfit: null,     held: '🚀',   floor: '#33335a', kind: 'space' },
-  history_museum:{ sky: ['#2b1f14', '#4d3623'], outfit: null,     held: '🏺',   floor: '#4a3a2a', kind: 'gallery', tint: '#8D6E63' }
+  history_museum:{ sky: ['#2b1f14', '#4d3623'], outfit: null,     held: '🏺',   floor: '#4a3a2a', kind: 'gallery', tint: '#8D6E63' },
+  // Новые музеи (v1.3.7): три со своей сценой, три — в общей «галерее» со своим цветом
+  rail_museum:   { sky: ['#241a12', '#40291c'], outfit: null,     held: '🚂',   floor: '#3f3226', kind: 'rail' },
+  navy_museum:   { sky: ['#0d2438', '#1b4a6e'], outfit: null,     held: '⚓',   floor: '#1b3a4a', kind: 'navy' },
+  tech_museum:   { sky: ['#2b2410', '#4a3a16'], outfit: null,     held: '💡',   floor: '#413a24', kind: 'tech' },
+  music_museum:  { sky: ['#241430', '#3c2350'], outfit: null,     held: '🎻',   floor: '#3f2f4a', kind: 'gallery', tint: '#9C4DCC' },
+  toy_museum:    { sky: ['#2f1a14', '#4d2c1e'], outfit: null,     held: '🧸',   floor: '#4a3226', kind: 'gallery', tint: '#E8703A' },
+  palace_museum: { sky: ['#12281f', '#1f4a38'], outfit: null,     held: '🏛️',   floor: '#3a4a3f', kind: 'gallery', tint: '#2E9E7E' }
 };
 
 const LocationStage = {
@@ -44,6 +51,9 @@ const LocationStage = {
       case 'park': this.drawPark(ctx, rect, floorY, time); break;
       case 'cinema': this.drawCinema(ctx, rect, floorY); break;
       case 'space': this.drawSpace(ctx, rect, floorY, time); break;
+      case 'rail': this.drawRail(ctx, rect, floorY, time); break;
+      case 'navy': this.drawNavy(ctx, rect, floorY, time); break;
+      case 'tech': this.drawTech(ctx, rect, floorY, time); break;
       default: this.drawGallery(ctx, rect, floorY, cfg.tint || '#FFD93D'); break;
     }
 
@@ -408,6 +418,154 @@ const LocationStage = {
     ctx.fillStyle = 'rgba(255,255,255,0.16)';
     ctx.fillRect(rect.x + rect.w * 0.06, floorY - rect.h * 0.10, rect.w * 0.22, rect.h * 0.10);
     ctx.fillRect(rect.x + rect.w * 0.72, floorY - rect.h * 0.10, rect.w * 0.22, rect.h * 0.10);
+  },
+
+  // ---------- Музей железных дорог: рельсы, вагон и семафор ----------
+  drawRail(ctx, rect, floorY, time) {
+    const t = time || 0;
+    // Путь: две рельсы и шпалы
+    ctx.strokeStyle = '#9a9a9a';
+    ctx.lineWidth = 3;
+    [0.42, 0.72].forEach(k => {
+      ctx.beginPath();
+      ctx.moveTo(rect.x + rect.w * 0.03, floorY + rect.h * k);
+      ctx.lineTo(rect.x + rect.w * 0.97, floorY + rect.h * k);
+      ctx.stroke();
+    });
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    for (let i = 0; i < 7; i++) {
+      const x = rect.x + rect.w * (0.06 + i * 0.14);
+      ctx.fillRect(x, floorY + rect.h * 0.38, rect.w * 0.035, rect.h * 0.42);
+    }
+    // Вагон с окнами
+    const vx = rect.x + rect.w * 0.08, vy = rect.y + rect.h * 0.14;
+    const vw = rect.w * 0.42, vh = rect.h * 0.32;
+    ctx.fillStyle = '#7a3b2e';
+    roundRect(ctx, vx, vy, vw, vh, 6);
+    ctx.fill();
+    ctx.fillStyle = '#ffe9b0';
+    for (let i = 0; i < 3; i++) {
+      roundRect(ctx, vx + vw * (0.10 + i * 0.28), vy + vh * 0.22, vw * 0.18, vh * 0.42, 4);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#ffd93d';
+    ctx.beginPath();
+    ctx.arc(vx + vw * 0.5, vy + vh * 0.84, Math.max(3, rect.h * 0.026), 0, Math.PI * 2);
+    ctx.fill();
+    // Семафор с крыльями
+    const sx = rect.x + rect.w * 0.86;
+    ctx.fillStyle = '#5a5a66';
+    ctx.fillRect(sx, vy, Math.max(3, rect.w * 0.012), rect.h * 0.5);
+    const lift = Math.sin(t * 0.002) * rect.h * 0.02;
+    ctx.fillStyle = '#E74C3C';
+    roundRect(ctx, sx - rect.w * 0.05, vy + rect.h * 0.06 + lift, rect.w * 0.10, rect.h * 0.06, 3);
+    ctx.fill();
+    ctx.fillStyle = '#2ECC71';
+    ctx.beginPath();
+    ctx.arc(sx + rect.w * 0.006, vy + rect.h * 0.42, Math.max(3, rect.h * 0.03), 0, Math.PI * 2);
+    ctx.fill();
+  },
+
+  // ---------- Морской музей: волна, парус и штурвал ----------
+  drawNavy(ctx, rect, floorY, time) {
+    const t = time || 0;
+    // Мачта с парусом
+    const mx = rect.x + rect.w * 0.22;
+    ctx.fillStyle = '#d8c9a3';
+    ctx.fillRect(mx, rect.y + rect.h * 0.06, Math.max(3, rect.w * 0.012), rect.h * 0.62);
+    ctx.fillStyle = '#f4f6f8';
+    ctx.beginPath();
+    ctx.moveTo(mx, rect.y + rect.h * 0.10);
+    ctx.lineTo(mx + rect.w * 0.26, rect.y + rect.h * 0.34);
+    ctx.lineTo(mx, rect.y + rect.h * 0.46);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#e2e6ea';
+    ctx.beginPath();
+    ctx.moveTo(mx - rect.w * 0.20, rect.y + rect.h * 0.14);
+    ctx.lineTo(mx, rect.y + rect.h * 0.34);
+    ctx.lineTo(mx - rect.w * 0.20, rect.y + rect.h * 0.46);
+    ctx.closePath();
+    ctx.fill();
+    // Волны: две «качающиеся» синусоиды
+    for (let row = 0; row < 2; row++) {
+      const y = floorY + rect.h * (0.06 + row * 0.10);
+      ctx.strokeStyle = row === 0 ? 'rgba(120,200,240,0.85)' : 'rgba(90,160,210,0.7)';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      for (let x = 0; x <= rect.w; x += 6) {
+        const yy = y + Math.sin((x * 0.05) + t * 0.003 + row) * rect.h * 0.018;
+        if (x === 0) ctx.moveTo(rect.x + x, yy); else ctx.lineTo(rect.x + x, yy);
+      }
+      ctx.stroke();
+    }
+    // Штурвал на подставке
+    const wx = rect.x + rect.w * 0.74, wy = rect.y + rect.h * 0.30;
+    const r = Math.max(10, rect.h * 0.11);
+    ctx.strokeStyle = '#8B5A2B';
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(wx, wy, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + t * 0.0004;
+      ctx.beginPath();
+      ctx.moveTo(wx + Math.cos(a) * r, wy + Math.sin(a) * r);
+      ctx.lineTo(wx + Math.cos(a) * r * 1.45, wy + Math.sin(a) * r * 1.45);
+      ctx.stroke();
+    }
+  },
+
+  // ---------- Музей науки и техники: стенд с лампами и шестерни ----------
+  drawTech(ctx, rect, floorY, time) {
+    const t = time || 0;
+    // Стенд с приборами
+    const px = rect.x + rect.w * 0.06, py = rect.y + rect.h * 0.10;
+    const pw = rect.w * 0.34, ph = rect.h * 0.34;
+    ctx.fillStyle = 'rgba(20,18,12,0.55)';
+    roundRect(ctx, px, py, pw, ph, 6);
+    ctx.fill();
+    ctx.strokeStyle = '#F9A825';
+    ctx.lineWidth = 2;
+    roundRect(ctx, px, py, pw, ph, 6);
+    ctx.stroke();
+    // Лампочка мигает
+    const on = Math.sin(t * 0.004) > -0.2;
+    ctx.fillStyle = on ? '#FFE082' : 'rgba(255,224,130,0.25)';
+    ctx.beginPath();
+    ctx.arc(px + pw * 0.28, py + ph * 0.42, Math.max(5, ph * 0.16), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#8d8d8d';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(px + pw * 0.28, py + ph * 0.58);
+    ctx.lineTo(px + pw * 0.28, py + ph * 0.9);
+    ctx.stroke();
+    // Стрелка измерительного прибора
+    ctx.strokeStyle = '#7fdc8f';
+    ctx.beginPath();
+    ctx.arc(px + pw * 0.72, py + ph * 0.42, Math.max(6, ph * 0.18), Math.PI * 0.8, Math.PI * 2.2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(px + pw * 0.72, py + ph * 0.42);
+    const a = Math.PI * 1.1 + Math.sin(t * 0.003) * 0.5;
+    ctx.lineTo(px + pw * 0.72 + Math.cos(a) * ph * 0.16, py + ph * 0.42 + Math.sin(a) * ph * 0.16);
+    ctx.stroke();
+    // Шестерни
+    const cx = rect.x + rect.w * 0.74, cy = rect.y + rect.h * 0.26;
+    [[0, 0, 0.13, '#c9a227'], [0.19, 0.16, 0.09, '#b8b8c0']].forEach((g, gi) => {
+      const gx = cx + rect.w * g[0], gy = cy + rect.h * g[1];
+      const gr = Math.max(8, rect.h * g[2]);
+      ctx.strokeStyle = g[3];
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(gx, gy, gr, 0, Math.PI * 2); ctx.stroke();
+      for (let i = 0; i < 8; i++) {
+        const ang = (i / 8) * Math.PI * 2 + t * (gi ? -0.0006 : 0.0006);
+        ctx.beginPath();
+        ctx.moveTo(gx + Math.cos(ang) * gr, gy + Math.sin(ang) * gr);
+        ctx.lineTo(gx + Math.cos(ang) * gr * 1.3, gy + Math.sin(ang) * gr * 1.3);
+        ctx.stroke();
+      }
+    });
   }
 };
 

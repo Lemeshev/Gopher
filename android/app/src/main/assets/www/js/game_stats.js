@@ -297,12 +297,25 @@ class StatsScene {
   }
 
   drawKnowledgeTab(ctx, W, H) {
-    // Коллекция: сколько предметов уже увидено из базы контента
-    const cats = [
-      { key: 'art_museum', emoji: '🖼️', name: 'Художественный музей' },
-      { key: 'nature_museum', emoji: '🦕', name: 'Музей природы' },
-      { key: 'space_museum', emoji: '🚀', name: 'Космический музей' },
-      { key: 'history_museum', emoji: '🏺', name: 'Исторический музей' },
+    // Коллекция: сколько предметов уже увидено из базы контента.
+    // Музеи (v1.3.7 — их десять) берём из общего списка, чтобы вкладка не отставала.
+    const MUSEUM_META = {
+      art_museum: ['🖼️', 'Художественный музей'],
+      nature_museum: ['🦕', 'Музей природы'],
+      space_museum: ['🚀', 'Космический музей'],
+      history_museum: ['🏺', 'Исторический музей'],
+      rail_museum: ['🚂', 'Музей железных дорог'],
+      navy_museum: ['⚓', 'Морской музей'],
+      tech_museum: ['💡', 'Музей науки и техники'],
+      music_museum: ['🎼', 'Музей музыки и театра'],
+      toy_museum: ['🧸', 'Музей игрушек'],
+      palace_museum: ['🏰', 'Дворцовый музей']
+    };
+    const museumKeys = (typeof MUSEUM_CATEGORIES !== 'undefined') ? MUSEUM_CATEGORIES : Object.keys(MUSEUM_META);
+    const cats = museumKeys.map(k => {
+      const m = MUSEUM_META[k] || ['🏛️', k];
+      return { key: k, emoji: m[0], name: m[1] };
+    }).concat([
       { key: 'library', emoji: '📚', name: 'Библиотека' },
       { key: 'school', emoji: '🎓', name: 'Учёба' },
       { key: 'work', emoji: '💼', name: 'Работа' },
@@ -312,7 +325,7 @@ class StatsScene {
       { key: 'gym', emoji: '🏋️', name: 'Спортзал' },
       { key: 'clinic', emoji: '🏥', name: 'Лечения' },
       { key: 'restaurant', emoji: '🍽️', name: 'Блюда' }
-    ];
+    ]);
 
     let totalSeen = 0, totalAll = 0;
     const rows = cats.map(c => {
@@ -322,9 +335,11 @@ class StatsScene {
       return { emoji: c.emoji, name: c.name, seen: seen, total: total };
     });
 
+    // Строк стало больше (десять музеев), поэтому высота подстраивается: список
+    // должен влезать целиком даже на маленьком экране, без наложений.
     const startY = 92;
-    const avail = H - startY - 70;
-    const rowH = Math.max(22, Math.min(40, avail / rows.length - 5));
+    const avail = H - startY - 74;
+    const rowH = Math.max(15, Math.min(34, avail / rows.length - 4));
 
     rows.forEach((r, i) => {
       const y = startY + i * (rowH + 5);
@@ -336,11 +351,11 @@ class StatsScene {
 
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.font = `${Math.min(rowH * 0.55, 18)}px Arial`;
+      ctx.font = `${Math.min(rowH * 0.7, 18)}px Arial`;
       ctx.fillStyle = '#fff';
       ctx.fillText(r.emoji, 24, y + rowH / 2);
 
-      ctx.font = `bold ${Math.min(W * 0.031, 12)}px Arial`;
+      ctx.font = `bold ${Math.min(W * 0.031, rowH * 0.68, 12)}px Arial`;
       ctx.fillText(r.name, 50, y + rowH / 2);
 
       const barX = W * 0.56;
