@@ -1876,10 +1876,87 @@ window.findProcedure = findProcedure;
 const QUIET_GAMES = [
   { id: 'stars', name: 'Созвездие', emoji: '✨', desc: 'Соедини звёзды по порядку', reward: 8 },
   { id: 'color', name: 'Раскраска', emoji: '🎨', desc: 'Раскрась картинку цветами', reward: 10 },
-  { id: 'fish',  name: 'Тихая рыбалка', emoji: '🎣', desc: 'Подожди поклёвку и тяни', reward: 12 }
+  { id: 'fish',  name: 'Тихая рыбалка', emoji: '🎣', desc: 'Подводный мир: жди поклёвку и тяни', reward: 12 }
 ];
 
 window.QUIET_GAMES = QUIET_GAMES;
+
+// ============ ПОДВОДНЫЙ МИР РЫБАЛКИ (v1.3.9) ============
+// Пожелание пользователя: «в спокойных играх, где надо рыбку ловить — чтобы был
+// виден подводный мир, как они плавают, как за крючок цепляются, и чтобы было
+// много разных видов рыбок, чтоб всё время разные попадались». И вторая часть:
+// «не только рыб — ещё акул, осьминогов, черепах. Но ловили чтобы только рыбок,
+// чтоб черепашкам не навредить».
+//
+// Отсюда два списка:
+//   FISH_SPECIES — кого можно поймать: 22 вида, у каждого свой цвет, размер и факт;
+//   SEA_FRIENDS  — кто плавает рядом и остаётся целым (черепаха, акула, осьминог,
+//                  медуза, краб, морская звезда, морской конёк).
+// weight — как часто вид попадается: мелкая живность чаще, золотая рыбка и клоун
+// редко, чтобы «всё время разные» было честным, а не обещанием.
+const FISH_SPECIES = [
+  { id: 'crucian',   name: 'Карась',          color: '#C9A227', belly: '#F0D264', size: 0.95, weight: 12, fact: 'Может зимовать в пруду, зарывшись в ил.' },
+  { id: 'roach',     name: 'Плотва',          color: '#9BB7C9', belly: '#E6EEF3', size: 0.85, weight: 12, fact: 'Стайная рыба: в одиночку почти не плавает.' },
+  { id: 'perch',     name: 'Окунь',           color: '#5C8A3C', belly: '#DCE8B8', size: 0.95, weight: 11, fact: 'Полосатый хищник: охотится из засады.' },
+  { id: 'ruff',      name: 'Ёрш',             color: '#7A7360', belly: '#D8D2C0', size: 0.72, weight: 10, fact: 'Растопыривает колючки, когда пугается.' },
+  { id: 'bream',     name: 'Лещ',             color: '#B4A56B', belly: '#EFE7C6', size: 1.05, weight: 9,  fact: 'Молодого леща называют подлещик.' },
+  { id: 'rudd',      name: 'Краснопёрка',     color: '#D9A24A', belly: '#F6DDA8', size: 0.85, weight: 9,  fact: 'Красные плавники — как маленькие флажки.' },
+  { id: 'tench',     name: 'Линь',            color: '#6E7F4E', belly: '#CBD6A4', size: 1.0,  weight: 8,  fact: 'Кожа слизистая: в руках скользит, будто в масле.' },
+  { id: 'pike',      name: 'Щука',            color: '#5A6E52', belly: '#CFD8B8', size: 1.35, weight: 7,  fact: 'Стоит неподвижно и хватает добычу рывком.' },
+  { id: 'zander',    name: 'Судак',           color: '#6B7C90', belly: '#D6DEE7', size: 1.25, weight: 7,  fact: 'У него клыки: охотится в сумерках.' },
+  { id: 'catfish',   name: 'Сом',             color: '#4E4A55', belly: '#BFB9C4', size: 1.3,  weight: 6,  fact: 'Усы помогают искать еду на самом дне.' },
+  { id: 'carp',      name: 'Карп',            color: '#B98A3E', belly: '#EDD8A8', size: 1.2,  weight: 6,  fact: 'Живёт больше двадцати лет и узнаёт время кормления.' },
+  { id: 'grasscarp', name: 'Белый амур',      color: '#8FA96B', belly: '#DFE9C6', size: 1.2,  weight: 5,  fact: 'Ест водоросли — его зовут санитаром пруда.' },
+  { id: 'chub',      name: 'Голавль',         color: '#98A3A8', belly: '#E1E7EA', size: 1.0,  weight: 5,  fact: 'Любит быстрое течение и насекомых с поверхности.' },
+  { id: 'trout',     name: 'Форель',          color: '#C4705A', belly: '#F0C9B4', size: 1.1,  weight: 4,  fact: 'Живёт только в холодной и чистой воде.' },
+  { id: 'guppy',     name: 'Гуппи',           color: '#E86A9B', belly: '#FBD3E4', size: 0.65, weight: 9,  fact: 'Рождает живых мальков, а не мечет икру.' },
+  { id: 'neon',      name: 'Неоновая тетра',  color: '#4FC3F7', belly: '#D6F1FF', size: 0.6,  weight: 9,  fact: 'Яркая полоска — признак, что рыбка здорова.' },
+  { id: 'swordtail', name: 'Меченосец',       color: '#F0A24B', belly: '#FBE0B8', size: 0.7,  weight: 8,  fact: 'У самца на хвосте длинный отросток — «меч».' },
+  { id: 'angelfish', name: 'Скалярия',        color: '#C0B18A', belly: '#F2ECD8', size: 1.0,  weight: 7,  fact: 'Плавает медленно и важно, как королева.' },
+  { id: 'gourami',   name: 'Гурами',          color: '#8E7CC3', belly: '#DCD4F0', size: 0.9,  weight: 7,  fact: 'Дышит воздухом с поверхности воды.' },
+  { id: 'corydoras', name: 'Сомик-коридорас', color: '#7D8C99', belly: '#CCD6DE', size: 0.7,  weight: 8,  fact: 'Чистильщик: подбирает корм со дна.' },
+  { id: 'goldfish',  name: 'Золотая рыбка',   color: '#FFB300', belly: '#FFE082', size: 0.9,  weight: 3,  fact: 'Помнишь сказку? Желание загадывать не обязательно — отпусти её.' },
+  { id: 'clownfish', name: 'Рыба-клоун',      color: '#FF7043', belly: '#FFCCBC', size: 0.8,  weight: 3,  fact: 'Живёт среди щупалец актинии, и они её не жалят.' }
+];
+
+// Кто плавает рядом и остаётся целым: их не ловят — на них смотрят.
+// kind задаёт силуэт (черепаха, акула, осьминог, медуза, краб, звезда, конёк),
+// size — размер на экране, fact — фраза-объяснение для подсказки.
+const SEA_FRIENDS = [
+  { id: 'turtle',    kind: 'turtle',    name: 'Черепаха',       size: 1.45, fact: 'Живёт больше ста лет — её не ловим, только смотрим.' },
+  { id: 'shark',     kind: 'shark',     name: 'Акула',          size: 1.7,  fact: 'Большая и редкая: пусть плавает, её не трогаем.' },
+  { id: 'octopus',   kind: 'octopus',   name: 'Осьминог',       size: 1.2,  fact: 'У осьминога три сердца и восемь щупалец.' },
+  { id: 'jellyfish', kind: 'jellyfish', name: 'Медуза',         size: 0.95, fact: 'Почти целиком из воды: руками её не берут.' },
+  { id: 'crab',      kind: 'crab',      name: 'Краб',           size: 0.9,  fact: 'Ходит боком и прячется под камнями.' },
+  { id: 'starfish',  kind: 'starfish',  name: 'Морская звезда', size: 0.9,  fact: 'Отращивает потерянный луч заново.' },
+  { id: 'seahorse',  kind: 'seahorse',  name: 'Морской конёк',  size: 0.8,  fact: 'Папа-конёк сам вынашивает икру.' }
+];
+
+// Случайный вид по весам: частые попадаются часто, редкие — редко.
+function randomFishSpecies() {
+  const total = FISH_SPECIES.reduce((s, f) => s + f.weight, 0);
+  let r = Math.random() * total;
+  for (const f of FISH_SPECIES) { r -= f.weight; if (r <= 0) return f; }
+  return FISH_SPECIES[0];
+}
+
+function findFishSpecies(id) { return FISH_SPECIES.find(f => f.id === id) || null; }
+function findSeaFriend(id) { return SEA_FRIENDS.find(f => f.id === id) || null; }
+
+// Фраза для подсказки, когда большой обитатель уходит от крючка:
+// «Черепаха уплывает: живёт больше ста лет — её не ловим, только смотрим.»
+function seaFriendHint(id) {
+  const f = findSeaFriend(id);
+  if (!f) return 'Этого здесь не ловим — пусть плавает.';
+  return f.name + ' уплывает: ' + f.fact;
+}
+
+window.FISH_SPECIES = FISH_SPECIES;
+window.SEA_FRIENDS = SEA_FRIENDS;
+window.randomFishSpecies = randomFishSpecies;
+window.findFishSpecies = findFishSpecies;
+window.findSeaFriend = findSeaFriend;
+window.seaFriendHint = seaFriendHint;
 
 // ============ ВОЗДУШНАЯ ГИМНАСТИКА (в спортзале) ============
 // Гофер качается на кольцах и перелетает на следующее. Награда — за точность.
@@ -2005,7 +2082,11 @@ const ACHIEVEMENTS = [
   { id: 'level20',    tier: 'month', emoji: '🥇', name: 'Гроссмейстер', desc: 'Достигни 20 уровня — это примерно полгода занятий', goal: 20, of: (p, S) => S.level },
   { id: 'trips200',   tier: 'month', emoji: '🗺️', name: 'Двести походов', desc: 'Сходить по карте 200 раз', goal: 200, of: p => p.trips },
   { id: 'museumsFull', tier: 'month', emoji: '🏛️', name: 'Хранитель музеев', desc: 'Посмотреть все 100 экспонатов в каждом из 10 музеев', goal: 10,
-    of: (p, S) => MUSEUM_CATEGORIES.filter(c => S.seenCount(c) >= 100).length }
+    of: (p, S) => MUSEUM_CATEGORIES.filter(c => S.seenCount(c) >= 100).length },
+  // Улов: подводный мир рыбалки (v1.3.9). Считаем РАЗНЫЕ виды — за это отвечает
+  // профиль (fishSeen), поэтому коллекция не теряется при выходе из игры.
+  { id: 'fishAll',     tier: 'week', emoji: '🐠', name: 'Ихтиолог', desc: 'Поймать 20 разных видов рыб — почти весь подводный мир', goal: 20,
+    of: (p, S) => Object.keys((S && S.fishSeen) || {}).length }
 ];
 
 // Категории музеев: нужны и вкладке «Знания», и достижениям коллекционера.
