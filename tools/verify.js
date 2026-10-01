@@ -230,7 +230,7 @@ function reviewerRuntime() {
   catch (e) { bootErr = e; }
   if (!check('Игра стартует без исключений (new Game().init())', !bootErr, bootErr ? bootErr.message : 'OK')) return null;
 
-  const EXPECTED_SCENES = ['menu', 'map', 'home', 'shop', 'minigames', 'quiet', 'aerial', 'stats', 'clinic', 'visit', 'friends'];
+  const EXPECTED_SCENES = ['menu', 'map', 'home', 'shop', 'minigames', 'quiet', 'aerial', 'sport', 'stats', 'clinic', 'visit', 'friends'];
   const missingScenes = EXPECTED_SCENES.filter(s => !game.scenes[s]);
   check('Созданы все ' + EXPECTED_SCENES.length + ' игровых сцен', missingScenes.length === 0,
     missingScenes.length ? ('нет: ' + missingScenes.join(', ')) : Object.keys(game.scenes).join(', '));
@@ -379,7 +379,8 @@ function reviewerClicks(runtime) {
         const vs = __game.scenes.visit;
         vs.draw(__game.ctx);
         const museumBtns = (vs.buttons || []).filter(b => (b.text || '').indexOf('museum_') === 0);
-        ok('Хаб музеев: 4 музея на выбор', museumBtns.length === 4, 'их ' + museumBtns.length);
+        ok('Хаб музеев: карточки музеев на странице (v1.3.7 — их десять, по шесть на экран)',
+           museumBtns.length === 6, 'их ' + museumBtns.length);
         if (museumBtns.length) {
           click(museumBtns[0]);
           vs.draw(__game.ctx);
@@ -654,9 +655,16 @@ function reviewerV12Static() {
   check('Есть сцена тихих игр с тремя занятиями',
     fs.existsSync(path.join(WWW, 'js/game_quiet.js')) && content.indexOf('QUIET_GAMES') !== -1 &&
     (content.match(/id: '(stars|color|fish)'/g) || []).length === 3);
-  check('Есть воздушная гимнастика в спортзале',
-    fs.existsSync(path.join(WWW, 'js/game_aerial.js')) && content.indexOf('AERIAL') !== -1 &&
-    read('game_visit.js').indexOf('Воздушная гимнастика') !== -1);
+  // v1.3.7: спортивных дисциплин стало четыре, и каждая живёт в своей локации
+  const aerialSrc = fs.readFileSync(path.join(WWW, 'js', 'game_aerial.js'), 'utf8');
+  check('Есть четыре анимированные спортивные дисциплины (кольца, полотна, заплыв, барьеры)',
+    fs.existsSync(path.join(WWW, 'js/game_aerial.js')) && aerialSrc.indexOf('AERIAL_CFG') !== -1 &&
+    (aerialSrc.match(/id: '(rings|silks|swim|hurdles)'/g) || []).length === 4 &&
+    aerialSrc.indexOf('sportListFor') !== -1,
+    'дисциплин в реестре: ' + (aerialSrc.match(/id: '(rings|silks|swim|hurdles)'/g) || []).length);
+  check('Спортивные тренировки открываются из спортзала, бассейна и парка',
+    /place: 'gym'/.test(aerialSrc) && /place: 'pool'/.test(aerialSrc) && /place: 'park'/.test(aerialSrc) &&
+    read('game_visit.js').indexOf("'sport_'") !== -1);
 
   // --- 5. Комнаты, мебель, цвета ---
   check('В доме четыре комнаты',
@@ -2254,7 +2262,7 @@ function reviewerHeroNames(rt) {
    Проверяем: резервную копию и восстановление, честную реакцию на ошибку записи,
    реальные секунды времени, видимый выход из гостей и системную кнопку «Назад». */
 function reviewerSaveAndExit(rt) {
-  console.log('\n\ud83d\udcbe БЛОК 12/12 — Дом не теряется, выход из гостей, время в игре (v1.3.6)');
+  console.log('\n\ud83d\udcbe БЛОК 12/13 — Дом не теряется, выход из гостей, время в игре (v1.3.6)');
   const system = fs.readFileSync(path.join(WWW, 'js', 'system.js'), 'utf8');
   const gameSrc = fs.readFileSync(path.join(WWW, 'js', 'game.js'), 'utf8');
   const friendsSrc = fs.readFileSync(path.join(WWW, 'js', 'game_friends.js'), 'utf8');
@@ -2425,6 +2433,169 @@ reviewerStatic();
 reviewerV12Static();
 const rt = reviewerRuntime();
 reviewerClicks(rt);
+/* ---------- БЛОК 13: ДЕСЯТЬ МУЗЕЕВ И ЧЕТЫРЕ СПОРТИВНЫЕ ДИСЦИПЛИНЫ (v1.3.7) ----------
+   Просьбы заказчика:
+   • «музеев очень мало... хочется уйму разных музеев, а в каждом — сотни экспонатов»;
+   • «раз воздушная гимнастика анимирована, надо анимировать и другие виды спорта,
+     а к воздушной гимнастике добавить не только кольца, но и полотна».
+   Проверяем: десять музеев по сто экспонатов, сетка хаба с листанием, единый
+   список музеев (карта, музыка, «Знания», достижения, сцены) и четыре дисциплины
+   со своими анимациями — из спортзала, бассейна и парка. */
+function reviewerMuseumsAndSports(rt) {
+  console.log('\n\ud83c\udfdb\ufe0f БЛОК 13/13 — Десять музеев и четыре спортивные дисциплины (v1.3.7)');
+  const content = fs.readFileSync(path.join(WWW, 'js', 'game_content.js'), 'utf8');
+  const aerial = fs.readFileSync(path.join(WWW, 'js', 'game_aerial.js'), 'utf8');
+  const visit = fs.readFileSync(path.join(WWW, 'js', 'game_visit.js'), 'utf8');
+  const scenery = fs.readFileSync(path.join(WWW, 'js', 'game_scenery.js'), 'utf8');
+  const audioSrc = fs.readFileSync(path.join(WWW, 'js', 'audio.js'), 'utf8');
+  const mapSrc = fs.readFileSync(path.join(WWW, 'js', 'game_map.js'), 'utf8');
+  const statsSrc = fs.readFileSync(path.join(WWW, 'js', 'game_stats.js'), 'utf8');
+
+  // --- 1. Музеев десять, в каждом ровно сто экспонатов ---
+  const mc = content.match(/const MUSEUM_CATEGORIES = \[([\s\S]*?)\];/);
+  const museumKeys = mc ? (mc[1].match(/'[a-z_]+_museum'/g) || []).map(s => s.slice(1, -1)) : [];
+  check('Музеев стало десять (было четыре)',
+    museumKeys.length === 10 && new Set(museumKeys).size === 10,
+    museumKeys.length ? ('список: ' + museumKeys.join(', ')) : 'списка нет');
+  const sliceMuseum = key => {
+    const i = content.indexOf('\n  ' + key + ': [');
+    if (i < 0) return '';
+    return content.slice(i, content.indexOf('\n  ],', i));
+  };
+  const sizes = museumKeys.map(k => (sliceMuseum(k).match(/\{ e:/g) || []).length);
+  check('В каждом музее по сто экспонатов (всего тысяча)',
+    sizes.length === 10 && sizes.every(n => n === 100),
+    'экспонатов: ' + sizes.join(', ') + ' → всего ' + sizes.reduce((a, b) => a + b, 0));
+  const dupMuseums = museumKeys.filter(k => {
+    const names = (sliceMuseum(k).match(/n: '([^']+)'/g) || []).map(s => s.slice(4, -1));
+    return new Set(names).size !== names.length;
+  });
+  check('Названия внутри музея не повторяются (иначе «изучено 100/100» недостижимо)',
+    dupMuseums.length === 0, dupMuseums.length ? ('повторы: ' + dupMuseums.join(', ')) : 'без повторов');
+  check('Достижения знают про десять музеев и дают ступень полегче',
+    /Посмотреть все 100 экспонатов в каждом из 10 музеев/.test(content) &&
+    content.indexOf("'museumsLover'") !== -1 && /seenCount\(c\) >= 20/.test(content));
+  check('Новые музеи описаны как места: сцена, поход и музыка',
+    museumKeys.every(k => scenery.indexOf('\n  ' + k + ':') !== -1) &&
+    museumKeys.every(k => visit.indexOf('\n  ' + k + ': {') !== -1) &&
+    audioSrc.indexOf('MUSEUM_CATEGORIES') !== -1);
+  check('Плитка «Музеи» и вкладка «Знания» берут список музеев из одного места',
+    mapSrc.indexOf('MUSEUM_CATEGORIES.length') !== -1 &&
+    statsSrc.indexOf('MUSEUM_CATEGORIES') !== -1 && statsSrc.indexOf('rail_museum') !== -1);
+  check('Сцена спорта зарегистрирована, старое имя «aerial» работает',
+    fs.readFileSync(path.join(WWW, 'js', 'game.js'), 'utf8').indexOf('sport: SportScene') !== -1 &&
+    aerial.indexOf('window.AerialScene = SportScene') !== -1 &&
+    aerial.indexOf('window.SportScene = SportScene') !== -1);
+
+  if (!rt) {
+    check('Музеи и спорт проверены в песочнице', false, 'игра не запустилась');
+    return;
+  }
+  const vmRun = c => { try { return vm.runInContext(c, rt.sandbox); } catch (e) { return 'ОШИБКА: ' + e.message; }; };
+  const ok = (name, cond, detail) => check(name, cond, detail);
+
+  // --- 2. Живая песочница: сетка хаба и поход в десятый музей ---
+  const mus = vmRun(`(function(){
+    const out = {};
+    out.sizes = MUSEUM_CATEGORIES.map(k => contentSize(k));
+    const vs = __game.scenes.visit;
+    __game.currentScene = 'visit';
+    __game.scenes.map.init();
+    System.stats.energy = 100;
+    vs.init('museums');
+    vs.draw(__game.ctx);
+    out.page1 = (vs.buttons || []).filter(b => (b.text || '').indexOf('museum_') === 0).map(b => b.text);
+    out.hasNext = (vs.buttons || []).some(b => b.text === 'hub_next');
+    const next = (vs.buttons || []).filter(b => b.text === 'hub_next')[0];
+    if (next) vs.handleClick(next.x + next.w / 2, next.y + next.h / 2);
+    vs.draw(__game.ctx);
+    out.page2 = (vs.buttons || []).filter(b => (b.text || '').indexOf('museum_') === 0).map(b => b.text);
+    const card = (vs.buttons || []).filter(b => b.text === 'museum_palace_museum')[0];
+    out.hasCard = !!card;
+    if (card) vs.handleClick(card.x + card.w / 2, card.y + card.h / 2);
+    vs.draw(__game.ctx);
+    out.loc = vs.locationId;
+    out.items = vs.items.length;
+    out.inBase = vs.totalInBase;
+    out.stage = (typeof LocationStage !== 'undefined' && LocationStage.config('palace_museum')) ? 'есть' : 'нет';
+    out.uniq = (function(){ const u = {}; (vs.items || []).forEach(it => { u[it.id] = 1; }); return Object.keys(u).length; })();
+    return out;
+  })()`);
+  ok('Хаб музеев: шесть карточек на странице и листание к остальным',
+    mus && (mus.page1 || []).length === 6 && mus.hasNext === true && (mus.page2 || []).length === 4,
+    mus && mus.page1 ? ('на первой: ' + mus.page1.length + ', на второй: ' + (mus.page2 || []).length) : mus);
+  ok('Десятый музей (Дворцовый) открывается из хаба: сто экспонатов в базе',
+    mus && mus.hasCard === true && mus.loc === 'palace_museum' && mus.inBase === 100 &&
+    mus.items >= 6 && mus.uniq === mus.items,
+    mus && mus.loc ? (mus.loc + ', в базе ' + mus.inBase + ', в подборке ' + mus.items +
+      ', сцена: ' + mus.stage) : mus);
+  ok('Каждый из десяти музеев отдаёт сто экспонатов',
+    Array.isArray(mus.sizes) && mus.sizes.length === 10 && mus.sizes.every(n => n === 100),
+    mus && mus.sizes ? mus.sizes.join('/') : mus);
+
+  // --- 3. Живая песочница: четыре спортивные дисциплины ---
+  const sport = vmRun(`(function(){
+    const out = {};
+    out.gym = sportListFor('gym').map(d => d.id);
+    out.pool = sportListFor('pool').map(d => d.id);
+    out.park = sportListFor('park').map(d => d.id);
+    out.ringsBack = __game.scenes.aerial.disc.id;      // старое имя ведёт на кольца
+    // Открываем полотна из спортзала: кнопка в сцене посещения
+    const vs = __game.scenes.visit;
+    __game.currentScene = 'visit';
+    System.stats.energy = 90;
+    vs.init('gym');
+    vs.draw(__game.ctx);
+    const btn = (vs.buttons || []).filter(b => b.text === 'sport_silks')[0];
+    out.hasBtn = !!btn;
+    if (btn) vs.handleClick(btn.x + btn.w / 2, btn.y + btn.h / 2);
+    out.scene = __game.currentScene;
+    const sc = __game.scenes.sport;
+    out.disc = sc ? sc.disc.id : null;
+    out.attempts = sc ? sc.attemptsLeft : -1;
+    // Каждая арена должна рисоваться без ошибок
+    const errs = [];
+    Object.keys(SPORT_DISCIPLINES).forEach(id => {
+      const s2 = new SportScene(__game, id);
+      s2.paid = true; s2.state = 'swing';
+      try { s2.draw(__game.ctx); } catch (e) { errs.push(id + ': ' + e.message); }
+    });
+    out.drawErrs = errs;
+    // Награда за точное попадание и честный текст без «{pet}»
+    const s3 = new SportScene(__game, 'swim');
+    System.stats.energy = 90;
+    s3.payEntry();
+    out.energyAfter = Math.round(System.stats.energy);
+    s3.power = 0.5; s3.jump();
+    out.perfect = s3.perfect; out.coins = s3.coinsWon;
+    s3.state = 'swing'; s3.power = 0.02; s3.jump();
+    out.missText = s3.lastResult;
+    out.petRaw = s3.lastResult.indexOf('{pet}') !== -1;
+    // После тренировки возвращаемся в свою локацию, а не на карту
+    s3.paid = true; s3.state = 'swing'; s3.finish();
+    out.backScene = __game.currentScene;
+    out.backLoc = __game.scenes.visit ? __game.scenes.visit.locationId : null;
+    return out;
+  })()`);
+  ok('Спортзал даёт кольца и полотна, бассейн — заплыв, парк — барьеры',
+    sport && (sport.gym || []).join(',') === 'rings,silks' && (sport.pool || []).join(',') === 'swim' &&
+    (sport.park || []).join(',') === 'hurdles' && sport.ringsBack === 'rings',
+    sport && sport.gym ? ('зал: ' + sport.gym.join('+') + ', бассейн: ' + sport.pool.join('+') +
+      ', парк: ' + sport.park.join('+')) : sport);
+  ok('Кнопка «Полотна» в спортзале открывает свою сцену с анимацией',
+    sport && sport.hasBtn === true && sport.scene === 'sport' && sport.disc === 'silks' && sport.attempts === 5,
+    sport && sport.disc ? ('открылась дисциплина: ' + sport.disc + ', попыток ' + sport.attempts) : sport);
+  ok('Все четыре арены рисуются без ошибок',
+    sport && Array.isArray(sport.drawErrs) && sport.drawErrs.length === 0,
+    sport && sport.drawErrs && sport.drawErrs.length ? sport.drawErrs.join('; ') : 'кольца, полотна, заплыв, барьеры');
+  ok('Тренировка тратит энергию, точное попадание даёт монеты, а текст без «{pet}»',
+    sport && sport.energyAfter <= 86 && sport.perfect === 1 && sport.coins > 0 && sport.petRaw === false,
+    sport ? ('энергия ' + sport.energyAfter + '%, монет ' + sport.coins + ', текст: ' + sport.missText) : sport);
+  ok('После тренировки возвращаемся в свою локацию (бассейн), а не на карту',
+    sport && sport.backScene === 'visit' && sport.backLoc === 'pool',
+    sport ? (sport.backScene + ' / ' + sport.backLoc) : sport);
+}
+
 reviewerV12Runtime(rt);
 reviewerAchievements(rt);
 reviewerOutfits(rt);
@@ -2433,6 +2604,7 @@ reviewerCalm(rt);
 reviewerRuStore(rt);
 reviewerHeroNames(rt);
 reviewerSaveAndExit(rt);
+reviewerMuseumsAndSports(rt);
 reviewerApk();
 reviewerRender();
 

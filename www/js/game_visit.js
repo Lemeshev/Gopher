@@ -3,7 +3,11 @@
 // Каждое посещение показывает свежую подборку из общей базы контента
 // (приоритет отдаётся тем предметам, что ещё не попадались).
 
-const MUSEUM_KEYS = ['art_museum', 'nature_museum', 'space_museum', 'history_museum'];
+// Список музеев берём из MUSEUM_CATEGORIES (game_content.js) — так хаб, звук,
+// вкладка «Знания» и достижения всегда согласованы между собой (v1.3.7).
+const MUSEUM_KEYS = (typeof MUSEUM_CATEGORIES !== 'undefined') ? MUSEUM_CATEGORIES : [
+  'art_museum', 'nature_museum', 'space_museum', 'history_museum'
+];
 
 const VISIT_DATA = {
   // ----- ХАБ МУЗЕЕВ -----
@@ -14,7 +18,13 @@ const VISIT_DATA = {
       { id: 'art_museum', emoji: '🖼️', name: 'Художественный', desc: 'Живопись и скульптура', color: '#E91E63' },
       { id: 'nature_museum', emoji: '🦕', name: 'Музей природы', desc: 'Животные и минералы', color: '#4CAF50' },
       { id: 'space_museum', emoji: '🚀', name: 'Космический', desc: 'Планеты, звёзды, ракеты', color: '#3F51B5' },
-      { id: 'history_museum', emoji: '🏺', name: 'Исторический', desc: 'Артефакты и эпохи', color: '#8D6E63' }
+      { id: 'history_museum', emoji: '🏺', name: 'Исторический', desc: 'Артефакты и эпохи', color: '#8D6E63' },
+      { id: 'rail_museum', emoji: '🚂', name: 'Железных дорог', desc: 'Паровозы, вокзалы, метро', color: '#5D4037' },
+      { id: 'navy_museum', emoji: '⚓', name: 'Морской', desc: 'Флот, ледоколы, парусники', color: '#0277BD' },
+      { id: 'tech_museum', emoji: '💡', name: 'Науки и техники', desc: 'Изобретения и опыты', color: '#F9A825' },
+      { id: 'music_museum', emoji: '🎼', name: 'Музыки и театра', desc: 'Инструменты, балет, опера', color: '#7B1FA2' },
+      { id: 'toy_museum', emoji: '🧸', name: 'Игрушек', desc: 'Куклы, матрёшки, игры', color: '#D84315' },
+      { id: 'palace_museum', emoji: '🏰', name: 'Дворцовый', desc: 'Эрмитаж: залы и сокровища', color: '#00695C' }
     ]
   },
 
@@ -44,6 +54,50 @@ const VISIT_DATA = {
     name: '🏺 Исторический музей', bg: '#2b1f14', kind: 'browse',
     content: 'history_museum', count: 12, energyCost: 5,
     perItem: '+1 интеллект за артефакт',
+    perItemReward: { stat: 'intelligence', amount: 1 },
+    reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+
+  // ----- НОВЫЕ МУЗЕИ (v1.3.7): тот же режим осмотра, своя база на 100 экспонатов -----
+  rail_museum: {
+    name: '🚂 Музей железных дорог', bg: '#241a12', kind: 'browse',
+    content: 'rail_museum', count: 12, energyCost: 5,
+    perItem: '+1 интеллект за локомотив и станцию',
+    perItemReward: { stat: 'intelligence', amount: 1 },
+    reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  navy_museum: {
+    name: '⚓ Морской музей', bg: '#0d2438', kind: 'browse',
+    content: 'navy_museum', count: 12, energyCost: 5,
+    perItem: '+1 интеллект за корабль',
+    perItemReward: { stat: 'intelligence', amount: 1 },
+    reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  tech_museum: {
+    name: '💡 Музей науки и техники', bg: '#2b2410', kind: 'browse',
+    content: 'tech_museum', count: 12, energyCost: 5,
+    perItem: '+1 интеллект за изобретение',
+    perItemReward: { stat: 'intelligence', amount: 1 },
+    reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  music_museum: {
+    name: '🎼 Музей музыки и театра', bg: '#241430', kind: 'browse',
+    content: 'music_museum', count: 12, energyCost: 5,
+    perItem: '+1 интеллект за инструмент и спектакль',
+    perItemReward: { stat: 'intelligence', amount: 1 },
+    reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  toy_museum: {
+    name: '🧸 Музей игрушек', bg: '#2f1a14', kind: 'browse',
+    content: 'toy_museum', count: 12, energyCost: 5,
+    perItem: '+1 интеллект за игрушку',
+    perItemReward: { stat: 'intelligence', amount: 1 },
+    reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  palace_museum: {
+    name: '🏰 Дворцовый музей', bg: '#12281f', kind: 'browse',
+    content: 'palace_museum', count: 12, energyCost: 5,
+    perItem: '+1 интеллект за зал и сокровище',
     perItemReward: { stat: 'intelligence', amount: 1 },
     reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
   },
@@ -158,6 +212,7 @@ class VisitScene {
     this.toast = '';
     this.toastTimer = 0;
     this.page = 0;
+    this.hubPage = 0;          // листание сетки музеев в хабе (v1.3.7)
 
     if (!this.data) {
       this.data = {
@@ -260,52 +315,99 @@ class VisitScene {
   }
 
   // ----- Хаб музеев -----
+  // Музеев стало десять (v1.3.7), поэтому вместо длинного списка — сетка по две
+  // карточки в ряд с листанием: на телефоне всё видно и легко попасть пальцем.
   drawHub(ctx, W, H) {
     const d = this.data;
+    const subs = d.sub || [];
+    const seenTotal = subs.reduce((s, m) => s + System.seenCount(m.id), 0);
+    const itemsTotal = subs.reduce((s, m) => s + ((typeof contentSize === 'function') ? contentSize(m.id) : 0), 0);
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = '#b9c3ff';
     ctx.font = `${Math.min(W * 0.036, 15)}px Arial`;
-    ctx.textAlign = 'center';
-    ctx.fillText(d.intro || 'Выбери:', W / 2, 62);
+    ctx.fillText(d.intro || 'Выбери:', W / 2, 58);
 
-    const btnW = Math.min(W * 0.86, 320);
-    const btnH = Math.min(H * 0.14, 92);
-    const btnX = (W - btnW) / 2;
-    const startY = 80;
+    ctx.fillStyle = 'rgba(255,255,255,0.65)';
+    ctx.font = `${Math.min(W * 0.03, 12.5)}px Arial`;
+    ctx.fillText(`Музеев: ${subs.length} · изучено ${seenTotal} из ${itemsTotal} экспонатов`, W / 2, 78);
 
-    d.sub.forEach((m, i) => {
-      const y = startY + i * (btnH + 14);
-      ctx.fillStyle = m.color;
-      roundRect(ctx, btnX, y, btnW, btnH, 16);
+    const cols = 2;
+    const perPage = 6;                     // три ряда — влезает даже на маленький экран
+    const pages = Math.max(1, Math.ceil(subs.length / perPage));
+    if (!this.hubPage || this.hubPage >= pages) this.hubPage = 0;
+    const from = this.hubPage * perPage;
+    const pageItems = subs.slice(from, from + perPage);
+
+    const top = 96;
+    const bottom = H - (pages > 1 ? 64 : 24);
+    const gap = 10;
+    const rows = Math.ceil(pageItems.length / cols);
+    const cardW = Math.min((W - 24 - (cols - 1) * gap) / cols, 210);
+    const cardH = Math.min((bottom - top - (rows - 1) * gap) / Math.max(rows, 1), 98);
+    const gridW = cols * cardW + (cols - 1) * gap;
+    const startX = (W - gridW) / 2;
+    // Карточки не «липнут» к шапке: сетка центрируется в свободной высоте
+    const gridH = rows * cardH + (rows - 1) * gap;
+    const gridY0 = top + Math.max(0, (bottom - top - gridH) / 2);
+
+    pageItems.forEach((m, i) => {
+      const col = i % cols, row = Math.floor(i / cols);
+      const x = startX + col * (cardW + gap);
+      const y = gridY0 + row * (cardH + gap);
+
+      ctx.fillStyle = m.color || '#39406a';
+      roundRect(ctx, x, y, cardW, cardH, 14);
       ctx.fill();
       ctx.strokeStyle = 'rgba(255,255,255,0.35)';
       ctx.lineWidth = 2;
-      roundRect(ctx, btnX, y, btnW, btnH, 16);
+      roundRect(ctx, x, y, cardW, cardH, 14);
       ctx.stroke();
 
-      ctx.font = `${Math.min(btnH * 0.46, 40)}px Arial`;
-      ctx.textAlign = 'left';
+      ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
+      ctx.font = `${Math.min(cardH * 0.32, 28)}px Arial`;
       ctx.fillStyle = '#fff';
-      ctx.fillText(m.emoji, btnX + 16, y + btnH / 2);
+      ctx.fillText(m.emoji, x + cardW / 2, y + cardH * 0.28);
 
-      ctx.textAlign = 'left';
+      const nameSize = fitFontSize(ctx, m.name, cardW - 14, Math.min(cardW * 0.115, 13.5), 8.5, false);
+      ctx.font = `bold ${nameSize}px Arial`;
       ctx.fillStyle = '#fff';
-      ctx.font = `bold ${Math.min(W * 0.042, 17)}px Arial`;
-      ctx.fillText(m.name, btnX + 68, y + btnH / 2 - 10);
-
-      ctx.fillStyle = 'rgba(255,255,255,0.82)';
-      ctx.font = `${Math.min(W * 0.031, 13)}px Arial`;
-      ctx.fillText(m.desc, btnX + 68, y + btnH / 2 + 12);
+      ctx.fillText(this.truncate(ctx, m.name, cardW - 12), x + cardW / 2, y + cardH * 0.56);
 
       const seen = System.seenCount(m.id);
       const total = (typeof contentSize === 'function') ? contentSize(m.id) : 0;
-      ctx.textAlign = 'right';
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      ctx.font = `bold ${Math.min(W * 0.028, 12)}px Arial`;
-      ctx.fillText(seen + '/' + total, btnX + btnW - 14, y + btnH - 16);
+      const done = total > 0 && seen >= total;
+      ctx.font = `${Math.min(cardW * 0.095, 11)}px Arial`;
+      ctx.fillStyle = done ? '#C8F7C5' : 'rgba(255,255,255,0.85)';
+      ctx.fillText((done ? '✅ ' : '') + seen + '/' + total, x + cardW / 2, y + cardH * 0.82);
 
-      this.buttons.push({ x: btnX, y, w: btnW, h: btnH, text: 'museum_' + m.id });
+      this.buttons.push({ x, y, w: cardW, h: cardH, text: 'museum_' + m.id });
     });
+
+    // Листание: музеев больше, чем помещается на экран
+    if (pages > 1) {
+      const bw = 46, bh = 32, by = H - 48;
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      roundRect(ctx, 16, by, bw, bh, 9);
+      ctx.fill();
+      roundRect(ctx, W - 16 - bw, by, bw, bh, 9);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = '15px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('◀', 16 + bw / 2, by + bh / 2);
+      ctx.fillText('▶', W - 16 - bw / 2, by + bh / 2);
+      ctx.font = `bold ${Math.min(W * 0.03, 12.5)}px Arial`;
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillText(`Музеи ${from + 1}–${from + pageItems.length} из ${subs.length}`, W / 2, by + bh / 2);
+      this.buttons.push({ x: 16, y: by, w: bw, h: bh, text: 'hub_prev' });
+      this.buttons.push({ x: W - 16 - bw, y: by, w: bw, h: bh, text: 'hub_next' });
+    }
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
   }
 
   // ----- Сетка экспонатов/заданий -----
@@ -348,10 +450,13 @@ class VisitScene {
     const cols = 3;
     const rows = Math.ceil(pageItems.length / cols);
     const gap = 8;
-    // В спортзале есть особая тренировка — воздушная гимнастика
-    const hasAerial = this.locationId === 'gym';
-    const aerialH = hasAerial ? 36 : 0;
-    const gridTop = stageTop + stageH + 10 + aerialH;
+    // Спортивные тренировки этой локации: спортзал — кольца и полотна,
+    // бассейн — заплыв, парк — спринт с барьерами. Список общий
+    // (SPORT_DISCIPLINES в game_aerial.js), поэтому новая дисциплина
+    // появляется в своей локации сама (v1.3.7).
+    const sports = (typeof sportListFor === 'function') ? sportListFor(this.locationId) : [];
+    const sportH = sports.length ? sports.length * 36 : 0;
+    const gridTop = stageTop + stageH + 10 + sportH;
     // Внизу всегда живут кнопка награды, «другая подборка» и листание —
     // сетка не должна залезать на них (иначе клик открывает предмет вместо кнопки)
     const gridBottom = H - 140;
@@ -363,15 +468,15 @@ class VisitScene {
     const gridW = cols * cellW + (cols - 1) * gap;
     const startX = (W - gridW) / 2;
 
-    // Кнопка особой тренировки — над сеткой
-    if (hasAerial) {
-      const aw = Math.min(W - 32, 300), ah = 30;
-      const ax = (W - aw) / 2, ay = stageTop + stageH + 8;
-      createButton(ctx, ax, ay, aw, ah, '🎪 Воздушная гимнастика', {
-        bgColor: '#9B59B6', fgColor: '#fff', fontSize: 13, radius: 10
+    // Кнопки тренировок — над сеткой предметов
+    sports.forEach((d, i) => {
+      const aw = Math.min(W - 32, 320), ah = 30;
+      const ax = (W - aw) / 2, ay = stageTop + stageH + 8 + i * 36;
+      createButton(ctx, ax, ay, aw, ah, d.title, {
+        bgColor: d.accent, fgColor: '#fff', fontSize: 12.5, radius: 10
       });
-      this.buttons.push({ x: ax, y: ay, w: aw, h: ah, text: 'aerial' });
-    }
+      this.buttons.push({ x: ax, y: ay, w: aw, h: ah, text: 'sport_' + d.id });
+    });
 
     pageItems.forEach((item, i) => {
       const gi = from + i;
@@ -574,7 +679,15 @@ class VisitScene {
         return true;
       }
 
-      // Воздушная гимнастика (спортзал)
+      // Спортивная тренировка (кольца, полотна, заплыв, барьеры)
+      if (t.indexOf('sport_') === 0) {
+        AudioSys.play('click');
+        System.saveGame();
+        this.game.transitionTo('sport', t.slice(6));
+        return true;
+      }
+
+      // Старое имя той же кнопки: воздушная гимнастика в спортзале
       if (t === 'aerial') {
         AudioSys.play('click');
         System.saveGame();
@@ -586,6 +699,14 @@ class VisitScene {
       if (t.indexOf('museum_') === 0) {
         AudioSys.play('click');
         this.game.transitionTo('visit', t.slice(7));
+        return true;
+      }
+
+      // Листание сетки музеев (в хабе музеев теперь десять карточек)
+      if (t === 'hub_prev' || t === 'hub_next') {
+        AudioSys.play('click');
+        const pages = Math.max(1, Math.ceil((this.data.sub || []).length / 6));
+        this.hubPage = t === 'hub_prev' ? Math.max(0, this.hubPage - 1) : Math.min(pages - 1, this.hubPage + 1);
         return true;
       }
 

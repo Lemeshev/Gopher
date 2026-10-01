@@ -1913,6 +1913,77 @@ ok('Android отдаёт «Назад» игре (иначе игра выгру
     return t.indexOf('Милка скучала') !== -1 && t.indexOf('🐇') !== -1 && !/гофер/i.test(t);
   })(), sandbox.petFill('Тебя не было 1 ч 35 мин — {pet} {pet:скучал|скучала}, но держится ' + S.heroEmoji()));
 
+/* ---------- Десять музеев и четыре спортивные дисциплины (v1.3.7) ---------- */
+// Заказчик: «музеев очень мало, хочется уйму разных музеев, а в каждом — сотни
+// экспонатов» и «раз воздушная гимнастика анимирована, надо анимировать и другие
+// виды спорта, а к воздушной гимнастике добавить не только кольца, но и полотна».
+const MUSEUMS = sandbox.MUSEUM_CATEGORIES;
+const museumSizes = MUSEUMS.map(k => sandbox.contentSize(k));
+ok('Музеев десять, и в каждом ровно сто экспонатов',
+  MUSEUMS.length === 10 && new Set(MUSEUMS).size === 10 && museumSizes.every(n => n === 100),
+  MUSEUMS.length + ' музеев, всего ' + museumSizes.reduce((a, b) => a + b, 0) + ' экспонатов');
+const museumDupNames = MUSEUMS.filter(k => {
+  const names = (sandbox.CONTENT[k] || []).map(it => it.n);
+  return new Set(names).size !== names.length;
+});
+ok('Внутри музея названия экспонатов не повторяются (id предмета — его имя)',
+  museumDupNames.length === 0,
+  museumDupNames.length ? ('повторы: ' + museumDupNames.join(', ')) : 'без повторов');
+const hubMuseumIds = ((sandbox.VISIT_DATA.museums || {}).sub || []).map(m => m.id);
+ok('В хабе музеев ровно те же десять музеев, что и в списке категорий',
+  hubMuseumIds.length === 10 && hubMuseumIds.every(id => MUSEUMS.indexOf(id) !== -1),
+  hubMuseumIds.join(', '));
+ok('У каждого музея есть обстановка в походе и своя музейная мелодия',
+  MUSEUMS.every(k => !!sandbox.STAGE_DATA[k]) && MUSEUMS.every(k => !!sandbox.VISIT_DATA[k]) &&
+  MUSEUMS.every(k => {
+    sandbox.AudioSys.musicScene = null;
+    return sandbox.AudioSys.setScene('visit:' + k) === 'museum';
+  }),
+  'обстановка, сцена и мелодия у всех десяти');
+const achIds = sandbox.ACHIEVEMENTS.map(a => a.id);
+const fullAch = sandbox.ACHIEVEMENTS.filter(a => a.id === 'museumsFull')[0] || { desc: '' };
+ok('Достижения про музеи знают про десять музеев и дают ступень полегче',
+  achIds.indexOf('museumsFull') !== -1 && achIds.indexOf('museumsLover') !== -1 &&
+  fullAch.desc.indexOf('10 музеев') !== -1, fullAch.desc);
+
+// Спорт: четыре дисциплины со своими анимациями — кольца, полотна, заплыв, барьеры
+const sports = sandbox.SPORT_DISCIPLINES;
+const sportIds = Object.keys(sports);
+ok('Спортивных дисциплин четыре: кольца, полотна, заплыв, барьеры',
+  sportIds.length === 4 && ['rings', 'silks', 'swim', 'hurdles'].every(id => !!sports[id]),
+  sportIds.join(', '));
+const gymSports = sandbox.sportListFor('gym').map(d => d.id);
+ok('Спортзал даёт кольца и полотна, бассейн — заплыв, парк — барьеры',
+  gymSports.join(',') === 'rings,silks' &&
+  sandbox.sportListFor('pool').map(d => d.id).join(',') === 'swim' &&
+  sandbox.sportListFor('park').map(d => d.id).join(',') === 'hurdles',
+  'зал: ' + gymSports.join(' + ') + ', бассейн: swim, парк: hurdles');
+const arenaErrors = [];
+sportIds.forEach(id => {
+  const arena = new sandbox.SportScene(boot, id);
+  arena.paid = true;
+  arena.state = 'swing';
+  try { arena.draw(sandbox.__ctx); } catch (e) { arenaErrors.push(id + ': ' + e.message); }
+});
+ok('Все четыре арены рисуются без ошибок',
+  arenaErrors.length === 0, arenaErrors.length ? arenaErrors.join('; ') : 'кольца, полотна, заплыв, барьеры');
+const swimRun = new sandbox.SportScene(boot, 'swim');
+swimRun.paid = true;
+swimRun.state = 'swing';
+swimRun.power = 0.5;
+swimRun.jump();
+ok('Точный поворот в заплыве даёт монеты, как точный перелёт на кольцах',
+  swimRun.perfect === 1 && swimRun.coinsWon === sports.swim.perfectCoins && swimRun.state === 'swing',
+  'монет: ' + swimRun.coinsWon + ', попыток осталось ' + swimRun.attemptsLeft);
+swimRun.state = 'swing';
+swimRun.power = 0.02;
+swimRun.jump();
+ok('Промах не оставляет в подсказке «{pet}» — имя героя подставляется',
+  swimRun.lastResult.indexOf('{pet}') === -1 && swimRun.lastResult.length > 8, swimRun.lastResult);
+ok('Старое имя сцены «aerial» по-прежнему ведёт на кольца',
+  new sandbox.SportScene(boot).disc.id === 'rings' && new sandbox.SportScene(boot, 'nope').disc.id === 'rings',
+  'без параметра и с неизвестным id — кольца');
+
 S.setCharacter('gopher');
 S.profileName = sandbox.DEFAULT_PROFILE_NAME;
 

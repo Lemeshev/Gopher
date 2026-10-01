@@ -8,7 +8,10 @@ const MAP_LOCATIONS = [
   { id: 'pool', emoji: '🏊', name: 'Бассейн', color: '#00BCD4', desc: 'Плавание', req: 'hunger>30' },
   { id: 'park', emoji: '🎢', name: 'Парк', color: '#2ECC71', desc: 'Аттракционы', req: 'energy>40' },
   { id: 'clinic', emoji: '🏥', name: 'Поликлиника', color: '#E74C3C', desc: 'Лечение', req: 'health<70' },
-  { id: 'museums', emoji: '🏛️', name: 'Музеи', color: '#E91E63', desc: '4 музея', cost: 0, req: 'energy>20' },
+  { id: 'museums', emoji: '🏛️', name: 'Музеи', color: '#E91E63',
+    // Сколько музеев — берём из общего списка (v1.3.7: было 4, стало 10)
+    desc: ((typeof MUSEUM_CATEGORIES !== 'undefined' ? MUSEUM_CATEGORIES.length : 4) + ' музеев'),
+    cost: 0, req: 'energy>20' },
   { id: 'library', emoji: '📚', name: 'Библиотека', color: '#607D8B', desc: '100 книг', cost: 10 },
   { id: 'cinema', emoji: '🎬', name: 'Кино', color: '#8E44AD', desc: 'Фильмы', cost: 20, req: 'energy>30' },
   { id: 'gym', emoji: '🏋️', name: 'Спортзал', color: '#16A085', desc: 'Сила и ловкость', cost: 15, req: 'energy>30' },
