@@ -4,6 +4,16 @@
 //   2) Раскраска — раскрась картинку цветами;
 //   3) Тихая рыбалка — дождись поклёвки и тяни.
 // Пока гофер спит, энергия копится (+10% в минуту) — об этом написано на экране.
+
+// Большие обитатели подводного мира (v1.3.11). Раньше их было один-два случайных
+// из семи, и заказчик справедливо заметил: «из всех этих существ я вижу кроме рыб
+// только медузу, не увидел ни одной акулы, черепахи или осьминога». Теперь в воде
+// одновременно три РАЗНЫХ обитателя, а раз в 14–22 секунды один уплывает к краю и
+// на его место приходит следующий по кругу — за пару минут видно всех семерых.
+const SEA_FRIENDS_IN_WATER = 3;
+const FRIEND_SWAP_MIN = 14;
+const FRIEND_SWAP_MAX = 22;
+
 class QuietScene {
   constructor(game) {
     this.game = game;
@@ -109,13 +119,14 @@ class QuietScene {
     return { x0: W * 0.05, x1: W * 0.95, top: H * 0.40, bottom: H * 0.80 };
   }
 
-  // Новый житель воды: kind 'fish' — кого ловим, 'friend' — кого только смотрим
-  makeSwimmer(kind, W, H) {
+  // Новый житель воды: kind 'fish' — кого ловим, 'friend' — кого только смотрим.
+  // species можно передать явно (нужно для больших обитателей, v1.3.11)
+  makeSwimmer(kind, W, H, species) {
     const w = this.fishWater();
     const friend = (kind === 'friend');
-    const sp = friend
+    const sp = species || (friend
       ? (typeof SEA_FRIENDS !== 'undefined' ? SEA_FRIENDS[Math.floor(Math.random() * SEA_FRIENDS.length)] : null)
-      : (typeof randomFishSpecies === 'function' ? randomFishSpecies() : null);
+      : (typeof randomFishSpecies === 'function' ? randomFishSpecies() : null));
     if (!sp) return null;
     return {
       kind: kind, id: sp.id, data: sp,
@@ -130,16 +141,35 @@ class QuietScene {
     };
   }
 
-  // Подводный мир: стайка рыбок + один-два больших обитателя
+  // Кто из больших обитателей придёт следующим: виды идут по кругу, поэтому за
+  // пару минут видно всех семерых, а не одних медуз (заказчик v1.3.11: «из всех
+  // этих существ я вижу кроме рыб только медузу»). inWater — кого уже не надо:
+  // в воде не бывает двух одинаковых (кроме случая, когда выбора не осталось).
+  nextFriendSpecies(inWater) {
+    const all = (typeof SEA_FRIENDS !== 'undefined') ? SEA_FRIENDS : [];
+    if (!all.length) return null;
+    if (typeof this.friendCursor !== 'number') this.friendCursor = Math.floor(Math.random() * all.length);
+    for (let i = 0; i < all.length * 2; i++) {
+      const sp = all[this.friendCursor % all.length];
+      this.friendCursor = (this.friendCursor + 1) % all.length;
+      if (!inWater || inWater.indexOf(sp.id) === -1) return sp;
+    }
+    return all[0];
+  }
+
+  // Подводный мир: стайка рыбок + большие обитатели, все разные
   spawnSea(W, H, count) {
     const list = [];
     for (let i = 0; i < (count || 9); i++) {
       const s = this.makeSwimmer('fish', W, H);
       if (s) list.push(s);
     }
-    const friends = 1 + Math.floor(Math.random() * 2);
-    for (let i = 0; i < friends; i++) {
-      const s = this.makeSwimmer('friend', W, H);
+    const used = [];
+    for (let i = 0; i < SEA_FRIENDS_IN_WATER; i++) {
+      const sp = this.nextFriendSpecies(used);
+      if (!sp) break;
+      used.push(sp.id);
+      const s = this.makeSwimmer('friend', W, H, sp);
       if (s) list.push(s);
     }
     return list;
@@ -159,6 +189,8 @@ class QuietScene {
       splash: 0,               // всплеск после удачной подсечки
       friendHint: 0,           // таймер подсказки «больших не ловим»
       friendHintText: '',
+      friendSwap: randFloat(FRIEND_SWAP_MIN, FRIEND_SWAP_MAX),  // когда менять состав (v1.3.11)
+      friendSwapWanted: false, // пора менять: ждём, когда обитатель дойдёт до края
       lastCatch: null          // { id, name, fact, times } — для текста после поимки
     };
   }
@@ -242,6 +274,24 @@ class QuietScene {
         if (s.y > w.bottom - 16) s.y = w.bottom - 16;
         if (s.x < w.x0) { s.x = w.x0; s.dir = 1; }
         if (s.x > w.x1) { s.x = w.x1; s.dir = -1; }
+
+        // Состав больших обитателей меняется (v1.3.11): заказчик видел одних медуз,
+        // а хотел черепаху, акулу и осьминога. Меняем вид только у самого края —
+        // получается, будто один уплыл, а другой приплыл, без телепорта посередине.
+        if (s.kind === 'friend' && f.friendSwapWanted &&
+            (s.x <= w.x0 + 3 || s.x >= w.x1 - 3)) {
+          const others = (f.swimmers || [])
+            .filter(x => x.kind === 'friend' && x !== s).map(x => x.id);
+          const sp = this.nextFriendSpecies(others);
+          if (sp) {
+            s.id = sp.id;
+            s.data = sp;
+            s.speed = randFloat(12, 22) * (0.7 + sp.size * 0.5);
+            s.y = randFloat(w.top + 40, w.bottom - 40);
+            f.friendSwapWanted = false;
+            f.friendSwap = randFloat(FRIEND_SWAP_MIN, FRIEND_SWAP_MAX);
+          }
+        }
       });
 
       // Уплывшие (пойманные) рыбки заменяются новыми — мир не пустеет
@@ -257,6 +307,11 @@ class QuietScene {
 
       if (f.friendHint > 0) f.friendHint -= sec;
       if (f.splash > 0) f.splash -= sec;
+      // Пора менять состав больших обитателей: ждём, когда кто-то дойдёт до края
+      if (f.friendSwap > 0) {
+        f.friendSwap -= sec;
+        if (f.friendSwap <= 0) f.friendSwapWanted = true;
+      }
 
       if (f.state === 'wait') {
         f.timer -= sec;
@@ -662,13 +717,13 @@ class QuietScene {
     const all = (typeof FISH_SPECIES !== 'undefined') ? FISH_SPECIES.length : 0;
     ctx.fillText('Поймано: ' + f.caught + ' / ' + f.target + ' 🐟   Видов: ' + species + ' / ' + all, W / 2, H * 0.94);
 
+    // Подсказка про больших обитателей появляется только тогда, когда кто-то из
+    // них проходит рядом с крючком: постоянной надписи внизу экрана нет —
+    // заказчик v1.3.11 попросил её убрать («явно не нужная»).
     ctx.font = `${Math.min(W * 0.026, 11)}px Arial`;
     if (f.friendHint > 0) {
       ctx.fillStyle = '#ffd9a0';
       ctx.fillText(f.friendHintText, W / 2, H * 0.965);
-    } else {
-      ctx.fillStyle = 'rgba(210,220,240,0.75)';
-      ctx.fillText('Рыбок ловим, а черепах, акул и осьминогов — только разглядываем', W / 2, H * 0.965);
     }
 
     this.buttons.push(createButton(ctx, W * 0.32, H * 0.79, W * 0.36, 40,
