@@ -14,7 +14,7 @@ GOPHER LIFE — ЛИСТ ДЛЯ КОПИПАСТА В КОНСОЛЬ RUSTORE
 ПОЛЕ «Маркировка внутриигрового контента»: ничего не отмечать
 ПОЛЕ «Декларация разрешений»: пусто — приложение не запрашивает разрешений
 ПОЛЕ «Ссылка на политику конфиденциальности»: https://lemeshev.github.io/Gopher/privacy.html
-ПОЛЕ «E-mail разработчика»: v.lemeshev@corp.mail.ru
+ПОЛЕ «E-mail разработчика»: Lemeshev@mail.ru
 ПОЛЕ «Имя разработчика»: Лемешев Виктор
 ПОЛЕ «APK»: android/app/build/outputs/apk/release/app-release.apk (~275 КБ, md5 45093b64ae344531aa1cdcabe84c94b6; копия ~/Desktop/Gopher.apk)
 ПОЛЕ «Иконка»: store/icon-512.png (512x512)
