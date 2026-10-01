@@ -94,8 +94,82 @@ class QuietScene {
   }
 
   // ---------- 3. РЫБАЛКА ----------
+  // Куда опущен крючок с наживкой: чуть ниже поплавка, при поклёвке — ниже
+  fishHookY() {
+    const w = this.fishWater();
+    const bite = !!(this.fish && this.fish.state === 'bite');
+    const dip = bite ? 12 + Math.sin(this.time * 0.03) * 4 : 0;
+    return w.top + 66 + dip;
+  }
+
+  // Границы воды: сверху — поверхность, снизу — дно
+  fishWater() {
+    const W = (this.game && this.game.width) || 540;
+    const H = (this.game && this.game.height) || 960;
+    return { x0: W * 0.05, x1: W * 0.95, top: H * 0.40, bottom: H * 0.80 };
+  }
+
+  // Новый житель воды: kind 'fish' — кого ловим, 'friend' — кого только смотрим
+  makeSwimmer(kind, W, H) {
+    const w = this.fishWater();
+    const friend = (kind === 'friend');
+    const sp = friend
+      ? (typeof SEA_FRIENDS !== 'undefined' ? SEA_FRIENDS[Math.floor(Math.random() * SEA_FRIENDS.length)] : null)
+      : (typeof randomFishSpecies === 'function' ? randomFishSpecies() : null);
+    if (!sp) return null;
+    return {
+      kind: kind, id: sp.id, data: sp,
+      x: randFloat(w.x0, w.x1),
+      y: randFloat(w.top + 30, w.bottom - 30),
+      dir: Math.random() < 0.5 ? -1 : 1,
+      speed: (friend ? randFloat(12, 22) : randFloat(22, 50)) * (0.7 + sp.size * 0.5),
+      phase: randFloat(0, Math.PI * 2),
+      bob: randFloat(0.4, 1.3),
+      nibble: 0,                 // сколько уже «пробует» крючок
+      alpha: friend ? 0.92 : 1
+    };
+  }
+
+  // Подводный мир: стайка рыбок + один-два больших обитателя
+  spawnSea(W, H, count) {
+    const list = [];
+    for (let i = 0; i < (count || 9); i++) {
+      const s = this.makeSwimmer('fish', W, H);
+      if (s) list.push(s);
+    }
+    const friends = 1 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < friends; i++) {
+      const s = this.makeSwimmer('friend', W, H);
+      if (s) list.push(s);
+    }
+    return list;
+  }
+
   initFish() {
-    this.fish = { state: 'wait', timer: randFloat(2.5, 5.5), biteWindow: 0, caught: 0, target: 3 };
+    const W = (this.game && this.game.width) || 540;
+    const H = (this.game && this.game.height) || 960;
+    this.fish = {
+      state: 'wait',           // wait | bite
+      timer: randFloat(2.5, 5.5),
+      biteWindow: 0,
+      caught: 0,
+      target: 3,
+      swimmers: this.spawnSea(W, H),
+      biteFish: null,          // кто сейчас тянется к крючку
+      splash: 0,               // всплеск после удачной подсечки
+      friendHint: 0,           // таймер подсказки «больших не ловим»
+      friendHintText: '',
+      lastCatch: null          // { id, name, fact, times } — для текста после поимки
+    };
+  }
+
+  // Кто клюнет: ближайшая к крючку рыбка. Большие обитатели не клюют — их не ловят
+  pickBiter() {
+    const W = this.game.width, hy = this.fishHookY();
+    const near = (s) => Math.abs(s.x - W / 2) + Math.abs(s.y - hy);
+    const list = (this.fish.swimmers || []).filter(s => s.kind === 'fish' && typeof s.caughtAnim !== 'number');
+    if (!list.length) return null;
+    return list.slice().sort((a, b) => near(a) - near(b))[0];
   }
 
   startGame(id) {
@@ -128,12 +202,78 @@ class QuietScene {
 
     if (this.mode === 'fish') {
       const f = this.fish;
+      const W = this.game.width;
+      const w = this.fishWater();
+      const hookY = this.fishHookY();
+
+      // Кто плавает под водой: рыбки идут туда-сюда, покачиваются по синусу и
+      // разворачиваются у краёв — это и есть «видно, как они плавают» (v1.3.9)
+      (f.swimmers || []).forEach(s => {
+        s.phase += sec * (1.2 + s.speed * 0.03);
+        if (typeof s.caughtAnim === 'number') {
+          // Поймали: рыбку тянет к поплавку и она растворяется в всплеске
+          s.caughtAnim -= sec;
+          s.x += (W / 2 - s.x) * Math.min(1, sec * 6);
+          s.y += (hookY - 26 - s.y) * Math.min(1, sec * 4);
+          s.alpha = Math.max(0, s.caughtAnim / 0.8);
+          return;
+        }
+        if (f.state === 'bite' && f.biteFish === s) {
+          // Клюнула: подплывает к наживке и «пробует» её — видно, как цепляется
+          const dx = W / 2 - s.x, dy = (hookY + 4) - s.y;
+          const d = Math.max(1, Math.hypot(dx, dy));
+          s.x += (dx / d) * 78 * sec;
+          s.y += (dy / d) * 78 * sec;
+          s.nibble += sec;
+        } else {
+          // Большие обитатели обходят крючок стороной: «черепашкам не навредить»
+          if (s.kind === 'friend' && Math.abs(s.x - W / 2) < 92 && Math.abs(s.y - hookY) < 74) {
+            s.x += (s.dir > 0 ? 1 : -1) * 46 * sec;
+            if (f.friendHint <= 0 && typeof seaFriendHint === 'function') {
+              const hint = seaFriendHint(s.id);
+              if (hint) { f.friendHint = 3.6; f.friendHintText = hint; }
+            }
+          } else {
+            s.x += s.dir * s.speed * sec;
+          }
+          s.y += Math.sin(s.phase) * s.bob * sec * 9;
+        }
+        if (s.y < w.top + 16) s.y = w.top + 16;
+        if (s.y > w.bottom - 16) s.y = w.bottom - 16;
+        if (s.x < w.x0) { s.x = w.x0; s.dir = 1; }
+        if (s.x > w.x1) { s.x = w.x1; s.dir = -1; }
+      });
+
+      // Уплывшие (пойманные) рыбки заменяются новыми — мир не пустеет
+      const gone = (f.swimmers || []).filter(s => typeof s.caughtAnim === 'number' && s.caughtAnim <= 0);
+      if (gone.length) {
+        f.swimmers = f.swimmers.filter(s => !(typeof s.caughtAnim === 'number' && s.caughtAnim <= 0));
+        gone.forEach(() => {
+          const ns = this.makeSwimmer('fish', W, this.game.height);
+          if (ns) f.swimmers.push(ns);
+        });
+        f.splash = 0.6;
+      }
+
+      if (f.friendHint > 0) f.friendHint -= sec;
+      if (f.splash > 0) f.splash -= sec;
+
       if (f.state === 'wait') {
         f.timer -= sec;
-        if (f.timer <= 0) { f.state = 'bite'; f.biteWindow = 2.2; AudioSys.play('coin'); }
+        if (f.timer <= 0) {
+          f.state = 'bite';
+          f.biteWindow = 2.4;
+          f.biteFish = this.pickBiter();
+          AudioSys.play('coin');
+        }
       } else if (f.state === 'bite') {
         f.biteWindow -= sec;
-        if (f.biteWindow <= 0) { f.state = 'wait'; f.timer = randFloat(2.0, 4.5); }
+        if (f.biteWindow <= 0) {
+          if (f.biteFish) f.biteFish.nibble = 0;      // рыбка уплыла — попробуем снова
+          f.biteFish = null;
+          f.state = 'wait';
+          f.timer = randFloat(2.0, 4.5);
+        }
       }
     }
   }
@@ -352,27 +492,99 @@ class QuietScene {
   drawFish(ctx, W, H) {
     const f = this.fish;
     const waterTop = H * 0.46;
+    const w = this.fishWater();
 
-    const wg = ctx.createLinearGradient(0, waterTop, 0, H * 0.86);
-    wg.addColorStop(0, '#1d5b86');
-    wg.addColorStop(1, '#0e3350');
+    // Вода: светлая у поверхности, глубокая внизу — «виден подводный мир»
+    const wg = ctx.createLinearGradient(0, w.top - 30, 0, H * 0.86);
+    wg.addColorStop(0, '#2f8fb8');
+    wg.addColorStop(0.45, '#1d5b86');
+    wg.addColorStop(1, '#0b2b45');
     ctx.fillStyle = wg;
-    ctx.fillRect(0, waterTop, W, H * 0.86 - waterTop);
+    ctx.fillRect(0, w.top - 30, W, H * 0.86 - (w.top - 30));
 
-    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    // Лучи солнца сквозь воду
+    ctx.save();
+    ctx.globalAlpha = 0.10;
+    ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < 5; i++) {
+      const bx = (i + 0.5) * W / 5 + Math.sin(this.time * 0.0007 + i) * 14;
+      ctx.beginPath();
+      ctx.moveTo(bx - 16, w.top - 30);
+      ctx.lineTo(bx + 16, w.top - 30);
+      ctx.lineTo(bx + 62, H * 0.84);
+      ctx.lineTo(bx + 18, H * 0.84);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // Волны на поверхности
+    ctx.strokeStyle = 'rgba(255,255,255,0.28)';
     ctx.lineWidth = 1.5;
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 3; i++) {
       ctx.beginPath();
       for (let x = 0; x <= W; x += 8) {
-        const y = waterTop + 16 + i * 26 + Math.sin((x * 0.03) + this.time * 0.002 + i) * 3;
+        const y = w.top - 18 + i * 12 + Math.sin((x * 0.03) + this.time * 0.002 + i) * 3;
         if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       }
       ctx.stroke();
     }
 
+    // Дно: песок, камни и водоросли
+    ctx.fillStyle = '#c8b27a';
+    ctx.beginPath();
+    ctx.moveTo(0, H * 0.80);
+    for (let x = 0; x <= W; x += 24) {
+      ctx.lineTo(x, H * 0.80 + Math.sin(x * 0.02) * 5);
+    }
+    ctx.lineTo(W, H * 0.88);
+    ctx.lineTo(0, H * 0.88);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#9aa26a';
+    for (let i = 0; i < 9; i++) {
+      const sx = (i * 97 % W), sway = Math.sin(this.time * 0.0016 + i) * 7;
+      ctx.beginPath();
+      ctx.moveTo(sx, H * 0.81);
+      ctx.quadraticCurveTo(sx + sway, H * 0.74, sx + sway * 0.6 + 6, H * 0.70);
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = 'rgba(120,160,80,0.85)';
+      ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(90,80,70,0.55)';
+    [[0.12, 0.005], [0.36, 0.004], [0.68, 0.006], [0.88, 0.004]].forEach(([rx, rr]) => {
+      ctx.beginPath();
+      ctx.ellipse(W * rx, H * 0.815, W * rr * 200, W * rr * 120, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Пузырьки поднимаются вверх
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+    ctx.lineWidth = 1.2;
+    for (let i = 0; i < 14; i++) {
+      const bx = (i * 137 % W);
+      const t = (this.time * 0.02 + i * 90) % 260;
+      const by = w.bottom - 10 - ((t / 260) * (w.bottom - w.top - 20));
+      ctx.globalAlpha = 0.5 - (t / 260) * 0.35;
+      ctx.beginPath();
+      ctx.arc(bx, by, 1.6 + (i % 3), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Жители воды: сначала большие (фон), потом рыбки — их хорошо видно
+    const order = (f.swimmers || []).slice().sort((a, b) => (a.kind === 'friend' ? -1 : 1) - (b.kind === 'friend' ? -1 : 1));
+    order.forEach(s => {
+      if (s.kind === 'friend') this.drawSeaFriend(ctx, s);
+      else this.drawSeaFish(ctx, s);
+    });
+
+    // Поплавок на поверхности, ниже — крючок с наживкой: видно, как рыбка
+    // подплывает к наживке и цепляется (v1.3.9)
     const dip = (f.state === 'bite') ? 14 + Math.sin(this.time * 0.03) * 4 : 0;
-    const bx = W / 2, by = waterTop + 44 + dip;
-    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    const bx = W / 2, by = w.top + 14 + dip;
+    ctx.strokeStyle = 'rgba(255,255,255,0.65)';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(bx, H * 0.16);
@@ -383,14 +595,36 @@ class QuietScene {
     ctx.fillStyle = '#ffffff';
     ctx.beginPath(); ctx.arc(bx, by + 5, 6, 0, Math.PI); ctx.fill();
 
+    const hy = this.fishHookY();
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(bx, by + 8);
+    ctx.lineTo(bx, hy + 8);
+    ctx.stroke();
+    ctx.strokeStyle = '#cfd8e3';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.arc(bx, hy + 13, 7, Math.PI * 0.15, Math.PI * 1.15);
+    ctx.stroke();
+    ctx.fillStyle = '#F6C177';
+    ctx.beginPath(); ctx.arc(bx, hy + 6, 4.5, 0, Math.PI * 2); ctx.fill();
+
     if (f.state === 'bite') {
       ctx.strokeStyle = 'rgba(255,255,255,0.7)';
       ctx.lineWidth = 2;
       for (let r = 1; r <= 3; r++) {
         ctx.beginPath();
-        ctx.ellipse(bx, by + 12, r * 14, r * 5, 0, 0, Math.PI * 2);
+        ctx.ellipse(bx, w.top + 2, r * 15, r * 5, 0, 0, Math.PI * 2);
         ctx.stroke();
       }
+    }
+    if (f.splash > 0) {
+      ctx.strokeStyle = 'rgba(255,255,255,' + Math.min(0.8, f.splash).toFixed(2) + ')';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.ellipse(bx, w.top + 4, 26 + (0.6 - f.splash) * 70, 12, 0, 0, Math.PI * 2);
+      ctx.stroke();
     }
 
     ctx.textAlign = 'center';
@@ -400,13 +634,189 @@ class QuietScene {
 
     ctx.font = `${Math.min(W * 0.030, 12.5)}px Arial`;
     ctx.fillStyle = '#9be3b0';
-    ctx.fillText('Поймано: ' + f.caught + ' / ' + f.target + ' 🐟', W / 2, H * 0.94);
+    const species = (typeof System !== 'undefined' && System.fishSpeciesCount) ? System.fishSpeciesCount() : 0;
+    const all = (typeof FISH_SPECIES !== 'undefined') ? FISH_SPECIES.length : 0;
+    ctx.fillText('Поймано: ' + f.caught + ' / ' + f.target + ' 🐟   Видов: ' + species + ' / ' + all, W / 2, H * 0.94);
+
+    ctx.font = `${Math.min(W * 0.026, 11)}px Arial`;
+    if (f.friendHint > 0) {
+      ctx.fillStyle = '#ffd9a0';
+      ctx.fillText(f.friendHintText, W / 2, H * 0.965);
+    } else {
+      ctx.fillStyle = 'rgba(210,220,240,0.75)';
+      ctx.fillText('Рыбок ловим, а черепах, акул и осьминогов — только разглядываем', W / 2, H * 0.965);
+    }
 
     this.buttons.push(createButton(ctx, W * 0.32, H * 0.79, W * 0.36, 40,
       f.state === 'bite' ? '🎣 Тянуть!' : '⏳ Ждём…', {
         bgColor: f.state === 'bite' ? '#6BCB77' : 'rgba(255,255,255,0.18)',
         fgColor: f.state === 'bite' ? '#0d1024' : '#fff', fontSize: 14, radius: 10
       }));
+  }
+
+  // Рыбка: тело, хвост-веер, плавник и глаз. Хвост машет — видно, что она плывёт.
+  drawSeaFish(ctx, s) {
+    const d = s.data || {};
+    const base = Math.min(this.game.width * 0.046, 25);
+    const L = base * (d.size || 1) * 1.5;
+    const hgt = base * (d.size || 1) * 0.9;
+    const wig = Math.sin(this.time * 0.012 + s.x * 0.05) * (hgt * 0.22);
+    ctx.save();
+    ctx.globalAlpha = (s.alpha === undefined ? 1 : s.alpha);
+    ctx.translate(s.x, s.y);
+    ctx.scale(s.dir || 1, 1);
+
+    // хвост
+    ctx.fillStyle = d.color || '#8ab4ff';
+    ctx.beginPath();
+    ctx.moveTo(-L * 0.42, 0);
+    ctx.lineTo(-L * 0.78, -hgt * 0.52 + wig);
+    ctx.lineTo(-L * 0.70, wig);
+    ctx.lineTo(-L * 0.78, hgt * 0.52 + wig);
+    ctx.closePath();
+    ctx.fill();
+
+    // тело: сверху светлое брюшко, снизу цвет вида
+    const g = ctx.createLinearGradient(0, -hgt * 0.55, 0, hgt * 0.55);
+    g.addColorStop(0, d.belly || '#ffffff');
+    g.addColorStop(1, d.color || '#8ab4ff');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, L * 0.5, hgt * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // верхний плавник
+    ctx.fillStyle = d.color || '#8ab4ff';
+    ctx.beginPath();
+    ctx.moveTo(-L * 0.06, -hgt * 0.42);
+    ctx.lineTo(L * 0.16, -hgt * 0.76);
+    ctx.lineTo(L * 0.27, -hgt * 0.40);
+    ctx.closePath();
+    ctx.fill();
+
+    // глаз
+    ctx.fillStyle = '#0e1a2b';
+    ctx.beginPath(); ctx.arc(L * 0.3, -hgt * 0.1, Math.max(1.4, hgt * 0.12), 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(L * 0.32, -hgt * 0.14, Math.max(0.7, hgt * 0.05), 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  // Большие обитатели: черепаха, акула, осьминог, медуза, краб, морская звезда,
+  // морской конёк. Они не клюют — их только рассматривают (v1.3.9).
+  drawSeaFriend(ctx, s) {
+    const d = s.data || {}, k = d.kind || 'turtle';
+    const base = Math.min(this.game.width * 0.05, 28) * (d.size || 1);
+    const t = this.time * 0.002;
+    ctx.save();
+    ctx.globalAlpha = (s.alpha === undefined ? 0.92 : s.alpha);
+    ctx.translate(s.x, s.y);
+    ctx.scale(s.dir || 1, 1);
+
+    if (k === 'shark') {
+      ctx.fillStyle = '#6b7f92';
+      ctx.beginPath(); ctx.ellipse(0, 0, base * 1.15, base * 0.42, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(base * 0.1, -base * 0.2); ctx.lineTo(base * 0.42, -base * 0.78); ctx.lineTo(base * 0.5, -base * 0.16);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-base * 0.95, 0.5); ctx.lineTo(-base * 1.5, -base * 0.5); ctx.lineTo(-base * 1.4, base * 0.34);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#eef3f7';
+      ctx.beginPath(); ctx.ellipse(base * 0.25, base * 0.2, base * 0.7, base * 0.2, 0, 0, Math.PI); ctx.fill();
+      ctx.fillStyle = '#0e1a2b';
+      ctx.beginPath(); ctx.arc(base * 0.75, -base * 0.1, base * 0.07, 0, Math.PI * 2); ctx.fill();
+    } else if (k === 'octopus') {
+      ctx.fillStyle = '#c96f8f';
+      ctx.beginPath(); ctx.ellipse(0, -base * 0.15, base * 0.62, base * 0.55, 0, Math.PI, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#c96f8f';
+      ctx.lineWidth = Math.max(2.4, base * 0.13);
+      for (let i = 0; i < 4; i++) {
+        const x0 = -base * 0.45 + i * base * 0.3;
+        ctx.beginPath();
+        ctx.moveTo(x0, 0);
+        ctx.quadraticCurveTo(x0 + Math.sin(t + i) * base * 0.3, base * 0.5,
+          x0 + Math.sin(t + i) * base * 0.5, base * 0.95);
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#3a2230';
+      ctx.beginPath(); ctx.arc(-base * 0.2, -base * 0.28, base * 0.09, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(base * 0.2, -base * 0.28, base * 0.09, 0, Math.PI * 2); ctx.fill();
+    } else if (k === 'jellyfish') {
+      ctx.fillStyle = 'rgba(180,220,255,0.75)';
+      ctx.beginPath(); ctx.ellipse(0, -base * 0.15, base * 0.6, base * 0.45, 0, Math.PI, Math.PI * 2); ctx.fill();
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(210,235,255,0.8)';
+      ctx.lineWidth = Math.max(1.6, base * 0.07);
+      for (let i = -2; i <= 2; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * base * 0.22, 0);
+        ctx.quadraticCurveTo(i * base * 0.26 + Math.sin(t * 2 + i) * base * 0.14, base * 0.45,
+          i * base * 0.2 + Math.sin(t * 2 + i) * base * 0.2, base * 0.8);
+        ctx.stroke();
+      }
+    } else if (k === 'turtle') {
+      ctx.fillStyle = '#5f8f56';
+      ctx.beginPath(); ctx.ellipse(base * 0.72, base * 0.02, base * 0.24, base * 0.2, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(base * 0.3, base * 0.42, base * 0.3, base * 0.14, -0.5 + Math.sin(t) * 0.15, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-base * 0.3, base * 0.4, base * 0.28, base * 0.13, 0.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#8d6e4a';
+      ctx.beginPath(); ctx.ellipse(0, 0, base * 0.8, base * 0.58, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(90,70,45,0.7)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.ellipse(0, 0, base * 0.42, base * 0.3, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#12331f';
+      ctx.beginPath(); ctx.arc(base * 0.85, -base * 0.06, base * 0.05, 0, Math.PI * 2); ctx.fill();
+    } else if (k === 'crab') {
+      ctx.fillStyle = '#d05a4a';
+      ctx.beginPath(); ctx.ellipse(0, 0, base * 0.62, base * 0.42, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#d05a4a';
+      ctx.lineWidth = Math.max(2, base * 0.1);
+      for (let i = -1; i <= 1; i++) {
+        ctx.beginPath();
+        ctx.moveTo(-base * 0.4, base * 0.14 + i * base * 0.12);
+        ctx.lineTo(-base * 0.85, base * 0.3 + i * base * 0.16);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(base * 0.4, base * 0.14 + i * base * 0.12);
+        ctx.lineTo(base * 0.85, base * 0.3 + i * base * 0.16);
+        ctx.stroke();
+      }
+      ctx.beginPath(); ctx.arc(-base * 0.62, -base * 0.3, base * 0.2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(base * 0.62, -base * 0.3, base * 0.2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#12212b';
+      ctx.beginPath(); ctx.arc(-base * 0.2, -base * 0.2, base * 0.09, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(base * 0.2, -base * 0.2, base * 0.09, 0, Math.PI * 2); ctx.fill();
+    } else if (k === 'starfish') {
+      ctx.fillStyle = '#e08a3c';
+      ctx.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const rr = (i % 2 === 0) ? base * 0.6 : base * 0.26;
+        const a = -Math.PI / 2 + i * Math.PI / 5 + Math.sin(t + i) * 0.05;
+        const px = Math.cos(a) * rr, py = Math.sin(a) * rr;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.beginPath(); ctx.arc(0, 0, base * 0.12, 0, Math.PI * 2); ctx.fill();
+    } else {
+      // морской конёк: изогнутое тело, мордочка и плавник
+      ctx.strokeStyle = '#e0b04a';
+      ctx.lineWidth = Math.max(3, base * 0.2);
+      ctx.beginPath();
+      ctx.moveTo(0, -base * 0.5);
+      ctx.quadraticCurveTo(base * 0.55, -base * 0.1, base * 0.15, base * 0.55);
+      ctx.stroke();
+      ctx.fillStyle = '#e0b04a';
+      ctx.beginPath(); ctx.ellipse(-base * 0.1, -base * 0.62, base * 0.3, base * 0.2, -0.4, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-base * 0.3, -base * 0.58); ctx.lineTo(-base * 0.72, -base * 0.5); ctx.lineTo(-base * 0.3, -base * 0.42);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#12212b';
+      ctx.beginPath(); ctx.arc(-base * 0.16, -base * 0.66, base * 0.05, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
   }
 
   // ================= НАЖАТИЯ =================
@@ -505,18 +915,37 @@ class QuietScene {
 
   tryFish() {
     const f = this.fish;
-    if (f.state === 'bite') {
+    if (f.state === 'bite' && f.biteFish) {
+      const s = f.biteFish;
+      const d = s.data || {};
+      const before = (typeof System !== 'undefined' && System.fishCaughtTimes) ? System.fishCaughtTimes(d.id) : 0;
+      const isNew = (before === 0);
+      if (typeof System !== 'undefined' && System.markFishCaught) System.markFishCaught(d.id);
+      s.caughtAnim = 0.8;         // рыбку тянет к поплавку, потом её место занимает новая
+      s.alpha = 1;
+      f.biteFish = null;
       f.caught++;
+      f.lastCatch = { id: d.id, name: d.name, fact: d.fact, isNew: isNew };
+      AudioSys.play('success');
+      const nowCount = (typeof System !== 'undefined' && System.fishSpeciesCount) ? System.fishSpeciesCount() : 0;
+      const all = (typeof FISH_SPECIES !== 'undefined') ? FISH_SPECIES.length : 0;
+      const head = isNew ? '🐟 Новый вид: ' : '🐟 ';
+      if (f.caught >= f.target) {
+        f.caught = 0;
+        this.reward('fish', head + d.name + '! Рыбалка удалась 🎣');
+        this.result = head + d.name + ' — ' + d.fact + '  (видов ' + nowCount + ' из ' + all + ')';
+        this.resultTimer = 6;
+      } else {
+        this.result = head + d.name + ' — ' + d.fact +
+          '  (' + f.caught + '/' + f.target + ', видов ' + nowCount + ' из ' + all + ')';
+        this.resultTimer = 5;
+      }
+    } else if (f.state === 'bite') {
+      // Клюнуло, но рыбка уже уплыла — честно говорим, что торопиться не надо
       f.state = 'wait';
       f.timer = randFloat(2.0, 4.5);
-      AudioSys.play('success');
-      if (f.caught >= f.target) {
-        this.reward('fish', 'Рыбалка удалась 🎣');
-        f.caught = 0;
-      } else {
-        this.result = 'Есть! Рыбка поймана 🐟 (' + f.caught + '/' + f.target + ')';
-        this.resultTimer = 2.4;
-      }
+      this.result = 'Рано! Дождись, когда рыбка возьмёт наживку';
+      this.resultTimer = 2.2;
     } else {
       this.result = 'Рано! Дождись, когда поплавок нырнёт';
       this.resultTimer = 2.0;

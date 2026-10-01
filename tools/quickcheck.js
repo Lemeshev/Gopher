@@ -683,13 +683,15 @@ if (boot) {
     playable.clicks = guard;
     playable.color = qs.paint.done === true;
 
-    // 3) Рыбалка: три поклёвки дают награду
+    // 3) Рыбалка: три поклёвки дают награду.
+    // v1.3.9: клюёт конкретная рыбка (biteFish) — без неё подсечка не считается.
     qs.init();
     qs.startGame('fish');
     const coinsBefore = S.coins;
     for (let i = 0; i < qs.fish.target; i++) {
       qs.fish.state = 'bite';
       qs.fish.biteWindow = 2;
+      qs.fish.biteFish = qs.pickBiter();
       qs.tryFish();
     }
     playable.fish = S.coins - coinsBefore >= 12;
@@ -699,6 +701,75 @@ if (boot) {
     'созвездие ' + (playable.stars ? 'ок' : 'нет') +
     ', раскраска ' + (playable.color ? 'ок за ' + playable.clicks + ' тапов' : 'нет') +
     ', рыбалка ' + (playable.fish ? 'ок' : 'нет'));
+
+  /* ---------- Подводный мир рыбалки (v1.3.9) ---------- */
+  // Пожелание пользователя: «чтобы был виден подводный мир, как они плавают, как
+  // за крючок цепляются… много разных видов рыбок… ещё акул, осьминогов, черепах.
+  // Но ловили чтобы только рыбок, чтоб черепашкам не навредить».
+  const sea = (function () {
+    const qs = boot.scenes.quiet;
+    qs.init();
+    qs.startGame('fish');
+    const f = qs.fish;
+    const swimmers = f.swimmers || [];
+    const fishList = swimmers.filter(s => s.kind === 'fish');
+    const friendList = swimmers.filter(s => s.kind === 'friend');
+    const first = fishList[0];
+    const x0 = first ? first.x : 0;
+    qs.update(500);
+    const moved = first ? Math.abs(first.x - x0) > 0.5 : false;
+
+    // Данные лежат в песочнице игры: const-объявления не становятся свойствами
+    // её глобального объекта, поэтому берём их через sandbox/window (v1.3.9)
+    const G = (n) => (typeof sandbox[n] !== 'undefined') ? sandbox[n]
+      : (sandbox.window && typeof sandbox.window[n] !== 'undefined') ? sandbox.window[n] : undefined;
+    const speciesList = G('FISH_SPECIES') || [];
+    const friendListAll = G('SEA_FRIENDS') || [];
+
+    // Улов: ловим шесть раз, улов должен считаться по РАЗНЫМ видам
+    S.fishSeen = {};
+    let caught = 0, friendCaught = false;
+    for (let i = 0; i < 6; i++) {
+      f.state = 'bite';
+      f.biteWindow = 2;
+      f.biteFish = qs.pickBiter();
+      if (f.biteFish && f.biteFish.kind !== 'fish') friendCaught = true;
+      if (f.biteFish) { qs.tryFish(); caught++; }
+      qs.update(900);                     // рыбка уплывает, её место занимает новая
+    }
+    const seen = Object.keys(S.fishSeen || {});
+    return {
+      species: speciesList.length,
+      uniqNames: new Set(speciesList.map(x => x.name)).size,
+      facts: speciesList.length > 0 && speciesList.every(x => x.fact && x.fact.length > 15),
+      friendsAll: friendListAll.length,
+      friendsFacts: friendListAll.length > 0 && friendListAll.every(x => x.fact && x.fact.length > 15),
+      overlap: speciesList.filter(x => friendListAll.some(y => y.id === x.id)).length,
+      swim: fishList.length,
+      friends: friendList.length,
+      moved: moved,
+      caught: caught,
+      seen: seen.length,
+      friendCaught: friendCaught || friendListAll.some(y => (S.fishSeen || {})[y.id]),
+      hint: (typeof G('seaFriendHint') === 'function' && friendListAll[0]) ? G('seaFriendHint')(friendListAll[0].id) : '',
+      ach: (G('ACHIEVEMENTS') || []).some(a => a.id === 'fishAll')
+    };
+  })();
+  ok('Под водой много разных рыб — ' + sea.species + ' видов, у каждого имя и факт',
+    sea.species >= 20 && sea.uniqNames === sea.species && sea.facts,
+    'видов ' + sea.species + ', уникальных имён ' + sea.uniqNames);
+  ok('Рядом плавают большие обитатели (черепаха, акула, осьминог…) — и они вне улова',
+    sea.friendsAll >= 7 && sea.friendsFacts && sea.overlap === 0,
+    'обитателей ' + sea.friendsAll + ', совпадений с рыбами ' + sea.overlap);
+  ok('В воде действительно кто-то плавает: рыбки и большие, и они двигаются',
+    sea.swim >= 5 && sea.friends >= 1 && sea.moved === true,
+    'рыбок ' + sea.swim + ', больших ' + sea.friends);
+  ok('Клюёт только рыбка: больших обитателей поймать нельзя',
+    sea.friendCaught === false && sea.hint.indexOf('не ловим') !== -1,
+    'подсказка: ' + sea.hint.slice(0, 70));
+  ok('Улов рыбалки копится по разным видам и сохраняется в профиле',
+    sea.caught === 6 && sea.seen >= 3 && sea.ach === true,
+    'поймано ' + sea.caught + ', разных видов в улове ' + sea.seen);
 
   /* ---------- Созвездие каждый раз новое (замечание заказчика) ---------- */
   const starsUniq = (function () {
@@ -1135,6 +1206,9 @@ if (boot) {
       // Уход из настоящих кнопок дома: покормил, искупал, поиграл
       if (full) { S.stats.hunger = 95; S.stats.cleanliness = 92; S.stats.happiness = 95; S.stats.health = 95; }
       if (full) sandbox.MUSEUM_CATEGORIES.forEach((c, k) => { for (let j = 0; j < 2; j++) S.markSeen(c, c + ':d' + i + '-' + k + '-' + j); });
+      // Рыбалка (v1.3.9): за «полные» дни наш герой успевает поймать весь улов —
+      // так симуляция года проверяет и достижение «Ихтиолог»
+      if (full && sandbox.FISH_SPECIES) sandbox.FISH_SPECIES.forEach(f => { S.fishSeen[f.id] = 1; });
     };
     const at = {};
     play(0, true); at.day1 = S.unlockedCount();

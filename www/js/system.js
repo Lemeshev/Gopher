@@ -60,6 +60,10 @@ const System = {
   },
   // Просмотренные предметы локаций: { 'art_museum': ['art_museum:Мона Лиза', ...] }
   visitedItems: {},
+  // Улов тихой рыбалки (v1.3.9): { 'crucian': 3, 'pike': 1 } — какие виды уже
+  // попадались и сколько раз. Достижение «Ихтиолог» считает РАЗНЫЕ виды,
+  // поэтому редкие рыбки (золотая, клоун) особенно ценны.
+  fishSeen: {},
   // Мебель в доме игрока и список друзей
   homeDecor: [],
   friends: [],
@@ -449,6 +453,30 @@ const System = {
     return this.getSeen(category).length;
   },
 
+  // ---------- УЛОВ ТИХОЙ РЫБАЛКИ (v1.3.9) ----------
+  // Пожелание пользователя: «чтобы было много разных видов рыбок, чтоб всё время
+  // разные попадались». Вид запоминается навсегда: по РАЗНЫМ видам считается
+  // достижение «Ихтиолог», а счётчик показывает, сколько раз вид попадался.
+  markFishCaught(speciesId) {
+    if (!this.fishSeen || typeof this.fishSeen !== 'object') this.fishSeen = {};
+    const id = String(speciesId || '');
+    if (!id) return 0;
+    this.fishSeen[id] = (this.fishSeen[id] || 0) + 1;
+    this.checkAchievements();
+    this.saveGame();
+    return this.fishSeen[id];
+  },
+
+  // Сколько разных видов уже попадалось (для подсказки и достижения)
+  fishSpeciesCount() {
+    return Object.keys(this.fishSeen || {}).length;
+  },
+
+  // Сколько раз попадался конкретный вид
+  fishCaughtTimes(id) {
+    return (this.fishSeen && this.fishSeen[id]) || 0;
+  },
+
   // Плашка сверху экрана. Кроме достижений её используют уровень, события на
   // карте и объяснение отказа. lastPopup хранит последний текст — это нужно
   // проверкам (в WebView DOM не всегда доступен) и отладке.
@@ -666,6 +694,7 @@ const System = {
       progress: { ...this.ensureProgress() },
       knowledge: { ...this.knowledge },
       visitedItems: { ...this.visitedItems },
+      fishSeen: { ...(this.fishSeen || {}) },   // улов тихой рыбалки (v1.3.9)
       timeOfDay: this.timeOfDay,
       visitedLocations: [...this.visitedLocations],
       totalPlayTime: this.totalPlayTime,
@@ -747,6 +776,8 @@ const System = {
       this.ensureProgress();
       this.knowledge = { ...this.knowledge, ...data.knowledge };
       this.visitedItems = data.visitedItems || {};
+      // Улов рыбалки (v1.3.9): старые сохранения просто получат пустой словарь.
+      this.fishSeen = (data.fishSeen && typeof data.fishSeen === 'object') ? { ...data.fishSeen } : {};
       this.timeOfDay = data.timeOfDay || 'morning';
       this.visitedLocations = new Set(data.visitedLocations || []);
       // Сохранения до v1.3.6 копили время в ЦЕЛЫХ минутах (счётчик прибавлялся раз
@@ -921,6 +952,7 @@ const System = {
       artMuseum: 0, natureMuseum: 0, spaceMuseum: 0, historyMuseum: 0, library: 0
     };
     this.visitedItems = {};
+    this.fishSeen = {};
     this.timeOfDay = 'morning';
     this.currentLocation = 'home';
     this.isSleeping = false;

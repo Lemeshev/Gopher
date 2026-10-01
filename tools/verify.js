@@ -655,6 +655,25 @@ function reviewerV12Static() {
   check('Есть сцена тихих игр с тремя занятиями',
     fs.existsSync(path.join(WWW, 'js/game_quiet.js')) && content.indexOf('QUIET_GAMES') !== -1 &&
     (content.match(/id: '(stars|color|fish)'/g) || []).length === 3);
+  // v1.3.9: подводный мир рыбалки. Пожелание пользователя: «чтобы был виден
+  // подводный мир, как они плавают, как за крючок цепляются… много разных видов
+  // рыбок… ещё акул, осьминогов, черепах. Но ловили чтобы только рыбок».
+  const quietSrc = fs.readFileSync(path.join(WWW, 'js', 'game_quiet.js'), 'utf8');
+  const seaBlock = (content.split('const FISH_SPECIES = [')[1] || '').split('];')[0];
+  const friendBlock = (content.split('const SEA_FRIENDS = [')[1] || '').split('];')[0];
+  const seaSpecies = (seaBlock.match(/\{ id: '/g) || []).length;
+  const seaFriends = (friendBlock.match(/\{ id: '/g) || []).length;
+  check('Подводный мир: ' + seaSpecies + ' видов рыб и ' + seaFriends + ' больших обитателей',
+    seaSpecies >= 20 && seaFriends >= 7 && content.indexOf('fishAll') !== -1 &&
+    content.indexOf('seaFriendHint') !== -1,
+    'рыб ' + seaSpecies + ', больших ' + seaFriends + ', у каждого свой факт');
+  check('Рыбалка рисует воду, дно, водоросли, пузырьки и жителей, а не пустой прямоугольник',
+    quietSrc.indexOf('drawSeaFish') !== -1 && quietSrc.indexOf('drawSeaFriend') !== -1 &&
+    quietSrc.indexOf('spawnSea') !== -1 && quietSrc.indexOf('fishHookY') !== -1 &&
+    quietSrc.indexOf('fishWater') !== -1);
+  check('Клюёт только рыбка: большие обитатели крючок не берут (их не выбирает pickBiter)',
+    quietSrc.indexOf("s.kind === 'fish' && typeof s.caughtAnim !== 'number'") !== -1 &&
+    quietSrc.indexOf('Рыбок ловим, а черепах, акул и осьминогов') !== -1);
   // v1.3.7: спортивных дисциплин стало четыре, и каждая живёт в своей локации
   const aerialSrc = fs.readFileSync(path.join(WWW, 'js', 'game_aerial.js'), 'utf8');
   check('Есть четыре анимированные спортивные дисциплины (кольца, полотна, заплыв, барьеры)',
@@ -875,6 +894,41 @@ function reviewerV12Runtime(rt) {
       'минимальное расстояние ' + starsRes.minGap + ' px (радиус тапа 24)');
     ok('Новое созвездие собирается по номерам без тупиков', starsRes.collected === 12,
       starsRes.collected + ' из 12 созвездий собраны тапами');
+
+    // Подводный мир рыбалки (v1.3.9): рыбки плавают, больших не ловим, улов по видам
+    const seaRes = vmRes(`(function(){
+      const qs = __game.scenes.quiet;
+      qs.init();
+      qs.startGame('fish');
+      const f = qs.fish;
+      const fish0 = (f.swimmers || []).filter(s => s.kind === 'fish');
+      const friends0 = (f.swimmers || []).filter(s => s.kind === 'friend');
+      const x0 = fish0.length ? fish0[0].x : 0;
+      qs.update(500);
+      const moved = fish0.length ? Math.abs(fish0[0].x - x0) : 0;
+      System.fishSeen = {};
+      let caught = 0, friendsCaught = 0;
+      for (let i = 0; i < 6; i++) {
+        f.state = 'bite'; f.biteWindow = 2; f.biteFish = qs.pickBiter();
+        if (f.biteFish && f.biteFish.kind !== 'fish') friendsCaught++;
+        if (f.biteFish) { qs.tryFish(); caught++; }
+        qs.update(900);
+      }
+      const species = ((typeof FISH_SPECIES !== 'undefined') ? FISH_SPECIES : (window.FISH_SPECIES || [])).length;
+      const friends = ((typeof SEA_FRIENDS !== 'undefined') ? SEA_FRIENDS : (window.SEA_FRIENDS || [])).length;
+      return { fish: fish0.length, friends: friends0.length, moved: moved > 0.5,
+        caught: caught, species: species, friendsAll: friends,
+        seen: Object.keys(System.fishSeen || {}).length, friendsCaught: friendsCaught,
+        hint: (typeof seaFriendHint === 'function') ? seaFriendHint('turtle') : '' };
+    })()`);
+    ok('Подводный мир: рыбки и большие плавают, улов считается по разным видам',
+      !!seaRes && seaRes.fish >= 5 && seaRes.friends >= 1 && seaRes.moved === true &&
+      seaRes.caught === 6 && seaRes.seen >= 3 && seaRes.species >= 20,
+      seaRes ? ('рыбок ' + seaRes.fish + ', больших ' + seaRes.friends + ', поймано ' + seaRes.caught +
+        ' (' + seaRes.seen + ' видов из ' + seaRes.species + ')') : 'нет данных');
+    ok('Больших обитателей поймать нельзя, и игра объясняет это словами',
+      !!seaRes && seaRes.friendsCaught === 0 && (seaRes.hint || '').indexOf('не ловим') !== -1,
+      seaRes ? seaRes.hint : 'нет данных');
 
     // Воздушная гимнастика
     vmRes(`System.stats.energy = 90; const ae = __game.scenes.aerial; ae.init(); ae.payEntry();`);
@@ -1098,6 +1152,9 @@ function reviewerAchievements(rt) {
       // Уход из настоящих кнопок дома: покормил, искупал, поиграл
       if (full) { System.stats.hunger = 95; System.stats.cleanliness = 92; System.stats.happiness = 95; System.stats.health = 95; }
       if (full) MUSEUM_CATEGORIES.forEach((c, k) => { for (let j = 0; j < 2; j++) System.markSeen(c, c + ':d' + i + '-' + k + '-' + j); });
+      // Рыбалка (v1.3.9): за «полные» дни герой успевает собрать весь улов —
+      // так проверяется и достижение «Ихтиолог» (20 разных видов)
+      if (full) FISH_SPECIES.forEach(f => { System.fishSeen[f.id] = 1; });
       mark();
     };
     playDay(0, true);
