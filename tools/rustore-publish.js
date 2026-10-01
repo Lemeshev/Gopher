@@ -190,7 +190,7 @@ function draftBody() {
     moderInfo: 'Детская офлайн-игра про питомца: ничего не собирает, интернета не требует.',
     publishType: 'INSTANTLY',        // опубликовать сразу после модерации
     minAndroidVersion: 5,            // соответствует minSdk 21
-    developerContacts: [{ email: flag('email', 'TODO@example.com') }]
+    developerContacts: [{ email: flag('email', 'v.lemeshev@corp.mail.ru') }]
   };
 }
 
