@@ -20,6 +20,12 @@
 //  • Переключатели независимые, настройка хранится на устройстве
 //    (gopherlife_audio), а не в профиле: это про «тихо в комнате», а не про
 //    конкретного ребёнка.
+//  • v1.3.8 — музыка стала бодрой. Отзыв пользователей: «музыка по-прежнему
+//    заунывная и грустная». Причины были слышны: темпы 62–88 уд/мин, мелодии
+//    с редкими длинными нотами в низком регистре (C4–C5) и бас, который держал
+//    один звук четыре доли. Теперь темпы 100–132, мелодии двигаются почти на
+//    каждую долю в верхнем регистре (G4–A5), у баса появился тихий «подскок»
+//    на слабые доли (musicStabs), а колыбельная осталась спокойной — она для сна.
 const AudioSys = {
   ctx: null,
   musicGain: null,                       // общая громкость музыки (звуки идут мимо)
@@ -35,13 +41,21 @@ const AudioSys = {
   // в этом настроении — v1.3.5). Заказчик: «дети спрашивают — музыка всегда такая
   // заунывная и одинаковая или она будет меняться?» Поэтому мало темпа: у каждого
   // настроения свой набор мелодий, а внутри круга музыка ещё и меняется.
+  // Пул мелодий и характер настроения: темп, громкость, тембр, ритм-«подскок».
+  // v1.3.8. Заказчик: «музыка по-прежнему заунывная и грустная (по отзывам
+  // пользователей)». Причина была в трёх вещах: медленные темпы (62–88 уд/мин),
+  // редкие длинные ноты в низком регистре и бас, который тянул одну ноту 4 доли.
+  // Что изменилось: темпы подняты до 100–132, мелодии переписаны в верхнем
+  // регистре (G4–A5 вместо C4–C5) с движением почти на каждую долю, у баса
+  // появился «подскок» — тихие октавы на слабые доли (pulse). Колыбельная
+  // осталась тихой и медленной: она для сна, а не для бодрости.
   MUSIC_MOODS: {
-    home:    { bpm: 88, gain: 0.55, lead: 'triangle', tunes: ['home', 'walk'] },   // дома: живее
-    ambient: { bpm: 76, gain: 0.50, lead: 'triangle', tunes: ['star', 'walk', 'home'] }, // фон и карта
-    calm:    { bpm: 84, gain: 0.95, lead: 'triangle', tunes: ['home', 'play', 'walk'] }, // «🎵 Музыка» дома: слышнее
-    museum:  { bpm: 62, gain: 0.45, lead: 'sine',     tunes: ['museum', 'star'] },   // музеи, библиотека, учёба
-    play:    { bpm: 96, gain: 0.60, lead: 'triangle', tunes: ['play', 'walk'] },    // магазин, парк, мини-игры
-    sleep:   { bpm: 50, gain: 0.35, lead: 'sine',     tunes: ['lullaby'] }          // колыбельная
+    home:    { bpm: 126, gain: 0.55, lead: 'triangle', pulse: true,  tunes: ['home', 'walk'] },   // дома: живо и бодро
+    ambient: { bpm: 112, gain: 0.50, lead: 'triangle', pulse: true,  tunes: ['star', 'walk', 'home'] }, // фон и карта
+    calm:    { bpm: 120, gain: 0.95, lead: 'triangle', pulse: true,  tunes: ['home', 'play', 'walk'] }, // «🎵 Музыка» дома: слышнее
+    museum:  { bpm: 100, gain: 0.45, lead: 'triangle', pulse: false, tunes: ['museum', 'star'] },   // музеи, библиотека, учёба: спокойно, но не уныло
+    play:    { bpm: 132, gain: 0.60, lead: 'triangle', pulse: true,  tunes: ['play', 'walk'] },    // магазин, парк, мини-игры
+    sleep:   { bpm: 68,  gain: 0.35, lead: 'sine',     pulse: false, tunes: ['lullaby'] }          // колыбельная
   },
   // Сдвиги (в полутонах) для следующего круга: мелодия не повторяется «нота в ноту».
   // Все голоса сдвигаются вместе, поэтому созвучие сохраняется: 0 / +2 / −2 / +4.
@@ -68,21 +82,22 @@ const AudioSys = {
     });
     return out;
   },
-  // Бас: четыре аккорда за круг, индексы — полутоны от C4 (как было: −12, −15, −7, −5)
+  // Бас: четыре аккорда за круг, индексы — полутоны от C4 (C3, F3, G3, A2).
+  // v1.3.8: нота держится 1.4 доли, а не весь аккорд — бас «шагает», а не тянет.
   musicParseBass(spec, beats) {
     const parts = String(spec).trim().split(/\s+/);
     const step = beats / parts.length;
-    return parts.map((tok, k) => ({ b: k * step, i: parseInt(tok, 10) || 0, d: step - 0.2 }));
+    return parts.map((tok, k) => ({ b: k * step, i: parseInt(tok, 10) || 0, d: Math.min(step - 0.2, 1.4) }));
   },
   // Мелодии — данными: id, имя для экрана настроек, строка мелодии, бас, «звёздочки».
   // Разбор строки делает musicTune() (см. ниже) — так данные остаются читаемыми.
   MUSIC_TUNES: [
-    { id: 'home',    name: 'Домашняя',    lead: '0 2 3 2 4 3 2 1 - 3 4 5 4 2 3 0', bass: '-12 -7 -5 -7',   sparkle: [[4, 7], [12, 8]] },
-    { id: 'walk',    name: 'Прогулка',    lead: '0 1 2 1 3 2 1 2 4 3 2 3 1 2 1 0', bass: '-12 -5 -15 -7',  sparkle: [[8, 8]] },
-    { id: 'play',    name: 'Игра',        lead: '0 . 2 . 4 2 4 5 - 4 . 2 . 3 2 0', bass: '-12 -10 -5 -7',  sparkle: [[4, 8], [12, 7]] },
-    { id: 'museum',  name: 'Музейная',    lead: '0 . . . 2 . . . 1 . . . 3 . . .', bass: '-12 -15 -7 -12', sparkle: [] },
-    { id: 'star',    name: 'Звёздная',    lead: '4 . 3 . 2 . 3 . 4 . 5 . 4 . 2 .', bass: '-12 -7 -12 -5',  sparkle: [[2, 9], [6, 8], [10, 9]] },
-    { id: 'lullaby', name: 'Колыбельная', lead: '4 . . 2 . . 1 . . 0 . . 1 . - -', bass: '-12 -15 -12 -7', sparkle: [[6, 7]] }
+    { id: 'home',    name: 'Домашняя',    lead: '5 5 7 6 5 - 4 5 7 8 7 6 5 4 3 5', bass: '-12 -7 -5 -7',    sparkle: [[4, 7], [12, 8]] },
+    { id: 'walk',    name: 'Прогулка',    lead: '3 4 5 4 3 4 5 7 6 5 4 3 1 2 3 5', bass: '-12 -5 -7 -12',   sparkle: [[8, 8]] },
+    { id: 'play',    name: 'Игра',        lead: '5 7 8 7 5 7 8 9 8 7 6 5 4 3 4 5', bass: '-12 -10 -5 -7',   sparkle: [[4, 8], [12, 7]] },
+    { id: 'museum',  name: 'Музейная',    lead: '5 - 4 3 5 - 4 3 2 3 4 5 4 3 2 5', bass: '-12 -15 -7 -12',  sparkle: [] },
+    { id: 'star',    name: 'Звёздная',    lead: '8 . 7 6 8 . 7 6 5 6 7 8 7 6 5 8', bass: '-12 -7 -12 -5',   sparkle: [[2, 9], [6, 8], [10, 9]] },
+    { id: 'lullaby', name: 'Колыбельная', lead: '4 . . 2 . . 1 . . 0 . . 1 . - -', bass: '-12 -15 -12 -7',  sparkle: [[6, 7]] }
   ],
   MUSIC_BEATS: 16,
 
@@ -345,15 +360,36 @@ const AudioSys = {
       }));
     };
     add(tune.bass, 'sine', 0.30);
-    add(tune.lead, m.lead, 0.20);
+    add(tune.lead, m.lead, 0.22);
     add(tune.sparkle, 'sine', 0.09);
+    if (m.pulse) this.musicStabs(tune, beat, shift, out);   // ритм-«подскок» (v1.3.8)
     out.sort((a, b) => a.t - b.t);
     return out;
   },
 
+  // «Подскок» (v1.3.8): тихие октавы баса на слабые доли. Без него бас тянул одну
+  // ноту четыре доли — отсюда и жалоба «музыка заунывная». Здесь ритм появляется,
+  // но остаётся мягким: тише мелодии в три раза. Там, где нужна тишина (музей,
+  // колыбельная), голос не включается — за это отвечает m.pulse.
+  MUSIC_STABS_PER_BASS: 2,          // «подскоков» на каждый аккорд баса (для проверок)
+  musicStabs(tune, beat, shift, out) {
+    (tune.bass || []).forEach(n => {
+      [1.5, 3.0].forEach(off => out.push({
+        t: (n.b + off) * beat,
+        freq: this.musicFreq(n.i + 12 + shift),     // октава выше баса — всегда в до-мажоре
+        dur: Math.max(0.22, beat * 0.5),
+        vol: 0.07,
+        type: 'triangle'
+      }));
+    });
+  },
+
   // Ноты не пересобираем по 60 раз в секунду — кэш на каждую мелодию и сдвиг
   musicEventsCached(mood) {
-    const key = this.musicTune().id + '@' + this.MUSIC_SHIFTS[this.musicShiftIndex % this.MUSIC_SHIFTS.length];
+    // Ключ включает настроение: от него зависит «подскок» (pulse), а не только
+    // мелодия со сдвигом — раньше при смене сцены могла остаться старая подложка.
+    const key = mood + '|' + this.musicTune().id + '@' +
+      this.MUSIC_SHIFTS[this.musicShiftIndex % this.MUSIC_SHIFTS.length];
     if (!this.musicCache) this.musicCache = {};
     if (!this.musicCache[key]) this.musicCache[key] = this.musicEvents(mood);
     return this.musicCache[key];
@@ -546,7 +582,9 @@ const AudioSys = {
       mood: mood,
       bpm: m.bpm,
       gain: this.musicGainLevel,
-      notes: tune.bass.length + tune.lead.length + tune.sparkle.length,
+      notes: tune.bass.length * (m.pulse ? 1 + this.MUSIC_STABS_PER_BASS : 1) +
+        tune.lead.length + tune.sparkle.length,
+      pulse: !!m.pulse,
       loop: Math.round(this.musicLoopDuration(mood) * 10) / 10,
       played: this.musicNotesPlayed,
       tune: tune.id,
