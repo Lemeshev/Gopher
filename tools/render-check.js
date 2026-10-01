@@ -80,6 +80,9 @@ const SCENES = [
   { hash: 'quiet@stars',        minColors: 20, minNonBg: 3 },
   { hash: 'quiet@color',        minColors: 20, minNonBg: 3 },
   { hash: 'quiet@fish',         minColors: 20, minNonBg: 3, needText: ['Видов', 'Рыбок ловим'] },
+  // Кадр сразу после поимки (v1.3.10): живая длинная плашка с фактом о рыбе —
+  // проверяем, что она вообще рисуется и что факт переносится по строкам
+  { hash: 'quiet@fishcatch',    minColors: 20, minNonBg: 3 },
   { hash: 'aerial',             minColors: 20, minNonBg: 3 },
   { hash: 'aerial@swing',       minColors: 20, minNonBg: 3 },
   // v1.3.7: четыре спортивные дисциплины и десять музеев — смотрим пиксели всех

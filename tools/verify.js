@@ -664,9 +664,12 @@ function reviewerV12Static() {
   const seaSpecies = (seaBlock.match(/\{ id: '/g) || []).length;
   const seaFriends = (friendBlock.match(/\{ id: '/g) || []).length;
   check('Подводный мир: ' + seaSpecies + ' видов рыб и ' + seaFriends + ' больших обитателей',
-    seaSpecies >= 20 && seaFriends >= 7 && content.indexOf('fishAll') !== -1 &&
-    content.indexOf('seaFriendHint') !== -1,
+    seaSpecies >= 100 && seaFriends >= 7 && content.indexOf('fishAll') !== -1 &&
+    content.indexOf('fishMaster') !== -1 && content.indexOf('seaFriendHint') !== -1,
     'рыб ' + seaSpecies + ', больших ' + seaFriends + ', у каждого свой факт');
+  check('Длинный факт о рыбе переносится по строкам, а не ужимается в одну (v1.3.10)',
+    quietSrc.indexOf('wrapLines(ctx, this.result') !== -1 &&
+    quietSrc.indexOf('lines.forEach((line, i) =>') !== -1);
   check('Рыбалка рисует воду, дно, водоросли, пузырьки и жителей, а не пустой прямоугольник',
     quietSrc.indexOf('drawSeaFish') !== -1 && quietSrc.indexOf('drawSeaFriend') !== -1 &&
     quietSrc.indexOf('spawnSea') !== -1 && quietSrc.indexOf('fishHookY') !== -1 &&

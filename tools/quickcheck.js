@@ -752,11 +752,11 @@ if (boot) {
       seen: seen.length,
       friendCaught: friendCaught || friendListAll.some(y => (S.fishSeen || {})[y.id]),
       hint: (typeof G('seaFriendHint') === 'function' && friendListAll[0]) ? G('seaFriendHint')(friendListAll[0].id) : '',
-      ach: (G('ACHIEVEMENTS') || []).some(a => a.id === 'fishAll')
+      ach: (G('ACHIEVEMENTS') || []).filter(a => ['fishAll', 'fishExpert', 'fishMaster'].indexOf(a.id) !== -1).length
     };
   })();
-  ok('Под водой много разных рыб — ' + sea.species + ' видов, у каждого имя и факт',
-    sea.species >= 20 && sea.uniqNames === sea.species && sea.facts,
+  ok('Под водой сто видов рыб — у каждого имя, цвет и факт',
+    sea.species >= 100 && sea.uniqNames === sea.species && sea.facts,
     'видов ' + sea.species + ', уникальных имён ' + sea.uniqNames);
   ok('Рядом плавают большие обитатели (черепаха, акула, осьминог…) — и они вне улова',
     sea.friendsAll >= 7 && sea.friendsFacts && sea.overlap === 0,
@@ -768,8 +768,35 @@ if (boot) {
     sea.friendCaught === false && sea.hint.indexOf('не ловим') !== -1,
     'подсказка: ' + sea.hint.slice(0, 70));
   ok('Улов рыбалки копится по разным видам и сохраняется в профиле',
-    sea.caught === 6 && sea.seen >= 3 && sea.ach === true,
-    'поймано ' + sea.caught + ', разных видов в улове ' + sea.seen);
+    sea.caught === 6 && sea.seen >= 3 && sea.ach === 3,
+    'поймано ' + sea.caught + ', разных видов в улове ' + sea.seen + ', ступеней коллекции ' + sea.ach);
+
+  // Замечание заказчика v1.3.10: «информация о рыбах не влезает в экран» —
+  // длинный факт должен переноситься по словам, а не ужиматься в одну строку
+  const bannerSrc = fs.readFileSync(path.join(ROOT, 'www', 'js', 'game_quiet.js'), 'utf8');
+  ok('Факт о рыбе показывается в несколько строк, а не в одну обрезанную',
+    bannerSrc.indexOf('wrapLines(ctx, this.result') !== -1 &&
+    bannerSrc.indexOf('lines.forEach((line, i) =>') !== -1 &&
+    bannerSrc.indexOf('const bh = Math.max(42, lines.length * lh + pad + 4)') !== -1);
+
+  // Замечание заказчика v1.3.10: «музыка пугающая» — в ней был низкий гул (A2, 110 Гц).
+  // Внимание: имя A в этом файле занято конфигом гимнастики, поэтому AudioSys
+  // берём из песочницы под своим именем.
+  const AU = sandbox.AudioSys || {};
+  const moodBass = (AU.MUSIC_TUNES || []).every(t =>
+    AU.musicParseBass(t.bass, 16).every(n => n.i >= -12));
+  const stabsCheck = (function () {
+    const buf = [];
+    if (!AU.musicStabs) return 0;
+    AU.musicStabs(AU.musicTune(), 0.5, 0, buf);
+    const ivs = {};
+    buf.forEach(e => { ivs[Math.round(12 * Math.log2(e.freq / 261.63))] = 1; });
+    return Object.keys(ivs).length;
+  })();
+  ok('В музыке нет низкого гула и есть светлая квинта — она больше не пугает',
+    moodBass && stabsCheck >= 2 && AU.MUSIC_MOODS.home.bpm >= 130,
+    'басовых нот ниже C3 нет; разных интервалов в «подскоке»: ' + stabsCheck +
+    '; темп дома ' + AU.MUSIC_MOODS.home.bpm);
 
   /* ---------- Созвездие каждый раз новое (замечание заказчика) ---------- */
   const starsUniq = (function () {

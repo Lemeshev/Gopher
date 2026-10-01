@@ -255,6 +255,25 @@ console.error = function () {
       parts[1] = null;
     }
 
+    // Рыбалка: кадр сразу после поимки (#quiet@fishcatch). Заказчик v1.3.10:
+    // «пишет информацию о рыбах — она не влезает в экран, надо не в одну строку».
+    // Ловим рыбку по-настоящему (тем же tryFish), чтобы в кадре была живая длинная
+    // плашка и было видно, что факт переносится по строкам.
+    if (parts[0] === 'quiet' && parts[1] === 'fishcatch') {
+      scene.startGame('fish');
+      for (var fj = 0; fj < 40; fj++) scene.update(16);
+      var sp = (scene.fish.swimmers || []).filter(function (x) {
+        return x.kind === 'fish';
+      })[0];
+      if (sp) {
+        scene.fish.state = 'bite';
+        scene.fish.biteFish = sp;
+        scene.tryFish();
+        scene.resultTimer = 4.5;   // плашка успеет попасть в кадр
+      }
+      parts[1] = null;
+    }
+
     // Воздушная гимнастика: сразу тренировка (#aerial@swing)
     if (parts[0] === 'aerial' && parts[1] === 'swing') {
       scene.payEntry();
