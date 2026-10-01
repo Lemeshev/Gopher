@@ -7,9 +7,19 @@
   screens-9x16/*.jpg      скриншоты 1080×1920 (9:16), JPEG: RuStore (до 5 МБ) и Google Play
   card.txt                тексты: название, краткое/полное описание, «что нового», FAQ
 
-ФАЙЛЫ (2 шт.)
+ФАЙЛЫ (12 шт.)
   store/icon-512.png
   store/feature-graphic.jpg
+  store/screens-9x16/01_menu.jpg
+  store/screens-9x16/02_map.jpg
+  store/screens-9x16/03_home.jpg
+  store/screens-9x16/04_achievements.jpg
+  store/screens-9x16/05_shop.jpg
+  store/screens-9x16/06_games.jpg
+  store/screens-9x16/07_clinic.jpg
+  store/screens-9x16/08_museum.jpg
+  store/screens-9x16/09_outfits.jpg
+  store/screens-9x16/10_settings.jpg
 
 НАПОМИНАНИЯ
   • Порядок скриншотов = порядок в карточке: сначала меню, карта и дом.

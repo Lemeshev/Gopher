@@ -182,8 +182,8 @@ function draftBody() {
   return {
     appName: c.title,
     appType: 'GAMES',
-    categories: ['games', 'kids'],   // актуальные id смотреть командой categories
-    ageLegal: '3+',                  // 0+ в API нет, минимальный — 3+
+    categories: ['children', 'simulator'],  // id: «Дети» + «Симуляторы» (полный список — команда categories)
+    ageLegal: '0+',                  // RuStore принимает только 0+/6+/12+/16+/18+ (0+ = без насилия и бранных слов)
     shortDescription: c.short,
     fullDescription: c.full,
     whatsNew: c.whatsNew || ('Версия ' + v.versionName),
@@ -229,19 +229,22 @@ async function main() {
     return;
   }
 
-  const token = await getToken();
-
   // Проверка метаданных без обращения к API: что именно уйдёт в карточку.
+  // Выполняется ДО авторизации — работает и без сохранённого ключа.
   if (cmd === 'meta') {
-    const c = cardText(), v = appVersion();
+    const c = cardText(), v = appVersion(), b = draftBody();
     ok('название', '"' + c.title + '" (' + c.title.length + ' симв., лимит RuStore 50)');
     ok('краткое описание', '"' + c.short + '" (' + c.short.length + ' симв., лимит 80)');
     ok('полное описание', c.full.length + ' симв. (лимит 4000)');
     ok('что нового', (c.whatsNew || '').split('\n')[0] + ' … (' + c.whatsNew.length + ' симв.)');
     ok('версия', v.versionName + ' (versionCode ' + v.versionCode + ')');
+    ok('тип и возраст', b.appType + ', ' + b.ageLegal + ', категории ' + b.categories.join(' + '));
+    ok('контакты', ((b.developerContacts[0] || {}).email || '') + (b.developerContacts[0].email === 'TODO@example.com' ? '  ← заглушка, нужен реальный e-mail' : ''));
     ok('файлы', 'APK ' + (apkPath() ? 'есть' : 'нет') + ', скриншотов ' + shotFiles().length);
     return;
   }
+
+  const token = await getToken();
 
   if (['check', 'status', 'categories', 'tags'].indexOf(cmd) !== -1) {
     if (cmd === 'check') {
