@@ -676,7 +676,10 @@ function reviewerV12Static() {
     quietSrc.indexOf('fishWater') !== -1);
   check('Клюёт только рыбка: большие обитатели крючок не берут (их не выбирает pickBiter)',
     quietSrc.indexOf("s.kind === 'fish' && typeof s.caughtAnim !== 'number'") !== -1 &&
-    quietSrc.indexOf('Рыбок ловим, а черепах, акул и осьминогов') !== -1);
+    // v1.3.11: постоянную надпись внизу убрали (заказчик: «явно не нужная»),
+    // объяснение осталось — оно всплывает, когда большой обитатель идёт мимо крючка
+    quietSrc.indexOf('Рыбок ловим') === -1 &&
+    quietSrc.indexOf('friendHintText') !== -1 && quietSrc.indexOf('seaFriendHint') !== -1);
   // v1.3.7: спортивных дисциплин стало четыре, и каждая живёт в своей локации
   const aerialSrc = fs.readFileSync(path.join(WWW, 'js', 'game_aerial.js'), 'utf8');
   check('Есть четыре анимированные спортивные дисциплины (кольца, полотна, заплыв, барьеры)',

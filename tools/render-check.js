@@ -79,7 +79,7 @@ const SCENES = [
   { hash: 'quiet',              minColors: 20, minNonBg: 3 },
   { hash: 'quiet@stars',        minColors: 20, minNonBg: 3 },
   { hash: 'quiet@color',        minColors: 20, minNonBg: 3 },
-  { hash: 'quiet@fish',         minColors: 20, minNonBg: 3, needText: ['Видов', 'Рыбок ловим'] },
+  { hash: 'quiet@fish',         minColors: 20, minNonBg: 3, needText: ['Видов'] },
   // Кадр сразу после поимки (v1.3.10): живая длинная плашка с фактом о рыбе —
   // проверяем, что она вообще рисуется и что факт переносится по строкам
   { hash: 'quiet@fishcatch',    minColors: 20, minNonBg: 3 },

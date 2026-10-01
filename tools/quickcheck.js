@@ -738,6 +738,15 @@ if (boot) {
       qs.update(900);                     // рыбка уплывает, её место занимает новая
     }
     const seen = Object.keys(S.fishSeen || {});
+
+    // Состав больших обитателей обязан реально меняться (v1.3.11): ставим «пора»
+    // и прокручиваем время, пока кто-то не дойдёт до края экрана
+    f.friendSwap = 0.01;
+    for (let i = 0; i < 4 && !f.friendSwapWanted; i++) qs.update(50);
+    const friendsBefore = (f.swimmers || []).filter(x => x.kind === 'friend').map(x => x.id).join(',');
+    for (let i = 0; i < 800; i++) qs.update(50);
+    const friendsAfterList = (f.swimmers || []).filter(x => x.kind === 'friend').map(x => x.id);
+
     return {
       species: speciesList.length,
       uniqNames: new Set(speciesList.map(x => x.name)).size,
@@ -747,11 +756,26 @@ if (boot) {
       overlap: speciesList.filter(x => friendListAll.some(y => y.id === x.id)).length,
       swim: fishList.length,
       friends: friendList.length,
+      friendsUniq: new Set(friendList.map(x => x.id)).size,
+      // Круг по списку больших обитателей: за семь шагов должны встретиться все
+      friendsCycle: (function () {
+        const seen = {};
+        qs.friendCursor = 0;
+        for (let i = 0; i < friendListAll.length; i++) {
+          const sp = qs.nextFriendSpecies([]);
+          if (sp) seen[sp.id] = 1;
+        }
+        return Object.keys(seen).length;
+      })(),
       moved: moved,
       caught: caught,
       seen: seen.length,
       friendCaught: friendCaught || friendListAll.some(y => (S.fishSeen || {})[y.id]),
       hint: (typeof G('seaFriendHint') === 'function' && friendListAll[0]) ? G('seaFriendHint')(friendListAll[0].id) : '',
+      friendsBefore: friendsBefore,
+      friendsAfter: friendsAfterList.join(','),
+      friendsAfterN: friendsAfterList.length,
+      friendsAfterUniq: new Set(friendsAfterList).size,
       ach: (G('ACHIEVEMENTS') || []).filter(a => ['fishAll', 'fishExpert', 'fishMaster'].indexOf(a.id) !== -1).length
     };
   })();
@@ -762,8 +786,72 @@ if (boot) {
     sea.friendsAll >= 7 && sea.friendsFacts && sea.overlap === 0,
     'обитателей ' + sea.friendsAll + ', совпадений с рыбами ' + sea.overlap);
   ok('В воде действительно кто-то плавает: рыбки и большие, и они двигаются',
-    sea.swim >= 5 && sea.friends >= 1 && sea.moved === true,
+    sea.swim >= 5 && sea.friends >= 3 && sea.moved === true,
     'рыбок ' + sea.swim + ', больших ' + sea.friends);
+  // v1.3.11: заказчик видел одних медуз — теперь обитатели разные и сменяются по кругу
+  ok('Большие обитатели все разные, и по кругу приходят все семь (а не одни медузы)',
+    sea.friendsUniq === sea.friends && sea.friendsCycle === sea.friendsAll && sea.friendsAll >= 7,
+    'в воде ' + sea.friends + ' разных из ' + sea.friendsAll +
+    ', по кругу приходят ' + sea.friendsCycle);
+  // Состав должен не просто существовать, а меняться по ходу игры
+  ok('Состав больших обитателей сменяется: один уплыл к краю — другой приплыл',
+    sea.friendsAfter !== sea.friendsBefore &&
+    sea.friendsAfterN === 3 && sea.friendsAfterUniq === 3,
+    'было ' + sea.friendsBefore + ' → стало ' + sea.friendsAfter);
+
+  // Заказчик v1.3.11: «в ачивки конечно нужно добавить, когда поймана половина рыб
+  // и когда пойманы все виды рыб, у нас же игровая механика». Такие достижения есть
+  // (20 / 50 / 100), но проверяем не наличие записи, а саму механику: открываются
+  // они ровно на своих порогах и показывают прогресс «сколько из скольки».
+  const milestones = (function () {
+    // Данные берём из песочницы: const-объявления игры не становятся свойствами
+    // её глобального объекта (тот же приём, что и в блоке подводного мира)
+    const G = (n) => (typeof sandbox[n] !== 'undefined') ? sandbox[n]
+      : (sandbox.window && typeof sandbox.window[n] !== 'undefined') ? sandbox.window[n] : undefined;
+    const list = G('ACHIEVEMENTS') || [];
+    const byId = {};
+    list.forEach(a => { byId[a.id] = a; });
+    const ids = (G('FISH_SPECIES') || []).map(x => x.id);
+    const fishIds = ['fishAll', 'fishExpert', 'fishMaster'];
+
+    const savedSeen = S.fishSeen;
+    const savedAch = (S.achievements || []).slice();
+
+    const at = (n) => {
+      // Сбрасываем только «рыбные» достижения, чтобы увидеть, что откроется именно сейчас
+      S.achievements = (S.achievements || []).filter(id => fishIds.indexOf(id) === -1);
+      S.fishSeen = {};
+      for (let i = 0; i < n && i < ids.length; i++) S.fishSeen[ids[i]] = 1;
+      return S.checkAchievements().map(a => a.id).filter(id => fishIds.indexOf(id) !== -1).join(',');
+    };
+    const at19 = at(19);
+    const at20 = at(20);
+    const at50 = at(50);
+    const at100 = at(100);
+    const prog = byId.fishExpert ? S.achievementProgress(byId.fishExpert) : { value: 0, goal: 0 };
+
+    S.fishSeen = savedSeen;
+    S.achievements = savedAch;
+    return {
+      defs: !!(byId.fishAll && byId.fishExpert && byId.fishMaster),
+      goals: [byId.fishAll && byId.fishAll.goal, byId.fishExpert && byId.fishExpert.goal,
+        byId.fishMaster && byId.fishMaster.goal].join('/'),
+      at19: at19, at20: at20, at50: at50, at100: at100,
+      prog: prog.value + '/' + prog.goal
+    };
+  })();
+  ok('Половина улова и все сто видов — достижения с настоящими порогами 20 / 50 / 100',
+    milestones.defs && milestones.goals === '20/50/100' &&
+    // На 19 видах — ещё ничего; дальше каждый порог добавляет ровно свою ступень
+    // (на 50 в списке есть и «Ихтиолог» — он открылся раньше и остаётся открытым)
+    milestones.at19 === '' &&
+    milestones.at20.indexOf('fishAll') !== -1 && milestones.at20.indexOf('fishExpert') === -1 &&
+    milestones.at50.indexOf('fishExpert') !== -1 && milestones.at50.indexOf('fishMaster') === -1 &&
+    milestones.at100.indexOf('fishMaster') !== -1 &&
+    milestones.prog === '100/50',
+    'пороги ' + milestones.goals + '; 19 видов → ' + (milestones.at19 || 'ничего') +
+    '; 20 → ' + milestones.at20 + '; 50 → ' + milestones.at50 +
+    '; 100 → ' + milestones.at100 + '; прогресс «' + milestones.prog + '»');
   ok('Клюёт только рыбка: больших обитателей поймать нельзя',
     sea.friendCaught === false && sea.hint.indexOf('не ловим') !== -1,
     'подсказка: ' + sea.hint.slice(0, 70));
@@ -778,6 +866,14 @@ if (boot) {
     bannerSrc.indexOf('wrapLines(ctx, this.result') !== -1 &&
     bannerSrc.indexOf('lines.forEach((line, i) =>') !== -1 &&
     bannerSrc.indexOf('const bh = Math.max(42, lines.length * lh + pad + 4)') !== -1);
+
+  // Замечание заказчика v1.3.11: «информация внизу „Рыбок ловим, а черепах, акул и
+  // осьминогов — только разглядываем“ — явно не нужная». Постоянной надписи нет,
+  // а объяснение осталось: оно появляется, когда большой обитатель идёт мимо крючка.
+  ok('Ненужной надписи внизу нет, а объяснение «не ловим» всплывает по делу',
+    bannerSrc.indexOf('Рыбок ловим') === -1 &&
+    bannerSrc.indexOf('friendHintText') !== -1 &&
+    bannerSrc.indexOf('friendHint > 0') !== -1);
 
   // Замечание заказчика v1.3.10: «музыка пугающая» — в ней был низкий гул (A2, 110 Гц).
   // Внимание: имя A в этом файле занято конфигом гимнастики, поэтому AudioSys
