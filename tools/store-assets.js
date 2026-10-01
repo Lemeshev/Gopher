@@ -40,7 +40,7 @@ const SHOTS = [
   { file: '04_achievements.jpg', hash: 'stats@ach@jpeg@hires',       title: 'Достижения со ступенями' },
   { file: '05_shop.jpg',         hash: 'shop@jpeg@hires',            title: 'Магазин: мебель и еда' },
   { file: '06_games.jpg',        hash: 'minigames@jpeg@hires',       title: 'Мини-игры' },
-  { file: '07_clinic.jpg',       hash: 'clinic@jpeg@hires',          title: 'Поликлиника: видно лечение' },
+  { file: '07_fishing.jpg',      hash: 'quiet@fish@jpeg@hires',      title: 'Тихая рыбалка: подводный мир' },
   { file: '08_museum.jpg',       hash: 'visit~art_museum@jpeg@hires', title: 'Музеи и коллекции' },
   { file: '09_outfits.jpg',      hash: 'home~look=char:milka,hat:cap,neck:scarf,back:backpack@jpeg@hires',
     title: 'Наряды для всех героев' },

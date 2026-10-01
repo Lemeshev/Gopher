@@ -17,7 +17,7 @@
   store/screens-9x16/04_achievements.jpg
   store/screens-9x16/05_shop.jpg
   store/screens-9x16/06_games.jpg
-  store/screens-9x16/07_clinic.jpg
+  store/screens-9x16/07_fishing.jpg
   store/screens-9x16/08_museum.jpg
   store/screens-9x16/09_outfits.jpg
   store/screens-9x16/10_settings.jpg

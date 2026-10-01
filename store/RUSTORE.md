@@ -64,7 +64,7 @@ node tools/rustore-publish.js save-key <keyId> <приватный ключ base
 
 | Файл | Что это |
 |---|---|
-| `android/app/build/outputs/apk/release/app-release.apk` | подписанный релизный APK (~283 КБ, md5 `43f562b71188271bbe9ed2e12ec1f1ea`), версия 1.3.7 — копия на рабочем столе совпадает байт в байт |
+| `android/app/build/outputs/apk/release/app-release.apk` | подписанный релизный APK (~284 КБ, md5 `26846eb44feb55edce7657a1bcf1cd88`), версия 1.3.7 — копия на рабочем столе совпадает байт в байт |
 | `store/icon-512.png` | иконка 512×512 |
 | `store/screens-9x16/*.jpg` | 10 скриншотов 1080×1920 (RuStore требует минимум 3, максимум 10) |
 | `store/card.txt` | название, краткое и полное описание, «что нового», 8 пар FAQ |

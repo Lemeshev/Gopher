@@ -16,7 +16,7 @@ GOPHER LIFE — ЛИСТ ДЛЯ КОПИПАСТА В КОНСОЛЬ RUSTORE
 ПОЛЕ «Ссылка на политику конфиденциальности»: https://lemeshev.github.io/Gopher/privacy.html
 ПОЛЕ «E-mail разработчика»: Lemeshev@mail.ru
 ПОЛЕ «Имя разработчика»: Лемешев Виктор
-ПОЛЕ «APK»: android/app/build/outputs/apk/release/app-release.apk (~283 КБ, md5 43f562b71188271bbe9ed2e12ec1f1ea; копия ~/Desktop/Gopher.apk)
+ПОЛЕ «APK»: android/app/build/outputs/apk/release/app-release.apk (~284 КБ, md5 26846eb44feb55edce7657a1bcf1cd88; копия ~/Desktop/Gopher.apk)
 ПОЛЕ «Иконка»: store/icon-512.png (512x512)
 ПОЛЕ «Скриншоты»: все 10 файлов из store/screens-9x16/ в порядке 01…10 (первым 01_menu.jpg — экран с питомцем)
 

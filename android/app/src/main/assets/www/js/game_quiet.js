@@ -533,28 +533,30 @@ class QuietScene {
     // Дно: песок, камни и водоросли
     ctx.fillStyle = '#c8b27a';
     ctx.beginPath();
-    ctx.moveTo(0, H * 0.80);
+    ctx.moveTo(0, H * 0.84);
     for (let x = 0; x <= W; x += 24) {
-      ctx.lineTo(x, H * 0.80 + Math.sin(x * 0.02) * 5);
+      ctx.lineTo(x, H * 0.84 + Math.sin(x * 0.02) * 4);
     }
-    ctx.lineTo(W, H * 0.88);
-    ctx.lineTo(0, H * 0.88);
+    ctx.lineTo(W, H * 0.90);
+    ctx.lineTo(0, H * 0.90);
     ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = '#9aa26a';
+    // Водоросли качаются на течении
     for (let i = 0; i < 9; i++) {
       const sx = (i * 97 % W), sway = Math.sin(this.time * 0.0016 + i) * 7;
       ctx.beginPath();
-      ctx.moveTo(sx, H * 0.81);
-      ctx.quadraticCurveTo(sx + sway, H * 0.74, sx + sway * 0.6 + 6, H * 0.70);
+      ctx.moveTo(sx, H * 0.845);
+      ctx.quadraticCurveTo(sx + sway, H * 0.79, sx + sway * 0.6 + 6, H * 0.75);
       ctx.lineWidth = 4;
       ctx.strokeStyle = 'rgba(120,160,80,0.85)';
       ctx.stroke();
     }
+    // Камни: небольшие, у самого дна (раньше радиус считался с ошибкой и они
+    // заливали половину экрана — нашлось на кадре 07_fishing.jpg, v1.3.9)
     ctx.fillStyle = 'rgba(90,80,70,0.55)';
-    [[0.12, 0.005], [0.36, 0.004], [0.68, 0.006], [0.88, 0.004]].forEach(([rx, rr]) => {
+    [[0.12, 0.05], [0.36, 0.035], [0.68, 0.055], [0.88, 0.035]].forEach(([rx, rr]) => {
       ctx.beginPath();
-      ctx.ellipse(W * rx, H * 0.815, W * rr * 200, W * rr * 120, 0, 0, Math.PI * 2);
+      ctx.ellipse(W * rx, H * 0.86, W * rr, W * rr * 0.62, 0, 0, Math.PI * 2);
       ctx.fill();
     });
 
@@ -628,9 +630,13 @@ class QuietScene {
     }
 
     ctx.textAlign = 'center';
+    // Строка состояния — на тёмной плашке: без неё текст теряется на песочном дне
+    ctx.fillStyle = 'rgba(8,18,32,0.66)';
+    roundRect(ctx, W / 2 - Math.min(W * 0.44, 232), H * 0.881, Math.min(W * 0.88, 464), 27, 10);
+    ctx.fill();
     ctx.fillStyle = f.state === 'bite' ? '#FFD93D' : '#c9cfe0';
     ctx.font = `bold ${Math.min(W * 0.036, 15)}px Arial`;
-    ctx.fillText(f.state === 'bite' ? 'КЛЮЁТ! Нажимай — тяни!' : 'Ждём поклёвку… тихо-тихо 🎣', W / 2, H * 0.90);
+    ctx.fillText(f.state === 'bite' ? 'КЛЮЁТ! Нажимай — тяни!' : 'Ждём поклёвку… тихо-тихо 🎣', W / 2, H * 0.900);
 
     ctx.font = `${Math.min(W * 0.030, 12.5)}px Arial`;
     ctx.fillStyle = '#9be3b0';
