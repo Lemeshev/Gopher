@@ -310,16 +310,34 @@ class QuietScene {
     else this.drawFish(ctx, W, H);
 
     if (this.resultTimer > 0) {
-      const bw = Math.min(W * 0.9, 340);
-      ctx.fillStyle = 'rgba(0,0,0,0.72)';
-      roundRect(ctx, (W - bw) / 2, H * 0.44, bw, 44, 12);
+      // Факты о рыбах длинные, и в одну строку они превращались в нечитаемые
+      // 9 px (замечание заказчика, v1.3.10). Теперь подбираем размер и переносим
+      // текст по словам: до четырёх строк, плашка растёт вместе с текстом.
+      const bw = Math.min(W * 0.92, 380);
+      const pad = 14;
+      const baseSize = Math.min(W * 0.034, 14), minSize = 10.5;
+      let size = baseSize, lines = [];
+      while (size >= minSize) {
+        ctx.font = 'bold ' + size + 'px Arial, sans-serif';
+        const probe = wrapLines(ctx, this.result, bw - pad * 2, 4);
+        if (probe.every(l => ctx.measureText(l).width <= bw - pad * 2)) { lines = probe; break; }
+        size -= 0.5;
+      }
+      if (!lines.length) {
+        ctx.font = 'bold ' + minSize + 'px Arial, sans-serif';
+        lines = wrapLines(ctx, this.result, bw - pad * 2, 4);
+      }
+      const lh = size + 5.5;
+      const bh = Math.max(42, lines.length * lh + pad + 4);
+      const by = H * 0.44 - (bh - 44) / 2;
+      ctx.fillStyle = 'rgba(0,0,0,0.74)';
+      roundRect(ctx, (W - bw) / 2, by, bw, bh, 12);
       ctx.fill();
       ctx.fillStyle = '#FFD93D';
-      const size = fitFontSize(ctx, this.result, bw - 16, Math.min(W * 0.034, 14), 9, true);
-      ctx.font = `bold ${size}px Arial`;
+      ctx.font = 'bold ' + size + 'px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(this.result, W / 2, H * 0.44 + 22);
+      lines.forEach((line, i) => ctx.fillText(line, W / 2, by + pad / 2 + lh * (i + 0.5)));
       ctx.textBaseline = 'alphabetic';
     }
 
