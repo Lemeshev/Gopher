@@ -221,13 +221,15 @@ async function main() {
       // Ключ берём из буфера обмена: он не попадёт ни в историю команд,
       // ни в переписку, ни в файлы проекта.
       try { privateKey = execFileSync('pbpaste', { encoding: 'utf8' }).trim(); } catch (e) { privateKey = ''; }
-      if (privateKey.indexOf('MII') !== 0) {
+      if (privateKey.indexOf('MII') !== 0 || privateKey.length < 1000) {
         bad('в буфере обмена нет приватного ключа: скопируйте его из консоли RuStore и повторите');
+        bad('(приватный ключ RuStore — длинная строка ~1600 символов, начинается с «MII»)');
         process.exit(2);
       }
       log('  ключ прочитан из буфера обмена (pbpaste)');
     }
     if (privateKey.indexOf('MII') !== 0) warn('ключ не похож на base64 PKCS#8 (обычно начинается с «MII…»)');
+    else if (privateKey.length < 1000) warn('ключ подозрительно короткий — возможно, скопирован не целиком');
     execFileSync('security', ['add-generic-password', '-U', '-s', KEYCHAIN_SERVICE,
       '-a', KEYCHAIN_ACCOUNT, '-w', JSON.stringify({ keyId: String(keyId), privateKey: privateKey.trim() })]);
     ok('Ключ сохранён в связке ключей macOS', 'сервис ' + KEYCHAIN_SERVICE + ', в файлы проекта не попадает');
