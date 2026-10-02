@@ -17,17 +17,24 @@ class Game {
     this.dragging = false;
     this.dragScene = null;
 
+    // Страницы подсказки. v1.3.12: заказчик — «в „Как играть“ не все предложения
+    // помещаются в экран — вылезают за рамочку». Причины: строки длиннее карточки,
+    // жёсткие переводы «\n» и рисование по центру без переноса. Теперь каждая
+    // страница — короткие строки (влезают и на узком экране), а drawTutorial ещё и
+    // переносит текст по ширине с подбором размера шрифта — на всякий случай.
+    // Список музеев и длина кода обновлены под текущую версию (музеев 50,
+    // короткий код 19 знаков, иначе подсказка врала бы новым игрокам).
     this.tutorialPages = [
-      '🐹 Добро пожаловать в Gopher Life!\nЭто твой питомец: корми его, купай и играй.',
-      '⚡ Энергия тратится понемногу (поход — 2–8),\nа сон возвращает +10% каждую минуту.',
-      '😴 Уложи спать и закрой игру: энергия будет\nкопиться даже без тебя — через 10 минут он бодр!',
-      '🤫 Пока питомец спит, походы закрыты:\nиграть можно в тихие игры и мини-игры.',
-      '🏠 Дома четыре комнаты: гостиная, спальня, кухня,\nванная. В каждой — своя мебель и свои действия.',
-      '🛋️ Мебель покупается в магазине, ставится и\nпереставляется. Цвет можно менять за монетки.',
-      '😌 Все полоски у {pet_gen} одинаковые: чем больше и\nзеленее, тем лучше. «Спокойствие» — тоже.',
-      '🗺️ На карте — десять музеев (1000 экспонатов),\nпарк, бассейн, кино, спортзал с тренировками и работа.',
-      '🧑‍🤝‍🧑 Друзья: короткий код из 16 знаков можно\nпродиктовать, полный — скопировать кнопкой.',
-      '⚙️ В настройках (шестерёнка в углу меню) музыку\nи звуки можно выключить — игра станет тихой.'
+      '🐹 Это твой питомец:\nкорми его, купай и играй!',
+      '⚡ Энергия тратится понемногу\n(поход — 2–8), а сон даёт +10% в минуту.',
+      '😴 Уложи спать и закрой игру:\nэнергия копится даже без тебя.',
+      '🤫 Пока питомец спит, походы закрыты.\nДоступны тихие игры и мини-игры.',
+      '🏠 Дома четыре комнаты:\nгостиная, спальня, кухня, ванная.',
+      '🛋️ Мебель покупается в магазине\nи переставляется пальцем.',
+      '😌 Все полоски одного смысла:\nчем полнее и зеленее — тем лучше.',
+      '🗺️ На карте — 50 музеев,\nпарк, бассейн, кино и спортзал.',
+      '🧑‍🤝‍🧑 Друзья: короткий код из 19 знаков\nможно продиктовать, полный — скопировать.',
+      '⚙️ Музыку и звуки можно выключить\nв настройках — игра станет тихой.'
     ];
 
     this.sceneClasses = {
@@ -256,6 +263,10 @@ class Game {
         }
       } else if (btn.action === 'tutorial-prev') {
         this.tutorialPage = Math.max(0, this.tutorialPage - 1);
+      } else if (btn.action === 'tutorial-close') {
+        // Крестик: подсказку можно закрыть на любой странице (v1.3.12) —
+        // раньше приходилось листать все десять страниц до кнопки «Закрыть»
+        this.tutorialVisible = false;
       }
       return true;
     }
@@ -295,6 +306,9 @@ class Game {
     try {
       if (this.tutorialVisible) { this.tutorialVisible = false; return 'back'; }
       const scene = this.scenes[this.currentScene];
+      // Коллекция рыб — это подэкран внутри «Информации»: системная «Назад»
+      // сначала возвращает к достижениям, а не на карту (v1.3.12)
+      if (scene && typeof scene.handleFishBack === 'function' && scene.handleFishBack()) return 'back';
       if (scene && typeof scene.handleBack === 'function' && scene.handleBack()) return 'back';
       // Цепочка «назад»: любая сцена → карта → дом → меню → выход из игры.
       // Так «Назад» всегда что-то делает и никогда не выкидывает ребёнка из игры
@@ -335,17 +349,47 @@ class Game {
     this.ctx.textBaseline = 'middle';
     this.ctx.fillText('📖 Как играть', W / 2, H * 0.24);
 
-    // Текст страницы (с переносами по \n)
-    this.ctx.font = `${Math.min(W * 0.038, 17)}px Arial`;
+    // Текст страницы: сами строки заданы с «\n», но каждая ещё и переносится по
+    // ширине карточки, а размер шрифта подбирается так, чтобы всё влезло и по
+    // ширине, и по высоте. Раньше рисовали фиксированным 17 px без переноса —
+    // длинные строки (и эмодзи) вылезали за рамку (замечание заказчика, v1.3.12).
+    const textMaxW = W * 0.9 - 40;
+    const baseSize = Math.min(W * 0.038, 17), minSize = 10;
+    const maxLines = 6;
+    const rawLines = pages[this.tutorialPage].split('\n');
+    let size = baseSize, drawLines = [];
+    while (size >= minSize) {
+      this.ctx.font = `${size}px Arial`;
+      const wrapped = [];
+      rawLines.forEach(raw => {
+        wrapLines(this.ctx, raw, textMaxW, maxLines).forEach(l => wrapped.push(l));
+      });
+      if (wrapped.length <= maxLines) { drawLines = wrapped; break; }
+      size -= 0.5;
+    }
+    if (!drawLines.length) {
+      this.ctx.font = `${minSize}px Arial`;
+      rawLines.forEach(raw => {
+        wrapLines(this.ctx, raw, textMaxW, maxLines).forEach(l => drawLines.push(l));
+      });
+      drawLines = drawLines.slice(0, maxLines);
+      size = minSize;
+    }
+    // Если строка всё равно шире карточки (эмодзи меряется криво) — ужимаем её
+    // отдельно, чтобы ничего не выходило за рамку
+    this.ctx.font = `${size}px Arial`;
     this.ctx.fillStyle = '#E4E4F0';
-    const lines = pages[this.tutorialPage].split('\n');
-    const lineH = Math.min(H * 0.045, 28);
-    lines.forEach((line, i) => {
-      this.ctx.fillText(line, W / 2, H * 0.38 + i * lineH);
+    const lineH = Math.min(H * 0.045, 28) * (size / baseSize + 0.15);
+    const textTop = H * 0.38;
+    drawLines.forEach((line, i) => {
+      const s2 = fitFontSize(this.ctx, line, textMaxW, size, 8.5, false);
+      if (s2 !== size) this.ctx.font = `${s2}px Arial`;
+      this.ctx.fillText(line, W / 2, textTop + i * lineH);
+      if (s2 !== size) this.ctx.font = `${size}px Arial`;
     });
 
     // Точки-индикаторы
-    const dotsY = H * 0.70;
+    const dotsY = H * 0.68;
     const dotsW = (pages.length - 1) * 18;
     for (let i = 0; i < pages.length; i++) {
       this.ctx.fillStyle = i === this.tutorialPage ? '#FFD93D' : 'rgba(255,255,255,0.3)';
@@ -353,6 +397,23 @@ class Game {
       this.ctx.arc(W / 2 - dotsW / 2 + i * 18, dotsY, 5, 0, Math.PI * 2);
       this.ctx.fill();
     }
+
+    // Крестик в углу — закрыть можно СРАЗУ, не листая до конца.
+    // Заказчик: «экран „Как играть“ не закрыть, пока не пролистаешь всё до конца —
+    // это бесит» (v1.3.12). Раньше «Закрыть» появлялась только на последней странице,
+    // а кнопки «Назад» на экране подсказки не было вовсе.
+    const cs = 34;
+    const cx = W * 0.05 + W * 0.9 - cs - 8, cy = H * 0.15 + 8;
+    this.ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    roundRect(this.ctx, cx, cy, cs, cs, 10);
+    this.ctx.fill();
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = `bold ${Math.round(cs * 0.5)}px Arial`;
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    this.ctx.fillText('✕', cx + cs / 2, cy + cs / 2 + 1);
+    this.ctx.textBaseline = 'alphabetic';
+    this.buttons.push({ x: cx, y: cy, w: cs, h: cs, action: 'tutorial-close' });
 
     // Кнопки
     const btnW = Math.min(W * 0.32, 150);
@@ -373,6 +434,14 @@ class Game {
       bgColor: '#4D96FF', fgColor: '#fff', fontSize: 15
     });
     this.buttons.push({ x: nextX, y: btnY, w: btnW, h: btnH, action: 'tutorial-next' });
+
+    // «Пропустить» — рядом с номером страницы, пока это не последняя страница
+    if (!isLast) {
+      this.ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      this.ctx.font = `${Math.min(W * 0.028, 11.5)}px Arial`;
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText('Страница ' + (this.tutorialPage + 1) + ' из ' + pages.length + '  ·  можно закрыть в любой момент', W / 2, H * 0.725);
+    }
   }
 }
 window.Game = Game;

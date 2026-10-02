@@ -69,11 +69,11 @@ const AudioSys = {
   // снижена почти на треть — заказчик попросил «сделать её тише»: 0.34–0.62 вместо
   // 0.45–0.95. Колыбельная осталась самой тихой.
   MUSIC_MOODS: {
-    home:    { bpm: 138, gain: 0.38, lead: 'triangle', pulse: true,  tunes: ['home', 'walk'] },   // дома: живо и бодро
-    ambient: { bpm: 132, gain: 0.34, lead: 'triangle', pulse: true,  tunes: ['home', 'walk', 'star'] }, // фон и карта
-    calm:    { bpm: 132, gain: 0.62, lead: 'triangle', pulse: true,  tunes: ['home', 'play', 'walk'] }, // «🎵 Музыка» дома: слышнее
-    museum:  { bpm: 116, gain: 0.30, lead: 'triangle', pulse: false, tunes: ['museum', 'star'] },   // музеи, библиотека, учёба: спокойно, но не уныло
-    play:    { bpm: 148, gain: 0.42, lead: 'triangle', pulse: true,  tunes: ['play', 'walk'] },    // магазин, парк, мини-игры
+    home:    { bpm: 138, gain: 0.38, lead: 'triangle', pulse: true,  tunes: ['sunny', 'home', 'dance', 'walk'] },
+    ambient: { bpm: 132, gain: 0.34, lead: 'triangle', pulse: true,  tunes: ['sunny', 'home', 'meadow', 'walk', 'star'] },
+    calm:    { bpm: 132, gain: 0.62, lead: 'triangle', pulse: true,  tunes: ['sunny', 'dance', 'home', 'play', 'walk'] },
+    museum:  { bpm: 116, gain: 0.30, lead: 'triangle', pulse: false, tunes: ['meadow', 'museum', 'star'] },
+    play:    { bpm: 148, gain: 0.42, lead: 'triangle', pulse: true,  tunes: ['dance', 'parade', 'play', 'walk'] },
     sleep:   { bpm: 66,  gain: 0.22, lead: 'sine',     pulse: false, tunes: ['lullaby'] }          // колыбельная
   },
   // Сдвиги (в полутонах) для следующего круга: мелодия не повторяется «нота в ноту».
@@ -158,7 +158,12 @@ const AudioSys = {
     // «Звёздная» — «дзынь-дзынь»: восьмые переливы, но в мажоре и с тоникой в конце
     { id: 'star',    name: 'Звёздная',    lead: '7 7 9/2 9/2 7 5 4 5 7 9/2 9/2 10/2 9/2 7 4 7 5 4 7', bass: '-12 -5 -12 -5', sparkle: [[2, 10], [6, 9], [12, 10]] },
     // «Колыбельная» — спокойная, но мажорная: качает вверх-вниз и засыпает на до
-    { id: 'lullaby', name: 'Колыбельная', lead: '4 2 4/2 4/2 5 3 2 4 2 4/2 4/2 5 4 2 0*4', bass: '-12 -10 -12 -7', sparkle: [[5, 7]] }
+    { id: 'lullaby', name: 'Колыбельная', lead: '4 2 4/2 4/2 5 3 2 4 2 4/2 4/2 5 4 2 0*4', bass: '-12 -10 -12 -7', sparkle: [[5, 7]] },
+    // Светлые песенки: выше по гамме, с восьмыми и явным возвратом на до.
+    { id: 'sunny',  name: 'Солнечная', lead: '7 7 9/2 7/2 5 4 7 5 4 2 4 5 7 9/2 7/2 5 4 0', bass: '-12 -7 -5 -12', sparkle: [[2, 9], [8, 10], [14, 9]] },
+    { id: 'dance',  name: 'Плясовая',  lead: '9/2 7/2 5/2 7/2 9/2 7/2 5 4/2 5/2 7/2 5/2 4/2 2/2 4 5 7 4 2 0*4', bass: '-12 -5 -7 -12', sparkle: [[4, 10], [12, 9]] },
+    { id: 'parade', name: 'Парад',     lead: '4 4 7 9/2 9/2 7 5 4 2 4 7 9/2 9/2 7 5 4 0*2', bass: '-12 -7 -12 -5', sparkle: [[6, 9], [14, 10]] },
+    { id: 'meadow', name: 'Полянка',   lead: '5 5 7/2 9/2 7 5 4 2 4 5 5 7/2 9/2 7 5 4 0*2', bass: '-12 -7 -5 -12', sparkle: [[3, 9], [11, 10]] }
   ],
   MUSIC_BEATS: 16,
 
@@ -501,7 +506,7 @@ const AudioSys = {
     this.musicLoops++;
     this.musicShiftIndex = (this.musicShiftIndex + 1) % this.MUSIC_SHIFTS.length;
     const pool = this.musicPool(this.musicMood());
-    if (this.musicLoops % 2 === 0 && pool.length > 1) {
+    if (pool.length > 1) {
       this.musicTuneIndex = (this.musicTuneIndex + 1) % pool.length;
     }
     return this.musicTune();

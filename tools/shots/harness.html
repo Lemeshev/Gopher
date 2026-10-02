@@ -170,13 +170,27 @@ console.error = function () {
   // Тексты, попавшие на кадр (v1.3.4). Перехватываем fillText: render-check
   // проверяет по ним, что имя героя подставлено («Милка», а не «Гофер») и что
   // ни в одной подписи не осталось шаблона «{pet…}».
+  // v1.3.12: вместе с текстом запоминаем его габариты (левый и правый край) —
+  // это нужно, чтобы поймать «вылезает за рамочку» в «Как играть» и в других
+  // карточках: раньше проверки видели только строку, а не её ширину.
   var drawn = [];
+  var textBoxes = [];
   (function hookText(ctx) {
     var orig = ctx.fillText;
-    ctx.fillText = function (text) {
+    ctx.fillText = function (text, x, y) {
       // Записываем то, что реально увидит ребёнок: petFill уже подставил героя
       var shown = (typeof petFill === 'function') ? petFill(text) : text;
       if (typeof shown === 'string' && drawn.indexOf(shown) === -1) drawn.push(shown);
+      try {
+        if (typeof shown === 'string' && shown) {
+          var w = ctx.measureText(shown).width;
+          var align = ctx.textAlign || 'start';
+          var l = x, r = x + w;
+          if (align === 'center') { l = x - w / 2; r = x + w / 2; }
+          else if (align === 'right' || align === 'end') { l = x - w; r = x; }
+          textBoxes.push({ t: shown, l: Math.round(l), r: Math.round(r), y: Math.round(y) });
+        }
+      } catch (e) {}
       return orig.apply(this, arguments);
     };
   })(g.ctx);
@@ -281,6 +295,19 @@ console.error = function () {
       parts[1] = null;
     }
 
+    // Коллекция рыб (v1.3.12): #stats@fish — экран коллекции пойманных рыб.
+    // Заказчик: «чтобы можно было посмотреть всю коллекцию рыб, которых ты уже
+    // поймал». Ловим три вида, чтобы в кадре были и пойманные, и «???».
+    if (parts[0] === 'stats' && parts[1] === 'fish') {
+      var fishList = (typeof FISH_SPECIES !== 'undefined') ? FISH_SPECIES : [];
+      for (var fi = 0; fi < 3 && fi < fishList.length; fi++) {
+        System.markFishCaught(fishList[fi].id);
+        System.markFishCaught(fishList[fi].id);
+      }
+      scene.fishMode = true;
+      parts[1] = null;
+    }
+
     if (parts[1] && !isShopTab) {
       // Можно нажать несколько кнопок подряд: #friends@codes+open_add
       var clicks = String(parts[1]).split('+');
@@ -298,7 +325,14 @@ console.error = function () {
         else show('кнопка "' + want + '" не найдена в сцене ' + g.currentScene, '#330');
       }
     }
-    if (parts[2] === 'tutorial') g.showTutorial();
+    // v1.3.12: «tutorial6» открывает конкретную страницу подсказки — нужен кадр
+    // с длинной строкой, где раньше текст вылезал за рамку карточки.
+    // Номер в хеше — это НОМЕР страницы (1..10), а не индекс.
+    if (parts[2] && parts[2].indexOf('tutorial') === 0) {
+      g.showTutorial();
+      var pageN = parseInt(parts[2].slice(8), 10);
+      if (pageN > 0) g.tutorialPage = Math.min(pageN - 1, g.tutorialPages.length - 1);
+    }
 
     // После всех правок размера контекст мог сброситься — ставим размер и масштаб заново
     if (hires) {
@@ -311,13 +345,23 @@ console.error = function () {
 
     g.ctx.clearRect(0, 0, g.width, g.height);
     g.scenes[g.currentScene].draw(g.ctx);
-    if (g.tutorialVisible) g.drawTutorial();
+    // Габариты надписей подсказки считаем отдельно: под оверлеем видно и меню,
+    // и его подписи («👥 Гофер», «⚙️») — они к карточке подсказки не относятся,
+    // и проверка «текст внутри рамки» ругалась бы на них (v1.3.12)
+    var tutorialBoxes = [];
+    if (g.tutorialVisible) {
+      textBoxes.length = 0;
+      g.drawTutorial();
+      tutorialBoxes = textBoxes.slice();
+    }
 
     var stats = pixelStats(g);
     stats.hash = hash;
     stats.canvas = g.width + 'x' + g.height;
+    stats.tutorialBoxes = tutorialBoxes;
     stats.errors = window.__log.slice();
     stats.drawn = drawn;
+    stats.textBoxes = textBoxes;
     stats.petLeftover = drawn.filter(function (t) { return t.indexOf('{pet') !== -1; });
     report(stats);
     document.getElementById('shot').textContent = asJpeg

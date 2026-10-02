@@ -1030,6 +1030,109 @@ if (boot) {
     sea.caught === 6 && sea.seen >= 2 && sea.ach === 3,
     'поймано ' + sea.caught + ', разных видов в улове ' + sea.seen + ', ступеней коллекции ' + sea.ach);
 
+  // Замечание заказчика v1.3.12: «когда ловишь рыбу — постоянно надпись „Акула
+  // уплывает“… думаю, „уплывает“ тут лишнее». Проверяем текст подсказки: имени
+  // достаточно, слово «уплывает» убрано, а объяснение осталось.
+  const hintNoFloat = sea.hint.indexOf('уплывает') === -1 && sea.hint.indexOf('не ловим') !== -1 &&
+    sea.hint.indexOf('Черепаха') === 0;
+  ok('В подсказке о большом обитателе нет слова «уплывает»', hintNoFloat,
+    'подсказка: ' + sea.hint.slice(0, 80));
+
+  // Замечание заказчика v1.3.12: «слишком быстро пропадает информация о пойманных
+  // рыбах… детям это сложно прочитать». Проверяем реальные таймеры: пойманная рыба
+  // держится на экране не меньше 12 секунд, у нового вида — ещё дольше.
+  const catchTimers = (function () {
+    const qs2 = boot.scenes.quiet;
+    qs2.init();
+    qs2.startGame('fish');
+    const f = qs2.fish;
+    f.state = 'bite'; f.biteWindow = 2; f.biteFish = qs2.pickBiter();
+    qs2.tryFish();
+    const first = qs2.resultTimer;
+    let longest = first;
+    for (let i = 0; i < 12; i++) {
+      f.state = 'bite'; f.biteWindow = 2; f.biteFish = qs2.pickBiter();
+      qs2.tryFish();
+      if (qs2.resultTimer > longest) longest = qs2.resultTimer;
+    }
+    return { first: first, longest: longest };
+  })();
+  ok('Плашка о пойманной рыбе держится долго — ребёнку хватает времени прочитать',
+    catchTimers.first >= 12 && catchTimers.longest >= 12,
+    'первая ' + catchTimers.first + ' с, максимум ' + catchTimers.longest + ' с (было 5–6 с)');
+
+  // Плашку можно убрать тапом, и этот тап не считается неудачной подсечкой
+  const tapAway = (function () {
+    const qs2 = boot.scenes.quiet;
+    qs2.init();
+    qs2.startGame('fish');
+    const f = qs2.fish;
+    f.state = 'bite'; f.biteWindow = 2; f.biteFish = qs2.pickBiter();
+    qs2.tryFish();
+    const before = qs2.resultTimer;
+    const box = qs2.resultPlateBox();
+    const hit = qs2.handleClick(box.x + box.w / 2, box.y + box.h / 2);
+    const after = qs2.resultTimer;
+    return { before: before, hit: hit, after: after };
+  })();
+  ok('Тап по плашке убирает её и не считается промахом',
+    tapAway.before > 0 && tapAway.hit === true && tapAway.after === 0,
+    'было ' + tapAway.before + ' с → стало ' + tapAway.after + ' с');
+
+  // Замечание заказчика v1.3.12: «чтобы можно было посмотреть всю коллекцию рыб,
+  // которых ты уже поймал… поймал новую — там в списке появлялось. И чтобы это было
+  // в достижениях логично отображено». Коллекция — экран внутри «Информации»
+  // (вкладка достижений): проверяем, что он рисуется, что пойманный вид попадает
+  // в список по имени, что «не пойманные» скрыты под «???» и что кнопка перехода
+  // есть и в достижениях, и в строке «Ихтиолога».
+  const collection = (function () {
+    const st = boot.scenes.stats;
+    const fish = (typeof sandbox.FISH_SPECIES !== 'undefined') ? sandbox.FISH_SPECIES : [];
+    S.fishSeen = {};
+    // ловим три разных вида и смотрим, что они появились в коллекции
+    const caught = [fish[0], fish[10], fish[40]];
+    caught.forEach((sp, i) => {
+      for (let k = 0; k <= i; k++) S.markFishCaught(sp.id);
+    });
+    st.init();
+    st.tab = 'ach';
+    st.draw(boot.ctx);
+    const entryBtn = (st.buttons || []).filter(b => b.action === 'fishCollection').length;
+    st.fishMode = true;
+    st.draw(boot.ctx);
+    const drawn = [];
+    const orig = boot.ctx.fillText;
+    boot.ctx.fillText = function (txt, x, y) {
+      drawn.push(String(txt));
+      return orig ? orig.call(this, txt, x, y) : undefined;
+    };
+    st.draw(boot.ctx);
+    boot.ctx.fillText = orig;
+    const text = drawn.join(' | ');
+    const back = (st.buttons || []).filter(b => (b.text || '').indexOf('Назад') !== -1).length;
+    const arrows = (st.buttons || []).filter(b => b.action === 'fishUp' || b.action === 'fishDown').length;
+    // тап «Назад» возвращает к достижениям, а не на карту
+    st.handleClick(60, boot.height - 30);
+    return {
+      entryBtn: entryBtn, back: back, arrows: arrows,
+      sawNames: caught.every(sp => text.indexOf(sp.name) !== -1),
+      sawCaption: text.indexOf('Коллекция рыб') !== -1,
+      sawProgress: text.indexOf('Поймано 3 из ') !== -1,
+      sawHidden: text.indexOf('???') !== -1,
+      sawGoal: text.indexOf('Следующая цель') !== -1,
+      closed: st.fishMode === false
+    };
+  })();
+  ok('Коллекция рыб: вход из достижений, пойманные виды по именам, есть прогресс и цель',
+    collection.entryBtn >= 1 && collection.sawNames && collection.sawCaption &&
+    collection.sawProgress && collection.sawHidden && collection.sawGoal && collection.closed,
+    'кнопок входа ' + collection.entryBtn + ', имена пойманных видны: ' + (collection.sawNames ? 'да' : 'нет') +
+    ', прогресс: ' + (collection.sawProgress ? 'да' : 'нет') + ', скрытые «???»: ' + (collection.sawHidden ? 'да' : 'нет') +
+    ', цель видна: ' + (collection.sawGoal ? 'да' : 'нет') + ', «Назад» закрывает: ' + (collection.closed ? 'да' : 'нет'));
+  ok('Коллекция рыб: есть «Назад» и листание длинного списка',
+    collection.back >= 1 && collection.arrows >= 1,
+    'кнопок «Назад» ' + collection.back + ', стрелок листания ' + collection.arrows);
+
   // Замечание заказчика v1.3.10: «информация о рыбах не влезает в экран» —
   // длинный факт должен переноситься по словам, а не ужиматься в одну строку
   const bannerSrc = fs.readFileSync(path.join(ROOT, 'www', 'js', 'game_quiet.js'), 'utf8');
@@ -1896,8 +1999,8 @@ if (boot) {
     A.isMusicOn() && A.isSoundOn(), A.settingsHint());
 
   const tunes = A.MUSIC_TUNES;
-  ok('Мелодий шесть, и все разные (раньше на всю игру была одна петля)',
-    tunes.length === 6 &&
+  ok('Мелодий десять, и все разные (раньше на всю игру была одна петля)',
+    tunes.length === 10 &&
     tunes.every(t => t.name && typeof t.lead === 'string' && typeof t.bass === 'string') &&
     new Set(tunes.map(t => t.lead)).size === tunes.length,
     tunes.map(t => t.name).join(', '));
@@ -1933,7 +2036,7 @@ if (boot) {
     const moves = new Set(lead.map(n => n.i)).size >= 3;   // это мелодия, а не одна нота
     return notesOk && moves;
   });
-  ok('Все шесть мелодий «нейтральные»: до-мажор, без режущих сочетаний, с движением',
+  ok('Все мелодии «нейтральные»: до-мажор, без режущих сочетаний, с движением',
     offMajor.length === 0 && tuneChecks.every(Boolean),
     'гамма: ' + A.MUSIC_SCALE.join(' ') + '; проблемных мелодий: ' +
     tuneChecks.filter(c => !c).length);

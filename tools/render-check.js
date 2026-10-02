@@ -121,7 +121,21 @@ const SCENES = [
   { hash: 'menu@settings+toggle_music+toggle_sound', minColors: 20, minNonBg: 3 },
   { hash: 'menu@settings+Об авторе', minColors: 20, minNonBg: 3 },
   { hash: 'friends',            minColors: 20, minNonBg: 3 },
-  { hash: 'menu@@tutorial',     minColors: 20, minNonBg: 3 }
+  // «Как играть» (v1.3.12): заказчик — «не все предложения помещаются в экран,
+  // вылезают за рамочку» и «не закрыть, пока не пролистаешь всё». Поэтому:
+  // • кадр каждой страницы с длинными строками (textInsideFrac — карточка занимает
+  //   90% ширины, проверяем, что ни одна надпись не вышла за её края);
+  // • needText ищет крестик закрытия и подпись, что закрыть можно сразу.
+  { hash: 'menu@@tutorial',     minColors: 20, minNonBg: 3, textInsideFrac: 0.05,
+    needText: ['✕', 'можно закрыть в любой момент'] },
+  { hash: 'menu@@tutorial6',    minColors: 20, minNonBg: 3, textInsideFrac: 0.05,
+    needText: ['Страница 6 из 10'] },
+  { hash: 'menu@@tutorial8',    minColors: 20, minNonBg: 3, textInsideFrac: 0.05,
+    needText: ['50 музеев'] },
+  // v1.3.12: коллекция пойманных рыб — экран из вкладки достижений. В кадре должны
+  // быть: заголовок, прогресс, пойманные виды с числом поимок и «???» для непойманных
+  { hash: 'stats@fish',        minColors: 20, minNonBg: 3,
+    needText: ['Коллекция рыб', 'Поймано 3 из 100', '×2', '???', 'Следующая цель'] }
 ];
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml' };
@@ -231,6 +245,27 @@ function chrome(hash, port, shotPath, timeoutMs) {
         const hit = drawn.filter(s => s.toLowerCase().indexOf(t.toLowerCase()) !== -1)[0];
         if (hit) problems.push('на кадре лишнее слово «' + t + '»: ' + hit);
       });
+      // v1.3.12: «в „Как играть“ не все предложения помещаются в экран — вылезают за
+      // рамочку». Проверяем по-настоящему: берём габариты каждой нарисованной строки
+      // (harness пишет textBoxes) и смотрим, что она внутри карточки. Такую ошибку
+      // нельзя поймать ни по цветам, ни по списку слов — только по ширине текста.
+      if (scene.textInsideFrac) {
+        const frac = scene.textInsideFrac;
+        // Ширину берём из отчёта: кадр может быть «телефонным» (390) или
+        // магазинным hires (540) — раньше здесь было жёстко 540, и проверка
+        // ругалась бы на нормальные кадры (v1.3.12)
+        const cw = parseInt(String(rep.canvas || '').split('x')[0], 10) || 390;
+        const left = frac * cw, right = (1 - frac) * cw;
+        // Только надписи самой подсказки: под оверлеем видны и подписи меню,
+        // они к карточке не относятся (v1.3.12)
+        (rep.tutorialBoxes || []).forEach(b => {
+          if (!b || typeof b.l !== 'number') return;
+          if (b.l < left - 1 || b.r > right + 1) {
+            problems.push('надпись вылезает за карточку: «' + String(b.t).slice(0, 40) +
+              '» (' + b.l + '…' + b.r + ' при ' + Math.round(left) + '…' + Math.round(right) + ')');
+          }
+        });
+      }
     }
     // Кадр обязан реально лечь на диск: раньше имя с «:» молча не сохранялось,
     // а проверка этого не замечала (казалось, что кадры есть).
