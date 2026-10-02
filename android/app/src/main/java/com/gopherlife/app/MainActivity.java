@@ -112,6 +112,24 @@ public class MainActivity extends Activity {
                 startActivity(Intent.createChooser(send, "Отправить код другу"));
             } catch (Exception ignored) {}
         }
+
+        // Ссылка на APK уходит в систему, а не в WebView: иначе игра сама
+        // откроет файл вместо браузера и пропадёт с экрана.
+        @JavascriptInterface
+        public void openUrl(String url) {
+            if (url == null) return;
+            final String target = url;
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Intent view = new Intent(Intent.ACTION_VIEW, Uri.parse(target));
+                        view.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(view);
+                    } catch (Exception ignored) {}
+                }
+            });
+        }
     }
 
     @Override

@@ -239,7 +239,7 @@ function wrapLines(ctx, text, maxW, maxLines) {
 }
 
 // ============ ВЕРСИЯ И ВНЕШНИЕ ССЫЛКИ ============
-const GAME_VERSION = '1.3.16';
+const GAME_VERSION = '1.3.17';
 
 // ============ БУФЕР ОБМЕНА И ВВОД ТЕКСТА ============
 // Проблема: в canvas-игре нельзя выделить текст, а значит нельзя скопировать
@@ -476,6 +476,20 @@ window.ClipBridge = ClipBridge;
 // «net::ERR_UNKNOWN_URL_SCHEME» прямо внутри игры (жалоба заказчика 01.10.2026).
 // Телефон, почту и SMS запускает Android-обёртка через
 // WebViewClient.shouldOverrideUrlLoading, а игра такие ссылки не открывает.
+// Сборка с GitHub. Кнопка в настройках зовёт Android, чтобы ссылка открылась
+// снаружи WebView и началась загрузка APK.
+const GAME_UPDATE_URL = 'https://github.com/Lemeshev/Gopher/releases/latest/download/Gopher.apk';
+
+function openGameUpdate() {
+  try {
+    if (window.AndroidBridge && typeof window.AndroidBridge.openUrl === 'function') {
+      window.AndroidBridge.openUrl(GAME_UPDATE_URL);
+      return true;
+    }
+  } catch (e) {}
+  return openExternalLink(GAME_UPDATE_URL);
+}
+
 function openExternalLink(url) {
   const u = String(url || '').trim();
   if (!/^https?:\/\//i.test(u)) return false;
