@@ -1496,19 +1496,41 @@ class QuietScene {
       this.drawWrappedHint(ctx, W, H, f.friendHintText);
     }
 
+    // Галочка внутри рыбалки, не отдельная игра. Включённая — без крючка и без кнопки ловли.
+    const box = 22;
+    const rowY = H * 0.79;
+    const rowX = W * 0.06;
+    const rowW = watching ? Math.min(W * 0.62, 250) : Math.min(W * 0.46, 190);
+    ctx.fillStyle = watching ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.08)';
+    roundRect(ctx, rowX, rowY, rowW, 40, 10);
+    ctx.fill();
+    ctx.strokeStyle = watching ? '#9be3b0' : 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 1.6;
+    roundRect(ctx, rowX + 10, rowY + 9, box, box, 5);
+    ctx.stroke();
     if (watching) {
-      this.buttons.push(createButton(ctx, W * 0.28, H * 0.79, W * 0.44, 40, '🎣 Ловить', {
-        bgColor: 'rgba(255,255,255,0.18)', fgColor: '#fff', fontSize: 14, radius: 10, action: 'watch:off'
-      }));
-    } else {
-      this.buttons.push(createButton(ctx, W * 0.18, H * 0.79, W * 0.38, 40,
+      ctx.strokeStyle = '#9be3b0';
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.moveTo(rowX + 14, rowY + 20);
+      ctx.lineTo(rowX + 19, rowY + 26);
+      ctx.lineTo(rowX + 29, rowY + 14);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#fff';
+    ctx.font = `${Math.min(W * 0.032, 13)}px Arial`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Просто смотреть', rowX + 10 + box + 8, rowY + 20);
+    ctx.textBaseline = 'alphabetic';
+    this.buttons.push({ x: rowX, y: rowY, w: rowW, h: 40, text: '', action: 'watch:toggle' });
+
+    if (!watching) {
+      this.buttons.push(createButton(ctx, rowX + rowW + 8, rowY, W * 0.94 - (rowX + rowW + 8), 40,
         f.state === 'bite' ? '🎣 Тянуть!' : '⏳ Ждём…', {
           bgColor: f.state === 'bite' ? '#6BCB77' : 'rgba(255,255,255,0.18)',
           fgColor: f.state === 'bite' ? '#0d1024' : '#fff', fontSize: 14, radius: 10
         }));
-      this.buttons.push(createButton(ctx, W * 0.60, H * 0.79, W * 0.28, 40, '👀 Смотреть', {
-        bgColor: 'rgba(255,255,255,0.12)', fgColor: '#fff', fontSize: 13, radius: 10, action: 'watch:on'
-      }));
     }
   }
 
@@ -2690,14 +2712,9 @@ class QuietScene {
       if (!isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) continue;
       const a = btn.action || '';
       const t = btn.text || '';
-      if (a === 'watch:on') {
-        this.mode = 'watch';
+      if (a === 'watch:toggle') {
+        this.mode = this.mode === 'watch' ? 'fish' : 'watch';
         if (this.fish) { this.fish.state = 'wait'; this.fish.biteFish = null; }
-        AudioSys.play('click');
-        return true;
-      }
-      if (a === 'watch:off') {
-        this.mode = 'fish';
         AudioSys.play('click');
         return true;
       }
