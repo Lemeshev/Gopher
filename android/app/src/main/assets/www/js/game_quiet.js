@@ -2003,20 +2003,41 @@ class QuietScene {
       ctx.moveTo(-b * 0.05, -b * 0.16); ctx.quadraticCurveTo(b * 0.15, -b * 0.85, b * 0.4, -b * 0.1); ctx.fill();
       eye(b * 0.55, -b * 0.08, b * 0.05);
     } else if (k === 'sunfish') {
-      ctx.fillStyle = '#c5d0d8';
-      ctx.strokeStyle = '#6d7e8c';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.ellipse(b * 0.05, 0, b * 0.72, b * 0.58, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#9aadb8';
+      // Круглый диск на боку: высокие плавники сверху и снизу, сзади волнистая бахрома, без хвоста.
+      ctx.fillStyle = '#d7e1e8';
       ctx.beginPath();
-      ctx.moveTo(b * 0.15, -b * 0.48); ctx.quadraticCurveTo(b * 0.05, -b * 1.0, -b * 0.15, -b * 0.45); ctx.fill();
+      ctx.moveTo(b * 0.82, 0);
+      ctx.quadraticCurveTo(b * 0.72, -b * 0.5, b * 0.2, -b * 0.7);
+      ctx.quadraticCurveTo(b * 0.42, -b * 1.22, -b * 0.02, -b * 0.78);
+      ctx.quadraticCurveTo(-b * 0.5, -b * 0.68, -b * 0.58, -b * 0.22);
+      ctx.quadraticCurveTo(-b * 0.7, 0, -b * 0.58, b * 0.22);
+      ctx.quadraticCurveTo(-b * 0.5, b * 0.68, -b * 0.02, b * 0.78);
+      ctx.quadraticCurveTo(b * 0.42, b * 1.22, b * 0.2, b * 0.7);
+      ctx.quadraticCurveTo(b * 0.72, b * 0.5, b * 0.82, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#7c8d9b';
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+      ctx.fillStyle = '#f4f7fa';
       ctx.beginPath();
-      ctx.moveTo(b * 0.15, b * 0.48); ctx.quadraticCurveTo(b * 0.05, b * 0.95, -b * 0.15, b * 0.42); ctx.fill();
+      ctx.ellipse(b * 0.12, b * 0.1, b * 0.4, b * 0.32, 0.15, 0, Math.PI);
+      ctx.fill();
+      ctx.strokeStyle = '#8ea0ae';
+      ctx.lineWidth = 1.3;
       ctx.beginPath();
-      ctx.moveTo(-b * 0.6, -b * 0.2); ctx.quadraticCurveTo(-b * 0.95, 0, -b * 0.6, b * 0.2); ctx.fill();
-      eye(b * 0.35, -b * 0.12, b * 0.06);
-      ctx.fillStyle = '#6d7e8c';
-      ctx.beginPath(); ctx.moveTo(b * 0.62, -b * 0.04); ctx.lineTo(b * 0.82, 0); ctx.lineTo(b * 0.62, b * 0.05); ctx.fill();
+      ctx.moveTo(-b * 0.56, -b * 0.2);
+      for (let i = 1; i <= 5; i++) {
+        const yy = -b * 0.2 + i * b * 0.08;
+        ctx.quadraticCurveTo(-b * 0.92, yy - b * 0.04, -b * 0.56, yy);
+      }
+      ctx.stroke();
+      eye(b * 0.46, -b * 0.14, b * 0.07);
+      ctx.strokeStyle = '#5c6c78';
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.arc(b * 0.74, 0.02 * b, b * 0.07, 0.5, Math.PI - 0.3);
+      ctx.stroke();
     } else if (k === 'moray') {
       ctx.strokeStyle = '#6f8f5a';
       ctx.lineWidth = Math.max(7, b * 0.28);
