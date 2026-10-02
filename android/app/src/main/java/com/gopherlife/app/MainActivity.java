@@ -1,6 +1,7 @@
 package com.gopherlife.app;
 
 import android.os.Bundle;
+import android.os.Build;
 import android.view.View;
 import android.view.WindowManager;
 import android.content.Intent;
@@ -14,6 +15,12 @@ import android.webkit.WebViewClient;
 import android.app.Activity;
 import android.content.pm.ActivityInfo;
 import android.graphics.Color;
+import android.provider.Settings;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 public class MainActivity extends Activity {
     private WebView webView;
@@ -129,6 +136,77 @@ public class MainActivity extends Activity {
                     } catch (Exception ignored) {}
                 }
             });
+        }
+
+        @JavascriptInterface
+        public void downloadUpdate(String url) {
+            if (url == null) return;
+            final String target = url;
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    tellUpdate("downloading");
+                    HttpURLConnection conn = null;
+                    try {
+                        File dir = new File(getCacheDir(), "updates");
+                        if (!dir.exists()) dir.mkdirs();
+                        File apk = new File(dir, "Gopher.apk");
+                        URL u = new URL(target);
+                        conn = (HttpURLConnection) u.openConnection();
+                        conn.setInstanceFollowRedirects(true);
+                        conn.setConnectTimeout(15000);
+                        conn.setReadTimeout(60000);
+                        conn.setRequestProperty("User-Agent", "GopherLife");
+                        InputStream in = conn.getInputStream();
+                        FileOutputStream out = new FileOutputStream(apk);
+                        byte[] buf = new byte[8192];
+                        int n;
+                        while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                        out.close();
+                        in.close();
+                        final File ready = apk;
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() { offerInstall(ready); }
+                        });
+                    } catch (Exception ignored) {
+                        tellUpdate("fail");
+                    } finally {
+                        if (conn != null) conn.disconnect();
+                    }
+                }
+            }).start();
+        }
+    }
+
+    private void tellUpdate(final String state) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (webView == null) return;
+                String js = "window.onUpdateStatus&&onUpdateStatus(" + org.json.JSONObject.quote(state) + ")";
+                webView.evaluateJavascript(js, null);
+            }
+        });
+    }
+
+    private void offerInstall(File apk) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !getPackageManager().canRequestPackageInstalls()) {
+                tellUpdate("permit");
+                Intent permit = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    Uri.parse("package:" + getPackageName()));
+                startActivity(permit);
+                return;
+            }
+            Uri uri = UpdateFileProvider.uriFor(this, apk);
+            Intent view = new Intent(Intent.ACTION_VIEW);
+            view.setDataAndType(uri, "application/vnd.android.package-archive");
+            view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            tellUpdate("install");
+            startActivity(view);
+        } catch (Exception ignored) {
+            tellUpdate("fail");
         }
     }
 
