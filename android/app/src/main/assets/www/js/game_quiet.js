@@ -333,7 +333,7 @@ class QuietScene {
       jumps: [],               // рыбки, которые выпрыгивают из воды
       jumpIn: randFloat(9, 18),
       diver: null,             // редкий гость: персонаж игры в акваланге
-      diverIn: randFloat(35, 70)
+      diverIn: randFloat(22, 40)
     };
     this.fish.swimmers.filter(s => s.kind === 'friend').forEach(s => this.queueFriendHint(s.id));
   }
@@ -346,6 +346,21 @@ class QuietScene {
     if (f.friendHintId === id && f.friendHint > 0) return;
     if ((f.friendQueue || []).indexOf(id) !== -1) return;
     f.friendQueue.push(id);
+  }
+
+  // Дайверы идут по кругу: каждый персонаж, включая Милку, появляется один раз,
+  // и только потом колода мешается снова. Иначе при шести героях Милку легко не увидеть.
+  nextDiverCharacter() {
+    const all = (typeof CHARACTERS !== 'undefined' && CHARACTERS.length) ? CHARACTERS.slice() : [];
+    if (!all.length) return null;
+    if (!this.diverQueue || !this.diverQueue.length) {
+      for (let i = all.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = all[i]; all[i] = all[j]; all[j] = tmp;
+      }
+      this.diverQueue = all;
+    }
+    return this.diverQueue.pop();
   }
 
   // Кто клюнет: ближайшая к крючку рыбка. Большие обитатели не клюют — их не ловят
@@ -548,10 +563,9 @@ class QuietScene {
           });
         }
         const gone = f.diver.dir > 0 ? f.diver.x > w.x1 + 90 : f.diver.x < w.x0 - 90;
-        if (gone) { f.diver = null; f.diverIn = randFloat(70, 120); }
+        if (gone) { f.diver = null; f.diverIn = randFloat(45, 75); }
       } else if ((f.diverIn -= sec) <= 0) {
-        const all = (typeof CHARACTERS !== 'undefined' && CHARACTERS.length) ? CHARACTERS : [];
-        const ch = all.length ? all[Math.floor(Math.random() * all.length)] : null;
+        const ch = this.nextDiverCharacter();
         if (ch && typeof createCharacter === 'function') {
           const dir = Math.random() < 0.5 ? -1 : 1;
           f.diver = {
@@ -2149,6 +2163,109 @@ class QuietScene {
         ctx.fillRect(-b * 0.15 + i * b * 0.16, -b * 0.16, b * 0.05, b * 0.32);
       }
       eye(-b * 0.5, -b * 0.06, b * 0.04);
+    } else if (k === 'dugong') {
+      ctx.fillStyle = '#8d93a0';
+      ctx.beginPath();
+      ctx.ellipse(-b * 0.05, 0, b * 0.95, b * 0.32, -0.05, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath(); ctx.ellipse(b * 0.85, b * 0.06, b * 0.28, b * 0.2, 0.4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#6e7582';
+      ctx.beginPath();
+      ctx.moveTo(-b * 0.85, 0); ctx.quadraticCurveTo(-b * 1.25, -b * 0.28, -b * 1.05, 0);
+      ctx.quadraticCurveTo(-b * 1.25, b * 0.28, -b * 0.85, 0); ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(b * 0.15, b * 0.22, b * 0.28, b * 0.1, 0.4, 0, Math.PI * 2); ctx.fill();
+      eye(b * 0.95, -b * 0.02, b * 0.04);
+    } else if (k === 'walrus') {
+      ctx.fillStyle = '#a56a48';
+      ctx.beginPath(); ctx.ellipse(0, 0, b * 0.9, b * 0.4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(b * 0.78, -b * 0.02, b * 0.32, b * 0.26, 0.15, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f2e2c8';
+      ctx.beginPath(); ctx.ellipse(b * 1.02, b * 0.08, b * 0.16, b * 0.12, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#f4f0e4';
+      ctx.lineWidth = Math.max(2, b * 0.06);
+      ctx.beginPath();
+      ctx.moveTo(b * 0.95, b * 0.12); ctx.quadraticCurveTo(b * 1.05, b * 0.45, b * 0.9, b * 0.55);
+      ctx.moveTo(b * 1.05, b * 0.12); ctx.quadraticCurveTo(b * 1.18, b * 0.42, b * 1.02, b * 0.52);
+      ctx.stroke();
+      eye(b * 0.85, -b * 0.1, b * 0.045);
+    } else if (k === 'nerpa') {
+      ctx.fillStyle = '#c5ced6';
+      ctx.beginPath(); ctx.ellipse(0, 0, b * 0.72, b * 0.28, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(b * 0.62, -b * 0.02, b * 0.22, b * 0.18, 0.2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#8ea0ae';
+      for (let i = 0; i < 5; i++) {
+        ctx.beginPath(); ctx.arc(-b * 0.35 + i * b * 0.18, (i % 2 ? -1 : 1) * b * 0.08, b * 0.06, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = '#9aabba';
+      ctx.beginPath();
+      ctx.moveTo(-b * 0.6, b * 0.05); ctx.quadraticCurveTo(-b * 0.95, b * 0.2, -b * 0.7, b * 0.22); ctx.fill();
+      eye(b * 0.72, -b * 0.06, b * 0.04);
+    } else if (k === 'dancer') {
+      const wave = Math.sin(t * 3) * b * 0.08;
+      ctx.fillStyle = '#e23b3b';
+      ctx.beginPath();
+      ctx.moveTo(b * 0.55, 0);
+      ctx.quadraticCurveTo(b * 0.1, -b * 0.15, -b * 0.2, -b * 0.05);
+      ctx.quadraticCurveTo(-b * 0.55, b * 0.05, -b * 0.2, b * 0.08);
+      ctx.quadraticCurveTo(b * 0.1, b * 0.16, b * 0.55, 0);
+      ctx.fill();
+      ctx.fillStyle = '#ff6a3d';
+      ctx.beginPath();
+      ctx.moveTo(-b * 0.05, -b * 0.08);
+      ctx.quadraticCurveTo(-b * 0.35, -b * 0.85 + wave, b * 0.15, -b * 0.35);
+      ctx.quadraticCurveTo(b * 0.45, -b * 0.15, -b * 0.05, -b * 0.08);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-b * 0.05, b * 0.08);
+      ctx.quadraticCurveTo(-b * 0.4, b * 0.9 - wave, b * 0.2, b * 0.32);
+      ctx.quadraticCurveTo(b * 0.4, b * 0.12, -b * 0.05, b * 0.08);
+      ctx.fill();
+      ctx.strokeStyle = '#fff3e0';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(-b * 0.2, -b * 0.55); ctx.quadraticCurveTo(0, -b * 0.35, b * 0.05, -b * 0.2); ctx.stroke();
+      eye(b * 0.32, -b * 0.04, b * 0.03);
+    } else if (k === 'narwhal') {
+      ctx.fillStyle = '#d5dde6';
+      ctx.beginPath();
+      ctx.moveTo(b * 0.85, 0);
+      ctx.quadraticCurveTo(b * 0.2, -b * 0.32, -b * 0.7, -b * 0.12);
+      ctx.quadraticCurveTo(-b * 1.15, -b * 0.28, -b * 0.95, 0);
+      ctx.quadraticCurveTo(-b * 1.15, b * 0.22, -b * 0.7, b * 0.12);
+      ctx.quadraticCurveTo(b * 0.2, b * 0.28, b * 0.85, 0);
+      ctx.fill();
+      ctx.fillStyle = '#9aa8b8';
+      for (let i = 0; i < 4; i++) {
+        ctx.beginPath(); ctx.arc(-b * 0.2 + i * b * 0.22, -b * 0.02, b * 0.07, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.strokeStyle = '#f7f1df';
+      ctx.lineWidth = Math.max(2.2, b * 0.07);
+      ctx.beginPath(); ctx.moveTo(b * 0.8, -b * 0.02); ctx.lineTo(b * 1.7, -b * 0.08); ctx.stroke();
+      eye(b * 0.45, -b * 0.1, b * 0.045);
+    } else if (k === 'manta') {
+      const flap = Math.sin(t * 2) * b * 0.12;
+      ctx.fillStyle = '#2c3d4f';
+      ctx.beginPath();
+      ctx.moveTo(b * 0.35, 0);
+      ctx.quadraticCurveTo(b * 0.1, -b * 0.15, -b * 0.15, -b * 1.05 - flap);
+      ctx.quadraticCurveTo(-b * 0.55, -b * 0.2, -b * 0.35, 0);
+      ctx.quadraticCurveTo(-b * 0.55, b * 0.2, -b * 0.15, b * 1.05 + flap);
+      ctx.quadraticCurveTo(b * 0.1, b * 0.15, b * 0.35, 0);
+      ctx.fill();
+      ctx.fillStyle = '#f2f5f8';
+      ctx.beginPath(); ctx.ellipse(-b * 0.05, 0, b * 0.16, b * 0.28, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#1b2836';
+      ctx.lineWidth = Math.max(1.6, b * 0.04);
+      ctx.beginPath();
+      ctx.moveTo(-b * 0.3, -b * 0.08); ctx.quadraticCurveTo(-b * 0.7, -b * 0.2, -b * 1.15, 0);
+      ctx.moveTo(-b * 0.3, b * 0.08); ctx.quadraticCurveTo(-b * 0.7, b * 0.2, -b * 1.15, 0);
+      ctx.stroke();
+      ctx.fillStyle = '#d7e4ea';
+      ctx.beginPath(); ctx.ellipse(b * 0.22, -b * 0.1, b * 0.1, b * 0.08, -0.6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(b * 0.22, b * 0.1, b * 0.1, b * 0.08, 0.6, 0, Math.PI * 2); ctx.fill();
+      eye(b * 0.12, -b * 0.16, b * 0.035);
+      eye(b * 0.12, b * 0.16, b * 0.035);
     } else {
       ctx.fillStyle = '#e0b04a';
       ctx.beginPath(); ctx.ellipse(0, 0, b * 0.8, b * 0.35, 0, 0, Math.PI * 2); ctx.fill();
