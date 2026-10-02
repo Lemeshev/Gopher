@@ -239,7 +239,7 @@ function wrapLines(ctx, text, maxW, maxLines) {
 }
 
 // ============ ВЕРСИЯ И ВНЕШНИЕ ССЫЛКИ ============
-const GAME_VERSION = '1.3.18';
+const GAME_VERSION = '1.3.19';
 
 // ============ БУФЕР ОБМЕНА И ВВОД ТЕКСТА ============
 // Проблема: в canvas-игре нельзя выделить текст, а значит нельзя скопировать
@@ -481,6 +481,14 @@ window.ClipBridge = ClipBridge;
 const GAME_UPDATE_URL = 'https://github.com/Lemeshev/Gopher/releases/latest/download/Gopher.apk';
 
 function openGameUpdate() {
+  window.__updateNote = 'скачиваем…';
+  try {
+    if (window.AndroidBridge && typeof window.AndroidBridge.downloadUpdate === 'function') {
+      window.AndroidBridge.downloadUpdate(GAME_UPDATE_URL);
+      return true;
+    }
+  } catch (e) {}
+  window.__updateNote = '';
   try {
     if (window.AndroidBridge && typeof window.AndroidBridge.openUrl === 'function') {
       window.AndroidBridge.openUrl(GAME_UPDATE_URL);
@@ -489,6 +497,14 @@ function openGameUpdate() {
   } catch (e) {}
   return openExternalLink(GAME_UPDATE_URL);
 }
+
+window.onUpdateStatus = function (state) {
+  if (state === 'downloading') window.__updateNote = 'скачиваем…';
+  else if (state === 'install') window.__updateNote = 'подтвердите установку';
+  else if (state === 'permit') window.__updateNote = 'разрешите установку';
+  else if (state === 'fail') window.__updateNote = 'не вышло, откройте ссылку';
+  else window.__updateNote = '';
+};
 
 function openExternalLink(url) {
   const u = String(url || '').trim();

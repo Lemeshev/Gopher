@@ -2054,6 +2054,101 @@ class QuietScene {
       ctx.fillStyle = '#1a120e';
       ctx.beginPath(); ctx.ellipse(hx + b * 0.08, hy + b * 0.02, b * 0.08, b * 0.04, 0, 0, Math.PI * 2); ctx.fill();
       eye(hx + b * 0.05, hy - b * 0.06, b * 0.04);
+    } else if (k === 'urchin') {
+      ctx.fillStyle = '#6b3a6a';
+      ctx.beginPath(); ctx.arc(0, 0, b * 0.42, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#3a1c38';
+      ctx.lineWidth = 1.4;
+      for (let i = 0; i < 14; i++) {
+        const a = i * Math.PI * 2 / 14 + Math.sin(t + i) * 0.05;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * b * 0.3, Math.sin(a) * b * 0.3);
+        ctx.lineTo(Math.cos(a) * b * 0.85, Math.sin(a) * b * 0.85);
+        ctx.stroke();
+      }
+    } else if (k === 'sponge') {
+      ctx.fillStyle = '#e0a050';
+      ctx.beginPath();
+      ctx.moveTo(-b * 0.45, b * 0.4);
+      ctx.quadraticCurveTo(-b * 0.7, -b * 0.2, -b * 0.2, -b * 0.55);
+      ctx.quadraticCurveTo(b * 0.15, -b * 0.9, b * 0.45, -b * 0.35);
+      ctx.quadraticCurveTo(b * 0.7, b * 0.15, b * 0.35, b * 0.45);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#c47e32';
+      [[-0.1, -0.1], [0.18, 0.05], [0.02, 0.22]].forEach(h => {
+        ctx.beginPath(); ctx.arc(b * h[0], b * h[1], b * 0.1, 0, Math.PI * 2); ctx.fill();
+      });
+    } else if (k === 'cucumber') {
+      ctx.fillStyle = '#6a8f4a';
+      ctx.beginPath();
+      ctx.ellipse(0, b * 0.05, b * 1.05, b * 0.28, 0.08, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#4d6b34';
+      ctx.lineWidth = 1.2;
+      for (let i = -2; i <= 2; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * b * 0.28, -b * 0.16);
+        ctx.quadraticCurveTo(i * b * 0.28, b * 0.05, i * b * 0.22, b * 0.22);
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#3d5528';
+      ctx.beginPath(); ctx.ellipse(b * 0.95, 0, b * 0.08, b * 0.12, 0, 0, Math.PI * 2); ctx.fill();
+    } else if (k === 'shrimp') {
+      const curl = Math.sin(t * 3) * 0.15;
+      ctx.strokeStyle = '#f0a0a8';
+      ctx.lineWidth = Math.max(3, b * 0.12);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(b * 0.7, -b * 0.05);
+      ctx.quadraticCurveTo(b * 0.2, -b * 0.35, -b * 0.15, 0);
+      ctx.quadraticCurveTo(-b * 0.45, b * 0.35 + curl * b, -b * 0.85, b * 0.05);
+      ctx.stroke();
+      ctx.fillStyle = '#f4c2c4';
+      ctx.beginPath(); ctx.ellipse(b * 0.55, -b * 0.08, b * 0.22, b * 0.12, -0.3, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#e08088';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(b * 0.7, -b * 0.1); ctx.lineTo(b * 1.15, -b * 0.28); ctx.moveTo(b * 0.68, 0); ctx.lineTo(b * 1.1, -b * 0.02); ctx.stroke();
+      eye(b * 0.62, -b * 0.12, b * 0.035);
+    } else if (k === 'clam') {
+      ctx.fillStyle = '#d9c7a2';
+      ctx.beginPath();
+      ctx.ellipse(0, b * 0.06, b * 0.55, b * 0.32, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#f3e6c8';
+      ctx.beginPath();
+      ctx.ellipse(0, -b * 0.04, b * 0.5, b * 0.22, 0, Math.PI, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#a89068';
+      ctx.lineWidth = 1.2;
+      for (let i = -2; i <= 2; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * b * 0.14, -b * 0.02);
+        ctx.quadraticCurveTo(i * b * 0.1, b * 0.12, i * b * 0.16, b * 0.28);
+        ctx.stroke();
+      }
+    } else if (k === 'lobster') {
+      ctx.fillStyle = '#c4492a';
+      ctx.beginPath();
+      ctx.ellipse(b * 0.15, 0, b * 0.55, b * 0.22, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-b * 0.45, 0, b * 0.22, b * 0.16, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#c4492a';
+      ctx.lineWidth = Math.max(2, b * 0.06);
+      ctx.beginPath();
+      ctx.moveTo(-b * 0.55, -b * 0.08); ctx.quadraticCurveTo(-b * 0.9, -b * 0.35, -b * 1.15, -b * 0.15);
+      ctx.moveTo(-b * 0.55, b * 0.08); ctx.quadraticCurveTo(-b * 0.9, b * 0.35, -b * 1.15, b * 0.15);
+      ctx.stroke();
+      ctx.fillStyle = '#a33a22';
+      ctx.beginPath();
+      ctx.moveTo(b * 0.45, -b * 0.12); ctx.lineTo(b * 0.85, -b * 0.42); ctx.lineTo(b * 0.95, -b * 0.18); ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(b * 0.45, b * 0.12); ctx.lineTo(b * 0.9, b * 0.4); ctx.lineTo(b * 0.7, b * 0.12); ctx.closePath(); ctx.fill();
+      for (let i = 0; i < 3; i++) {
+        ctx.fillStyle = '#9a321c';
+        ctx.fillRect(-b * 0.15 + i * b * 0.16, -b * 0.16, b * 0.05, b * 0.32);
+      }
+      eye(-b * 0.5, -b * 0.06, b * 0.04);
     } else {
       ctx.fillStyle = '#e0b04a';
       ctx.beginPath(); ctx.ellipse(0, 0, b * 0.8, b * 0.35, 0, 0, Math.PI * 2); ctx.fill();
@@ -2096,6 +2191,8 @@ class QuietScene {
       birdIn: 1.2,
       passers: [],
       passerIn: 1,
+      far: null,
+      farIn: randFloat(28, 55),
       flakes: [],
       bugs: [],
       flash: 0,
@@ -2133,7 +2230,7 @@ class QuietScene {
   }
 
   spawnWindowPasser(inside) {
-    const kinds = ['cat', 'dog', 'kid', 'bike', 'car', 'bus', 'plane'];
+    const kinds = ['cat', 'dog', 'kid', 'bike', 'car', 'bus', 'plane', 'scooter', 'stroller', 'walker', 'runner'];
     const id = kinds[Math.floor(Math.random() * kinds.length)];
     if (id === 'plane' && this.win.day === 'night') return;
     const dir = Math.random() < 0.5 ? -1 : 1;
@@ -2209,6 +2306,26 @@ class QuietScene {
       p.phase += sec * (p.id === 'plane' ? 0 : 7);
     });
     win.passers = win.passers.filter(p => p.x > -0.28 && p.x < 1.28);
+
+    if (win.far) {
+      win.far.x += win.far.dir * win.far.speed * sec;
+      win.far.phase = (win.far.phase || 0) + sec;
+      const gone = win.far.dir > 0 ? win.far.x > 1.2 : win.far.x < -0.2;
+      if (gone) { win.far = null; win.farIn = randFloat(80, 150); }
+    } else if ((win.farIn -= sec) <= 0) {
+      const all = (typeof CHARACTERS !== 'undefined' && CHARACTERS.length) ? CHARACTERS : [];
+      const ch = all.length ? all[Math.floor(Math.random() * all.length)] : null;
+      if (ch && typeof createCharacter === 'function') {
+        const dir = Math.random() < 0.5 ? -1 : 1;
+        win.far = {
+          id: ch.id, name: ch.name, dir: dir,
+          x: dir > 0 ? -0.12 : 1.12,
+          speed: randFloat(0.018, 0.03),
+          phase: 0,
+          actor: createCharacter(ch.id, 42)
+        };
+      } else win.farIn = 40;
+    }
 
     if ((win.season === 'spring' || win.season === 'summer') && win.bugs.length < 3 && Math.random() < sec * 0.8) {
       win.bugs.push({
@@ -2431,7 +2548,7 @@ class QuietScene {
       ctx.fillStyle = '#222';
       ctx.beginPath(); ctx.arc(-14, 4, 4, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(14, 4, 4, 0, Math.PI * 2); ctx.fill();
-    } else {
+    } else if (p.id === 'car') {
       ctx.fillStyle = '#4d8fd6';
       roundRect(ctx, -18, -12, 36, 14, 7); ctx.fill();
       ctx.fillStyle = '#d7eef8';
@@ -2439,6 +2556,36 @@ class QuietScene {
       ctx.fillStyle = '#222';
       ctx.beginPath(); ctx.arc(-8, 4, 4, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(8, 4, 4, 0, Math.PI * 2); ctx.fill();
+    } else if (p.id === 'scooter') {
+      ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(-8, 4, 5, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(12, 4, 5, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-8, 4); ctx.lineTo(12, 4); ctx.lineTo(8, -14); ctx.stroke();
+      ctx.beginPath(); ctx.arc(6, -20, 4, 0, Math.PI * 2); ctx.stroke();
+    } else if (p.id === 'stroller') {
+      ctx.strokeStyle = '#5a6a88'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(-8, 4, 5, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(10, 4, 5, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#8eb4e8';
+      roundRect(ctx, -12, -14, 22, 14, 6); ctx.fill();
+      ctx.fillStyle = '#f3c7a8';
+      ctx.beginPath(); ctx.arc(0, -16, 4, 0, Math.PI * 2); ctx.fill();
+    } else if (p.id === 'walker') {
+      ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, -18, 4, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, -14); ctx.lineTo(0, 0); ctx.moveTo(0, -8); ctx.lineTo(6, -2);
+      ctx.moveTo(-1, 0); ctx.lineTo(-3 + step, 8); ctx.moveTo(1, 0); ctx.lineTo(3 - step, 8); ctx.stroke();
+      ctx.strokeStyle = '#8a5a32';
+      ctx.beginPath(); ctx.moveTo(8, -12); ctx.lineTo(8, 8); ctx.stroke();
+    } else if (p.id === 'runner') {
+      ctx.strokeStyle = '#c4492a'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, -16, 4, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, -12); ctx.lineTo(4, -2);
+      ctx.moveTo(0, -8); ctx.lineTo(8, -6 + step * 2);
+      ctx.moveTo(2, -2); ctx.lineTo(-6 + step * 3, 8);
+      ctx.moveTo(4, -2); ctx.lineTo(10 - step * 2, 8);
+      ctx.stroke();
     }
     ctx.restore();
   }
@@ -2641,6 +2788,14 @@ class QuietScene {
     ctx.lineTo(frame.x + frame.w, groundY + 64);
     ctx.quadraticCurveTo(frame.x + frame.w * 0.5, groundY + 56, frame.x, groundY + 62);
     ctx.fill();
+
+    if (win.far && win.far.actor) {
+      const fx = frame.x + frame.w * win.far.x;
+      ctx.save();
+      ctx.globalAlpha = 0.92;
+      win.far.actor.draw(ctx, fx, groundY + 8, 0.55);
+      ctx.restore();
+    }
 
     win.passers.filter(p => p.id !== 'plane').forEach(p => {
       const px = frame.x + frame.w * p.x;

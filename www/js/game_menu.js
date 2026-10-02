@@ -323,7 +323,7 @@ class MenuScene {
     const panelW = Math.min(W * 0.86, 320);
     // Панель выросла в v1.3.1: добавились музыка и звуки. Высоту ограничиваем
     // экраном, чтобы на невысоких телефонах кнопка «Закрыть» не уехала вниз.
-    const panelH = Math.min(448, H - 20);
+    const panelH = Math.min(468, H - 20);
     const panelX = (W - panelW) / 2;
     const panelY = (H - panelH) / 2;
 
@@ -381,6 +381,12 @@ class MenuScene {
         bgColor: '#6BCB77', fgColor: '#fff', fontSize: 13, radius: 10
       }));
     }
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#9fb0d8';
+    ctx.font = `${Math.min(W * 0.028, 12)}px Arial`;
+    const note = (typeof window !== 'undefined' && window.__updateNote) ? window.__updateNote : '';
+    ctx.fillText('Сейчас версия ' + GAME_VERSION + (note ? ' · ' + note : ''), W / 2, panelY + panelH - 128);
 
     this.buttons.push(createButton(ctx, panelX + 20, panelY + panelH - 108, panelW - 40, 42, '⬇️ Обновить игру', {
       bgColor: '#4D96FF', fgColor: '#fff', fontSize: 15, radius: 12
