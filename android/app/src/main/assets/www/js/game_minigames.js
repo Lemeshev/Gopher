@@ -8,6 +8,8 @@ class MinigamesScene {
     this.ttt = { board: Array(9).fill(null), turn: 'X', over: false, winner: null };
     this.memory = { cards: [], flipped: [], matched: [], moves: 0, ready: false, done: false };
     this.coinFlip = { state: 'ready', timer: 0, result: null, angle: 0, flipDur: 1100 };
+    this.rps = { pick: null, pet: null, msg: '' };
+    this.simon = { seq: [], phase: 'idle', timer: 0, lit: -1, input: 0, note: '' };
   }
 
   init() {
@@ -36,6 +38,41 @@ class MinigamesScene {
     this.mode = 'coinFlip';
   }
 
+  initRps() {
+    this.rps = { pick: null, pet: null, msg: 'Выбери жест' };
+    this.mode = 'rps';
+  }
+
+  initSimon() {
+    this.simon = { seq: [], phase: 'idle', timer: 0, lit: -1, input: 0, note: 'Запомни огоньки и повтори' };
+    this.mode = 'simon';
+    this.simonExtend();
+  }
+
+  simonExtend() {
+    const s = this.simon;
+    s.seq.push(Math.floor(Math.random() * 4));
+    s.phase = 'show';
+    s.timer = 0;
+    s.lit = -1;
+    s.input = 0;
+    s.note = 'Смотри: ' + s.seq.length;
+  }
+
+  simonPads(W, H) {
+    const r = Math.min(W * 0.12, 48);
+    const cx = W / 2;
+    const cy = H * 0.42;
+    const d = r * 2.4;
+    const colors = ['#FF6B6B', '#FFD93D', '#6BCB77', '#4D96FF'];
+    return colors.map((color, i) => ({
+      color: color,
+      r: r,
+      x: cx + (i % 2 === 0 ? -d / 2 : d / 2),
+      y: cy + (i < 2 ? -d / 2 : d / 2)
+    }));
+  }
+
   update(dt) {
     this.time += dt;
     const cf = this.coinFlip;
@@ -49,6 +86,19 @@ class MinigamesScene {
         AudioSys.play('coin');
         System.addXP(2);
         System.saveGame();
+      }
+    }
+    if (this.mode === 'simon' && this.simon.phase === 'show') {
+      const s = this.simon;
+      s.timer += dt;
+      const slot = 680;
+      const i = Math.floor(s.timer / slot);
+      if (i >= s.seq.length) {
+        s.phase = 'input';
+        s.lit = -1;
+        s.note = 'Повтори ' + s.seq.length;
+      } else {
+        s.lit = (s.timer % slot) < 360 ? s.seq[i] : -1;
       }
     }
   }
@@ -133,22 +183,29 @@ class MinigamesScene {
       this.drawMemory(ctx, W, H);
     } else if (this.mode === 'coinFlip') {
       this.drawCoinFlip(ctx, W, H);
+    } else if (this.mode === 'rps') {
+      this.drawRps(ctx, W, H);
+    } else if (this.mode === 'simon') {
+      this.drawSimon(ctx, W, H);
     }
   }
 
   drawSelect(ctx, W, H) {
     const games = [
       { id: 'tictactoe', emoji: '❌⭕', name: 'Крестики-нолики', desc: 'Сыграй против {pet_gen}', color: '#FF6B6B' },
-      { id: 'memory', emoji: '🧠', name: 'Memory', desc: 'Найди пары карточек', color: '#9B59B6' },
-      { id: 'coinflip', emoji: '🪙', name: 'Монетка: Да или Нет', desc: 'Случайный ответ на вопрос', color: '#FFD93D' }
+      { id: 'memory', emoji: '🧠', name: 'Мемо', desc: 'Найди пары карточек', color: '#9B59B6' },
+      { id: 'coinflip', emoji: '🪙', name: 'Монетка: Да или Нет', desc: 'Случайный ответ на вопрос', color: '#FFD93D' },
+      { id: 'rps', emoji: '✊', name: 'Камень, ножницы', desc: 'Сыграй жест против {pet_gen}', color: '#E07A3C' },
+      { id: 'simon', emoji: '💡', name: 'Огоньки', desc: 'Повтори, как зажигались', color: '#4D96FF' }
     ];
 
-    const btnW = Math.min(W * 0.7, 280);
-    const btnH = 80;
+    const btnW = Math.min(W * 0.78, 300);
+    const gap = 8;
+    const btnH = Math.max(52, Math.min(68, (H * 0.78 - H * 0.15) / games.length - gap));
     const startX = (W - btnW) / 2;
 
     games.forEach((g, i) => {
-      const y = H * 0.15 + i * (btnH + 20);
+      const y = H * 0.15 + i * (btnH + gap);
 
       ctx.fillStyle = g.color;
       roundRect(ctx, startX, y, btnW, btnH, 15);
@@ -395,6 +452,78 @@ class MinigamesScene {
     }
   }
 
+  drawRps(ctx, W, H) {
+    const r = this.rps;
+    const hands = [
+      { id: 'rock', emoji: '✊', name: 'Камень' },
+      { id: 'scissors', emoji: '✌️', name: 'Ножницы' },
+      { id: 'paper', emoji: '✋', name: 'Бумага' }
+    ];
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${Math.min(W * 0.04, 18)}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.fillText(r.msg || 'Выбери жест', W / 2, H * 0.18);
+    if (r.pet) {
+      const pet = hands.find(h => h.id === r.pet);
+      const mine = hands.find(h => h.id === r.pick);
+      ctx.font = `${Math.min(W * 0.12, 52)}px Arial`;
+      ctx.fillText((mine ? mine.emoji : '') + '   ' + (pet ? pet.emoji : ''), W / 2, H * 0.30);
+      ctx.font = `${Math.min(W * 0.032, 14)}px Arial`;
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillText('ты          {pet}', W / 2, H * 0.36);
+    }
+    const bw = Math.min(W * 0.26, 100);
+    const gap = 10;
+    const total = hands.length * bw + gap * 2;
+    const x0 = (W - total) / 2;
+    hands.forEach((h, i) => {
+      const x = x0 + i * (bw + gap);
+      const y = H * 0.46;
+      ctx.fillStyle = r.pick === h.id ? '#6BCB77' : 'rgba(255,255,255,0.16)';
+      roundRect(ctx, x, y, bw, 78, 14);
+      ctx.fill();
+      ctx.font = '32px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff';
+      ctx.fillText(h.emoji, x + bw / 2, y + 30);
+      ctx.font = `${Math.min(W * 0.03, 13)}px Arial`;
+      ctx.fillText(h.name, x + bw / 2, y + 58);
+      this.buttons.push({ x: x, y: y, w: bw, h: 78, action: 'rps:' + h.id });
+    });
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  drawSimon(ctx, W, H) {
+    const s = this.simon;
+    const best = (typeof System !== 'undefined' && System.progress) ? (System.progress.simonBest || 0) : 0;
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${Math.min(W * 0.04, 18)}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.fillText(s.note || 'Огоньки', W / 2, H * 0.18);
+    ctx.font = `${Math.min(W * 0.03, 13)}px Arial`;
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.fillText('Рекорд: ' + best, W / 2, H * 0.22);
+    this.simonPads(W, H).forEach((p, i) => {
+      const on = s.lit === i;
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = on ? 1 : 0.38;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, on ? p.r + 4 : p.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      this.buttons.push({
+        x: p.x - p.r, y: p.y - p.r, w: p.r * 2, h: p.r * 2,
+        action: 'simon:' + i
+      });
+    });
+    if (s.phase === 'fail' || s.phase === 'idle') {
+      this.buttons.push(createButton(ctx, W / 2 - 80, H * 0.72, 160, 44, '🔄 Заново', {
+        bgColor: '#4D96FF', fgColor: '#fff', fontSize: 15, radius: 12
+      }));
+    }
+  }
+
   handleClick(mx, my) {
     AudioSys.play('click');
 
@@ -428,6 +557,8 @@ class MinigamesScene {
             case 'tictactoe': this.initTTT(); System.countAction('minigames'); break;
             case 'memory': this.initMemory(); System.countAction('minigames'); break;
             case 'coinflip': this.initCoinFlip(); System.countAction('minigames'); break;
+            case 'rps': this.initRps(); System.countAction('minigames'); break;
+            case 'simon': this.initSimon(); System.countAction('minigames'); break;
           }
           return true;
         }
@@ -521,6 +652,61 @@ class MinigamesScene {
       }
     }
 
+    if (this.mode === 'rps') {
+      for (const btn of this.buttons) {
+        if (!btn.action || btn.action.indexOf('rps:') !== 0) continue;
+        if (!isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) continue;
+        this.playRps(btn.action.slice(4));
+        return true;
+      }
+      return true;
+    }
+
+    if (this.mode === 'simon') {
+      for (const btn of this.buttons) {
+        if (btn.text && btn.text.indexOf('Заново') !== -1 &&
+            isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) {
+          this.initSimon();
+          return true;
+        }
+      }
+      if (this.simon.phase !== 'input') return true;
+      const pads = this.simonPads(this.game.width, this.game.height);
+      for (let i = 0; i < pads.length; i++) {
+        const p = pads[i];
+        const dx = mx - p.x, dy = my - p.y;
+        if (dx * dx + dy * dy > p.r * p.r) continue;
+        const s = this.simon;
+        s.lit = i;
+        if (i !== s.seq[s.input]) {
+          s.phase = 'fail';
+          s.note = 'Почти! Рекорд ' + ((System.progress && System.progress.simonBest) || 0);
+          AudioSys.play('fail');
+          return true;
+        }
+        s.input++;
+        AudioSys.play('click');
+        if (s.input >= s.seq.length) {
+          const pgr = System.ensureProgress();
+          if (s.seq.length > pgr.simonBest) {
+            pgr.simonBest = s.seq.length;
+            System.checkAchievements();
+          }
+          System.earnCoins(2);
+          System.addXP(1);
+          System.saveGame();
+          AudioSys.play('success');
+          s.phase = 'gap';
+          s.note = 'Верно! Дальше ' + (s.seq.length + 1);
+          setTimeout(() => {
+            if (this.mode === 'simon' && this.simon.phase === 'gap') this.simonExtend();
+          }, 700);
+        }
+        return true;
+      }
+      return true;
+    }
+
     if (this.mode === 'coinFlip') {
       const cf = this.coinFlip;
       if (cf.state === 'ready' || cf.state === 'done') {
@@ -533,6 +719,28 @@ class MinigamesScene {
     }
 
     return false;
+  }
+
+  playRps(pick) {
+    const hands = ['rock', 'scissors', 'paper'];
+    const pet = hands[Math.floor(Math.random() * 3)];
+    const beat = { rock: 'scissors', scissors: 'paper', paper: 'rock' };
+    let msg = 'Ничья';
+    if (beat[pick] === pet) {
+      msg = 'Ты выиграл!';
+      System.countAction('rpsWins');
+      System.earnCoins(8);
+      System.addXP(4);
+      System.stats.happiness = Math.min(100, System.stats.happiness + 4);
+      AudioSys.play('success');
+    } else if (beat[pet] === pick) {
+      msg = '{Pet} выиграл';
+      AudioSys.play('fail');
+    } else {
+      AudioSys.play('click');
+    }
+    System.saveGame();
+    this.rps = { pick: pick, pet: pet, msg: msg };
   }
 
   aiMove() {
