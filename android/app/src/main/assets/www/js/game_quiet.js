@@ -1380,7 +1380,10 @@ class QuietScene {
       const y = w.top - Math.sin(p * Math.PI) * j.h;
       ctx.save();
       ctx.translate(x, y);
-      ctx.rotate(j.dir * (p - 0.5) * 1.4);
+      // Голова рисуется в плюс X. Сначала смотрим в сторону прыжка, потом нос
+      // вверх на выходе из воды и вниз на входе. Иначе прыжок влево идёт хвостом.
+      ctx.scale(j.dir || 1, 1);
+      ctx.rotate((p - 0.5) * 1.15);
       ctx.fillStyle = '#e7f4fb';
       ctx.beginPath();
       ctx.ellipse(0, 0, 9, 4.2, 0, 0, Math.PI * 2);

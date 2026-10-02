@@ -2,7 +2,7 @@
 
 Приложение в консоли RuStore: `Gopher Life`, appId **2063763308**,
 https://console.rustore.ru/apps/2063763308
-Package name: **com.gopherlife.app** · версия в сборке: **1.3.16** (versionCode 23)
+Package name: **com.gopherlife.app** · версия в сборке: **1.3.17** (versionCode 24)
 
 ---
 
