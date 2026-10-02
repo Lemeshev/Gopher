@@ -36,6 +36,8 @@ const System = {
     minigames: 0,     // мини-игр начато
     quiet: 0,         // тихих игр закончено
     tttWins: 0,       // побед в крестики-нолики
+    rpsWins: 0,       // побед в «камень, ножницы, бумага»
+    simonBest: 0,     // самая длинная угаданная гирлянда в «Огоньках»
     feeds: 0,         // покормлено
     washes: 0,        // искупано
     plays: 0,         // поиграно дома
@@ -289,7 +291,7 @@ const System = {
   ensureProgress() {
     const def = () => ({
       days: 0, streak: 0, bestStreak: 0, lastDay: null,
-      trips: 0, minigames: 0, quiet: 0, tttWins: 0,
+      trips: 0, minigames: 0, quiet: 0, tttWins: 0, rpsWins: 0, simonBest: 0,
       feeds: 0, washes: 0, plays: 0, sleeps: 0,
       coinsEarned: 0, furniture: 0
     });

@@ -2752,6 +2752,8 @@ const ACHIEVEMENTS = [
   { id: 'first_game',  tier: 'today', emoji: '🎮', name: 'Первая игра', desc: 'Сыграй в мини-игру', goal: 1, of: p => p.minigames },
   { id: 'first_quiet', tier: 'today', emoji: '✨', name: 'Тихие игры', desc: 'Закончи спокойную игру', goal: 1, of: p => p.quiet },
   { id: 'first_win',   tier: 'today', emoji: '❌', name: 'Победитель', desc: 'Выиграй в крестики-нолики', goal: 1, of: p => p.tttWins },
+  { id: 'rps_win',     tier: 'today', emoji: '✊', name: 'Сильнее камня', desc: 'Выиграй в «Камень, ножницы, бумага»', goal: 1, of: p => p.rpsWins || 0 },
+  { id: 'simon4',      tier: 'today', emoji: '💡', name: 'Огоньки', desc: 'Повтори 4 огонька подряд в мини-игре', goal: 4, of: p => p.simonBest || 0 },
 
   // ---------- Ступень 2: несколько дней ----------
   { id: 'rich200',   tier: 'soon', emoji: '💰', name: 'Богач', desc: 'Накопи 200 монет', goal: 200, of: (p, S) => S.coins },
@@ -2759,6 +2761,8 @@ const ACHIEVEMENTS = [
     of: (p, S) => ['happiness', 'hunger', 'energy', 'health', 'cleanliness'].filter(k => S.stats[k] > 80).length },
   { id: 'level5',    tier: 'soon', emoji: '⭐', name: 'Опытный', desc: 'Достигни 5 уровня', goal: 5, of: (p, S) => S.level },
   { id: 'games10',   tier: 'soon', emoji: '🕹️', name: 'Десять игр', desc: 'Сыграй 10 игр (мини-игры и тихие)', goal: 10, of: p => p.minigames + p.quiet },
+  { id: 'rps10',     tier: 'soon', emoji: '✌️', name: 'Десять побед', desc: 'Выиграй 10 раз в «Камень, ножницы, бумага»', goal: 10, of: p => p.rpsWins || 0 },
+  { id: 'simon8',    tier: 'soon', emoji: '🎇', name: 'Гирлянда', desc: 'Повтори 8 огоньков подряд', goal: 8, of: p => p.simonBest || 0 },
   { id: 'trips10',   tier: 'soon', emoji: '🧭', name: 'Десять походов', desc: 'Сходи по карте 10 раз', goal: 10, of: p => p.trips },
   { id: 'exhibit12', tier: 'soon', emoji: '🖼️', name: 'Любознательный', desc: 'Посмотри 12 экспонатов одного музея', goal: 12, of: (p, S) => Math.max(0, ...MUSEUM_CATEGORIES.map(c => S.seenCount(c))) },
   { id: 'home5',     tier: 'soon', emoji: '🛋️', name: 'Уютный дом', desc: 'Купи 5 вещей в дом', goal: 5, of: p => p.furniture },

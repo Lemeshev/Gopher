@@ -527,28 +527,25 @@ class QuietScene {
         f.diver.x += f.diver.dir * f.diver.speed * sec;
         f.diver.phase += sec;
         f.diver.bubbles.forEach(b => {
-          b.y -= 36 * sec;
-          b.r += sec * 1.4;
-          b.x += Math.sin(b.y * 0.08) * 8 * sec;
+          b.y -= 28 * sec;
+          b.r += sec * 0.35;
+          b.x += Math.sin(b.y * 0.08) * 6 * sec;
           b.life -= sec;
         });
-        f.diver.bubbles = f.diver.bubbles.filter(b => b.life > 0);
+        f.diver.bubbles = f.diver.bubbles.filter(b => b.life > 0 && b.r < 6);
         // Рот трубки в координатах фигурки: чуть выше макушки. Тот же поворот, что в drawDiver.
         const ang = (f.diver.dir > 0 ? Math.PI / 2 : -Math.PI / 2) - f.diver.dir * 0.22;
         const cs = Math.cos(ang), sn = Math.sin(ang);
         const lx = 7, ly = -50;
         const mouthX = f.diver.x + lx * cs - ly * sn;
         const mouthY = f.diver.y + lx * sn + ly * cs;
-        const puff = 1 + Math.floor(Math.random() * 2);
-        if (Math.random() < sec * 11) {
-          for (let i = 0; i < puff; i++) {
-            f.diver.bubbles.push({
-              x: mouthX + randFloat(-3, 3),
-              y: mouthY + randFloat(-3, 3),
-              r: randFloat(5, 11),
-              life: randFloat(2.2, 3.4)
-            });
-          }
+        if (Math.random() < sec * 0.85) {
+          f.diver.bubbles.push({
+            x: mouthX + randFloat(-2, 2),
+            y: mouthY + randFloat(-2, 2),
+            r: randFloat(1.8, 3.2),
+            life: randFloat(1.5, 2.2)
+          });
         }
         const gone = f.diver.dir > 0 ? f.diver.x > w.x1 + 90 : f.diver.x < w.x0 - 90;
         if (gone) { f.diver = null; f.diverIn = randFloat(70, 120); }
@@ -580,6 +577,7 @@ class QuietScene {
       // Пока на экране факт о пойманной рыбе, поклёвки нет: иначе текст
       // перекрывается «КЛЮЁТ!» и ребёнок не успевает дочитать.
       if (this.mode === 'watch') {
+        this.watchOpenFor = (this.watchOpenFor || 0) + sec;
         f.watchTime = (f.watchTime || 0) + sec;
         if (!f.watchRewarded && f.watchTime > 40) {
           f.watchRewarded = true;
@@ -1496,37 +1494,43 @@ class QuietScene {
       this.drawWrappedHint(ctx, W, H, f.friendHintText);
     }
 
-    // Галочка внутри рыбалки, не отдельная игра. Включённая — без крючка и без кнопки ловли.
+    // Галочка в небе справа. Через 30 секунд «просто смотреть» остаётся только зелёная клетка.
+    const collapsed = watching && (this.watchOpenFor || 0) > 30;
     const box = 22;
-    const rowY = H * 0.79;
-    const rowX = W * 0.06;
-    const rowW = watching ? Math.min(W * 0.62, 250) : Math.min(W * 0.46, 190);
-    ctx.fillStyle = watching ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.08)';
-    roundRect(ctx, rowX, rowY, rowW, 40, 10);
+    const rowH = 36;
+    const rowW = collapsed ? 36 : Math.min(W * 0.48, 188);
+    const rowX = W - 12 - rowW;
+    const rowY = H * 0.145;
+    ctx.fillStyle = 'rgba(8,24,48,0.45)';
+    roundRect(ctx, rowX, rowY, rowW, rowH, 10);
     ctx.fill();
-    ctx.strokeStyle = watching ? '#9be3b0' : 'rgba(255,255,255,0.35)';
+    const markX = collapsed ? rowX + 7 : rowX + 8;
+    const markY = rowY + 7;
+    ctx.strokeStyle = watching ? '#9be3b0' : 'rgba(255,255,255,0.7)';
     ctx.lineWidth = 1.6;
-    roundRect(ctx, rowX + 10, rowY + 9, box, box, 5);
+    roundRect(ctx, markX, markY, box, box, 5);
     ctx.stroke();
     if (watching) {
       ctx.strokeStyle = '#9be3b0';
-      ctx.lineWidth = 2.4;
+      ctx.lineWidth = 2.6;
       ctx.beginPath();
-      ctx.moveTo(rowX + 14, rowY + 20);
-      ctx.lineTo(rowX + 19, rowY + 26);
-      ctx.lineTo(rowX + 29, rowY + 14);
+      ctx.moveTo(markX + 4, markY + 11);
+      ctx.lineTo(markX + 9, markY + 16);
+      ctx.lineTo(markX + 18, markY + 5);
       ctx.stroke();
     }
-    ctx.fillStyle = '#fff';
-    ctx.font = `${Math.min(W * 0.032, 13)}px Arial`;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('Просто смотреть', rowX + 10 + box + 8, rowY + 20);
-    ctx.textBaseline = 'alphabetic';
-    this.buttons.push({ x: rowX, y: rowY, w: rowW, h: 40, text: '', action: 'watch:toggle' });
+    if (!collapsed) {
+      ctx.fillStyle = '#fff';
+      ctx.font = `${Math.min(W * 0.03, 13)}px Arial`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Просто смотреть', markX + box + 8, rowY + rowH / 2);
+      ctx.textBaseline = 'alphabetic';
+    }
+    this.buttons.push({ x: rowX, y: rowY, w: rowW, h: rowH, text: '', action: 'watch:toggle' });
 
     if (!watching) {
-      this.buttons.push(createButton(ctx, rowX + rowW + 8, rowY, W * 0.94 - (rowX + rowW + 8), 40,
+      this.buttons.push(createButton(ctx, W * 0.28, H * 0.79, W * 0.44, 40,
         f.state === 'bite' ? '🎣 Тянуть!' : '⏳ Ждём…', {
           bgColor: f.state === 'bite' ? '#6BCB77' : 'rgba(255,255,255,0.18)',
           fgColor: f.state === 'bite' ? '#0d1024' : '#fff', fontSize: 14, radius: 10
@@ -2713,7 +2717,9 @@ class QuietScene {
       const a = btn.action || '';
       const t = btn.text || '';
       if (a === 'watch:toggle') {
-        this.mode = this.mode === 'watch' ? 'fish' : 'watch';
+        const on = this.mode !== 'watch';
+        this.mode = on ? 'watch' : 'fish';
+        this.watchOpenFor = 0;
         if (this.fish) { this.fish.state = 'wait'; this.fish.biteFish = null; }
         AudioSys.play('click');
         return true;
