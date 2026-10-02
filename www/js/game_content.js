@@ -2440,8 +2440,7 @@ window.findProcedure = findProcedure;
 const QUIET_GAMES = [
   { id: 'stars', name: 'Созвездие', emoji: '✨', desc: 'Соедини звёзды по порядку', reward: 8 },
   { id: 'color', name: 'Раскраска', emoji: '🎨', desc: 'Раскрась картинку цветами', reward: 10 },
-  { id: 'fish',  name: 'Тихая рыбалка', emoji: '🎣', desc: 'Подводный мир: жди поклёвку и тяни', reward: 12 },
-  { id: 'watch', name: 'Просто смотреть', emoji: '👀', desc: 'Те же рыбы, без крючка и поклёвки', reward: 8 },
+  { id: 'fish',  name: 'Тихая рыбалка', emoji: '🎣', desc: 'Жди поклёвку или просто смотри', reward: 12 },
   { id: 'window', name: 'У окна', emoji: '🪟', desc: 'Посидеть и посмотреть, что за окном', reward: 8 }
 ];
 
