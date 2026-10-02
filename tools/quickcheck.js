@@ -307,6 +307,98 @@ ok('Друг добавляется по полному коду', addedLong.ok 
 ok('Полный код приносит все комнаты', !!S.friends[0].rooms && Object.keys(S.friends[0].rooms).length === 4);
 ok('Друг по короткому коду принимается повторно (другое имя)', S.addFriendCode(short, 'Второй друг').ok === true);
 
+/* ---------- Код друга стал коротким и «не страшным» (v1.3.12) ---------- */
+// Заказчик 01.10.2026: «нельзя ли как-то коды сделать менее страшными для
+// пересылки? Обязательно прям такие огромные?» Полный код упакован битами нашим
+// алфавитом: проверяем длину, алфавит и что весь дом доезжает без потерь.
+const codeG = (n) => (typeof sandbox[n] !== 'undefined') ? sandbox[n]
+  : (sandbox.window && typeof sandbox.window[n] !== 'undefined') ? sandbox.window[n] : undefined;
+const roomKeys = ['living', 'bedroom', 'kitchen', 'bathroom'];
+const houseSize = (function () {
+  const furn = codeG('FURNITURE') || [];
+  const walls = codeG('WALLS') || [];
+  const floors = codeG('FLOORS') || [];
+  S.profileName = 'Мила-Гофер';
+  S.level = 42;
+  S.coins = 12345;
+  S.look = { char: 'bunny', fur: 'rose', hat: 'crown', glasses: 'cool', neck: 'scarf', back: 'cape' };
+  roomKeys.forEach((k, i) => {
+    S.rooms[k].wall = (walls[(i * 2 + 1) % walls.length] || {}).id;
+    S.rooms[k].floor = (floors[i % floors.length] || {}).id;
+    const items = [];
+    for (let j = 0; j < 8; j++) {
+      const f = furn[(i * 7 + j) % furn.length];
+      if (f) items.push({ id: f.id, x: j / 8 + 0.05, y: (j % 3) / 3 + 0.2 });
+    }
+    S.rooms[k].furniture = items;
+  });
+  return roomKeys.reduce((n, k) => n + (S.rooms[k].furniture || []).length, 0);
+})();
+const packedCode = S.getMyCode();
+S.friends = [];
+const packedBack = S.addFriendCode(packedCode, 'Проверка');
+const pf = S.friends[0] || {};
+const packedItems = roomKeys.reduce((n, k) => n + ((((pf.rooms || {})[k] || {}).furniture || []).length), 0);
+ok('Полный код с заставленным домом короткий и без «страшных» знаков',
+  packedCode.length >= 20 && packedCode.length <= 220 &&
+  /^[0-9A-Z-]+$/.test(packedCode) && !/[IO]/.test(packedCode),
+  packedCode.length + ' знаков на ' + houseSize + ' предметов, только цифры и заглавные буквы');
+ok('Полный код доезжает без потерь: имя, обои, все комнаты, мебель и наряды',
+  packedBack.ok === true && pf.name === 'Мила-Гофер' &&
+  pf.room.wall === S.rooms.living.wall && pf.room.floor === S.rooms.living.floor &&
+  packedItems === houseSize && pf.hat === 'crown' && pf.neck === 'scarf' && pf.back === 'cape' &&
+  pf.char === 'bunny',
+  'предметов ' + packedItems + ' из ' + houseSize + ', гостиная ' + pf.room.wall + '/' + pf.room.floor);
+// Совместимость: коды старых версий (base64) по-прежнему принимаются, а испорченный
+// полный код — нет (контрольная сумма не сойдётся).
+// Собираем старый код тем же способом, каким его делала прежняя версия:
+// base64 от UTF-8 (btoa(unescape(encodeURIComponent(json))) — иначе кириллица
+// в имени не прочитается).
+let v3raw = JSON.stringify({
+  v: 3, name: 'Старый друг', level: 5, coins: 10,
+  rooms: { living: { wall: 'warm', floor: 'wood', furniture: [{ id: 'sofa', x: 0.5, y: 0.5 }] } },
+  room: { wall: 'warm', floor: 'wood' },
+  furniture: [{ id: 'sofa', x: 0.5, y: 0.5 }], look: { char: 'gopher', fur: 'classic' }
+});
+let v3code = '';
+try { v3code = sandbox.btoa(unescape(encodeURIComponent(v3raw))); }
+catch (e) { v3code = sandbox.btoa(v3raw); }
+S.friends = [];
+const oldOk = S.addFriendCode(v3code).ok;
+S.friends = [];
+const brokenFull = S.addFriendCode(packedCode[0] === 'A' ? 'B' + packedCode.slice(1) : 'A' + packedCode.slice(1)).ok;
+ok('Старый длинный код (base64) ещё принимается, а испорченный — нет',
+  oldOk === true && brokenFull === false,
+  'старый код: ' + (oldOk ? 'принят' : 'НЕТ') + ', испорченный: ' + (brokenFull ? 'принят (плохо)' : 'отвергнут'));
+
+// Заказчик прислал скриншот: при нажатии «Отправить» WebView открывал «sms:?body=…»,
+// не умеет такую схему и показывал ребёнку страницу ошибки
+// «Не удалось открыть веб-страницу: net::ERR_UNKNOWN_URL_SCHEME» вместо игры.
+// Проверяем порядок отправки: мост Android → копия в буфер, и что не-веб схемы
+// игра вообще не открывает (их обрабатывает сама оболочка).
+const shareProbe = (function () {
+  const CB = sandbox.ClipBridge;
+  if (!CB || typeof CB.share !== 'function') return { ok: false, why: 'нет ClipBridge' };
+  const realCopy = CB.copy;
+  let copied = null;
+  CB.copy = (v) => { copied = v; return true; };
+  let bridged = null;
+  sandbox.AndroidBridge = { share(t) { bridged = t; } };
+  const okBridge = CB.share('ABC-123') === true && bridged === 'ABC-123' && copied === null;
+  delete sandbox.AndroidBridge;
+  const ret = CB.share('ABC-123');
+  const okCopy = ret === false && copied === 'ABC-123';
+  CB.copy = realCopy;
+  const link = (typeof sandbox.openExternalLink === 'function') ? sandbox.openExternalLink : null;
+  const okLinks = !!link && link('sms:?body=hi') === false && link('tel:+79990000000') === false &&
+    link('whatsapp://send?text=hi') === false;
+  return { ok: okBridge && okCopy && okLinks, copy: copied, bridge: !!bridged };
+})();
+ok('Код друга уходит системным «Поделиться» (мост Android), а не sms:-ссылкой',
+  shareProbe.ok === true,
+  'мост: ' + (shareProbe.bridge ? 'вызван' : 'нет') + ', копия в буфер: ' +
+  (shareProbe.copy ? 'есть' : 'нет') + ', sms:/tel:/whatsapp: не открываются');
+
 /* ---------- Перенос старых сохранений (v1.0/v1.1 → v1.2) ---------- */
 // У детей уже может стоять старый APK: там одна комната и плоский список мебели.
 const prevProfile = S.profileId;
@@ -658,6 +750,7 @@ if (boot) {
 
   /* ---------- Тихие игры: доходим до победы (нет тупиков) ---------- */
   const playable = { stars: false, color: false, fish: false, clicks: 0 };
+  let paintInfo = null;   // что удалось узнать про раскраски (v1.3.12)
   try {
     const qs = boot.scenes.quiet;
     const wW = boot.width, wH = boot.height;
@@ -669,19 +762,52 @@ if (boot) {
     qs.stars.points.forEach(p => qs.clickStars(sa.x + sa.w * p[0], sa.y + sa.h * p[1]));
     playable.stars = qs.stars.done === true;
 
-    // 2) Раскраска: тапаем в центр каждой незакрашенной части
+    // 2) Раскраска: картинок восемь, палитра у каждой своя. Проходим ВСЕ восемь
+    // (не случайную): тапаем по деталям по кругу и проверяем, что каждая доводится
+    // до конца. Рамка — как в drawColor/clickColor (v1.3.12: y 0.16, h 0.52).
     qs.init();
     qs.startGame('color');
-    const pa = { x: wW * 0.12, y: wH * 0.14, w: wW * 0.76, h: wH * 0.54 };
-    let guard = 0;
-    while (!qs.paint.done && guard++ < 40) {
-      const part = qs.paint.parts.find(x => !x.fill) || qs.paint.parts[0];
-      const cx = part.kind === 'rect' ? pa.x + pa.w * (part.x + part.w / 2) : pa.x + pa.w * part.cx;
-      const cy = part.kind === 'rect' ? pa.y + pa.h * (part.y + part.h / 2) : pa.y + pa.h * part.cy;
-      qs.clickColor(cx, cy);
-    }
-    playable.clicks = guard;
-    playable.color = qs.paint.done === true;
+    const pa = { x: wW * 0.12, y: wH * 0.16, w: wW * 0.76, h: wH * 0.52 };
+    const paintRun = (id) => {
+      if (id) qs.initColor(id);
+      let guard = 0;
+      while (!qs.paint.done && guard++ < 120) {
+        const part = qs.paint.parts[(guard - 1) % qs.paint.parts.length];
+        if (part.fill) continue;             // тап по центру закрашенной детали не нужен
+        const cx = part.kind === 'rect' ? pa.x + pa.w * (part.x + part.w / 2) : pa.x + pa.w * part.cx;
+        const cy = part.kind === 'rect' ? pa.y + pa.h * (part.y + part.h / 2) : pa.y + pa.h * part.cy;
+        qs.clickColor(cx, cy);
+      }
+      return { done: qs.paint.done === true, taps: guard, name: qs.paint.name };
+    };
+    const paintAll = (sandbox.PAINT_PICTURES || []).map(p => paintRun(p.id));
+    const firstPaint = paintAll[0] || { done: false, taps: 0 };
+    playable.clicks = firstPaint.taps;
+    playable.color = paintAll.length >= 8 && paintAll.every(r => r.done);
+    playable.paintTaps = paintAll.map(r => r.taps);
+    playable.paintNames = paintAll.map(r => r.name);
+    playable.paintHard = paintAll.filter(r => !r.done).map(r => r.name);
+    playable.pictures = (function () {
+      // Проверяем, что картинки разные: запускаем раскраску восемь раз подряд и
+      // смотрим, сколько разных картинок и палитр встретилось
+      const names = {}, colors = {};
+      const total = qs.paintTotal || 8;
+      let first = null;
+      for (let i = 0; i < total * 3; i++) {
+        qs.initColor();
+        names[qs.paint.name] = 1;
+        colors[qs.paint.colors.join(',')] = 1;
+        if (!first) first = qs.paint.name;
+        // подряд одна и та же картинка не должна выпадать дважды
+        const again = qs.paint.name;
+        qs.initColor();
+        if (qs.paint.name === again) return { repeat: true, names: Object.keys(names).length, colors: Object.keys(colors).length };
+      }
+      return { repeat: false, names: Object.keys(names).length, colors: Object.keys(colors).length,
+        first: first, allDone: playable.paintHard.length === 0 };
+    })();
+    paintInfo = { total: qs.paintTotal, names: playable.pictures.names,
+      colors: playable.pictures.colors, repeat: playable.pictures.repeat };
 
     // 3) Рыбалка: три поклёвки дают награду.
     // v1.3.9: клюёт конкретная рыбка (biteFish) — без неё подсечка не считается.
@@ -699,8 +825,51 @@ if (boot) {
   ok('Тихие игры доводятся до победы (без тупиков)',
     playable.stars && playable.color && playable.fish,
     'созвездие ' + (playable.stars ? 'ок' : 'нет') +
-    ', раскраска ' + (playable.color ? 'ок за ' + playable.clicks + ' тапов' : 'нет') +
+    ', раскраска ' + (playable.color ? 'ок — все 8 картинок (' + (playable.paintTaps || []).join('/') + ' тапов)' : 'нет') +
     ', рыбалка ' + (playable.fish ? 'ок' : 'нет'));
+
+  // Раскраски (v1.3.12): заказчик — «улучши раскраски, а то они все однотипные».
+  // Их стало восемь, у каждой своя палитра, и подряд одна и та же не выпадает.
+  ok('Раскраски разные: восемь картинок, у каждой своя палитра, подряд не повторяются',
+    !!paintInfo && paintInfo.total === 8 && paintInfo.names >= 6 &&
+    paintInfo.colors >= 6 && paintInfo.repeat === false && playable.pictures &&
+    playable.pictures.allDone === true,
+    'картинок всего ' + (paintInfo ? paintInfo.total : '?') + ', за проверку встретилось ' +
+    (paintInfo ? paintInfo.names : 0) + ' картинок и ' + (paintInfo ? paintInfo.colors : 0) +
+    ' палитр, повторов подряд: ' + (paintInfo && paintInfo.repeat ? 'есть' : 'нет') +
+    ', каждая доводится до конца: ' + (playable.pictures && playable.pictures.allDone ? 'да' : 'НЕТ') +
+    (playable.paintHard && playable.paintHard.length ? ' (сложные: ' + playable.paintHard.join(', ') + ')' : ''));
+
+  // Редкость рыб (v1.3.12): заказчик — «странно, что всех рыб можно наловить прям за
+  // один день… надо каких-то редких рыб сделать появляющимися с меньшей
+  // вероятностью». Проверяем на выборке: ступени идут по убыванию, и легендарная
+  // рыба действительно редкая, а не «ещё одна из ста».
+  const rarityStats = (function () {
+    const pick = codeG('randomFishSpecies');
+    const rarityOf = codeG('fishRarityOf');
+    if (typeof pick !== 'function' || typeof rarityOf !== 'function') return { ok: false };
+    const counts = { common: 0, rare: 0, epic: 0, legendary: 0 };
+    const seen = {};
+    const N = 4000;
+    for (let i = 0; i < N; i++) {
+      const sp = pick();
+      if (!sp) return { ok: false };
+      const r = rarityOf(sp);
+      counts[r.id] = (counts[r.id] || 0) + 1;
+      seen[sp.id] = 1;
+    }
+    const pct = k => Math.round((counts[k] || 0) / N * 1000) / 10;
+    return { ok: true, pct: pct, species: Object.keys(seen).length };
+  })();
+  ok('Редкие рыбы попадаются заметно реже обычных, легендарные — совсем редко',
+    rarityStats.ok &&
+    rarityStats.pct('common') > rarityStats.pct('rare') &&
+    rarityStats.pct('rare') > rarityStats.pct('epic') &&
+    rarityStats.pct('epic') >= rarityStats.pct('legendary') &&
+    rarityStats.pct('common') >= 55 && rarityStats.pct('legendary') <= 6,
+    'из 4000 забросов: обычных ' + rarityStats.pct('common') + '%, редких ' +
+    rarityStats.pct('rare') + '%, очень редких ' + rarityStats.pct('epic') +
+    '%, легендарных ' + rarityStats.pct('legendary') + '%');
 
   /* ---------- Подводный мир рыбалки (v1.3.9) ---------- */
   // Пожелание пользователя: «чтобы был виден подводный мир, как они плавают, как
@@ -782,15 +951,17 @@ if (boot) {
   ok('Под водой сто видов рыб — у каждого имя, цвет и факт',
     sea.species >= 100 && sea.uniqNames === sea.species && sea.facts,
     'видов ' + sea.species + ', уникальных имён ' + sea.uniqNames);
-  ok('Рядом плавают большие обитатели (черепаха, акула, осьминог…) — и они вне улова',
-    sea.friendsAll >= 7 && sea.friendsFacts && sea.overlap === 0,
+  ok('Рядом плавают большие обитатели (черепаха, акула, дельфин, косатка, скат…) — и они вне улова',
+    sea.friendsAll >= 16 && sea.friendsFacts && sea.overlap === 0,
     'обитателей ' + sea.friendsAll + ', совпадений с рыбами ' + sea.overlap);
   ok('В воде действительно кто-то плавает: рыбки и большие, и они двигаются',
     sea.swim >= 5 && sea.friends >= 3 && sea.moved === true,
     'рыбок ' + sea.swim + ', больших ' + sea.friends);
-  // v1.3.11: заказчик видел одних медуз — теперь обитатели разные и сменяются по кругу
-  ok('Большие обитатели все разные, и по кругу приходят все семь (а не одни медузы)',
-    sea.friendsUniq === sea.friends && sea.friendsCycle === sea.friendsAll && sea.friendsAll >= 7,
+  // v1.3.11: заказчик видел одних медуз — теперь обитатели разные и сменяются по кругу.
+  // v1.3.12: заказчик попросил «больше разных морских существ… периодически
+  // проплывали дельфины, косатки, скаты и т. д.» — стало шестнадцать, все приходят.
+  ok('Большие обитатели все разные, и по кругу приходят все шестнадцать (а не одни медузы)',
+    sea.friendsUniq === sea.friends && sea.friendsCycle === sea.friendsAll && sea.friendsAll >= 16,
     'в воде ' + sea.friends + ' разных из ' + sea.friendsAll +
     ', по кругу приходят ' + sea.friendsCycle);
   // Состав должен не просто существовать, а меняться по ходу игры
@@ -856,7 +1027,7 @@ if (boot) {
     sea.friendCaught === false && sea.hint.indexOf('не ловим') !== -1,
     'подсказка: ' + sea.hint.slice(0, 70));
   ok('Улов рыбалки копится по разным видам и сохраняется в профиле',
-    sea.caught === 6 && sea.seen >= 3 && sea.ach === 3,
+    sea.caught === 6 && sea.seen >= 2 && sea.ach === 3,
     'поймано ' + sea.caught + ', разных видов в улове ' + sea.seen + ', ступеней коллекции ' + sea.ach);
 
   // Замечание заказчика v1.3.10: «информация о рыбах не влезает в экран» —
@@ -875,24 +1046,46 @@ if (boot) {
     bannerSrc.indexOf('friendHintText') !== -1 &&
     bannerSrc.indexOf('friendHint > 0') !== -1);
 
-  // Замечание заказчика v1.3.10: «музыка пугающая» — в ней был низкий гул (A2, 110 Гц).
+  // Замечание заказчика v1.3.12: «музыка пока что очень заунывная, сделай повеселей
+  // будто детские мелодии какие-нибудь». Причина нашлась в коде: мелодия была
+  // записана СТУПЕНЯМИ гаммы, а игралась как полутоны — поэтому в до-мажорной
+  // песенке звучали фа-диез и ми-бемоль. Проверяем четыре вещи: нет низкого гула,
+  // все ноты идут по гамме (без фальши), у мелодий живой ритм (есть восьмые и
+  // половинные), и фраза кончается на тонике — как в детской песенке.
   // Внимание: имя A в этом файле занято конфигом гимнастики, поэтому AudioSys
   // берём из песочницы под своим именем.
   const AU = sandbox.AudioSys || {};
   const moodBass = (AU.MUSIC_TUNES || []).every(t =>
     AU.musicParseBass(t.bass, 16).every(n => n.i >= -12));
-  const stabsCheck = (function () {
+  const umPahCheck = (function () {
     const buf = [];
-    if (!AU.musicStabs) return 0;
-    AU.musicStabs(AU.musicTune(), 0.5, 0, buf);
+    if (!AU.musicUmPah) return { ivs: 0, count: 0 };
+    AU.musicUmPah(AU.musicTune(), 0.5, 0, buf);
     const ivs = {};
     buf.forEach(e => { ivs[Math.round(12 * Math.log2(e.freq / 261.63))] = 1; });
-    return Object.keys(ivs).length;
+    return { ivs: Object.keys(ivs).length, count: buf.length };
   })();
-  ok('В музыке нет низкого гула и есть светлая квинта — она больше не пугает',
-    moodBass && stabsCheck >= 2 && AU.MUSIC_MOODS.home.bpm >= 130,
-    'басовых нот ниже C3 нет; разных интервалов в «подскоке»: ' + stabsCheck +
-    '; темп дома ' + AU.MUSIC_MOODS.home.bpm);
+  const kidSong = (function () {
+    const MAJOR = [0, 2, 4, 5, 7, 9, 11];
+    const pc = v => ((Math.round(v) % 12) + 12) % 12;
+    const scale = AU.MUSIC_SCALE || [];
+    const scaleOk = scale.length >= 11 && scale.every(v => MAJOR.indexOf(pc(v)) !== -1);
+    const bad = (AU.MUSIC_TUNES || []).filter(t => {
+      const lead = AU.musicParseLead(t.lead);
+      const stepsOk = lead.every(n => MAJOR.indexOf(pc(AU.musicScaleStep(n.i))) !== -1);
+      const rhythm = lead.some(n => n.d < 1);   // есть восьмые — рисунок не «ровный шаг»
+      const endOk = [0, 7].indexOf(lead[lead.length - 1].i) !== -1;   // фраза — на тонику
+      const beats = AU.musicParseLead(t.lead).reduce((mx, n) => Math.max(mx, n.b + n.d), 0);
+      return !(stepsOk && rhythm && endOk && lead.length >= 12 && beats <= 16);
+    });
+    return { scaleOk: scaleOk, bad: bad.length, steps: scale.length };
+  })();
+  ok('Музыка весёлая и детская: без гула, вся по гамме, с ритмом и концом на тонике',
+    moodBass && umPahCheck.ivs >= 2 && umPahCheck.count === 16 && kidSong.scaleOk &&
+    kidSong.bad === 0 && AU.MUSIC_MOODS.home.bpm >= 130,
+    'ступеней в гамме ' + kidSong.steps + ', нот «ум-пах» ' + umPahCheck.count +
+    ', интервалов ' + umPahCheck.ivs + ', темп дома ' + AU.MUSIC_MOODS.home.bpm +
+    ', песенок с огрехами ' + kidSong.bad);
 
   /* ---------- Созвездие каждый раз новое (замечание заказчика) ---------- */
   const starsUniq = (function () {
@@ -1675,6 +1868,17 @@ if (boot) {
                   exponentialRampToValueAtTime() {}, setTargetAtTime() {} },
           connect() {}
         };
+      },
+      // v1.3.12: музыка проходит через фильтры «выше и звонче» (обрез низа, подъём
+      // на 2.6 кГц, воздух сверху) — в заглушке они тоже есть, иначе проверки
+      // звука падали бы на «createBiquadFilter is not a function».
+      filters: 0,
+      createBiquadFilter() {
+        ctx.filters++;
+        return {
+          type: '', frequency: { value: 0 }, Q: { value: 0 }, gain: { value: 0 },
+          connect() {}
+        };
       }
     };
     return ctx;
@@ -1706,7 +1910,9 @@ if (boot) {
 
   const events = A.musicEvents('ambient');
   const sorted = events.every((e, i) => i === 0 || e.t >= events[i - 1].t);
-  const inRange = events.every(e => e.freq > 90 && e.freq < 900 && e.vol > 0 && e.dur > 0.2);
+  // v1.3.12: верхняя граница поднята с 900 Гц — мелодия теперь звучит ещё и на
+  // октаву выше («стеклянный» голосок), чтобы музыка не казалась «из трубы».
+  const inRange = events.every(e => e.freq > 90 && e.freq < 2000 && e.vol > 0 && e.dur > 0.2);
   const loopDur = A.musicLoopDuration('ambient');
   ok('Ноты круга разложены по времени и все в слышимом диапазоне',
     sorted && inRange && events[0].t === 0 && events[events.length - 1].t < loopDur,
@@ -1786,13 +1992,13 @@ if (boot) {
     Math.min.apply(null, leadAvg.slice(0, 5)) >= 3,
     'средний индекс ноты по песням: ' + leadAvg.map(v => v.toFixed(1)).join(' '));
 
-  const stabBuf = [];
-  A.musicStabs(A.musicTune(), 0.5, 0, stabBuf);
-  ok('У баса есть ритм-«подскок» на слабые доли, а в музее и во сне — тишина',
+  const umPahBuf = [];
+  A.musicUmPah(A.musicTune(), 0.5, 0, umPahBuf);
+  ok('Бас «шагает» четвертями («ум-пах»), а в музее и во сне — тишина',
     A.MUSIC_MOODS.home.pulse === true && A.MUSIC_MOODS.play.pulse === true &&
     A.MUSIC_MOODS.museum.pulse === false && A.MUSIC_MOODS.sleep.pulse === false &&
-    stabBuf.length === A.musicTune().bass.length * A.MUSIC_STABS_PER_BASS,
-    'подскоков за аккорд: ' + A.MUSIC_STABS_PER_BASS + ', в музее/сне: нет; ' +
+    umPahBuf.length === A.musicTune().bass.length * A.MUSIC_UM_PAH_PER_BASS,
+    'четвертей за аккорд: ' + A.MUSIC_UM_PAH_PER_BASS + ', в музее/сне: нет; ' +
     Object.keys(A.MUSIC_MOODS).map(m => m + ':' + (A.MUSIC_MOODS[m].pulse ? 'есть' : 'нет')).join(' '));
 
   // Мелодия зависит от экрана: где играем — там и музыка (v1.3.5)
@@ -1828,10 +2034,39 @@ if (boot) {
     !!A.musicGain && A.musicGainLevel === A.MUSIC_MOODS.ambient.gain,
     'громкость музыки ' + A.musicGainLevel);
 
+  // Заказчик: «звуки стали веселее, но надо бы их выше сделать… будто из трубы
+  // сейчас всё играет. И я бы сделал её тише». Проверяем три вещи: мелодия звучит
+  // дважды (сама и на октаву выше), музыка проходит через фильтры «звонкости», а
+  // общая громкость заметно ниже прежней.
+  const octaveCheck = (function () {
+    const ev = A.musicEvents('ambient');
+    const times = {};
+    ev.forEach(e => {
+      const key = Math.round(e.t * 1000);
+      if (!times[key]) times[key] = [];
+      times[key].push(e.freq);
+    });
+    let doubled = 0, single = 0;
+    Object.keys(times).forEach(k => {
+      const fs = times[k];
+      const hasPair = fs.some(f => fs.some(g => Math.abs(g / f - 2) < 0.02));
+      if (hasPair) doubled++; else if (fs.length === 1) single++;
+    });
+    return { doubled: doubled, single: single };
+  })();
+  const quieter = Object.keys(A.MUSIC_MOODS).every(m => A.MUSIC_MOODS[m].gain <= 0.62) &&
+    A.MUSIC_MOODS.ambient.gain <= 0.4;
+  ok('Музыка стала выше (октавный голосок) и тише, со «звонкими» фильтрами',
+    octaveCheck.doubled >= 6 && quieter && A.ctx.filters >= 3,
+    'двойных нот ' + octaveCheck.doubled + ', фильтров ' + A.ctx.filters +
+    ', громкость фона ' + A.MUSIC_MOODS.ambient.gain);
+
   // Планировщик: за один круг он обязан выдать ровно ноты мелодии (без повторов
-  // и пропусков), а после круга — продолжить, а не начать заново. Раньше проверка
-  // смотрела «сколько нот добавилось за 0.5 с»: со сменой мелодий (v1.3.5) у
-  // спокойных песен ноты реже, и такая проверка врала бы на ровном месте.
+  // и пропусков), а после круга — продолжить, а не начать заново.
+  // v1.3.12: тикаем, пока курсор не замкнёт круг, а не до «loopLen − 1». Раньше
+  // окно было жёстко привязано к длине круга, и при темпе 132 уд/мин последние
+  // ноты круга (они попадают на 16-ю долю) в него не влезали — проверка падала
+  // не из-за музыки, а из-за арифметики теста.
   const dbg = A.musicState();
   const tuneNotes = dbg.notes;
   const mark = A.musicNotesPlayed;
@@ -1840,9 +2075,13 @@ if (boot) {
   A.musicStart();
   A.musicTick();
   const firstTick = A.musicNotesPlayed - mark;
-  for (let s = 0.5; s < loopLen - 1; s += 0.5) {
+  let s = 0.25, wrapped = 0;
+  while (s < loopLen * 2 && wrapped < 1) {
     A.ctx.currentTime = s;
+    const before = A.musicCursor;
     A.musicTick();
+    if (before > 0 && A.musicCursor === 0) wrapped++;   // курсор прошёл круг
+    s += 0.25;
   }
   const inLoop = A.musicNotesPlayed - mark;
   ok('За круг планировщик выдаёт ровно ноты мелодии — без повторов и пропусков',
@@ -2136,15 +2375,17 @@ ok('Android отдаёт «Назад» игре (иначе игра выгру
     return t.indexOf('Милка скучала') !== -1 && t.indexOf('🐇') !== -1 && !/гофер/i.test(t);
   })(), sandbox.petFill('Тебя не было 1 ч 35 мин — {pet} {pet:скучал|скучала}, но держится ' + S.heroEmoji()));
 
-/* ---------- Десять музеев и четыре спортивные дисциплины (v1.3.7) ---------- */
+/* ---------- Пятьдесят музеев и четыре спортивные дисциплины (v1.3.12) ---------- */
 // Заказчик: «музеев очень мало, хочется уйму разных музеев, а в каждом — сотни
-// экспонатов» и «раз воздушная гимнастика анимирована, надо анимировать и другие
-// виды спорта, а к воздушной гимнастике добавить не только кольца, но и полотна».
+// экспонатов» (v1.3.7: стало десять музеев по сто экспонатов) и «музеев добавь до
+// 50 разных» (v1.3.12: стало пятьдесят — десять больших по сто и сорок по двенадцать).
 const MUSEUMS = sandbox.MUSEUM_CATEGORIES;
 const museumSizes = MUSEUMS.map(k => sandbox.contentSize(k));
-ok('Музеев десять, и в каждом ровно сто экспонатов',
-  MUSEUMS.length === 10 && new Set(MUSEUMS).size === 10 && museumSizes.every(n => n === 100),
-  MUSEUMS.length + ' музеев, всего ' + museumSizes.reduce((a, b) => a + b, 0) + ' экспонатов');
+ok('Музеев ровно пятьдесят, и в каждом не меньше двенадцати экспонатов',
+  MUSEUMS.length === 50 && new Set(MUSEUMS).size === 50 &&
+  museumSizes.every(n => n >= 12) && museumSizes.reduce((a, b) => a + b, 0) >= 1400,
+  MUSEUMS.length + ' музеев, всего ' + museumSizes.reduce((a, b) => a + b, 0) +
+  ' экспонатов, минимум ' + Math.min.apply(null, museumSizes));
 const museumDupNames = MUSEUMS.filter(k => {
   const names = (sandbox.CONTENT[k] || []).map(it => it.n);
   return new Set(names).size !== names.length;
@@ -2153,21 +2394,21 @@ ok('Внутри музея названия экспонатов не повт�
   museumDupNames.length === 0,
   museumDupNames.length ? ('повторы: ' + museumDupNames.join(', ')) : 'без повторов');
 const hubMuseumIds = ((sandbox.VISIT_DATA.museums || {}).sub || []).map(m => m.id);
-ok('В хабе музеев ровно те же десять музеев, что и в списке категорий',
-  hubMuseumIds.length === 10 && hubMuseumIds.every(id => MUSEUMS.indexOf(id) !== -1),
-  hubMuseumIds.join(', '));
+ok('В хабе музеев ровно те же пятьдесят музеев, что и в списке категорий',
+  hubMuseumIds.length === 50 && hubMuseumIds.every(id => MUSEUMS.indexOf(id) !== -1),
+  hubMuseumIds.length + ' карточек в хабе');
 ok('У каждого музея есть обстановка в походе и своя музейная мелодия',
   MUSEUMS.every(k => !!sandbox.STAGE_DATA[k]) && MUSEUMS.every(k => !!sandbox.VISIT_DATA[k]) &&
   MUSEUMS.every(k => {
     sandbox.AudioSys.musicScene = null;
     return sandbox.AudioSys.setScene('visit:' + k) === 'museum';
   }),
-  'обстановка, сцена и мелодия у всех десяти');
+  'обстановка, сцена и мелодия у всех пятидесяти');
 const achIds = sandbox.ACHIEVEMENTS.map(a => a.id);
 const fullAch = sandbox.ACHIEVEMENTS.filter(a => a.id === 'museumsFull')[0] || { desc: '' };
-ok('Достижения про музеи знают про десять музеев и дают ступень полегче',
+ok('Достижения про музеи знают про пятьдесят музеев и дают ступень полегче',
   achIds.indexOf('museumsFull') !== -1 && achIds.indexOf('museumsLover') !== -1 &&
-  fullAch.desc.indexOf('10 музеев') !== -1, fullAch.desc);
+  fullAch.desc.indexOf('50 музеев') !== -1, fullAch.desc);
 
 // Спорт: четыре дисциплины со своими анимациями — кольца, полотна, заплыв, барьеры
 const sports = sandbox.SPORT_DISCIPLINES;

@@ -298,19 +298,17 @@ class StatsScene {
 
   drawKnowledgeTab(ctx, W, H) {
     // Коллекция: сколько предметов уже увидено из базы контента.
-    // Музеи (v1.3.7 — их десять) берём из общего списка, чтобы вкладка не отставала.
-    const MUSEUM_META = {
-      art_museum: ['🖼️', 'Художественный музей'],
-      nature_museum: ['🦕', 'Музей природы'],
-      space_museum: ['🚀', 'Космический музей'],
-      history_museum: ['🏺', 'Исторический музей'],
-      rail_museum: ['🚂', 'Музей железных дорог'],
-      navy_museum: ['⚓', 'Морской музей'],
-      tech_museum: ['💡', 'Музей науки и техники'],
-      music_museum: ['🎼', 'Музей музыки и театра'],
-      toy_museum: ['🧸', 'Музей игрушек'],
-      palace_museum: ['🏰', 'Дворцовый музей']
-    };
+    // Названия музеев берём из хаба на карте (VISIT_DATA.museums.sub), а список — из
+    // MUSEUM_CATEGORIES: один источник на всю игру, поэтому вкладка не отстаёт.
+    // v1.3.12: музеев стало пятьдесят, поэтому список листается (стрелки и палец).
+    const hub = (typeof VISIT_DATA !== 'undefined' && VISIT_DATA.museums &&
+      VISIT_DATA.museums.sub) || [];
+    const MUSEUM_META = {};
+    hub.forEach(m => {
+      const plain = /музе/.test(m.name) ||
+        /^(Океанариум|Планетарий|Ботанический сад|Театр кукол)$/.test(m.name);
+      MUSEUM_META[m.id] = [m.emoji, m.name + (plain ? '' : ' музей')];
+    });
     const museumKeys = (typeof MUSEUM_CATEGORIES !== 'undefined') ? MUSEUM_CATEGORIES : Object.keys(MUSEUM_META);
     const cats = museumKeys.map(k => {
       const m = MUSEUM_META[k] || ['🏛️', k];
@@ -335,14 +333,27 @@ class StatsScene {
       return { emoji: c.emoji, name: c.name, seen: seen, total: total };
     });
 
-    // Строк стало больше (десять музеев), поэтому высота подстраивается: список
-    // должен влезать целиком даже на маленьком экране, без наложений.
+    // Строки фиксированной высоты, а длинный список листается: раньше высота
+    // подгонялась под экран, но с пятьюдесятью музеями строки стали бы нечитаемыми
+    // (v1.3.12). Листание общее с достижениями — стрелки и перетаскивание.
     const startY = 92;
-    const avail = H - startY - 74;
-    const rowH = Math.max(15, Math.min(34, avail / rows.length - 4));
+    const bottomY = H - 74;
+    const rowH = 28;
+    const gap = 5;
+    const contentH = rows.length * (rowH + gap);
+    const maxScroll = Math.max(0, contentH - (bottomY - startY));
+    this.knowView = { top: startY, bottom: bottomY };
+    this.achView = this.knowView;          // перетаскивание списка — общее с достижениями
+    this.achMaxScroll = maxScroll;
+    this.knowScroll = clamp(this.achScroll || 0, 0, maxScroll);
 
+    ctx.save();
+    ctx.beginPath();
+    roundRect(ctx, 0, startY, W, bottomY - startY, 0);
+    ctx.clip();
     rows.forEach((r, i) => {
-      const y = startY + i * (rowH + 5);
+      const y = startY + i * (rowH + gap) - this.knowScroll;
+      if (y + rowH < startY || y > bottomY) return;
       const pct = r.total > 0 ? r.seen / r.total : 0;
 
       ctx.fillStyle = 'rgba(255,255,255,0.08)';
@@ -367,6 +378,23 @@ class StatsScene {
       ctx.font = `bold ${Math.min(W * 0.028, 11)}px Arial`;
       ctx.fillText(r.seen + '/' + r.total, W - 22, y + rowH / 2);
     });
+    ctx.restore();
+
+    // Стрелки листания: видно, что список можно листать (как в достижениях)
+    if (this.knowScroll > 0.5) {
+      const up = createButton(ctx, W - 36, startY + 2, 30, 26, '▲', {
+        bgColor: 'rgba(255,255,255,0.22)', fgColor: '#fff', fontSize: 13, radius: 8, shadow: false
+      });
+      up.action = 'knowUp';
+      this.buttons.push(up);
+    }
+    if (this.knowScroll < maxScroll - 0.5) {
+      const down = createButton(ctx, W - 36, bottomY - 30, 30, 26, '▼', {
+        bgColor: 'rgba(255,255,255,0.22)', fgColor: '#fff', fontSize: 13, radius: 8, shadow: false
+      });
+      down.action = 'knowDown';
+      this.buttons.push(down);
+    }
 
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
@@ -420,11 +448,15 @@ class StatsScene {
   handleClick(mx, my) {
     AudioSys.play('click');
 
-    // Стрелки листания достижений (их нет в списке вкладок)
+    // Стрелки листания (их нет в списке вкладок): достижения и «Знания» листаются
+    // одним счётчиком — список музеев стал длинным (v1.3.12)
     for (const b of this.buttons) {
-      if ((b.action === 'achUp' || b.action === 'achDown') && isPointInRect(mx, my, b.x, b.y, b.w, b.h)) {
-        const step = (this.achView ? (this.achView.bottom - this.achView.top) * 0.7 : 200);
-        this.achScroll = clamp((this.achScroll || 0) + (b.action === 'achDown' ? step : -step), 0, this.achMaxScroll || 0);
+      if ((b.action === 'achUp' || b.action === 'achDown' ||
+           b.action === 'knowUp' || b.action === 'knowDown') && isPointInRect(mx, my, b.x, b.y, b.w, b.h)) {
+        const view = this.achView || this.knowView;
+        const down = (b.action === 'achDown' || b.action === 'knowDown');
+        const step = (view ? (view.bottom - view.top) * 0.7 : 200);
+        this.achScroll = clamp((this.achScroll || 0) + (down ? step : -step), 0, this.achMaxScroll || 0);
         return true;
       }
     }
@@ -455,10 +487,11 @@ class StatsScene {
   // Листание достижений пальцем: тянем список — он едет (как у друзей).
   // Стрелки листания при этом остаются кнопками, а не перетаскиванием.
   beginDrag(mx, my) {
-    if (this.tab !== 'ach' || !this.achView) return false;
+    if ((this.tab !== 'ach' && this.tab !== 'knowledge') || !this.achView) return false;
     if (my < this.achView.top || my > this.achView.bottom) return false;
     for (const b of this.buttons) {
-      if ((b.action === 'achUp' || b.action === 'achDown') && isPointInRect(mx, my, b.x, b.y, b.w, b.h)) return false;
+      if ((b.action === 'achUp' || b.action === 'achDown' ||
+           b.action === 'knowUp' || b.action === 'knowDown') && isPointInRect(mx, my, b.x, b.y, b.w, b.h)) return false;
     }
     this.dragFrom = { y: my, scroll: this.achScroll || 0 };
     return true;

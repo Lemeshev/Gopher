@@ -150,13 +150,26 @@ function reviewerStatic() {
 /* ---------- Эмулятор браузера ---------- */
 function createSandbox() {
   const gradient = { addColorStop() {} };
+  const audioParam = () => ({ value: 1, setValueAtTime() {}, linearRampToValueAtTime() {},
+    exponentialRampToValueAtTime() {}, setTargetAtTime() {}, cancelScheduledValues() {} });
   const ctxStub = new Proxy({
     canvas: { width: 360, height: 640 },
     measureText: () => ({ width: 10 }),
     createLinearGradient: () => gradient,
     createRadialGradient: () => gradient,
     createPattern: () => null,
-    getImageData: () => ({ data: [] })
+    getImageData: () => ({ data: [] }),
+    // v1.3.12: музыке нужны осцилляторы, регуляторы и фильтры — без них реальный
+    // AudioSys в этой песочнице не поднимал громкость и «сыграно нот» оставалось 0.
+    currentTime: 0,
+    state: 'running',
+    destination: {},
+    resume() { this.state = 'running'; },
+    suspend() { this.state = 'suspended'; },
+    createOscillator: () => ({ type: '', frequency: audioParam(), connect() {}, start() {}, stop() {} }),
+    createGain: () => ({ gain: audioParam(), connect() {} }),
+    createBiquadFilter: () => ({ type: '', frequency: audioParam(), Q: audioParam(),
+      gain: audioParam(), connect() {} })
   }, {
     get(t, p) { return p in t ? t[p] : function () {}; },
     set(t, p, v) { t[p] = v; return true; }
@@ -379,7 +392,7 @@ function reviewerClicks(runtime) {
         const vs = __game.scenes.visit;
         vs.draw(__game.ctx);
         const museumBtns = (vs.buttons || []).filter(b => (b.text || '').indexOf('museum_') === 0);
-        ok('Хаб музеев: карточки музеев на странице (v1.3.7 — их десять, по шесть на экран)',
+        ok('Хаб музеев: карточки музеев на странице (v1.3.12 — их пятьдесят, по шесть на экран)',
            museumBtns.length === 6, 'их ' + museumBtns.length);
         if (museumBtns.length) {
           click(museumBtns[0]);
@@ -536,6 +549,27 @@ function reviewerApk() {
     certOk = out.indexOf('Gopher Life') !== -1;
   } catch (e) { certOk = false; certInfo = String(e.message).slice(0, 70); }
   check('APK подписан релизным ключом проекта', certOk, certInfo);
+
+  // Цепочка релиза одной командой (v1.3.11). Заказчик: «Ты не забываешь
+  // копировать новую версию на десктоп и загружать её на RuStore?» Сборка и копия
+  // на рабочий стол делаются одной командой `npm run release`, и она же напоминает
+  // про RuStore — проверяем, что скрипт на месте, что копия совпадает с APK и что
+  // памятка для консоли готова.
+  const releasePath = path.join(ROOT, 'tools', 'release.js');
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  const releaseSrc = fs.existsSync(releasePath) ? fs.readFileSync(releasePath, 'utf8') : '';
+  const deskApk = path.join(require('os').homedir(), 'Desktop', 'Gopher.apk');
+  let deskSame = false, deskInfo = 'копии нет';
+  if (fs.existsSync(deskApk) && fs.existsSync(APK)) {
+    const md5 = p => require('crypto').createHash('md5').update(fs.readFileSync(p)).digest('hex');
+    deskSame = md5(deskApk) === md5(APK);
+    deskInfo = deskSame ? 'копия совпадает с APK (md5 ' + md5(deskApk).slice(0, 8) + '…)' : 'копия устарела';
+  }
+  check('Релиз собирается одной командой, копия APK на рабочем столе свежая',
+    !!(pkg.scripts && pkg.scripts.release) && releaseSrc.indexOf('copy-apk') !== -1 &&
+    releaseSrc.indexOf('rustore-publish.js status --go') !== -1 &&
+    fs.existsSync(path.join(ROOT, 'store', 'CONSOLE_PASTE.txt')) && deskSame,
+    'npm run release · ' + deskInfo);
 }
 
 /* ---------- РЕВЬЮЕР 5: реальный рендер в браузере ---------- */
@@ -607,9 +641,31 @@ function reviewerV12Static() {
     helpers.indexOf("document.execCommand('copy')") !== -1 && helpers.indexOf('navigator.clipboard.writeText') !== -1);
   check('Вставка: navigator.clipboard.readText + подсказка про меню Android',
     helpers.indexOf('navigator.clipboard.readText') !== -1 && helpers.indexOf('Вставить') !== -1);
+  // v1.3.12: заказчик прислал скриншот — при отправке кода WebView открывал
+  // «sms:?body=…», такую схему не умеет и показывал ребёнку страницу ошибки
+  // «net::ERR_UNKNOWN_URL_SCHEME» вместо игры. Теперь: системный мост Android
+  // (ACTION_SEND) → Web Share → копия в буфер, а не-веб схемы игра не открывает.
+  const mainActivitySrc = fs.readFileSync(path.join(ROOT,
+    'android/app/src/main/java/com/gopherlife/app/MainActivity.java'), 'utf8');
+  check('Код друга отправляется системным «Поделиться», а не sms:-ссылкой (v1.3.12)',
+    helpers.indexOf("'sms:") === -1 &&
+    helpers.indexOf('AndroidBridge.share') !== -1 &&
+    helpers.indexOf('^https?') !== -1 &&
+    mainActivitySrc.indexOf('"AndroidBridge"') !== -1 &&
+    mainActivitySrc.indexOf('ACTION_SEND') !== -1 &&
+    mainActivitySrc.indexOf('shouldOverrideUrlLoading') !== -1,
+    'мост AndroidBridge + WebViewClient отдаёт sms:/tel:/mailto: системе');
   check('Короткий код друга — 16 символов (можно набрать руками)',
     system.indexOf('getShortCode()') !== -1 && system.indexOf('unpackShortCode(') !== -1 &&
     system.indexOf('CODE32') !== -1 && system.indexOf('code32Checksum') !== -1);
+  // v1.3.12: заказчик — «нельзя ли как-то коды сделать менее страшными для
+  // пересылки? Обязательно прям такие огромные?» Полный код больше не base64 от
+  // JSON, а плотная упаковка битами нашим алфавитом, и он копируется кнопкой.
+  check('Полный код друга упакован битами, а рядом есть кнопка копирования короткого',
+    system.indexOf('unpackFullCode(') !== -1 && system.indexOf('bitsToCode32') !== -1 &&
+    system.indexOf('FULL_CODE_ROOMS') !== -1 && system.indexOf('utf8ToBytes') !== -1 &&
+    friends.indexOf("'copy_short'") !== -1 &&
+    friends.indexOf('Скопировать короткий код') !== -1);
   check('Полный код (весь дом) и короткий разбираются автоматически',
     system.indexOf('addFriendCode(') !== -1 && friends.indexOf('Или коротк') !== -1 || friends.indexOf('короткие 16 знаков') !== -1);
   check('В друзьях есть кнопка копирования и поле вставки',
@@ -664,8 +720,12 @@ function reviewerV12Static() {
   const seaSpecies = (seaBlock.match(/\{ id: '/g) || []).length;
   const seaFriends = (friendBlock.match(/\{ id: '/g) || []).length;
   check('Подводный мир: ' + seaSpecies + ' видов рыб и ' + seaFriends + ' больших обитателей',
-    seaSpecies >= 100 && seaFriends >= 7 && content.indexOf('fishAll') !== -1 &&
-    content.indexOf('fishMaster') !== -1 && content.indexOf('seaFriendHint') !== -1,
+    seaSpecies >= 100 && seaFriends >= 16 && content.indexOf('fishAll') !== -1 &&
+    content.indexOf('fishMaster') !== -1 && content.indexOf('seaFriendHint') !== -1 &&
+    // v1.3.12: заказчик попросил дельфинов, косаток и скатов — проверяем, что новые
+    // обитатели не только в списке, но и нарисованы своей фигурой в drawSeaFriend
+    ['dolphin', 'orca', 'ray', 'whale', 'seal', 'swordfish', 'sunfish', 'squid', 'moray']
+      .every(k => quietSrc.indexOf("k === '" + k + "'") !== -1 || quietSrc.indexOf("'" + k + "'") !== -1),
     'рыб ' + seaSpecies + ', больших ' + seaFriends + ', у каждого свой факт');
   check('Длинный факт о рыбе переносится по строкам, а не ужимается в одну (v1.3.10)',
     quietSrc.indexOf('wrapLines(ctx, this.result') !== -1 &&
@@ -680,6 +740,20 @@ function reviewerV12Static() {
     // объяснение осталось — оно всплывает, когда большой обитатель идёт мимо крючка
     quietSrc.indexOf('Рыбок ловим') === -1 &&
     quietSrc.indexOf('friendHintText') !== -1 && quietSrc.indexOf('seaFriendHint') !== -1);
+  // v1.3.12: заказчик — «странно, что всех рыб можно наловить прям за один день…
+  // надо каких-то редких рыб сделать появляющимися с меньшей вероятностью».
+  check('Редкость рыб: четыре ступени, шанс и награда зависят от неё (v1.3.12)',
+    content.indexOf('FISH_RARITY') !== -1 && content.indexOf('function fishRarityOf') !== -1 &&
+    content.indexOf('function randomFishSpecies') !== -1 &&
+    quietSrc.indexOf('fishRarityOf(d)') !== -1 && quietSrc.indexOf('rarity.name') !== -1 &&
+    quietSrc.indexOf('System.earnCoins(bonus)') !== -1,
+    'обычная 70% · редкая 20% · очень редкая 8% · легендарная 2%; за редкую платят больше монет');
+  // v1.3.12: заказчик — «улучши раскраски, а то они все однотипные».
+  const paintCount = (quietSrc.match(/\{ id: '(gopher|fish|ship|house|cake|butterfly|rocket|flower)',\s*\n?\s*name: '/g) || []).length;
+  check('Раскрасок восемь, у каждой своё имя и палитра (v1.3.12)',
+    quietSrc.indexOf('PAINT_PICTURES') !== -1 && paintCount === 8 &&
+    quietSrc.indexOf('Другая картинка') !== -1 && quietSrc.indexOf("markSeen('paint'") !== -1,
+    'картинок ' + paintCount + ', у каждой свой набор частей и цветов');
   // v1.3.7: спортивных дисциплин стало четыре, и каждая живёт в своей локации
   const aerialSrc = fs.readFileSync(path.join(WWW, 'js', 'game_aerial.js'), 'utf8');
   check('Есть четыре анимированные спортивные дисциплины (кольца, полотна, заплыв, барьеры)',
@@ -756,6 +830,11 @@ function reviewerV12Runtime(rt) {
     vmRes(`System.friends = [];`);
     const addedLong = vmRes('System.addFriendCode(' + JSON.stringify(longCode) + ", 'Полный').ok");
     ok('Друг добавляется и по короткому, и по полному коду', addedShort === true && addedLong === true);
+    // v1.3.12: полный код теперь короткий и без «страшных» знаков — проверяем на
+    // живом коде из браузера, а не только по исходникам
+    ok('Полный код короткий и «не страшный»: цифры, заглавные буквы и дефисы',
+      /^[0-9A-Z-]+$/.test(longCode) && !/[IO]/.test(longCode) && longCode.length <= 220,
+      longCode.length + ' знаков: ' + longCode.slice(0, 24) + '…');
     ok('Испорченный короткий код не принимается',
       vmRes(`System.unpackShortCode('AAAAAAAAAAAAAAAA')`) === null);
 
@@ -785,14 +864,19 @@ function reviewerV12Runtime(rt) {
     // Тихие игры: награда и отсутствие трат энергии
     vmRes(`System.resetProgress(); System.coins = 0; System.stats.energy = 60; System.stats.stress = 50;`);
     vmRes(`const qs = __game.scenes.quiet; qs.init(); qs.startGame('color');` +
-          ` const pa = { x: __game.width * 0.12, y: __game.height * 0.14, w: __game.width * 0.76, h: __game.height * 0.54 };` +
+          // Рамка картинки — как в drawColor/clickColor: y 0.16, h 0.52 (v1.3.12)
+          ` const pa = { x: __game.width * 0.12, y: __game.height * 0.16, w: __game.width * 0.76, h: __game.height * 0.52 };` +
+          // Один тап может прийтись на уже закрашенную деталь, лежащую сверху,
+          // поэтому проходим список по кругу, а не «первые 40 тапов»: так раскраска
+          // заканчивается для любой из восьми картинок (было флейки, v1.3.12)
           ` let guard = 0;` +
-          ` while (!qs.paint.done && guard++ < 40) {` +
-          `   const part = qs.paint.parts.find(p => !p.fill) || qs.paint.parts[0];` +
+          ` while (!qs.paint.done && guard++ < 120) {` +
+          `   const part = qs.paint.parts[(guard - 1) % qs.paint.parts.length];` +
+          `   if (part.fill) continue;` +
           `   const cx = part.kind === 'rect' ? pa.x + pa.w * (part.x + part.w / 2) : pa.x + pa.w * part.cx;` +
           `   const cy = part.kind === 'rect' ? pa.y + pa.h * (part.y + part.h / 2) : pa.y + pa.h * part.cy;` +
           `   qs.paint.picked = 0; qs.clickColor(cx, cy); }` +
-          ` if (!qs.paint.done) throw new Error('раскраску нельзя закончить за 40 тапов');`);
+          ` if (!qs.paint.done) throw new Error('раскраску нельзя закончить тапами по деталям');`);
     ok('Тихая игра даёт монеты и НЕ тратит энергию',
       vmRes(`System.coins > 0 && System.stats.energy === 60`),
       vmRes(`System.coins`) + ' монет, энергия ' + vmRes(`System.stats.energy`));
@@ -927,9 +1011,11 @@ function reviewerV12Runtime(rt) {
         seen: Object.keys(System.fishSeen || {}).length, friendsCaught: friendsCaught,
         hint: (typeof seaFriendHint === 'function') ? seaFriendHint('turtle') : '' };
     })()`);
+    // v1.3.12: обычных видов теперь 22 (редкие приходят реже), поэтому за шесть
+    // забросов гарантированно ждём минимум два разных вида, а не три
     ok('Подводный мир: рыбки и большие плавают, улов считается по разным видам',
       !!seaRes && seaRes.fish >= 5 && seaRes.friends >= 1 && seaRes.moved === true &&
-      seaRes.caught === 6 && seaRes.seen >= 3 && seaRes.species >= 20,
+      seaRes.caught === 6 && seaRes.seen >= 2 && seaRes.species >= 20,
       seaRes ? ('рыбок ' + seaRes.fish + ', больших ' + seaRes.friends + ', поймано ' + seaRes.caught +
         ' (' + seaRes.seen + ' видов из ' + seaRes.species + ')') : 'нет данных');
     ok('Больших обитателей поймать нельзя, и игра объясняет это словами',
@@ -1144,6 +1230,7 @@ function reviewerAchievements(rt) {
     const base = Date.UTC(2030, 0, 1, 12, 0, 0), day = 86400000;
     const openedOn = {};
     const mark = () => { for (const id of System.achievements) if (openedOn[id] === undefined) openedOn[id] = System.progress.days; };
+    let museumVisits = 0;                 // по одному музею за «полный» день
     const playDay = function (i, full) {
       System.registerDay(base + i * day);
       const p = System.progress;
@@ -1157,7 +1244,15 @@ function reviewerAchievements(rt) {
       System.stats.intelligence = Math.min(100, System.stats.intelligence + (full ? 6 : 1));
       // Уход из настоящих кнопок дома: покормил, искупал, поиграл
       if (full) { System.stats.hunger = 95; System.stats.cleanliness = 92; System.stats.happiness = 95; System.stats.health = 95; }
-      if (full) MUSEUM_CATEGORIES.forEach((c, k) => { for (let j = 0; j < 2; j++) System.markSeen(c, c + ':d' + i + '-' + k + '-' + j); });
+      // Музеи: за «полный» день герой успевает дойти до ОДНОГО музея и осмотреть там
+      // всю подборку визита (12 экспонатов). Раньше метили по два предмета сразу во
+      // всех музеях — из-за этого «Хранитель музеев» (теперь это по 12 экспонатов в
+      // каждом из 50 музеев) открывался на шестой день (v1.3.12).
+      if (full) {
+        const mu = MUSEUM_CATEGORIES[museumVisits % MUSEUM_CATEGORIES.length];
+        for (let j = 0; j < 12; j++) System.markSeen(mu, mu + ':d' + i + '-' + j);
+        museumVisits++;
+      }
       // Рыбалка (v1.3.9): за «полные» дни герой успевает собрать весь улов —
       // так проверяется и достижение «Ихтиолог» (20 разных видов)
       if (full) FISH_SPECIES.forEach(f => { System.fishSeen[f.id] = 1; });
@@ -1642,6 +1737,28 @@ function reviewerAudio(rt) {
     audio.indexOf('MUSIC_LOOKAHEAD') !== -1);
   check('Музыка играет сама: планировщик вызывается из игрового цикла',
     gameSrc.indexOf('AudioSys.musicTick()') !== -1 && audio.indexOf('musicTick()') !== -1);
+  // v1.3.12: заказчик — «музыка пока что очень заунывная, сделай повеселей будто
+  // детские мелодии какие-нибудь». Причина нашлась в коде: мелодия записана
+  // СТУПЕНЯМИ гаммы, а игралась как ПОЛУТОНЫ — в до-мажоре звучали фа-диез и
+  // ми-бемоль. Проверяем по исходнику: ступени переводятся через musicScaleStep,
+  // гамма — полный до-мажор (есть фа и си), а бас получил «ум-пах» четвертями.
+  check('Мелодия идёт ступенями гаммы (musicScaleStep), а не полутонами (v1.3.12)',
+    audio.indexOf('musicScaleStep(i) {') !== -1 &&
+    /add\(tune\.lead, m\.lead, [\d.]+, true\)/.test(audio) &&
+    /MUSIC_SCALE: \[0, 2, 4, 5, 7, 9, 11/.test(audio) &&
+    audio.indexOf('musicUmPah(tune, beat, shift, out)') !== -1,
+    'гамма — до-мажор с фа и си; у баса «ум-пах» из четвертей');
+  // v1.3.12: заказчик — «звуки стали веселее, но надо бы их выше сделать… будто из
+  // трубы сейчас всё играет. И я бы сделал её тише». «Труба» — глухой тембр, поэтому:
+  // мелодия звучит ещё и на октаву выше («стеклянный» голосок), музыка проходит через
+  // обрез низа, подъём на 2.6 кГц и «воздух» сверху, а общая громкость снижена.
+  check('Музыка стала выше и тише: октавный голосок, фильтры звонкости, громкость ниже (v1.3.12)',
+    audio.indexOf("add(tune.lead, 'sine', 0.095, true, 12)") !== -1 &&
+    audio.indexOf('createBiquadFilter') !== -1 &&
+    audio.indexOf('highpass.frequency.value = 170') !== -1 &&
+    audio.indexOf('shine.gain.value = 4.5') !== -1 &&
+    audio.indexOf('gain: 0.34') !== -1 && audio.indexOf('gain: 0.62') !== -1,
+    'октава выше + обрез низа + подъём 2.6 кГц; громкость фона 0.34 вместо 0.50');
   // v1.3.5: «дети спрашивают — музыка всегда одинаковая или будет меняться?»
   check('Сцены сообщают музыке, где мы: меню/карта, дом, магазин, музей, сон',
     gameSrc.indexOf('AudioSys.setScene(sceneName)') !== -1 &&
@@ -1705,6 +1822,12 @@ function reviewerAudio(rt) {
       createGain() {
         return { gain: { value: 1, setValueAtTime() {}, linearRampToValueAtTime() {},
                          exponentialRampToValueAtTime() {}, setTargetAtTime() {} }, connect() {} };
+      },
+      // v1.3.12: музыка идёт через фильтры «выше и звонче» (обрез низа, подъём
+      // 2.6 кГц, «воздух»). Без них в этом фейке музыка не поднималась, и проверки
+      // видели «нот 0».
+      createBiquadFilter() {
+        return { type: '', frequency: { value: 0 }, Q: { value: 0 }, gain: { value: 0 }, connect() {} };
       }
     };
     const keepCtx = A.ctx, keepGain = A.musicGain;
@@ -1783,9 +1906,9 @@ function reviewerAudio(rt) {
       const ns = A.musicParseLead(t.lead);
       return ns.reduce((sum, n) => sum + n.i, 0) / ns.length;
     }));
-    const stabBuf = [];
-    A.musicStabs(A.musicTune(), 0.5, 0, stabBuf);
-    scale.stabOk = stabBuf.length === A.musicTune().bass.length * A.MUSIC_STABS_PER_BASS;
+    const umPahBuf = [];
+    A.musicUmPah(A.musicTune(), 0.5, 0, umPahBuf);
+    scale.umPahOk = umPahBuf.length === A.musicTune().bass.length * A.MUSIC_UM_PAH_PER_BASS;
     scale.pulseOk = A.MUSIC_MOODS.home.pulse === true && A.MUSIC_MOODS.play.pulse === true &&
       A.MUSIC_MOODS.museum.pulse === false && A.MUSIC_MOODS.sleep.pulse === false;
     // Настроение по экранам: где играем — там и музыка
@@ -1835,9 +1958,9 @@ function reviewerAudio(rt) {
     !!music.scale && music.scale.bpmMin >= 100 && music.scale.leadAvgMin >= 3,
     music.scale ? ('темпы ' + music.scale.bpmAll + '; средний индекс ноты не ниже ' +
       music.scale.leadAvgMin.toFixed(1)) : musicWhy);
-  check('У баса есть ритм-«подскок» на слабые доли, в музее и во сне — тишина (v1.3.8)',
-    !!music.scale && music.scale.stabOk === true && music.scale.pulseOk === true,
-    music.scale ? ('подскоков за аккорд: ' + (music.scale.stabOk ? 'включены' : 'нет')) : musicWhy);
+  check('Бас «шагает» четвертями («ум-пах»), в музее и во сне — тишина (v1.3.12)',
+    !!music.scale && music.scale.umPahOk === true && music.scale.pulseOk === true,
+    music.scale ? ('четвертей за аккорд: ' + (music.scale.umPahOk ? 'включены' : 'нет')) : musicWhy);
   check('Галочка «Музыка» выключена — петля замолкает и ноты не расписываются',
     !!music.off && music.tickOff === false && music.off.music === false &&
     music.off.playing === false && music.off.gain < 0.01,
@@ -2535,29 +2658,30 @@ function reviewerMuseumsAndSports(rt) {
   const mapSrc = fs.readFileSync(path.join(WWW, 'js', 'game_map.js'), 'utf8');
   const statsSrc = fs.readFileSync(path.join(WWW, 'js', 'game_stats.js'), 'utf8');
 
-  // --- 1. Музеев десять, в каждом ровно сто экспонатов ---
+  // --- 1. Музеев пятьдесят: десять больших по сто экспонатов и сорок по двенадцать ---
   const mc = content.match(/const MUSEUM_CATEGORIES = \[([\s\S]*?)\];/);
-  const museumKeys = mc ? (mc[1].match(/'[a-z_]+_museum'/g) || []).map(s => s.slice(1, -1)) : [];
-  check('Музеев стало десять (было четыре)',
-    museumKeys.length === 10 && new Set(museumKeys).size === 10,
-    museumKeys.length ? ('список: ' + museumKeys.join(', ')) : 'списка нет');
+  const museumKeys = mc ? (mc[1].match(/'([a-z_]+)'/g) || []).map(s => s.slice(1, -1)) : [];
+  check('Музеев стало пятьдесят (было десять, а сначала четыре)',
+    museumKeys.length === 50 && new Set(museumKeys).size === 50,
+    museumKeys.length ? ('списке: ' + museumKeys.length + ' музеев') : 'списка нет');
   const sliceMuseum = key => {
     const i = content.indexOf('\n  ' + key + ': [');
     if (i < 0) return '';
     return content.slice(i, content.indexOf('\n  ],', i));
   };
   const sizes = museumKeys.map(k => (sliceMuseum(k).match(/\{ e:/g) || []).length);
-  check('В каждом музее по сто экспонатов (всего тысяча)',
-    sizes.length === 10 && sizes.every(n => n === 100),
-    'экспонатов: ' + sizes.join(', ') + ' → всего ' + sizes.reduce((a, b) => a + b, 0));
+  check('В каждом музее не меньше двенадцати экспонатов, у первых десяти — по сто',
+    sizes.length === 50 && sizes.every(n => n >= 12) &&
+    sizes.slice(0, 10).every(n => n === 100) && sizes.reduce((a, b) => a + b, 0) >= 1400,
+    'экспонатов: ' + sizes.reduce((a, b) => a + b, 0) + ' (минимум ' + Math.min.apply(null, sizes) + ')');
   const dupMuseums = museumKeys.filter(k => {
     const names = (sliceMuseum(k).match(/n: '([^']+)'/g) || []).map(s => s.slice(4, -1));
     return new Set(names).size !== names.length;
   });
   check('Названия внутри музея не повторяются (иначе «изучено 100/100» недостижимо)',
     dupMuseums.length === 0, dupMuseums.length ? ('повторы: ' + dupMuseums.join(', ')) : 'без повторов');
-  check('Достижения знают про десять музеев и дают ступень полегче',
-    /Посмотреть все 100 экспонатов в каждом из 10 музеев/.test(content) &&
+  check('Достижения знают про пятьдесят музеев и дают ступень полегче (v1.3.12)',
+    /по 12 экспонатов в каждом из 50 музеев/.test(content) &&
     content.indexOf("'museumsLover'") !== -1 && /seenCount\(c\) >= 20/.test(content));
   check('Новые музеи описаны как места: сцена, поход и музыка',
     museumKeys.every(k => scenery.indexOf('\n  ' + k + ':') !== -1) &&
@@ -2565,7 +2689,8 @@ function reviewerMuseumsAndSports(rt) {
     audioSrc.indexOf('MUSEUM_CATEGORIES') !== -1);
   check('Плитка «Музеи» и вкладка «Знания» берут список музеев из одного места',
     mapSrc.indexOf('MUSEUM_CATEGORIES.length') !== -1 &&
-    statsSrc.indexOf('MUSEUM_CATEGORIES') !== -1 && statsSrc.indexOf('rail_museum') !== -1);
+    statsSrc.indexOf('MUSEUM_CATEGORIES') !== -1 && statsSrc.indexOf('VISIT_DATA') !== -1,
+    'карта — длину списка, «Знания» — список и названия из хаба');
   check('Сцена спорта зарегистрирована, старое имя «aerial» работает',
     fs.readFileSync(path.join(WWW, 'js', 'game.js'), 'utf8').indexOf('sport: SportScene') !== -1 &&
     aerial.indexOf('window.AerialScene = SportScene') !== -1 &&
@@ -2606,16 +2731,16 @@ function reviewerMuseumsAndSports(rt) {
     return out;
   })()`);
   ok('Хаб музеев: шесть карточек на странице и листание к остальным',
-    mus && (mus.page1 || []).length === 6 && mus.hasNext === true && (mus.page2 || []).length === 4,
+    mus && (mus.page1 || []).length === 6 && mus.hasNext === true && (mus.page2 || []).length === 6,
     mus && mus.page1 ? ('на первой: ' + mus.page1.length + ', на второй: ' + (mus.page2 || []).length) : mus);
-  ok('Десятый музей (Дворцовый) открывается из хаба: сто экспонатов в базе',
+  ok('Дворцовый музей открывается из хаба: сто экспонатов в базе',
     mus && mus.hasCard === true && mus.loc === 'palace_museum' && mus.inBase === 100 &&
     mus.items >= 6 && mus.uniq === mus.items,
     mus && mus.loc ? (mus.loc + ', в базе ' + mus.inBase + ', в подборке ' + mus.items +
       ', сцена: ' + mus.stage) : mus);
-  ok('Каждый из десяти музеев отдаёт сто экспонатов',
-    Array.isArray(mus.sizes) && mus.sizes.length === 10 && mus.sizes.every(n => n === 100),
-    mus && mus.sizes ? mus.sizes.join('/') : mus);
+  ok('Каждый музей отдаёт свою подборку: у новых — по двенадцать экспонатов',
+    Array.isArray(mus.sizes) && mus.sizes.length === 50 && mus.sizes.every(n => n >= 12),
+    mus && mus.sizes ? (mus.sizes.length + ' музеев, минимум ' + Math.min.apply(null, mus.sizes)) : mus);
 
   // --- 3. Живая песочница: четыре спортивные дисциплины ---
   const sport = vmRun(`(function(){

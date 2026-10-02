@@ -8,19 +8,9 @@
   card.txt                тексты: название, краткое/полное описание, «что нового», FAQ
   CONSOLE_PASTE.txt       лист для копипаста в консоль RuStore: по одному полю за раз
 
-ФАЙЛЫ (12 шт.)
+ФАЙЛЫ (2 шт.)
   store/icon-512.png
   store/feature-graphic.jpg
-  store/screens-9x16/01_menu.jpg
-  store/screens-9x16/02_map.jpg
-  store/screens-9x16/03_home.jpg
-  store/screens-9x16/04_achievements.jpg
-  store/screens-9x16/05_shop.jpg
-  store/screens-9x16/06_games.jpg
-  store/screens-9x16/07_fishing.jpg
-  store/screens-9x16/08_museum.jpg
-  store/screens-9x16/09_outfits.jpg
-  store/screens-9x16/10_settings.jpg
 
 НАПОМИНАНИЯ
   • RuStore: тип «Игра», категории «Дети» + «Симуляторы», возрастная категория 0+

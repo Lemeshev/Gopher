@@ -90,7 +90,8 @@ const SCENES = [
   { hash: 'sport~silks',        minColors: 20, minNonBg: 3 },
   { hash: 'sport~swim',         minColors: 20, minNonBg: 3 },
   { hash: 'sport~hurdles',      minColors: 20, minNonBg: 3 },
-  { hash: 'visit~museums',      minColors: 20, minNonBg: 3, needText: ['Музеев: 10'] },
+  // v1.3.12: музеев стало пятьдесят — надпись в хабе «Музеев: 50»
+  { hash: 'visit~museums',      minColors: 20, minNonBg: 3, needText: ['Музеев: 50'] },
   { hash: 'visit~rail_museum',  minColors: 20, minNonBg: 3 },
   { hash: 'visit~navy_museum',  minColors: 20, minNonBg: 3 },
   { hash: 'visit~tech_museum',  minColors: 20, minNonBg: 3 },
@@ -101,7 +102,9 @@ const SCENES = [
   { hash: 'shop@decor:walls',   minColors: 20, minNonBg: 3 },
   { hash: 'shop@decor:floors',  minColors: 20, minNonBg: 3 },
   { hash: 'menu@Персонаж',     minColors: 20, minNonBg: 3 },
-  { hash: 'friends@codes',     minColors: 20, minNonBg: 3 },
+  // v1.3.12: панель кода друга — проверяем, что обе кнопки копирования нарисованы
+  { hash: 'friends@codes',     minColors: 20, minNonBg: 3,
+    needText: ['Скопировать короткий код', 'Скопировать полный код'] },
   { hash: 'friends@codes+open_add',        minColors: 20, minNonBg: 3 },
   { hash: 'friends@visit_0',    minColors: 20, minNonBg: 3 },
   { hash: 'menu@profiles',      minColors: 20, minNonBg: 3 },
