@@ -1541,6 +1541,13 @@ const System = {
       if (!data) return { ok: false, reason: 'bad-short' };
       return this.addFriendData(data, name);
     }
+    // Полный код v4 (v1.3.12): наш алфавит — цифры и заглавные буквы, со
+    // контрольной суммой. Регистр не важен: мессенджер мог испортить его, а код
+    // всё равно читается. Если не сошлось — пробуем base64 (коды старых версий).
+    if (/^[0-9A-Z]+$/.test(upper) && /^[0-9A-HJ-NP-Z]+$/.test(upper)) {
+      const packed = this.unpackFullCode(upper);
+      if (packed) return this.addFriendData(packed, name);
+    }
     // Длинный код: base64 с JSON внутри (регистр букв важен!)
     try {
       const bin = atob(compact);
@@ -1595,24 +1602,66 @@ const System = {
     return this.addFriendCode(code).ok;
   },
 
-  // ПОЛНЫЙ код: весь дом со всеми комнатами (копируется кнопкой)
-  getMyCode(game) {
+  // ПОЛНЫЙ код (v4, v1.3.12) — тот же дом, но упакован битами и записан нашим
+  // алфавитом: цифры и ЗАГЛАВНЫЕ латинские буквы без I и O, группами по 4 знака.
+  //
+  // Заказчик 01.10.2026: «нельзя ли как-то коды сделать менее страшными для
+  // пересылки? Обязательно прям такие огромные?» Раньше полный код был base64 от
+  // JSON: 624 знака даже на пустом доме и под три тысячи на обставленном, со
+  // строчными буквами и знаками «+/=», которые мессенджеры любят портить.
+  // Стало: 90–200 знаков, только цифры и заглавные буквы, группы по четыре.
+  //
+  // Что внутри (по битам): версия 4 · длина имени (байты) и само имя в UTF-8 ·
+  // уровень · монеты · наряды (персонаж, окрас, шляпа, очки, шея, спина) ·
+  // четыре комнаты: обои, пол, количество предметов и сами предметы с местом
+  // (место — сетка 16×16, этого хватает: в гостях комната рисуется как есть).
+  // Цвета мебели в код не кладём: в гостях они не показываются, а место в коде они
+  // занимали заметное. Старые коды продолжают работать: короткие (16 знаков) и
+  // полные base64 (v3) — их присылают друзья со старыми версиями приложения.
+  getMyCode() {
+    const bits = [];
+    const idxOf = (arr, id) => {
+      const i = (arr || []).findIndex(x => (x.id || x.value) === id);
+      return i < 0 ? 0 : i;
+    };
     const name = this.profileName && this.profileName !== DEFAULT_PROFILE_NAME
       ? this.profileName
       : this.characterName() + '#' + (this.level * 100 + Math.floor(this.coins / 10)).toString(36);
-    const data = {
-      v: 3,
-      name: name,
-      level: this.level,
-      coins: this.coins,
-      rooms: this.serializedRooms(),
-      room: { wall: this.currentRoomData().wall, floor: this.currentRoomData().floor },
-      furniture: this.currentRoomData().furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
-      furnitureColors: { ...this.furnitureColors },
-      look: { ...this.look }
-    };
-    try { return btoa(unescape(encodeURIComponent(JSON.stringify(data)))); }
-    catch (e) { return btoa(JSON.stringify(data)); }
+    const nameBytes = utf8ToBytes(String(name).slice(0, 16)).slice(0, 31);
+    pushBits(bits, 4, 3);                                        // версия формата
+    pushBits(bits, nameBytes.length, 5);                         // сколько байт в имени
+    nameBytes.forEach(b => pushBits(bits, b, 8));
+    pushBits(bits, Math.max(1, Math.min(255, this.level | 0)), 8);
+    pushBits(bits, Math.max(0, Math.min(1048575, Math.floor(this.coins || 0))), 20);
+    const look = this.look || {};
+    const chars = (typeof CHARACTERS !== 'undefined') ? CHARACTERS : [{ id: 'gopher' }];
+    const furs = (typeof FURS !== 'undefined') ? FURS : [{ id: 'classic' }];
+    pushBits(bits, idxOf(chars, look.char) & 7, 3);              // персонаж
+    pushBits(bits, idxOf(furs, look.fur) & 7, 3);                // окрас
+    pushBits(bits, Math.max(0, SHORT_HATS.indexOf(look.hat || null)), 3);
+    pushBits(bits, Math.max(0, SHORT_GLASSES.indexOf(look.glasses || null)), 2);
+    pushBits(bits, Math.max(0, SHORT_NECK.indexOf(look.neck || null)), 2);
+    pushBits(bits, Math.max(0, SHORT_BACK.indexOf(look.back || null)), 2);
+    const walls = (typeof WALLS !== 'undefined') ? WALLS : [{ id: 'warm' }];
+    const floors = (typeof FLOORS !== 'undefined') ? FLOORS : [{ id: 'wood' }];
+    const rooms = this.serializedRooms() || {};
+    FULL_CODE_ROOMS.forEach(key => {
+      const r = rooms[key] || {};
+      pushBits(bits, idxOf(walls, r.wall) & 15, 4);              // обои комнаты
+      pushBits(bits, idxOf(floors, r.floor) & 7, 3);             // пол комнаты
+      const items = (r.furniture || []).slice(0, 31);
+      pushBits(bits, items.length, 5);
+      items.forEach(it => {
+        const fi = (typeof FURNITURE !== 'undefined' && Array.isArray(FURNITURE))
+          ? FURNITURE.findIndex(f => f.id === it.id) : -1;
+        pushBits(bits, (fi >= 0 && fi < 127) ? fi + 1 : 0, 7);   // 0 = предмета нет
+        pushBits(bits, Math.max(0, Math.min(15, Math.round((it.x || 0) * 15))), 4);
+        pushBits(bits, Math.max(0, Math.min(15, Math.round((it.y || 0) * 15))), 4);
+      });
+    });
+    const body = bitsToCode32(bits);
+    const code = body + code32Checksum(body);
+    return code.replace(/(.{4})(?=.)/g, '$1-');
   },
 
   // КОРОТКИЙ код: 16 символов группами по 4 — можно надиктовать по телефону
@@ -1733,6 +1782,77 @@ const System = {
     };
   },
 
+  // Разбор полного кода v4 (см. getMyCode). Проверяем контрольную сумму и версию:
+  // повреждённый или чужой код возвращает null, и вызывающий код идёт дальше —
+  // пробует base64 (полные коды старых версий).
+  unpackFullCode(raw) {
+    const clean = String(raw || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
+    if (clean.length < 10) return null;
+    const body = clean.slice(0, -1), sum = clean.slice(-1);
+    if (code32Checksum(body) !== sum) return null;
+    const bits = code32ToBits(clean);
+    if (!bits) return null;
+    let p = 0;
+    if (readBits(bits, p, 3) !== 4) return null; p += 3;
+    const nBytes = readBits(bits, p, 5); p += 5;
+    const bytes = [];
+    for (let i = 0; i < nBytes; i++) { bytes.push(readBits(bits, p, 8)); p += 8; }
+    const name = bytesToUtf8(bytes);
+    const level = readBits(bits, p, 8); p += 8;
+    const coins = readBits(bits, p, 20); p += 20;
+    const charIdx = readBits(bits, p, 3); p += 3;
+    const furIdx = readBits(bits, p, 3); p += 3;
+    const hatIdx = readBits(bits, p, 3); p += 3;
+    const glassIdx = readBits(bits, p, 2); p += 2;
+    const neckIdx = readBits(bits, p, 2); p += 2;
+    const backIdx = readBits(bits, p, 2); p += 2;
+    const chars = (typeof CHARACTERS !== 'undefined') ? CHARACTERS : [{ id: 'gopher' }];
+    const furs = (typeof FURS !== 'undefined') ? FURS : [{ id: 'classic' }];
+    const walls = (typeof WALLS !== 'undefined') ? WALLS : [{ id: 'warm' }];
+    const floors = (typeof FLOORS !== 'undefined') ? FLOORS : [{ id: 'wood' }];
+    const rooms = {};
+    FULL_CODE_ROOMS.forEach(key => {
+      const w = readBits(bits, p, 4); p += 4;
+      const fl = readBits(bits, p, 3); p += 3;
+      const n = readBits(bits, p, 5); p += 5;
+      const furniture = [];
+      for (let i = 0; i < n; i++) {
+        const fi = readBits(bits, p, 7); p += 7;
+        const x = readBits(bits, p, 4); p += 4;
+        const y = readBits(bits, p, 4); p += 4;
+        if (!fi) continue;
+        const f = (typeof FURNITURE !== 'undefined') ? FURNITURE[fi - 1] : null;
+        if (!f) continue;
+        furniture.push({ id: f.id, x: x / 15, y: y / 15 });
+      }
+      rooms[key] = {
+        wall: (walls[w] || walls[0]).id,
+        floor: (floors[fl] || floors[0]).id,
+        furniture: furniture
+      };
+    });
+    const living = rooms.living || { wall: 'warm', floor: 'wood', furniture: [] };
+    return {
+      v: 4,
+      name: name,
+      level: level || 1,
+      coins: coins,
+      rooms: rooms,
+      room: { wall: living.wall, floor: living.floor },
+      furniture: living.furniture,
+      look: {
+        char: (chars[charIdx] || chars[0]).id,
+        fur: (furs[furIdx] || furs[0]).id,
+        hat: SHORT_HATS[hatIdx] || null,
+        glasses: SHORT_GLASSES[glassIdx] || null,
+        neck: SHORT_NECK[neckIdx] || null,
+        back: SHORT_BACK[backIdx] || null,
+        bowtie: SHORT_NECK[neckIdx] === 'bowtie'
+      },
+      trait: 'друг по коду'
+    };
+  },
+
   // Ручное открытие достижения (например, из проверок или будущих наград).
   // Проверяем, что id есть в каталоге, и не открываем дважды.
   addAch(id, opts) {
@@ -1773,6 +1893,9 @@ const System = {
 // Длинный код руками не набрать, поэтому для диктовки есть короткий: 16
 // символов группами по 4 + контрольный символ (защита от опечатки).
 const CODE32 = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+// Порядок комнат в полном коде друга (v4): он должен быть одинаковым при сборке и
+// разборе, иначе комнаты перепутаются местами.
+const FULL_CODE_ROOMS = ['living', 'bedroom', 'kitchen', 'bathroom'];
 // Наборы для короткого кода: индекс — это биты в коде. v2 (v1.3) добавил
 // кепку и бантик к шляпам, шарф к шее и рюкзак/плащ за спину.
 const SHORT_HATS = [null, 'scientist', 'chef', 'crown', 'cap', 'bow'];

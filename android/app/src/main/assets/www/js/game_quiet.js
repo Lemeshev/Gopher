@@ -14,6 +14,108 @@ const SEA_FRIENDS_IN_WATER = 3;
 const FRIEND_SWAP_MIN = 14;
 const FRIEND_SWAP_MAX = 22;
 
+// Картинки для раскраски (v1.3.12). Заказчик 01.10.2026: «улучши раскраски, а то они
+// все однотипные». Раньше картинка была одна и та же (гофер) — менялись только
+// цвета. Теперь восемь картинок, у каждой свой набор частей, своя палитра и своё
+// имя: «Другая картинка» выбирает ту, что ещё не попадалась (как подборка в музее).
+// Координаты — доли рамки картинки, поэтому картинка сама подстраивается под экран.
+const PAINT_PICTURES = [
+  { id: 'gopher', name: '{pet}',
+    face: { x: 0.50, y: 0.32, r: 0.15 },
+    colors: ['#FF6B6B', '#4D96FF', '#6BCB77', '#FFD93D', '#C39BD3', '#FF8C42'],
+    parts: [
+      { id: 'body', kind: 'ellipse', cx: 0.50, cy: 0.60, rx: 0.26, ry: 0.20 },
+      { id: 'head', kind: 'circle', cx: 0.50, cy: 0.32, r: 0.15 },
+      { id: 'earL', kind: 'circle', cx: 0.38, cy: 0.19, r: 0.07 },
+      { id: 'earR', kind: 'circle', cx: 0.62, cy: 0.19, r: 0.07 },
+      { id: 'tail', kind: 'circle', cx: 0.79, cy: 0.68, r: 0.08 },
+      { id: 'grass', kind: 'rect', x: 0.08, y: 0.80, w: 0.84, h: 0.13 }
+    ] },
+  { id: 'fish', name: 'Рыбка',
+    face: { x: 0.62, y: 0.42, r: 0.05 },
+    colors: ['#4FC3F7', '#FFD93D', '#FF8C42', '#6BCB77', '#C39BD3', '#FF6B6B'],
+    parts: [
+      { id: 'body', kind: 'ellipse', cx: 0.48, cy: 0.50, rx: 0.30, ry: 0.20 },
+      { id: 'tail', kind: 'circle', cx: 0.16, cy: 0.50, r: 0.11 },
+      { id: 'fin', kind: 'ellipse', cx: 0.50, cy: 0.64, rx: 0.12, ry: 0.07 },
+      { id: 'bubble', kind: 'circle', cx: 0.80, cy: 0.34, r: 0.055 },
+      { id: 'bubble2', kind: 'circle', cx: 0.88, cy: 0.22, r: 0.038 },
+      { id: 'stone', kind: 'ellipse', cx: 0.22, cy: 0.84, rx: 0.11, ry: 0.05 },
+      { id: 'water', kind: 'rect', x: 0.08, y: 0.78, w: 0.84, h: 0.15 }
+    ] },
+  { id: 'ship', name: 'Кораблик',
+    colors: ['#FFFFFF', '#4D96FF', '#FFD93D', '#FF8C42', '#6BCB77', '#C39BD3'],
+    parts: [
+      { id: 'hull', kind: 'rect', x: 0.18, y: 0.62, w: 0.64, h: 0.14 },
+      { id: 'mast', kind: 'rect', x: 0.485, y: 0.30, w: 0.03, h: 0.33 },
+      { id: 'sailL', kind: 'ellipse', cx: 0.36, cy: 0.45, rx: 0.14, ry: 0.16 },
+      { id: 'sailR', kind: 'ellipse', cx: 0.63, cy: 0.45, rx: 0.13, ry: 0.15 },
+      { id: 'sun', kind: 'circle', cx: 0.82, cy: 0.18, r: 0.09 },
+      { id: 'cloud', kind: 'ellipse', cx: 0.22, cy: 0.22, rx: 0.13, ry: 0.06 },
+      { id: 'wave', kind: 'rect', x: 0.08, y: 0.78, w: 0.84, h: 0.14 }
+    ] },
+  { id: 'house', name: 'Домик',
+    colors: ['#FF8C42', '#FF6B6B', '#6BCB77', '#4D96FF', '#FFD93D', '#C39BD3'],
+    parts: [
+      { id: 'body', kind: 'rect', x: 0.24, y: 0.44, w: 0.52, h: 0.36 },
+      { id: 'roof', kind: 'ellipse', cx: 0.50, cy: 0.40, rx: 0.34, ry: 0.13 },
+      { id: 'door', kind: 'rect', x: 0.44, y: 0.60, w: 0.16, h: 0.20 },
+      { id: 'winL', kind: 'circle', cx: 0.34, cy: 0.54, r: 0.055 },
+      { id: 'winR', kind: 'circle', cx: 0.66, cy: 0.54, r: 0.055 },
+      { id: 'sun', kind: 'circle', cx: 0.84, cy: 0.18, r: 0.08 },
+      { id: 'grass', kind: 'rect', x: 0.08, y: 0.80, w: 0.84, h: 0.12 }
+    ] },
+  { id: 'cake', name: 'Тортик',
+    colors: ['#F48FB1', '#FFF176', '#8D6E63', '#E57373', '#81D4FA', '#BA68C8'],
+    parts: [
+      { id: 'tier1', kind: 'rect', x: 0.22, y: 0.62, w: 0.56, h: 0.16 },
+      { id: 'tier2', kind: 'rect', x: 0.30, y: 0.48, w: 0.40, h: 0.14 },
+      { id: 'tier3', kind: 'rect', x: 0.38, y: 0.36, w: 0.24, h: 0.12 },
+      { id: 'cherry', kind: 'circle', cx: 0.50, cy: 0.30, r: 0.045 },
+      { id: 'candle', kind: 'rect', x: 0.485, y: 0.22, w: 0.03, h: 0.08 },
+      { id: 'flame', kind: 'circle', cx: 0.50, cy: 0.19, r: 0.032 },
+      { id: 'plate', kind: 'rect', x: 0.16, y: 0.78, w: 0.68, h: 0.06 }
+    ] },
+  { id: 'butterfly', name: 'Бабочка',
+    face: { x: 0.50, y: 0.31, r: 0.05 },
+    colors: ['#FF6B6B', '#FFD93D', '#C39BD3', '#4D96FF', '#6BCB77', '#FF8C42', '#26A69A'],
+    parts: [
+      { id: 'wingUL', kind: 'ellipse', cx: 0.34, cy: 0.42, rx: 0.16, ry: 0.14 },
+      { id: 'wingUR', kind: 'ellipse', cx: 0.66, cy: 0.42, rx: 0.16, ry: 0.14 },
+      { id: 'wingDL', kind: 'ellipse', cx: 0.35, cy: 0.64, rx: 0.13, ry: 0.11 },
+      { id: 'wingDR', kind: 'ellipse', cx: 0.65, cy: 0.64, rx: 0.13, ry: 0.11 },
+      { id: 'body', kind: 'ellipse', cx: 0.50, cy: 0.53, rx: 0.045, ry: 0.20 },
+      { id: 'head', kind: 'circle', cx: 0.50, cy: 0.31, r: 0.055 },
+      { id: 'flower', kind: 'circle', cx: 0.50, cy: 0.86, r: 0.05 }
+    ] },
+  { id: 'rocket', name: 'Ракета',
+    colors: ['#4D96FF', '#FF8C42', '#FFD93D', '#C39BD3', '#6BCB77', '#ECEFF1'],
+    parts: [
+      { id: 'body', kind: 'ellipse', cx: 0.50, cy: 0.50, rx: 0.12, ry: 0.28 },
+      { id: 'nose', kind: 'circle', cx: 0.50, cy: 0.24, r: 0.10 },
+      { id: 'finL', kind: 'rect', x: 0.30, y: 0.62, w: 0.08, h: 0.16 },
+      { id: 'finR', kind: 'rect', x: 0.62, y: 0.62, w: 0.08, h: 0.16 },
+      { id: 'window', kind: 'circle', cx: 0.50, cy: 0.44, r: 0.06 },
+      { id: 'flame', kind: 'ellipse', cx: 0.50, cy: 0.83, rx: 0.07, ry: 0.10 },
+      { id: 'star1', kind: 'circle', cx: 0.24, cy: 0.30, r: 0.04 },
+      { id: 'star2', kind: 'circle', cx: 0.80, cy: 0.36, r: 0.035 },
+      { id: 'star3', kind: 'circle', cx: 0.72, cy: 0.72, r: 0.03 }
+    ] },
+  { id: 'flower', name: 'Цветик',
+    colors: ['#FF6B6B', '#FFD93D', '#FF8C42', '#C39BD3', '#4D96FF', '#6BCB77'],
+    parts: [
+      { id: 'petal1', kind: 'circle', cx: 0.50, cy: 0.44, r: 0.11 },
+      { id: 'petal2', kind: 'circle', cx: 0.66, cy: 0.55, r: 0.11 },
+      { id: 'petal3', kind: 'circle', cx: 0.60, cy: 0.74, r: 0.11 },
+      { id: 'petal4', kind: 'circle', cx: 0.40, cy: 0.74, r: 0.11 },
+      { id: 'petal5', kind: 'circle', cx: 0.34, cy: 0.55, r: 0.11 },
+      { id: 'middle', kind: 'circle', cx: 0.50, cy: 0.60, r: 0.09 },
+      { id: 'stem', kind: 'rect', x: 0.485, y: 0.70, w: 0.03, h: 0.22 },
+      { id: 'leaf', kind: 'ellipse', cx: 0.40, cy: 0.82, rx: 0.09, ry: 0.05 },
+      { id: 'grass', kind: 'rect', x: 0.08, y: 0.86, w: 0.84, h: 0.08 }
+    ] }
+];
+
 class QuietScene {
   constructor(game) {
     this.game = game;
@@ -87,19 +189,27 @@ class QuietScene {
   }
 
   // ---------- 2. РАСКРАСКА ----------
-  initColor() {
+  initColor(forceId) {
+    // Картинка выбирается из восьми; если есть ещё не раскрашенные — берём из них
+    // (как подборка в музее), а подряд одну и ту же не показываем (v1.3.12).
+    const seen = (typeof System !== 'undefined' && System.getSeen) ? System.getSeen('paint') : [];
+    const others = PAINT_PICTURES.filter(p => p.id !== this.paintId);
+    const fresh = others.filter(p => seen.indexOf(p.id) === -1);
+    let pick = forceId ? PAINT_PICTURES.find(p => p.id === forceId) : null;
+    if (!pick) {
+      const pool = fresh.length ? fresh : (others.length ? others : PAINT_PICTURES);
+      pick = pool[Math.floor(Math.random() * pool.length)];
+    }
+    this.paintId = pick.id;
+    this.paintTotal = PAINT_PICTURES.length;   // сколько всего картинок (для подписи и проверок)
     this.paint = {
-      colors: ['#FF6B6B', '#4D96FF', '#6BCB77', '#FFD93D', '#C39BD3', '#FF8C42'],
+      id: pick.id,
+      name: pick.name,
+      face: pick.face || null,
+      colors: pick.colors.slice(),
       picked: 0,
       done: false,
-      parts: [
-        { id: 'body', kind: 'ellipse', cx: 0.50, cy: 0.60, rx: 0.26, ry: 0.20, fill: null },
-        { id: 'head', kind: 'circle', cx: 0.50, cy: 0.32, r: 0.15, fill: null },
-        { id: 'earL', kind: 'circle', cx: 0.38, cy: 0.19, r: 0.07, fill: null },
-        { id: 'earR', kind: 'circle', cx: 0.62, cy: 0.19, r: 0.07, fill: null },
-        { id: 'tail', kind: 'circle', cx: 0.79, cy: 0.68, r: 0.08, fill: null },
-        { id: 'grass', kind: 'rect', x: 0.08, y: 0.80, w: 0.84, h: 0.13, fill: null }
-      ]
+      parts: pick.parts.map(part => Object.assign({}, part, { fill: null }))
     };
   }
 
@@ -509,7 +619,13 @@ class QuietScene {
   // ---------- 2. Раскраска ----------
   drawColor(ctx, W, H) {
     const p = this.paint;
-    const a = { x: W * 0.12, y: H * 0.14, w: W * 0.76, h: H * 0.54 };
+    const a = { x: W * 0.12, y: H * 0.16, w: W * 0.76, h: H * 0.52 };
+
+    // Имя картинки: их восемь, и это видно (v1.3.12)
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#FFD93D';
+    ctx.font = `bold ${Math.min(W * 0.040, 17)}px Arial`;
+    ctx.fillText('🎨 ' + p.name, W / 2, a.y - 12);
 
     p.parts.forEach(part => {
       ctx.beginPath();
@@ -527,12 +643,15 @@ class QuietScene {
       ctx.stroke();
     });
 
-    // мордочка, чтобы картинка читалась
-    const hx = a.x + a.w * 0.50, hy = a.y + a.h * 0.32;
-    ctx.fillStyle = '#1b1b26';
-    ctx.beginPath(); ctx.arc(hx - a.w * 0.05, hy, a.w * 0.014, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(hx + a.w * 0.05, hy, a.w * 0.014, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(hx, hy + a.h * 0.045, a.w * 0.02, a.h * 0.015, 0, 0, Math.PI * 2); ctx.fill();
+    // Мордочка — только у тех картинок, у кого она есть (гофер, рыбка, бабочка)
+    if (p.face) {
+      const hx = a.x + a.w * p.face.x, hy = a.y + a.h * p.face.y;
+      const eye = Math.max(1.6, a.w * 0.014);
+      ctx.fillStyle = '#1b1b26';
+      ctx.beginPath(); ctx.arc(hx - a.w * 0.05, hy, eye, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(hx + a.w * 0.05, hy, eye, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(hx, hy + a.h * 0.045, a.w * 0.02, a.h * 0.015, 0, 0, Math.PI * 2); ctx.fill();
+    }
 
     // палитра
     const sw = Math.min((W - 40) / p.colors.length, 54);
@@ -554,10 +673,13 @@ class QuietScene {
     ctx.textAlign = 'center';
     ctx.fillStyle = '#c9cfe0';
     ctx.font = `${Math.min(W * 0.030, 13)}px Arial`;
-    ctx.fillText(p.done ? 'Картинка раскрашена! 🎨' : 'Выбери цвет и нажимай на части картинки', W / 2, H * 0.69);
+    const painted = (typeof System !== 'undefined' && System.getSeen) ? System.getSeen('paint').length : 0;
+    ctx.fillText(p.done
+      ? 'Готово! Раскрасок открыто: ' + painted + ' из ' + PAINT_PICTURES.length + ' 🎨'
+      : 'Выбери цвет и нажимай на части картинки', W / 2, H * 0.69);
 
-    this.buttons.push(createButton(ctx, W * 0.32, H * 0.85, W * 0.36, 36, '🔄 Новая', {
-      bgColor: 'rgba(255,255,255,0.18)', fgColor: '#fff', fontSize: 13, radius: 10
+    this.buttons.push(createButton(ctx, W * 0.30, H * 0.85, W * 0.40, 36, '🔄 Другая картинка', {
+      bgColor: 'rgba(255,255,255,0.18)', fgColor: '#fff', fontSize: 12, radius: 10
     }));
   }
 
@@ -776,6 +898,23 @@ class QuietScene {
     // глаз
     ctx.fillStyle = '#0e1a2b';
     ctx.beginPath(); ctx.arc(L * 0.3, -hgt * 0.1, Math.max(1.4, hgt * 0.12), 0, Math.PI * 2); ctx.fill();
+
+    // Редкую рыбку видно издалека: у очень редких и легендарных блестит чешуя
+    // (v1.3.12). Искорка только у рыбок — большие обитатели (черепаха, акула) не
+    // ловятся и веса у них нет, поэтому редкость к ним не применяем.
+    const rar = (s.kind === 'fish' && typeof fishRarityOf === 'function') ? fishRarityOf(d) : null;
+    if (rar && (rar.id === 'epic' || rar.id === 'legendary')) {
+      const tw = 0.45 + Math.sin(this.time * 0.005 + s.x * 0.12) * 0.4;
+      ctx.globalAlpha = Math.max(0.15, Math.min(1, tw));
+      ctx.fillStyle = rar.color;
+      ctx.beginPath();
+      ctx.arc(L * 0.42, -hgt * 0.72, Math.max(2, base * 0.1), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(-L * 0.3, -hgt * 0.5, Math.max(1.4, base * 0.06), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = (s.alpha === undefined ? 1 : s.alpha);
+    }
     ctx.fillStyle = '#ffffff';
     ctx.beginPath(); ctx.arc(L * 0.32, -hgt * 0.14, Math.max(0.7, hgt * 0.05), 0, Math.PI * 2); ctx.fill();
     ctx.restore();
@@ -879,6 +1018,157 @@ class QuietScene {
       ctx.fill();
       ctx.fillStyle = 'rgba(255,255,255,0.35)';
       ctx.beginPath(); ctx.arc(0, 0, base * 0.12, 0, Math.PI * 2); ctx.fill();
+    } else if (k === 'dolphin' || k === 'orca') {
+      // Дельфин и косатка: одно тело, разные цвета (косатка — чёрная с белым боком)
+      const body = (k === 'orca') ? '#1b2634' : '#5f8fb8';
+      const belly = (k === 'orca') ? '#f2f6fa' : '#cfe3f2';
+      ctx.fillStyle = body;
+      ctx.beginPath(); ctx.ellipse(0, 0, base * 1.05, base * 0.38, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-base * 0.05, -base * 0.1); ctx.lineTo(base * 0.3, -base * 0.85); ctx.lineTo(base * 0.5, -base * 0.06);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-base * 0.95, 0); ctx.lineTo(-base * 1.45, -base * 0.42); ctx.lineTo(-base * 1.3, base * 0.3);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = belly;
+      ctx.beginPath(); ctx.ellipse(base * 0.2, base * 0.2, base * 0.75, base * 0.16, 0, 0, Math.PI); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(base * 1.0, base * 0.05, base * 0.28, base * 0.1, 0, 0, Math.PI * 2); ctx.fill();
+      if (k === 'orca') {
+        ctx.fillStyle = '#f2f6fa';
+        ctx.beginPath(); ctx.ellipse(base * 0.55, -base * 0.2, base * 0.2, base * 0.09, -0.2, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = '#0e1a2b';
+      ctx.beginPath(); ctx.arc(base * 0.7, -base * 0.08, base * 0.06, 0, Math.PI * 2); ctx.fill();
+    } else if (k === 'ray') {
+      // Скат: плоский ромб, «крылья» машут, длинный хвост
+      const flap = Math.sin(t * 2) * base * 0.12;
+      ctx.fillStyle = '#7a86a8';
+      ctx.beginPath();
+      ctx.moveTo(0, -base * 0.34);
+      ctx.quadraticCurveTo(base * 0.75, -base * 0.5 + flap, base * 0.95, base * 0.05);
+      ctx.quadraticCurveTo(base * 0.5, base * 0.4, 0, base * 0.34);
+      ctx.quadraticCurveTo(-base * 0.5, base * 0.4, -base * 0.95, base * 0.05);
+      ctx.quadraticCurveTo(-base * 0.75, -base * 0.5 + flap, 0, -base * 0.34);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#7a86a8';
+      ctx.lineWidth = Math.max(1.6, base * 0.06);
+      ctx.beginPath();
+      ctx.moveTo(0, base * 0.3);
+      ctx.quadraticCurveTo(-base * 0.3, base * 0.9, -base * 1.1, base * 1.0);
+      ctx.stroke();
+      ctx.fillStyle = '#101826';
+      ctx.beginPath(); ctx.arc(base * 0.3, -base * 0.22, base * 0.05, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(-base * 0.3, -base * 0.22, base * 0.05, 0, Math.PI * 2); ctx.fill();
+    } else if (k === 'whale') {
+      // Кит: большое тело, хвост-плавник и фонтанчик
+      ctx.fillStyle = '#3f5f86';
+      ctx.beginPath(); ctx.ellipse(0, 0, base * 1.15, base * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-base * 1.05, 0); ctx.lineTo(-base * 1.55, -base * 0.5); ctx.lineTo(-base * 1.45, base * 0.35);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#93b4d4';
+      ctx.beginPath(); ctx.ellipse(base * 0.1, base * 0.24, base * 0.85, base * 0.22, 0, 0, Math.PI); ctx.fill();
+      const spray = 0.5 + Math.sin(t * 1.4) * 0.5;
+      ctx.strokeStyle = 'rgba(200,235,255,0.75)';
+      ctx.lineWidth = Math.max(1.6, base * 0.06);
+      ctx.beginPath();
+      ctx.moveTo(-base * 0.15, -base * 0.45);
+      ctx.quadraticCurveTo(-base * 0.3, -base * 0.95, -base * 0.5, -base * 1.1 - spray * base * 0.2);
+      ctx.stroke();
+      ctx.fillStyle = '#0e1a2b';
+      ctx.beginPath(); ctx.arc(base * 0.75, -base * 0.12, base * 0.055, 0, Math.PI * 2); ctx.fill();
+    } else if (k === 'seal') {
+      // Тюлень: округлое тело, ласты и усы
+      ctx.fillStyle = '#8d9aa8';
+      ctx.beginPath(); ctx.ellipse(0, 0, base * 0.85, base * 0.42, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(base * 0.7, -base * 0.18, base * 0.32, base * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-base * 0.7, base * 0.1); ctx.lineTo(-base * 1.15, -base * 0.25); ctx.lineTo(-base * 0.95, base * 0.4);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-base * 0.1, base * 0.34, base * 0.26, base * 0.12, 0.4, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(240,246,252,0.85)';
+      ctx.lineWidth = Math.max(1, base * 0.04);
+      for (let i = -1; i <= 1; i++) {
+        ctx.beginPath();
+        ctx.moveTo(base * 0.92, base * 0.02 + i * base * 0.08);
+        ctx.lineTo(base * 1.25, base * 0.06 + i * base * 0.12);
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#0e1a2b';
+      ctx.beginPath(); ctx.arc(base * 0.78, -base * 0.24, base * 0.05, 0, Math.PI * 2); ctx.fill();
+    } else if (k === 'swordfish') {
+      // Рыба-меч: обтекаемое тело, «меч» и высокий плавник
+      ctx.fillStyle = '#2f4d78';
+      ctx.beginPath(); ctx.ellipse(0, 0, base * 1.0, base * 0.34, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-base * 0.1, -base * 0.18); ctx.lineTo(base * 0.25, -base * 0.95); ctx.lineTo(base * 0.45, -base * 0.12);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-base * 0.9, 0); ctx.lineTo(-base * 1.4, -base * 0.45); ctx.lineTo(-base * 1.35, base * 0.35);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#e7eef7';
+      ctx.lineWidth = Math.max(2.4, base * 0.1);
+      ctx.beginPath();
+      ctx.moveTo(base * 0.95, base * 0.02); ctx.lineTo(base * 1.75, base * 0.02);
+      ctx.stroke();
+      ctx.fillStyle = '#cfe3f2';
+      ctx.beginPath(); ctx.ellipse(base * 0.3, base * 0.16, base * 0.6, base * 0.13, 0, 0, Math.PI); ctx.fill();
+      ctx.fillStyle = '#0e1a2b';
+      ctx.beginPath(); ctx.arc(base * 0.62, -base * 0.08, base * 0.06, 0, Math.PI * 2); ctx.fill();
+    } else if (k === 'sunfish') {
+      // Рыба-луна: круг с двумя высокими плавниками
+      ctx.fillStyle = '#9fb0bd';
+      ctx.beginPath(); ctx.arc(0, 0, base * 0.7, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-base * 0.5, -base * 0.34); ctx.lineTo(-base * 0.62, -base * 1.15); ctx.lineTo(base * 0.16, -base * 0.62);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-base * 0.5, base * 0.34); ctx.lineTo(-base * 0.62, base * 1.05); ctx.lineTo(base * 0.16, base * 0.6);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#7b8b98';
+      ctx.beginPath(); ctx.ellipse(-base * 0.68, 0, base * 0.18, base * 0.28, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#0e1a2b';
+      ctx.beginPath(); ctx.arc(base * 0.42, -base * 0.22, base * 0.075, 0, Math.PI * 2); ctx.fill();
+    } else if (k === 'squid') {
+      // Кальмар: торпеда с плавниками и щупальцами
+      ctx.fillStyle = '#e0797f';
+      ctx.beginPath(); ctx.ellipse(-base * 0.1, -base * 0.05, base * 0.55, base * 0.38, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-base * 0.5, -base * 0.2); ctx.lineTo(-base * 1.0, -base * 0.5); ctx.lineTo(-base * 0.55, base * 0.1);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#e0797f';
+      ctx.lineWidth = Math.max(2, base * 0.1);
+      for (let i = 0; i < 5; i++) {
+        const y0 = -base * 0.18 + i * base * 0.09;
+        ctx.beginPath();
+        ctx.moveTo(base * 0.35, y0 * 0.4);
+        ctx.quadraticCurveTo(base * 0.9, y0 + Math.sin(t + i) * base * 0.12,
+          base * 1.2, y0 + Math.sin(t + i) * base * 0.2);
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#2b1b22';
+      ctx.beginPath(); ctx.arc(base * 0.2, -base * 0.12, base * 0.07, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(base * 0.3, base * 0.08, base * 0.06, 0, Math.PI * 2); ctx.fill();
+    } else if (k === 'moray') {
+      // Мурена: длинная волнистая лента
+      ctx.strokeStyle = '#6f8f5a';
+      ctx.lineWidth = Math.max(3, base * 0.24);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-base * 1.3, 0);
+      for (let i = 0; i <= 6; i++) {
+        const px = -base * 1.3 + i * base * 0.42;
+        ctx.lineTo(px, Math.sin(t * 2 + i * 0.8) * base * 0.22);
+      }
+      ctx.stroke();
+      ctx.fillStyle = '#5d7a4a';
+      ctx.beginPath();
+      ctx.ellipse(base * 1.26, Math.sin(t * 2 + 4.8) * base * 0.22, base * 0.24, base * 0.17, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#0e1a2b';
+      ctx.beginPath();
+      ctx.arc(base * 1.34, Math.sin(t * 2 + 4.8) * base * 0.22 - base * 0.06, base * 0.05, 0, Math.PI * 2);
+      ctx.fill();
     } else {
       // морской конёк: изогнутое тело, мордочка и плавник
       ctx.strokeStyle = '#e0b04a';
@@ -921,7 +1211,7 @@ class QuietScene {
         return true;
       }
       if (t.indexOf('Заново') !== -1 || t.indexOf('Ещё раз') !== -1) { this.startGame('stars'); return true; }
-      if (t.indexOf('Новая') !== -1) { this.startGame('color'); return true; }
+      if (t.indexOf('Другая') !== -1) { this.startGame('color'); return true; }
       if (t.indexOf('Тянуть') !== -1 || t.indexOf('Ждём') !== -1) { return this.tryFish(); }
       return true;
     }
@@ -976,7 +1266,7 @@ class QuietScene {
   clickColor(mx, my) {
     const W = this.game.width, H = this.game.height;
     const p = this.paint;
-    const a = { x: W * 0.12, y: H * 0.14, w: W * 0.76, h: H * 0.54 };
+    const a = { x: W * 0.12, y: H * 0.16, w: W * 0.76, h: H * 0.52 };
     // Части перекрывают друг друга, поэтому сначала ищем незакрашенную под
     // пальцем: так картинку всегда можно довести до конца. Если все под
     // пальцем уже раскрашены — перекрашиваем верхнюю (ребёнок видит отклик).
@@ -987,7 +1277,10 @@ class QuietScene {
     AudioSys.play('click');
     if (p.parts.every(x => x.fill)) {
       p.done = true;
-      this.reward('color', 'Картинка раскрашена 🎨');
+      // Картинка засчитана в профиль: «Другая картинка» сначала предложит те, что
+      // ещё не раскрашивались, а в подписи видно «Раскрасок открыто: N из 8»
+      if (typeof System !== 'undefined' && System.markSeen) System.markSeen('paint', p.id);
+      this.reward('color', 'Картинка раскрашена: ' + p.name + ' 🎨');
     }
     return true;
   }
@@ -1009,14 +1302,22 @@ class QuietScene {
       const nowCount = (typeof System !== 'undefined' && System.fishSpeciesCount) ? System.fishSpeciesCount() : 0;
       const all = (typeof FISH_SPECIES !== 'undefined') ? FISH_SPECIES.length : 0;
       const head = isNew ? '🐟 Новый вид: ' : '🐟 ';
+      // Редкость видна в плашке, и она же определяет награду: за обычную рыбку —
+      // одна монета, за легендарную — пятнадцать (v1.3.12). Так редкая рыба не
+      // только реже попадается, но и заметно дороже.
+      const rarity = (typeof fishRarityOf === 'function') ? fishRarityOf(d) : null;
+      const rareTag = (rarity && rarity.id !== 'common') ? ' ' + rarity.emoji + ' ' + rarity.name + '!' : '';
+      const bonus = rarity ? rarity.coins : 0;
+      if (bonus && typeof System !== 'undefined' && System.earnCoins) System.earnCoins(bonus);
+      const tail = '  (🪙+' + bonus + ', видов ' + nowCount + ' из ' + all + ')';
       if (f.caught >= f.target) {
         f.caught = 0;
-        this.reward('fish', head + d.name + '! Рыбалка удалась 🎣');
-        this.result = head + d.name + ' — ' + d.fact + '  (видов ' + nowCount + ' из ' + all + ')';
+        this.reward('fish', head + d.name + rareTag + '! Рыбалка удалась 🎣');
+        this.result = head + d.name + rareTag + ' — ' + d.fact + tail;
         this.resultTimer = 6;
       } else {
-        this.result = head + d.name + ' — ' + d.fact +
-          '  (' + f.caught + '/' + f.target + ', видов ' + nowCount + ' из ' + all + ')';
+        this.result = head + d.name + rareTag + ' — ' + d.fact +
+          '  (🪙+' + bonus + ', ' + f.caught + '/' + f.target + ', видов ' + nowCount + ' из ' + all + ')';
         this.resultTimer = 5;
       }
     } else if (f.state === 'bite') {
@@ -1033,3 +1334,7 @@ class QuietScene {
   }
 }
 window.QuietScene = QuietScene;
+// Реестр раскрасок виден наружу: его читают проверки (quickcheck перебирает все
+// восемь картинок) и снимки экрана. const-объявление не становится свойством
+// глобального объекта, поэтому публикуем явно — как SEA_FRIENDS и FISH_SPECIES (v1.3.12).
+window.PAINT_PICTURES = PAINT_PICTURES;

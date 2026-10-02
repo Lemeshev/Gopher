@@ -516,14 +516,17 @@ class FriendsScene {
     return found ? found.id : 'plant';
   }
 
-  // ---- Мой код: короткий (диктуем) + полный (копируем кнопкой) ----
-  // Жалоба «код огромный, руками не введёшь» решена двумя форматами:
-  //   * короткий — 16 знаков: обои, пол, окрас, персонаж и 6 предметов;
-  //   * полный — весь дом: его не набирают, а копируют/отправляют кнопкой.
+  // ---- Мой код: короткий (диктуем/пересылаем) + полный (весь дом) ----
+  // Заказчик 01.10.2026: «нельзя ли как-то коды сделать менее страшными для
+  // пересылки? Обязательно прям такие огромные?» Поэтому в панели теперь две
+  // копируемые кнопки: короткий код (19 знаков — самое простое, что можно
+  // отправить) и полный (весь дом, упакован так же плотно — цифры и заглавные
+  // буквы, а не строка base64).
   drawMyCode(ctx, W, H) {
     const short = System.getShortCode();
+    const full = System.getMyCode();
     const panelW = Math.min(W * 0.94, 340);
-    const panelH = 268;
+    const panelH = 316;
     const px = (W - panelW) / 2;
     const py = (H - panelH) / 2 - 16;
 
@@ -543,7 +546,7 @@ class FriendsScene {
 
     ctx.fillStyle = '#c9cfe0';
     ctx.font = `${Math.min(W * 0.026, 11.5)}px Arial`;
-    ctx.fillText('Короткий код — его можно продиктовать или набрать руками:', W / 2, py + 50);
+    ctx.fillText('Короткий код — его легко продиктовать и переслать:', W / 2, py + 50);
 
     // Короткий код крупно
     ctx.fillStyle = '#FFD93D';
@@ -557,23 +560,29 @@ class FriendsScene {
 
     ctx.fillStyle = '#aaa';
     ctx.font = `${Math.min(W * 0.024, 10.5)}px Arial`;
-    ctx.fillText('Полный код (весь дом) копируется и вставляется кнопкой', W / 2, py + 126);
+    ctx.fillText('Полный код — весь дом, 4 комнаты. Теперь и он короткий:', W / 2, py + 126);
+    ctx.fillText(String(full).length + ' знаков, только цифры и заглавные буквы', W / 2, py + 142);
 
     const bw = panelW - 32, bh = 38;
-    createButton(ctx, px + 16, py + 140, bw, bh, '📋 Скопировать полный код', {
+    createButton(ctx, px + 16, py + 156, bw, bh, '📋 Скопировать короткий код', {
       bgColor: '#6BCB77', fgColor: '#fff', fontSize: 13, radius: 10
     });
-    this.buttons.push({ x: px + 16, y: py + 140, w: bw, h: bh, text: 'copy' });
+    this.buttons.push({ x: px + 16, y: py + 156, w: bw, h: bh, text: 'copy_short' });
 
-    createButton(ctx, px + 16, py + 184, bw, bh, '🅰 Ввести мой короткий код вручную', {
+    createButton(ctx, px + 16, py + 200, bw, bh, '📋 Скопировать полный код (весь дом)', {
+      bgColor: '#4D96FF', fgColor: '#fff', fontSize: 12, radius: 10
+    });
+    this.buttons.push({ x: px + 16, y: py + 200, w: bw, h: bh, text: 'copy' });
+
+    createButton(ctx, px + 16, py + 244, bw, bh, '🅰 Ввести мой короткий код вручную', {
       bgColor: 'rgba(255,255,255,0.16)', fgColor: '#fff', fontSize: 12, radius: 10
     });
-    this.buttons.push({ x: px + 16, y: py + 184, w: bw, h: bh, text: 'show_short' });
+    this.buttons.push({ x: px + 16, y: py + 244, w: bw, h: bh, text: 'show_short' });
 
-    createButton(ctx, px + 16, py + 228, bw, bh, '➕ Ввести чужой код', {
+    createButton(ctx, px + 16, py + 288, bw, bh, '➕ Ввести чужой код', {
       bgColor: '#FF8C42', fgColor: '#fff', fontSize: 13, radius: 10
     });
-    this.buttons.push({ x: px + 16, y: py + 228, w: bw, h: bh, text: 'open_add' });
+    this.buttons.push({ x: px + 16, y: py + 288, w: bw, h: bh, text: 'open_add' });
 
     this.drawNotif(ctx, W, H);
   }
@@ -744,6 +753,25 @@ class FriendsScene {
       if (t === 'page_prev') { AudioSys.play('click'); this.page = Math.max(0, this.page - 1); return true; }
       if (t === 'page_next') { AudioSys.play('click'); this.page = this.page + 1; return true; }
 
+      if (t === 'copy_short') {
+        // Короткий код — самое простое, что можно переслать: 19 знаков
+        const short = System.getShortCode();
+        this.inputText = short;
+        if (typeof ClipBridge !== 'undefined' && ClipBridge.available()) {
+          ClipBridge.show({
+            mode: 'copy',
+            title: '📋 Короткий код (19 знаков)',
+            value: short,
+            readonly: true,
+            hint: 'Самый простой код: 19 знаков — легко продиктовать и переслать. В нём обои, пол, окрас, персонаж, наряды и 6 предметов гостиной.'
+          });
+          this.showNotif('Открыл короткий код: скопируй или отправь');
+        } else {
+          this.showNotif('Короткий код: ' + short);
+        }
+        return true;
+      }
+
       if (t === 'copy') {
         // Полный код: открываем настоящие поля — WebView сам умеет копировать
         const full = System.getMyCode(this.game);
@@ -753,9 +781,9 @@ class FriendsScene {
             title: '📋 Полный код (весь дом)',
             value: full,
             readonly: true,
-            hint: 'Нажми «Скопировать» — код уйдёт в буфер. «Отправить» — сразу другу (SMS, мессенджер). Вставить потом можно кнопкой «Открыть поле ввода».'
+            hint: 'Весь дом: четыре комнаты, мебель, наряды. Только цифры и заглавные буквы — мессенджер его не испортит. «Скопировать» — в буфер, «Отправить» — сразу другу.'
           });
-          this.showNotif('Открыл код: скопируй или отправь');
+          this.showNotif('Открыл полный код: скопируй или отправь');
         } else {
           // Запасной путь без панели: выделить и скопировать
           this.inputText = full;

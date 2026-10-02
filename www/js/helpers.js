@@ -178,6 +178,46 @@ function fitFontSize(ctx, text, maxW, baseSize, minSize, bold) {
   return min;
 }
 
+// UTF-8 в байты и обратно — считаем сами: и в WebView, и в песочнице проверок
+// работает одинаково (TextEncoder есть не везде). Нужно для имени внутри кода
+// друга: там русские буквы, а код — это цифры и заглавные латинские буквы.
+function utf8ToBytes(str) {
+  const s = String(str == null ? '' : str);
+  const out = [];
+  for (let i = 0; i < s.length; i++) {
+    let c = s.charCodeAt(i);
+    if (c >= 0xD800 && c <= 0xDBFF && i + 1 < s.length) {
+      const c2 = s.charCodeAt(i + 1);
+      if (c2 >= 0xDC00 && c2 <= 0xDFFF) { c = 0x10000 + ((c - 0xD800) << 10) + (c2 - 0xDC00); i++; }
+    }
+    if (c < 0x80) out.push(c);
+    else if (c < 0x800) out.push(0xC0 | (c >> 6), 0x80 | (c & 63));
+    else if (c < 0x10000) out.push(0xE0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+    else out.push(0xF0 | (c >> 18), 0x80 | ((c >> 12) & 63), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+  }
+  return out;
+}
+
+function bytesToUtf8(bytes) {
+  let out = '';
+  const b = bytes || [];
+  for (let i = 0; i < b.length;) {
+    const first = b[i++];
+    let c;
+    if (first < 0x80) c = first;
+    else if (first >= 0xC0 && first < 0xE0) c = ((first & 31) << 6) | ((b[i++] || 0) & 63);
+    else if (first >= 0xE0 && first < 0xF0) {
+      c = ((first & 15) << 12) | (((b[i++] || 0) & 63) << 6) | ((b[i++] || 0) & 63);
+    } else {
+      c = ((first & 7) << 18) | (((b[i++] || 0) & 63) << 12) |
+        (((b[i++] || 0) & 63) << 6) | ((b[i++] || 0) & 63);
+    }
+    if (c > 0xFFFF) { c -= 0x10000; out += String.fromCharCode(0xD800 + (c >> 10), 0xDC00 + (c & 1023)); }
+    else out += String.fromCharCode(c);
+  }
+  return out;
+}
+
 // Разбить текст на строки по ширине (не больше maxLines)
 function wrapLines(ctx, text, maxW, maxLines) {
   const words = String(text == null ? '' : text).split(' ');
@@ -199,7 +239,7 @@ function wrapLines(ctx, text, maxW, maxLines) {
 }
 
 // ============ ВЕРСИЯ И ВНЕШНИЕ ССЫЛКИ ============
-const GAME_VERSION = '1.3.11';
+const GAME_VERSION = '1.3.12';
 
 // ============ БУФЕР ОБМЕНА И ВВОД ТЕКСТА ============
 // Проблема: в canvas-игре нельзя выделить текст, а значит нельзя скопировать
@@ -283,8 +323,8 @@ const ClipBridge = {
     };
     if (paste) paste.onclick = () => {
       const txt = this.plainCode();
-      if (this.share(txt)) this.notify('📤 Отправляем другу…');
-      else this.notify('Скопируй код и отправь любым способом');
+      if (this.share(txt)) this.notify('📤 Открываем «Поделиться»…');
+      else this.notify('📋 Код скопирован — вставь его в сообщение другу');
     };
     if (submit) submit.onclick = () => {
       if (this._onSubmit) this._onSubmit(this.value(), this.value2());
@@ -330,7 +370,7 @@ const ClipBridge = {
     };
     if (this.mode === 'copy') {
       set('clipCopyBtn', '📋 Скопировать', true);
-      set('clipPasteBtn', '📤 Отправить', true);
+      set('clipPasteBtn', '📤 Поделиться', true);
       set('clipSubmitBtn', null, false);
     } else {
       set('clipCopyBtn', '📥 Вставить из буфера', true);
@@ -402,18 +442,24 @@ const ClipBridge = {
     cb(false);
   },
 
-  // Поделиться кодом: системное окно Android, иначе SMS, иначе — копия в буфер
+  // Поделиться кодом. Порядок: мост Android (системное окно «Поделиться»), Web
+  // Share API, копия в буфер. Ссылок вида «sms:?body=…» больше НЕТ: WebView не
+  // умеет открывать такие схемы и показывал ребёнку страницу ошибки
+  // «Не удалось открыть веб-страницу: net::ERR_UNKNOWN_URL_SCHEME» вместо игры
+  // (жалоба заказчика 01.10.2026). Теперь телефон и почту запускает сама обёртка
+  // через WebViewClient.shouldOverrideUrlLoading, а если и этого нет — код просто
+  // копируется, и панель говорит, что делать дальше.
   share(text) {
     const value = String(text || '');
     try {
-      if (navigator.share) {
-        navigator.share({ title: 'Gopher Life', text: 'Мой код друга: ' + value }).catch(() => {});
+      if (window.AndroidBridge && typeof window.AndroidBridge.share === 'function') {
+        window.AndroidBridge.share(value);
         return true;
       }
     } catch (e) {}
     try {
-      if (typeof openExternalLink === 'function' &&
-          openExternalLink('sms:?body=' + encodeURIComponent('Мой код друга в Gopher Life: ' + value))) {
+      if (navigator.share) {
+        navigator.share({ title: 'Gopher Life', text: 'Мой код друга: ' + value }).catch(() => {});
         return true;
       }
     } catch (e) {}
@@ -424,21 +470,28 @@ const ClipBridge = {
 
 window.ClipBridge = ClipBridge;
 
-// Открыть ссылку во внешнем браузере (Android WebView тоже)
+// Открыть ссылку во внешнем браузере (Android WebView тоже).
+// v1.3.12: разрешены ТОЛЬКО веб-ссылки. Схемы вроде «sms:», «tel:» и «whatsapp:»
+// WebView сам не открывает — он показывает страницу ошибки
+// «net::ERR_UNKNOWN_URL_SCHEME» прямо внутри игры (жалоба заказчика 01.10.2026).
+// Телефон, почту и SMS запускает Android-обёртка через
+// WebViewClient.shouldOverrideUrlLoading, а игра такие ссылки не открывает.
 function openExternalLink(url) {
+  const u = String(url || '').trim();
+  if (!/^https?:\/\//i.test(u)) return false;
   try {
     if (window.cordova && window.cordova.InAppBrowser && window.cordova.InAppBrowser.open) {
-      window.cordova.InAppBrowser.open(url, '_system');
+      window.cordova.InAppBrowser.open(u, '_system');
       return true;
     }
   } catch (e) {}
   try {
-    const w = window.open(url, '_system');
+    const w = window.open(u, '_system');
     if (w) return true;
   } catch (e) {}
   try {
     const a = document.createElement('a');
-    a.href = url;
+    a.href = u;
     a.target = '_blank';
     a.rel = 'noopener';
     document.body.appendChild(a);

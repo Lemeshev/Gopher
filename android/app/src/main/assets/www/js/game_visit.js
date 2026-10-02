@@ -24,7 +24,48 @@ const VISIT_DATA = {
       { id: 'tech_museum', emoji: '💡', name: 'Науки и техники', desc: 'Изобретения и опыты', color: '#F9A825' },
       { id: 'music_museum', emoji: '🎼', name: 'Музыки и театра', desc: 'Инструменты, балет, опера', color: '#7B1FA2' },
       { id: 'toy_museum', emoji: '🧸', name: 'Игрушек', desc: 'Куклы, матрёшки, игры', color: '#D84315' },
-      { id: 'palace_museum', emoji: '🏰', name: 'Дворцовый', desc: 'Эрмитаж: залы и сокровища', color: '#00695C' }
+      { id: 'palace_museum', emoji: '🏰', name: 'Дворцовый', desc: 'Эрмитаж: залы и сокровища', color: '#00695C' },
+      // --- 40 новых музеев (v1.3.12): «музеев добавь до 50 разных» ---
+      { id: 'ocean_museum', emoji: '🌊', name: 'Океанариум', desc: 'Рыбы, кораллы, киты', color: '#0E5C86' },
+      { id: 'paleo_museum', emoji: '🦴', name: 'Палеонтологический', desc: 'Динозавры и скелеты', color: '#B08968' },
+      { id: 'planetarium', emoji: '🔭', name: 'Планетарий', desc: 'Звёздное небо и телескопы', color: '#5C5CC4' },
+      { id: 'gems_museum', emoji: '💎', name: 'Музей камня', desc: 'Кристаллы и самоцветы', color: '#7FD4FF' },
+      { id: 'human_museum', emoji: '🫀', name: 'Музей человека', desc: 'Как устроен наш организм', color: '#FF6B6B' },
+      { id: 'botanic_museum', emoji: '🌿', name: 'Ботанический сад', desc: 'Растения и цветы', color: '#2F6B3A' },
+      { id: 'insects_museum', emoji: '🐛', name: 'Музей насекомых', desc: 'Жуки, бабочки, муравьи', color: '#6BCB77' },
+      { id: 'birds_museum', emoji: '🦜', name: 'Музей птиц', desc: 'Гнёзда, перья, пение', color: '#4D96FF' },
+      { id: 'cats_museum', emoji: '🐈', name: 'Кошачий музей', desc: 'Породы кошек и коты мира', color: '#E8A33D' },
+      { id: 'dogs_museum', emoji: '🐕', name: 'Музей собак', desc: 'Породы и собачья работа', color: '#C1783C' },
+      { id: 'horses_museum', emoji: '🐎', name: 'Конный музей', desc: 'Лошади, сёдла, кареты', color: '#3D5522' },
+      { id: 'farm_museum', emoji: '🚜', name: 'Музей деревни', desc: 'Мельница, утварь, трактор', color: '#486B2A' },
+      { id: 'bread_museum', emoji: '🍞', name: 'Музей хлеба', desc: 'От колоска до каравая', color: '#E0A96D' },
+      { id: 'tea_museum', emoji: '🫖', name: 'Музей чая', desc: 'Чайники, травы, самовар', color: '#3FA37A' },
+      { id: 'chocolate_museum', emoji: '🍫', name: 'Шоколадный музей', desc: 'Какао, плитки, конфеты', color: '#8D5524' },
+      { id: 'cheese_museum', emoji: '🧀', name: 'Сырный музей', desc: 'Сыры и сыроварни', color: '#D9B23D' },
+      { id: 'icecream_museum', emoji: '🍦', name: 'Музей мороженого', desc: 'Рожки, шарики, эскимо', color: '#F6A5C0' },
+      { id: 'honey_museum', emoji: '🍯', name: 'Музей мёда', desc: 'Улей, соты и пчёлы', color: '#B8892B' },
+      { id: 'robots_museum', emoji: '🤖', name: 'Музей роботов', desc: 'Механизмы, датчики, руки', color: '#3D6B8C' },
+      { id: 'computers_museum', emoji: '💾', name: 'Музей компьютеров', desc: 'От калькулятора до ИИ', color: '#4D6B8C' },
+      { id: 'clocks_museum', emoji: '🕰️', name: 'Музей часов', desc: 'Маятники, куранты, будильники', color: '#B08D57' },
+      { id: 'photo_museum', emoji: '📷', name: 'Музей фотографии', desc: 'Плёнка, вспышка, снимки', color: '#9AA0B5' },
+      { id: 'planes_museum', emoji: '✈️', name: 'Музей авиации', desc: 'Самолёты и планеры', color: '#7FB8E6' },
+      { id: 'cars_museum', emoji: '🚗', name: 'Музей автомобилей', desc: 'Моторы, шины, руль', color: '#8C5A3C' },
+      { id: 'glass_museum', emoji: '🫙', name: 'Музей стекла', desc: 'Как варят стекло', color: '#9FD8FF' },
+      { id: 'pottery_museum', emoji: '⚱️', name: 'Гончарный музей', desc: 'Глина, круг, горшки', color: '#C1783C' },
+      { id: 'metal_museum', emoji: '⚙️', name: 'Музей металла', desc: 'Руда, ковка, сплавы', color: '#7C8794' },
+      { id: 'wood_museum', emoji: '🪵', name: 'Музей дерева', desc: 'Древесина и резьба', color: '#A9743A' },
+      { id: 'textile_museum', emoji: '🧵', name: 'Музей тканей', desc: 'Лён, нити, ткацкий станок', color: '#D98CB3' },
+      { id: 'shoes_museum', emoji: '👟', name: 'Музей обуви', desc: 'От лаптей до кроссовок', color: '#8A5A2B' },
+      { id: 'hats_museum', emoji: '🎩', name: 'Музей шляп', desc: 'Панамы, цилиндры, короны', color: '#6E4B8E' },
+      { id: 'circus_museum', emoji: '🎪', name: 'Музей цирка', desc: 'Арена, фокусы, акробаты', color: '#FF4D6D' },
+      { id: 'puppets_museum', emoji: '🎭', name: 'Театр кукол', desc: 'Куклы, ширма, нитки', color: '#B44EC4' },
+      { id: 'cartoons_museum', emoji: '📺', name: 'Музей мультфильмов', desc: 'Как рисуют мультики', color: '#4D7CE8' },
+      { id: 'bricks_museum', emoji: '🧱', name: 'Музей конструкторов', desc: 'Кубики и механизмы', color: '#F5B301' },
+      { id: 'puzzles_museum', emoji: '🧩', name: 'Музей головоломок', desc: 'Кубик Рубика и задачи', color: '#4FB3A5' },
+      { id: 'chess_museum', emoji: '♟️', name: 'Музей шахмат', desc: 'Фигуры и первые ходы', color: '#7C8794' },
+      { id: 'sport_museum', emoji: '🏅', name: 'Музей спорта', desc: 'Медали, кубки, рекорды', color: '#3D7C8C' },
+      { id: 'post_museum', emoji: '✉️', name: 'Музей почты', desc: 'Конверты, марки, голуби', color: '#4D96FF' },
+      { id: 'fire_museum', emoji: '🚒', name: 'Пожарный музей', desc: 'Каски, лестницы, стволы', color: '#E4572E' },
     ]
   },
 
@@ -100,6 +141,179 @@ const VISIT_DATA = {
     perItem: '+1 интеллект за зал и сокровище',
     perItemReward: { stat: 'intelligence', amount: 1 },
     reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+
+  // ----- 40 новых музеев (v1.3.12): «музеев добавь до 50 разных» -----
+  // Каждый — обычный «browse»: подборка из 12 экспонатов за 5 энергии, как у старых.
+  ocean_museum: {
+    name: '🌊 Океанариум', bg: '#0a2436', kind: 'browse', content: 'ocean_museum', count: 12, energyCost: 5,
+    perItem: '+1 интеллект за обитателя', perItemReward: { stat: 'intelligence', amount: 1 },
+    reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  paleo_museum: {
+    name: '🦴 Палеонтологический музей', bg: '#2b2118', kind: 'browse', content: 'paleo_museum', count: 12, energyCost: 5,
+    perItem: '+1 интеллект за скелет', perItemReward: { stat: 'intelligence', amount: 1 },
+    reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  planetarium: {
+    name: '🔭 Планетарий', bg: '#050518', kind: 'browse', content: 'planetarium', count: 12, energyCost: 5,
+    perItem: '+1 интеллект за созвездие', perItemReward: { stat: 'intelligence', amount: 1 },
+    reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  gems_museum: {
+    name: '💎 Музей камня', bg: '#101b2e', kind: 'browse', content: 'gems_museum', count: 12, energyCost: 5,
+    perItem: '+1 интеллект за самоцвет', perItemReward: { stat: 'intelligence', amount: 1 },
+    reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  human_museum: {
+    name: '🫀 Музей человека', bg: '#2e1418', kind: 'browse', content: 'human_museum', count: 12, energyCost: 5,
+    perItem: '+1 интеллект за орган', perItemReward: { stat: 'intelligence', amount: 1 },
+    reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  botanic_museum: {
+    name: '🌿 Ботанический сад', bg: '#16301c', kind: 'browse', content: 'botanic_museum', count: 12, energyCost: 5,
+    perItem: '+1 интеллект за растение', perItemReward: { stat: 'intelligence', amount: 1 },
+    reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  insects_museum: {
+    name: '🐛 Музей насекомых', bg: '#1d2a14', kind: 'browse', content: 'insects_museum', count: 12, energyCost: 5,
+    perItem: '+1 интеллект за жучка', perItemReward: { stat: 'intelligence', amount: 1 },
+    reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  birds_museum: {
+    name: '🦜 Музей птиц', bg: '#122436', kind: 'browse', content: 'birds_museum', count: 12, energyCost: 5,
+    perItem: '+1 интеллект за птицу', perItemReward: { stat: 'intelligence', amount: 1 },
+    reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  cats_museum: {
+    name: '🐈 Кошачий музей', bg: '#2e2410', kind: 'browse', content: 'cats_museum', count: 12, energyCost: 5,
+    perItem: '+1 интеллект за кота', perItemReward: { stat: 'intelligence', amount: 1 },
+    reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  dogs_museum: {
+    name: '🐕 Музей собак', bg: '#2a1c10', kind: 'browse', content: 'dogs_museum', count: 12, energyCost: 5,
+    perItem: '+1 интеллект за породу', perItemReward: { stat: 'intelligence', amount: 1 },
+    reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  horses_museum: {
+    name: '🐎 Конный музей', bg: '#1e2a12', kind: 'browse', content: 'horses_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  farm_museum: {
+    name: '🚜 Музей деревни', bg: '#22301a', kind: 'browse', content: 'farm_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  bread_museum: {
+    name: '🍞 Музей хлеба', bg: '#2e2416', kind: 'browse', content: 'bread_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  tea_museum: {
+    name: '🫖 Музей чая', bg: '#12281f', kind: 'browse', content: 'tea_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  chocolate_museum: {
+    name: '🍫 Шоколадный музей', bg: '#251609', kind: 'browse', content: 'chocolate_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  cheese_museum: {
+    name: '🧀 Сырный музей', bg: '#2e2a12', kind: 'browse', content: 'cheese_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  icecream_museum: {
+    name: '🍦 Музей мороженого', bg: '#2a1a22', kind: 'browse', content: 'icecream_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  honey_museum: {
+    name: '🍯 Музей мёда', bg: '#2e2410', kind: 'browse', content: 'honey_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  robots_museum: {
+    name: '🤖 Музей роботов', bg: '#1a2028', kind: 'browse', content: 'robots_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  computers_museum: {
+    name: '💾 Музей компьютеров', bg: '#151c26', kind: 'browse', content: 'computers_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  clocks_museum: {
+    name: '🕰️ Музей часов', bg: '#2a2216', kind: 'browse', content: 'clocks_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  photo_museum: {
+    name: '📷 Музей фотографии', bg: '#1c1c1c', kind: 'browse', content: 'photo_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  planes_museum: {
+    name: '✈️ Музей авиации', bg: '#122436', kind: 'browse', content: 'planes_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  cars_museum: {
+    name: '🚗 Музей автомобилей', bg: '#241a14', kind: 'browse', content: 'cars_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  glass_museum: {
+    name: '🫙 Музей стекла', bg: '#101c26', kind: 'browse', content: 'glass_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  pottery_museum: {
+    name: '⚱️ Гончарный музей', bg: '#2a1c10', kind: 'browse', content: 'pottery_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  metal_museum: {
+    name: '⚙️ Музей металла', bg: '#1c2026', kind: 'browse', content: 'metal_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  wood_museum: {
+    name: '🪵 Музей дерева', bg: '#241a10', kind: 'browse', content: 'wood_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  textile_museum: {
+    name: '🧵 Музей тканей', bg: '#2a1622', kind: 'browse', content: 'textile_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  shoes_museum: {
+    name: '👟 Музей обуви', bg: '#241a12', kind: 'browse', content: 'shoes_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  hats_museum: {
+    name: '🎩 Музей шляп', bg: '#1e1630', kind: 'browse', content: 'hats_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  circus_museum: {
+    name: '🎪 Музей цирка', bg: '#2e1020', kind: 'browse', content: 'circus_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  puppets_museum: {
+    name: '🎭 Театр кукол', bg: '#241430', kind: 'browse', content: 'puppets_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  cartoons_museum: {
+    name: '📺 Музей мультфильмов', bg: '#141c30', kind: 'browse', content: 'cartoons_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  bricks_museum: {
+    name: '🧱 Музей конструкторов', bg: '#2e2410', kind: 'browse', content: 'bricks_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  puzzles_museum: {
+    name: '🧩 Музей головоломок', bg: '#12282a', kind: 'browse', content: 'puzzles_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  chess_museum: {
+    name: '♟️ Музей шахмат', bg: '#1c1c26', kind: 'browse', content: 'chess_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  sport_museum: {
+    name: '🏅 Музей спорта', bg: '#142430', kind: 'browse', content: 'sport_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  post_museum: {
+    name: '✉️ Музей почты', bg: '#12243a', kind: 'browse', content: 'post_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
+  },
+  fire_museum: {
+    name: '🚒 Пожарный музей', bg: '#2e1208', kind: 'browse', content: 'fire_museum', count: 12, energyCost: 5, perItem: '+1 интеллект за экспонат',
+    perItemReward: { stat: 'intelligence', amount: 1 }, reward: { stat: 'intelligence', amount: 5, label: 'Интеллект +5' }
   },
 
   // ----- БИБЛИОТЕКА -----
