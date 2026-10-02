@@ -706,7 +706,11 @@ class MenuScene {
       } else if (t === 'settings') {
         this.showSettings = true;
         this.confirmReset = false;
-      } else if (t === 'profiles') {
+      } else if (t === 'profiles' || t.indexOf('Профили') !== -1) {
+        // v1.3.12: заказчик — «Зачем нужна кнопка „Профили“? Она не работает».
+        // Причина: у большой кнопки текст «👥 Профили», а обработчик ждал только
+        // внутренний код 'profiles' (он есть у маленькой кнопки-чипа в углу).
+        // Из-за этого большая кнопка в списке меню не открывала ничего.
         this.profilesMode = true;
       } else if (t.indexOf('Персонаж') !== -1) {
         this.charMode = true;

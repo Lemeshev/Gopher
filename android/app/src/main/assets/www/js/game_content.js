@@ -2440,7 +2440,9 @@ window.findProcedure = findProcedure;
 const QUIET_GAMES = [
   { id: 'stars', name: 'Созвездие', emoji: '✨', desc: 'Соедини звёзды по порядку', reward: 8 },
   { id: 'color', name: 'Раскраска', emoji: '🎨', desc: 'Раскрась картинку цветами', reward: 10 },
-  { id: 'fish',  name: 'Тихая рыбалка', emoji: '🎣', desc: 'Подводный мир: жди поклёвку и тяни', reward: 12 }
+  { id: 'fish',  name: 'Тихая рыбалка', emoji: '🎣', desc: 'Подводный мир: жди поклёвку и тяни', reward: 12 },
+  { id: 'watch', name: 'Просто смотреть', emoji: '👀', desc: 'Те же рыбы, без крючка и поклёвки', reward: 8 },
+  { id: 'window', name: 'У окна', emoji: '🪟', desc: 'Посидеть и посмотреть, что за окном', reward: 8 }
 ];
 
 window.QUIET_GAMES = QUIET_GAMES;
@@ -2461,14 +2463,14 @@ window.QUIET_GAMES = QUIET_GAMES;
 const FISH_SPECIES = [
   { id: 'crucian',   name: 'Карась',          color: '#C9A227', belly: '#F0D264', size: 0.95, weight: 12, fact: 'Может зимовать в пруду, зарывшись в ил.' },
   { id: 'roach',     name: 'Плотва',          color: '#9BB7C9', belly: '#E6EEF3', size: 0.85, weight: 12, fact: 'Стайная рыба: в одиночку почти не плавает.' },
-  { id: 'perch',     name: 'Окунь',           color: '#5C8A3C', belly: '#DCE8B8', size: 0.95, weight: 11, fact: 'Полосатый хищник: охотится из засады.' },
+  { id: 'perch',     name: 'Окунь',           color: '#5C8A3C', belly: '#DCE8B8', size: 0.95, pattern: 'stripes', accent: '#2E4A22', fin: 'spiky', weight: 11, fact: 'Полосатый хищник: охотится из засады.' },
   { id: 'ruff',      name: 'Ёрш',             color: '#7A7360', belly: '#D8D2C0', size: 0.72, weight: 10, fact: 'Растопыривает колючки, когда пугается.' },
   { id: 'bream',     name: 'Лещ',             color: '#B4A56B', belly: '#EFE7C6', size: 1.05, weight: 9,  fact: 'Молодого леща называют подлещик.' },
   { id: 'rudd',      name: 'Краснопёрка',     color: '#D9A24A', belly: '#F6DDA8', size: 0.85, weight: 9,  fact: 'Красные плавники — как маленькие флажки.' },
   { id: 'tench',     name: 'Линь',            color: '#6E7F4E', belly: '#CBD6A4', size: 1.0,  weight: 8,  fact: 'Кожа слизистая: в руках скользит, будто в масле.' },
-  { id: 'pike',      name: 'Щука',            color: '#5A6E52', belly: '#CFD8B8', size: 1.35, weight: 7,  fact: 'Стоит неподвижно и хватает добычу рывком.' },
+  { id: 'pike',      name: 'Щука',            color: '#5A6E52', belly: '#CFD8B8', size: 1.35, shape: 'slim', pattern: 'spots', accent: '#39472F', tail: 'fork', weight: 7,  fact: 'Стоит неподвижно и хватает добычу рывком.' },
   { id: 'zander',    name: 'Судак',           color: '#6B7C90', belly: '#D6DEE7', size: 1.25, weight: 7,  fact: 'У него клыки: охотится в сумерках.' },
-  { id: 'catfish',   name: 'Сом',             color: '#4E4A55', belly: '#BFB9C4', size: 1.3,  weight: 6,  fact: 'Усы помогают искать еду на самом дне.' },
+  { id: 'catfish',   name: 'Сом',             color: '#4E4A55', belly: '#BFB9C4', size: 1.3,  shape: 'slim', tail: 'round', fin: 'low', pattern: 'none', weight: 6,  fact: 'Усы помогают искать еду на самом дне.' },
   { id: 'carp',      name: 'Карп',            color: '#B98A3E', belly: '#EDD8A8', size: 1.2,  weight: 6,  fact: 'Живёт больше двадцати лет и узнаёт время кормления.' },
   { id: 'grasscarp', name: 'Белый амур',      color: '#8FA96B', belly: '#DFE9C6', size: 1.2,  weight: 5,  fact: 'Ест водоросли — его зовут санитаром пруда.' },
   { id: 'chub',      name: 'Голавль',         color: '#98A3A8', belly: '#E1E7EA', size: 1.0,  weight: 5,  fact: 'Любит быстрое течение и насекомых с поверхности.' },
@@ -2476,11 +2478,11 @@ const FISH_SPECIES = [
   { id: 'guppy',     name: 'Гуппи',           color: '#E86A9B', belly: '#FBD3E4', size: 0.65, weight: 9,  fact: 'Рождает живых мальков, а не мечет икру.' },
   { id: 'neon',      name: 'Неоновая тетра',  color: '#4FC3F7', belly: '#D6F1FF', size: 0.6,  weight: 9,  fact: 'Яркая полоска — признак, что рыбка здорова.' },
   { id: 'swordtail', name: 'Меченосец',       color: '#F0A24B', belly: '#FBE0B8', size: 0.7,  weight: 8,  fact: 'У самца на хвосте длинный отросток — «меч».' },
-  { id: 'angelfish', name: 'Скалярия',        color: '#C0B18A', belly: '#F2ECD8', size: 1.0,  weight: 7,  fact: 'Плавает медленно и важно, как королева.' },
+  { id: 'angelfish', name: 'Скалярия',        color: '#C0B18A', belly: '#F2ECD8', size: 1.0,  shape: 'flat', fin: 'sail', tail: 'streamer', weight: 7,  fact: 'Плавает медленно и важно, как королева.' },
   { id: 'gourami',   name: 'Гурами',          color: '#8E7CC3', belly: '#DCD4F0', size: 0.9,  weight: 7,  fact: 'Дышит воздухом с поверхности воды.' },
   { id: 'corydoras', name: 'Сомик-коридорас', color: '#7D8C99', belly: '#CCD6DE', size: 0.7,  weight: 8,  fact: 'Чистильщик: подбирает корм со дна.' },
   { id: 'goldfish',  name: 'Золотая рыбка',   color: '#FFB300', belly: '#FFE082', size: 0.9,  weight: 3,  fact: 'Помнишь сказку? Желание загадывать не обязательно — отпусти её.' },
-  { id: 'clownfish', name: 'Рыба-клоун',      color: '#FF7043', belly: '#FFCCBC', size: 0.8,  weight: 3,  fact: 'Живёт среди щупалец актинии, и они её не жалят.' },
+  { id: 'clownfish', name: 'Рыба-клоун',      color: '#FF7043', belly: '#FFCCBC', size: 0.8,  pattern: 'stripes', accent: '#FFFFFF', fin: 'sail', weight: 3,  fact: 'Живёт среди щупалец актинии, и они её не жалят.' },
   // --- речные и озёрные (v1.3.10, к ста видам) ---
   { id: 'asp',        name: 'Жерех',           color: '#9BB0C2', belly: '#E4EDF4', size: 1.15, weight: 5,  fact: 'Бьёт хвостом по воде, чтобы оглушить мальков.' },
   { id: 'ide',        name: 'Язь',             color: '#A8A16B', belly: '#E6E1C4', size: 1.1,  weight: 6,  fact: 'Ест ягоды, которые падают в воду с кустов.' },
@@ -2512,7 +2514,7 @@ const FISH_SPECIES = [
   { id: 'molly',      name: 'Молли',           color: '#6E6E7A', belly: '#D4D4DC', size: 0.72, weight: 7,  fact: 'Любит чуть солёную воду и греться у поверхности.' },
   { id: 'platy',      name: 'Пецилия',         color: '#F09A4B', belly: '#FBE0C0', size: 0.68, weight: 7,  fact: 'Рождает живых мальков, как гуппи.' },
   { id: 'ternetia',   name: 'Тернеция',        color: '#7C7C86', belly: '#D8D8E0', size: 0.7,  weight: 6,  fact: 'Чёрная с серебром: заметна даже в тёмной воде.' },
-  { id: 'zebrafish',  name: 'Данио',           color: '#8FB6E0', belly: '#E2EEFA', size: 0.62, weight: 8,  fact: 'Полосатая, как зебра, и очень быстрая.' },
+  { id: 'zebrafish',  name: 'Данио',           color: '#8FB6E0', belly: '#E2EEFA', size: 0.62, shape: 'slim', pattern: 'stripes', accent: '#2E5C8A', tail: 'fork', weight: 8,  fact: 'Полосатая, как зебра, и очень быстрая.' },
   { id: 'rasbora',    name: 'Расбора',         color: '#D06A3A', belly: '#F6D2BC', size: 0.55, weight: 8,  fact: 'Крошка в два сантиметра с яркой полоской.' },
   { id: 'tetrario',   name: 'Тетра-фон-рио',   color: '#E05A5A', belly: '#F8C8C8', size: 0.65, weight: 6,  fact: 'Красная рыбка, которую видно в тёмной воде.' },
   { id: 'ancistrus',  name: 'Анциструс',       color: '#6B5B4A', belly: '#CFC2B4', size: 0.95, weight: 6,  fact: 'Сомик-чистильщик: обгрызает водоросли со стёкол.' },
@@ -2529,7 +2531,7 @@ const FISH_SPECIES = [
   { id: 'marmorgourami', name: 'Гурами мраморный', color: '#8B7BA6', belly: '#DED6EC', size: 0.9,  weight: 5,  fact: 'Родня гурами, только в мраморных пятнах.' },
   { id: 'apistogramma', name: 'Апистограмма',  color: '#E0A0B0', belly: '#F8DEE4', size: 0.62, weight: 5,  fact: 'Прячет икру в пещерке и водит стайку мальков.' },
   { id: 'arowana',    name: 'Арована',         color: '#C0C0A0', belly: '#EDEDD8', size: 1.5,  weight: 1,  fact: 'Крупная, с усами: может прыгать за насекомыми.' },
-  { id: 'knifefish',  name: 'Рыба-нож',        color: '#7A6E5A', belly: '#D8D0BE', size: 1.0,  weight: 3,  fact: 'Плавает и вперёд, и назад, изгибая всё тело.' },
+  { id: 'knifefish',  name: 'Рыба-нож',        color: '#7A6E5A', belly: '#D8D0BE', size: 1.0,  shape: 'slim', tail: 'streamer', fin: 'low', pattern: 'spots', accent: '#4A4234', weight: 3,  fact: 'Плавает и вперёд, и назад, изгибая всё тело.' },
   { id: 'puffer',     name: 'Рыба-ёж',         color: '#D6B45A', belly: '#F6E6B4', size: 0.8,  weight: 4,  fact: 'Надувается в шар, когда пугается.' },
   { id: 'butterflyfish', name: 'Рыба-бабочка', color: '#E0C24B', belly: '#F8EEB8', size: 0.72, weight: 5,  fact: 'Плавает парами и любит кораллы.' },
   { id: 'seangel',    name: 'Рыба-ангел',      color: '#E0B9C2', belly: '#F8E4E8', size: 0.95, weight: 4,  fact: 'С ложным глазом на хвосте: так путает хищников.' },
@@ -2568,7 +2570,7 @@ const FISH_SPECIES = [
 // kind задаёт силуэт (черепаха, акула, осьминог, медуза, краб, звезда, конёк),
 // size — размер на экране, fact — фраза-объяснение для подсказки.
 const SEA_FRIENDS = [
-  { id: 'turtle',    kind: 'turtle',    name: 'Черепаха',       size: 1.45, fact: 'Живёт больше ста лет — её не ловим, только смотрим.' },
+  { id: 'turtle',    kind: 'turtle',    name: 'Черепаха',       size: 1.45, fact: 'Живёт больше ста лет: панцирь растёт вместе с ней.' },
   { id: 'shark',     kind: 'shark',     name: 'Акула',          size: 1.7,  fact: 'Большая и редкая: пусть плавает, её не трогаем.' },
   { id: 'octopus',   kind: 'octopus',   name: 'Осьминог',       size: 1.2,  fact: 'У осьминога три сердца и восемь щупалец.' },
   { id: 'jellyfish', kind: 'jellyfish', name: 'Медуза',         size: 0.95, fact: 'Почти целиком из воды: руками её не берут.' },
@@ -2629,12 +2631,36 @@ function randomFishSpecies() {
 function findFishSpecies(id) { return FISH_SPECIES.find(f => f.id === id) || null; }
 function findSeaFriend(id) { return SEA_FRIENDS.find(f => f.id === id) || null; }
 
-// Фраза для подсказки, когда большой обитатель уходит от крючка:
-// «Черепаха уплывает: живёт больше ста лет — её не ловим, только смотрим.»
+// Внешний «портрет» рыбки (v1.3.12). Заказчик: «чтобы рыбки были разной формы,
+// размеров, и чтобы они были не только одноцветные, но и некоторые разноцветные
+// с разными плавниками». У вида можно задать поля прямо в данных — shape (slim/
+// deep/flat/normal), tail (fan/fork/round/streamer), fin (sail/spiky/low),
+// pattern (stripes/spots/none) и accent (цвет полосок/пятен). Остальным видам
+// набор достаётся по устойчивому «хэшу» id: у каждой рыбки свой силуэт, хвост,
+// плавник и узор — и они одинаковые от игры к игре, вид узнаётся.
+const FISH_SHAPES = ['normal', 'slim', 'deep', 'flat'];
+const FISH_TAILS = ['fan', 'fork', 'round', 'streamer'];
+const FISH_FINS = ['sail', 'spiky', 'low'];
+const FISH_PATTERNS = ['none', 'stripes', 'spots'];
+function fishVariety(sp) {
+  const id = String((sp && sp.id) || 'x');
+  let x = 0;
+  for (let i = 0; i < id.length; i++) x = (x * 31 + id.charCodeAt(i)) >>> 0;
+  const pick = (arr, shift) => arr[(x >>> shift) % arr.length];
+  return {
+    shape: sp.shape || pick(FISH_SHAPES, 0),
+    tail: sp.tail || pick(FISH_TAILS, 3),
+    fin: sp.fin || pick(FISH_FINS, 6),
+    pattern: sp.pattern || pick(FISH_PATTERNS, 9),
+    accent: sp.accent || null
+  };
+}
+
+// Подпись проплывающего обитателя: имя и факт, без приписки «не ловим».
 function seaFriendHint(id) {
   const f = findSeaFriend(id);
-  if (!f) return 'Этого здесь не ловим — пусть плавает.';
-  return f.name + ' уплывает: ' + f.fact;
+  if (!f) return '';
+  return f.name + ': ' + f.fact;
 }
 
 window.FISH_SPECIES = FISH_SPECIES;
