@@ -64,6 +64,9 @@ console.error = function () {
 <script src="../../www/js/game_home.js"></script>
 <script src="../../www/js/game_shop.js"></script>
 <script src="../../www/js/game_minigames.js"></script>
+<script src="../../www/js/chat_lines.js"></script>
+<script src="../../www/js/chat_kid.js"></script>
+<script src="../../www/js/game_chat.js"></script>
 <script src="../../www/js/game_quiet.js"></script>
 <script src="../../www/js/game_aerial.js"></script>
 <script src="../../www/js/game_stats.js"></script>
@@ -284,6 +287,22 @@ console.error = function () {
         scene.fish.biteFish = sp;
         scene.tryFish();
         scene.resultTimer = 4.5;   // плашка успеет попасть в кадр
+      }
+      parts[1] = null;
+    }
+
+    // Дельфин крупно (#quiet@dolphin, v1.3.27): раньше делил силуэт с акулой и его
+    // путали с ней. Форсируем в кадр именно дельфина, чтобы ревьюер рендера всегда
+    // видел его «клюв» и серповидный плавник.
+    if (parts[0] === 'quiet' && parts[1] === 'dolphin') {
+      scene.startGame('fish');
+      var W = g.width, H = g.height;
+      var dolphin = scene.makeSwimmer('friend', W, H, { id: 'dolphin', kind: 'dolphin', size: 1.6 });
+      if (dolphin) {
+        dolphin.x = W / 2;
+        dolphin.y = H * 0.6;
+        dolphin.dir = 1;
+        scene.fish.swimmers = [dolphin];
       }
       parts[1] = null;
     }

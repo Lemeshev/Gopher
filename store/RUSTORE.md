@@ -2,7 +2,7 @@
 
 Приложение в консоли RuStore: `Gopher Life`, appId **2063763308**,
 https://console.rustore.ru/apps/2063763308
-Package name: **com.gopherlife.app** · версия в сборке: **1.3.26** (versionCode 33)
+Package name: **com.gopherlife.app** · версия в сборке: **1.3.27** (versionCode 34)
 
 ---
 
@@ -26,8 +26,8 @@ Package name: **com.gopherlife.app** · версия в сборке: **1.3.26**
 Осталось: **первая загрузка через веб-консоль** — RuStore не даёт создать первую
 версию через API, а вход в консоль требует вашего VK ID. Загружать APK **1.3.10
 (versionCode 17)**, файл `android/app/build/outputs/apk/release/app-release.apk`
-(копия на рабочем столе: `~/Desktop/Gopher.apk`, 329 КБ,
-md5 `a7e25a1e9c86ff2168ed806234ec84fb`).
+(копия на рабочем столе: `~/Desktop/Gopher.apk`, 382 КБ,
+md5 `acef3aab87f9208418acd9d31de23475`).
 
 ### Проверено вживую 01.10.2026 (важно для автоматизации)
 
@@ -91,7 +91,7 @@ node tools/rustore-publish.js save-key <keyId> <приватный ключ base
 
 | Файл | Что это |
 |---|---|
-| `android/app/build/outputs/apk/release/app-release.apk` | подписанный релизный APK (~329 КБ, md5 `a7e25a1e9c86ff2168ed806234ec84fb`), версия 1.3.7 — копия на рабочем столе совпадает байт в байт |
+| `android/app/build/outputs/apk/release/app-release.apk` | подписанный релизный APK (~382 КБ, md5 `acef3aab87f9208418acd9d31de23475`), версия 1.3.7 — копия на рабочем столе совпадает байт в байт |
 | `store/icon-512.png` | иконка 512×512 |
 | `store/screens-9x16/*.jpg` | 10 скриншотов 1080×1920 (RuStore принимает от 3 до 10 — у нас ровно 10) |
 | `store/card.txt` | название, краткое и полное описание, «что нового», 8 пар FAQ |
@@ -126,8 +126,9 @@ only possible when there is an active app version available»*). Поэтому 
 6. **Политика конфиденциальности**: `https://lemeshev.github.io/Gopher/privacy.html`
    (страница уже опубликована; либо свой URL).
 7. **Безопасность данных**: приложение не собирает и не передаёт данные, рекламы
-   и покупок нет, интернет не требуется. Разрешений приложение не запрашивает
-   вообще — это видно в APK и проверяется автотестом.
+   и покупок нет, интернет не требуется для игры. Разрешений всего два — интернет
+   и установка обновлений (только для функции обновления игры) — это видно в APK
+   и проверяется автотестом.
 8. Отправить на модерацию.
 
 ---
@@ -151,9 +152,10 @@ node tools/rustore-publish.js all --go --email ВАШ@МЭЙЛ   # чернов�
 
 ## 5. ЧТО ПРОВЕРЕНО АВТОТЕСТАМИ (блок 10 в `tools/verify.js`)
 
-- APK не запрашивает **ни одного разрешения** (`INTERNET`, `ACCESS_NETWORK_STATE`,
-  `WAKE_LOCK` убраны как ненужные: игра полностью офлайн, страница грузится из
-  `file:///android_asset`, `usesCleartextTraffic=false`);
+- APK запрашивает **ровно два разрешения** — `INTERNET` и
+  `REQUEST_INSTALL_PACKAGES` — и оба нужны только функции обновления игры
+  (скачать APK с GitHub и установить его). Игра при этом офлайн: страница грузится
+  из `file:///android_asset`, `usesCleartextTraffic=false`, сетевого кода в JS нет;
 - ключ RuStore не попадает в файлы проекта и в git;
 - тексты карточки соответствуют лимитам RuStore (название ≤50, краткое ≤80,
   полное ≤4000, «что нового» ≤5000, FAQ ≤10 пар);

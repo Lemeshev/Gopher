@@ -27,7 +27,8 @@ const SCRIPT_ORDER = [
   'js/helpers.js', 'js/gopher.js', 'js/characters.js', 'js/system.js', 'js/game_content.js',
   'js/game_room.js', 'js/game_scenery.js', 'js/audio.js',
   'js/game_menu.js', 'js/game_map.js', 'js/game_home.js', 'js/game_shop.js',
-  'js/game_minigames.js', 'js/game_quiet.js', 'js/game_aerial.js', 'js/game_stats.js',
+  'js/game_minigames.js', 'js/chat_lines.js', 'js/chat_kid.js', 'js/game_chat.js',
+  'js/game_quiet.js', 'js/game_aerial.js', 'js/game_stats.js',
   'js/game_clinic.js', 'js/game_visit.js', 'js/game_friends.js', 'js/game.js'
 ];
 
@@ -682,9 +683,9 @@ function reviewerV12Static() {
   check('Подсказка о большом обитателе без «уплывает», плашка о рыбе держится долго (v1.3.12)',
     content.indexOf("уплывает: '") === -1 && content.indexOf("f.name + ' уплывает'") === -1 &&
     content.indexOf("return f.name + ': ' + f.fact;") !== -1 &&
-    /\? 14 : 12/.test(quietMainSrc) && quietMainSrc.indexOf('нажми, чтобы убрать') !== -1 &&
+    /\? 16 : 14/.test(quietMainSrc) && quietMainSrc.indexOf('hitResultPlate') !== -1 &&
     quietMainSrc.indexOf('resultPlateBox') !== -1,
-    '«Черепаха: живёт больше ста лет — не ловим, только смотрим»; плашка 12–14 с, тап убирает');
+    '«Черепаха: живёт больше ста лет: панцирь растёт вместе с ней»; плашка 14–16 с, тап мимо убирает');
   // v1.3.12: «в „Как играть“ не все предложения помещаются в экран» и «экран не
   // закрыть, пока не пролистаешь всё до конца». Текст переносится, есть крестик.
   const gameMainSrc = read('game.js');
@@ -740,9 +741,9 @@ function reviewerV12Static() {
     home.indexOf('sleepAllowedHint') !== -1);
 
   // --- 4. Тихие игры и спорт ---
-  check('Есть сцена тихих игр с тремя занятиями',
+  check('Есть сцена тихих игр с четырьмя занятиями (звёзды, раскраска, рыбалка, у окна)',
     fs.existsSync(path.join(WWW, 'js/game_quiet.js')) && content.indexOf('QUIET_GAMES') !== -1 &&
-    (content.match(/id: '(stars|color|fish)'/g) || []).length === 3);
+    (content.match(/id: '(stars|color|fish|window)'/g) || []).length === 4);
   // v1.3.9: подводный мир рыбалки. Пожелание пользователя: «чтобы был виден
   // подводный мир, как они плавают, как за крючок цепляются… много разных видов
   // рыбок… ещё акул, осьминогов, черепах. Но ловили чтобы только рыбок».
@@ -1051,7 +1052,7 @@ function reviewerV12Runtime(rt) {
       seaRes ? ('рыбок ' + seaRes.fish + ', больших ' + seaRes.friends + ', поймано ' + seaRes.caught +
         ' (' + seaRes.seen + ' видов из ' + seaRes.species + ')') : 'нет данных');
     ok('Больших обитателей поймать нельзя, и игра объясняет это словами',
-      !!seaRes && seaRes.friendsCaught === 0 && (seaRes.hint || '').indexOf('не ловим') !== -1,
+      !!seaRes && seaRes.friendsCaught === 0 && (seaRes.hint || '').indexOf('Черепаха') === 0 && (seaRes.hint || '').length > 10,
       seaRes ? seaRes.hint : 'нет данных');
 
     // Воздушная гимнастика
@@ -1268,6 +1269,10 @@ function reviewerAchievements(rt) {
       const p = System.progress;
       p.trips += full ? 6 : 2; p.minigames += full ? 4 : 1; p.quiet += full ? 3 : 1;
       p.feeds += full ? 3 : 2; p.washes += 1; p.plays += full ? 3 : 1; p.tttWins += 1;
+      // Мини-игры (v1.3.16): «камень, ножницы, бумага» и «Огоньки» — их достижения
+      // тоже должны открываться за год игры
+      p.rpsWins += full ? 2 : 1;
+      p.simonBest = Math.max(p.simonBest || 0, full ? 8 : 4);
       if (full) p.furniture += 1;
       System.stats.energy = 45; System.startSleep(); System.tick(600000);
       System.earnCoins(full ? 120 : 40); System.addXP(full ? 250 : 70);
@@ -1968,8 +1973,8 @@ function reviewerAudio(rt) {
     music.started === true && music.first && music.first.playing === true &&
     music.first.played >= 1 && music.after > music.first.played,
     music.first ? ('нот сразу ' + music.first.played + ', через полсекунды ' + music.after) : musicWhy);
-  check('Мелодий шесть, и все «нейтральные»: до-мажор, без фальшивых сочетаний',
-    !!music.scale && music.scale.off === 0 && music.scale.tunes === 6 && music.scale.bad.length === 0,
+  check('Мелодий не меньше шести, и все «нейтральные»: до-мажор, без фальшивых сочетаний',
+    !!music.scale && music.scale.off === 0 && music.scale.tunes >= 6 && music.scale.bad.length === 0,
     music.scale ? (music.scale.tunes + ' мелодий (' + music.scale.names + '), круг ' +
       music.scale.loop.toFixed(1) + ' с, гамма ' + music.scale.list) : musicWhy);
   check('Музыка меняется сама: подряд два круга не звучат одинаково',
@@ -2275,8 +2280,10 @@ function reviewerRuStore(rt) {
     .map(f => fs.readFileSync(path.join(WWW, 'js', f), 'utf8')).join('\n');
 
   // --- 1. Разрешения и офлайн ---
-  check('APK не запрашивает ни одного разрешения Android',
-    manifest.indexOf('uses-permission') === -1,
+  check('APK запрашивает только нужные для обновления разрешения (интернет + установка обновлений)',
+    (manifest.match(/uses-permission/g) || []).length === 2 &&
+    manifest.indexOf('android.permission.INTERNET') !== -1 &&
+    manifest.indexOf('android.permission.REQUEST_INSTALL_PACKAGES') !== -1,
     'строк uses-permission: ' + (manifest.match(/uses-permission/g) || []).length);
   check('Запрещён открытый HTTP (usesCleartextTraffic=false)',
     manifest.indexOf('usesCleartextTraffic="false"') !== -1);
@@ -2310,9 +2317,9 @@ function reviewerRuStore(rt) {
   // --- 3. Политика конфиденциальности ---
   check('Политика конфиденциальности есть и написана для человека',
     policy.length > 1500 && policy.indexOf('Политика конфиденциальности') !== -1);
-  check('Политика честно говорит: данных не собираем, интернета нет, рекламы нет',
+  check('Политика честно говорит: данных не собираем, рекламы нет, разрешения — только для обновления',
     /Никакие/.test(policy) && /[Пп]ередачи нет/.test(policy) &&
-    /рекламу/.test(policy) && /не запрашивает ни одного разрешения/.test(policy));
+    /рекламу/.test(policy) && /скачать обновление игры/.test(policy));
   check('В политике есть контакты разработчика (для карточки RuStore)',
     policy.indexOf('mailto:') !== -1 || /\S+@\S+\.\S+/.test(policy));
 
@@ -2701,7 +2708,13 @@ function reviewerMuseumsAndSports(rt) {
   const sliceMuseum = key => {
     const i = content.indexOf('\n  ' + key + ': [');
     if (i < 0) return '';
-    return content.slice(i, content.indexOf('\n  ],', i));
+    // Последний музей закрывается «]» без запятой (перед «};»), остальные — «],».
+    // Раньше искали только «],» — у последнего музея слайс вылезал за конец и
+    // подхватывал чужие данные, поэтому виделись ложные «повторы» названий.
+    let j = content.indexOf('\n  ],', i);
+    const k = content.indexOf('\n  ]\n', i);
+    if (k !== -1 && (j === -1 || k < j)) j = k;
+    return content.slice(i, j < 0 ? content.length : j);
   };
   const sizes = museumKeys.map(k => (sliceMuseum(k).match(/\{ e:/g) || []).length);
   check('В каждом музее не меньше двенадцати экспонатов, у первых десяти — по сто',

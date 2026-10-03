@@ -1753,9 +1753,53 @@ class QuietScene {
       ctx.beginPath();
       ctx.moveTo(b * 0.35, b * 0.12); ctx.quadraticCurveTo(b * 0.55, b * 0.48, b * 0.15, b * 0.16); ctx.fill();
       eye(b * 0.85, -b * 0.08, b * 0.07);
-    } else if (k === 'dolphin' || k === 'orca') {
-      const dark = k === 'orca';
-      ctx.fillStyle = dark ? '#1b2430' : '#6f97b8';
+    } else if (k === 'dolphin') {
+      // Дельфин. Раньше делил силуэт с акулой — острый нос и плавник, поэтому их
+      // путали. Теперь у дельфина длинный «клюв» (рострум), округлый лоб (мелон),
+      // серповидный спинной плавник, загнутый назад, и улыбка.
+      ctx.fillStyle = '#6f97b8';
+      ctx.beginPath();
+      ctx.moveTo(b * 1.5, b * 0.04);
+      ctx.quadraticCurveTo(b * 1.28, b * 0.0, b * 1.08, -b * 0.04);
+      ctx.quadraticCurveTo(b * 0.95, -b * 0.3, b * 0.45, -b * 0.34);
+      ctx.quadraticCurveTo(-b * 0.15, -b * 0.27, -b * 0.6, -b * 0.2);
+      ctx.quadraticCurveTo(-b * 0.95, -b * 0.15, -b * 1.08, -b * 0.05);
+      ctx.lineTo(-b * 1.38, -b * 0.34);
+      ctx.lineTo(-b * 1.12, 0);
+      ctx.lineTo(-b * 1.38, b * 0.24);
+      ctx.quadraticCurveTo(-b * 0.95, b * 0.16, -b * 0.4, b * 0.24);
+      ctx.quadraticCurveTo(b * 0.1, b * 0.22, b * 0.7, b * 0.14);
+      ctx.quadraticCurveTo(b * 1.25, b * 0.08, b * 1.5, b * 0.04);
+      ctx.fill();
+      // серповидный спинной плавник — загнут назад, в отличие от акульего
+      ctx.beginPath();
+      ctx.moveTo(b * 0.35, -b * 0.28);
+      ctx.quadraticCurveTo(b * 0.2, -b * 0.85, b * 0.0, -b * 0.55);
+      ctx.quadraticCurveTo(-b * 0.2, -b * 0.4, -b * 0.3, -b * 0.22);
+      ctx.closePath();
+      ctx.fill();
+      // грудной плавник
+      ctx.fillStyle = '#557d9c';
+      ctx.beginPath();
+      ctx.moveTo(b * 0.5, b * 0.06);
+      ctx.quadraticCurveTo(b * 0.38, b * 0.4, b * 0.12, b * 0.3);
+      ctx.quadraticCurveTo(b * 0.32, b * 0.18, b * 0.5, b * 0.06);
+      ctx.fill();
+      // светлое брюхо
+      ctx.fillStyle = '#d5e6f2';
+      ctx.beginPath();
+      ctx.ellipse(b * 0.3, b * 0.12, b * 0.7, b * 0.1, 0.02, 0, Math.PI);
+      ctx.fill();
+      // улыбка на клюве
+      ctx.strokeStyle = '#3f5f78';
+      ctx.lineWidth = Math.max(1.2, b * 0.04);
+      ctx.beginPath();
+      ctx.moveTo(b * 1.42, b * 0.06);
+      ctx.quadraticCurveTo(b * 1.2, b * 0.11, b * 1.0, b * 0.05);
+      ctx.stroke();
+      eye(b * 0.82, -b * 0.1, b * 0.055);
+    } else if (k === 'orca') {
+      ctx.fillStyle = '#1b2430';
       ctx.beginPath();
       ctx.moveTo(b * 1.25, b * 0.02);
       ctx.quadraticCurveTo(b * 0.7, -b * 0.34, 0, -b * 0.28);
@@ -1765,16 +1809,14 @@ class QuietScene {
       ctx.quadraticCurveTo(-b * 0.4, b * 0.22, b * 0.45, b * 0.16);
       ctx.quadraticCurveTo(b * 1.05, b * 0.12, b * 1.25, b * 0.02);
       ctx.fill();
-      ctx.fillStyle = dark ? '#f4f7fb' : '#d5e6f2';
+      ctx.fillStyle = '#f4f7fb';
       ctx.beginPath();
       ctx.ellipse(b * 0.15, b * 0.08, b * 0.55, b * 0.1, 0.05, 0, Math.PI);
       ctx.fill();
-      if (dark) {
-        ctx.beginPath();
-        ctx.ellipse(b * 0.55, -b * 0.08, b * 0.16, b * 0.1, -0.4, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.fillStyle = dark ? '#1b2430' : '#6f97b8';
+      ctx.beginPath();
+      ctx.ellipse(b * 0.55, -b * 0.08, b * 0.16, b * 0.1, -0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#1b2430';
       ctx.beginPath();
       ctx.moveTo(b * 0.05, -b * 0.22); ctx.quadraticCurveTo(b * 0.18, -b * 0.62, b * 0.38, -b * 0.16); ctx.fill();
       eye(b * 0.72, -b * 0.08, b * 0.055);

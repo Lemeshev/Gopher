@@ -14,7 +14,8 @@ const FILES = [
   'helpers.js', 'gopher.js', 'characters.js', 'system.js', 'game_content.js',
   'game_room.js', 'game_scenery.js', 'audio.js',
   'game_menu.js', 'game_map.js', 'game_home.js', 'game_shop.js',
-  'game_minigames.js', 'game_quiet.js', 'game_aerial.js', 'game_stats.js',
+  'game_minigames.js', 'chat_lines.js', 'chat_kid.js', 'game_chat.js',
+  'game_quiet.js', 'game_aerial.js', 'game_stats.js',
   'game_clinic.js', 'game_visit.js', 'game_friends.js', 'game.js'
 ];
 
@@ -100,7 +101,8 @@ ok('Есть очень дорогая мебель (>= 900 монет)', luxury
 ok('У каждого предмета есть палитра для перекраски', sandbox.FURNITURE.every(f => f.palette && f.palette.length >= 4));
 ok('Обои и пол можно купить (есть цена)', sandbox.WALLS.some(w => w.cost > 0) && sandbox.FLOORS.some(f => f.cost > 0));
 ok('Процедур в поликлинике 8', sandbox.CLINIC_PROCEDURES.length === 8);
-ok('Тихих игр 3', sandbox.QUIET_GAMES.length === 3);
+ok('Тихих игр 4 (звёзды, раскраска, рыбалка, у окна)', sandbox.QUIET_GAMES.length === 4,
+  sandbox.QUIET_GAMES.map(g => g.id).join(', '));
 ok('Персонажей 6 (гофер + 5 игрушек)', sandbox.CHARACTERS.length === 6, sandbox.CHARACTERS.map(c => c.name).join(', '));
 const milka = sandbox.findCharacter('milka');
 ok('Среди героев есть «Милка» — плюшевая, как на фотографиях заказчика',
@@ -692,7 +694,7 @@ ok('Каждая процедура — 3 подписанных шага из �
 
 const quietSrc = fs.readFileSync(path.join(WWW, 'game_quiet.js'), 'utf8');
 const quietMiss = sandbox.QUIET_GAMES.filter(g => quietSrc.indexOf("'" + g.id + "'") === -1);
-ok('Все тихие игры обрабатываются сценой (по id)', sandbox.QUIET_GAMES.length === 3 && quietMiss.length === 0,
+ok('Все тихие игры обрабатываются сценой (по id)', sandbox.QUIET_GAMES.length === 4 && quietMiss.length === 0,
   sandbox.QUIET_GAMES.map(g => g.id).join(', ') + (quietMiss.length ? ' — нет: ' + quietMiss.map(g => g.id).join(', ') : ''));
 ok('Тихие игры дают награду и не тратят энергию',
   sandbox.QUIET_GAMES.every(g => g.reward >= 5 && g.reward <= 20));
@@ -926,11 +928,11 @@ if (boot) {
       swim: fishList.length,
       friends: friendList.length,
       friendsUniq: new Set(friendList.map(x => x.id)).size,
-      // Круг по списку больших обитателей: за семь шагов должны встретиться все
+      // Случайный порядок (v1.3.25): обитатели приплывают не по кругу, а случайно.
+      // Проверяем, что за много вызовов выпадает каждый из них (не «одни медузы»).
       friendsCycle: (function () {
         const seen = {};
-        qs.friendCursor = 0;
-        for (let i = 0; i < friendListAll.length; i++) {
+        for (let i = 0; i < 1000; i++) {
           const sp = qs.nextFriendSpecies([]);
           if (sp) seen[sp.id] = 1;
         }
@@ -957,13 +959,15 @@ if (boot) {
   ok('В воде действительно кто-то плавает: рыбки и большие, и они двигаются',
     sea.swim >= 5 && sea.friends >= 3 && sea.moved === true,
     'рыбок ' + sea.swim + ', больших ' + sea.friends);
-  // v1.3.11: заказчик видел одних медуз — теперь обитатели разные и сменяются по кругу.
+  // v1.3.11: заказчик видел одних медуз — теперь обитатели разные и сменяются.
   // v1.3.12: заказчик попросил «больше разных морских существ… периодически
-  // проплывали дельфины, косатки, скаты и т. д.» — стало шестнадцать, все приходят.
-  ok('Большие обитатели все разные, и по кругу приходят все шестнадцать (а не одни медузы)',
-    sea.friendsUniq === sea.friends && sea.friendsCycle === sea.friendsAll && sea.friendsAll >= 16,
+  // проплывали дельфины, косатки, скаты и т. д.» — стало больше двадцати.
+  // v1.3.25: приплывают в случайном порядке, поэтому проверяем не очередь, а то,
+  // что выпадает каждый вид и трое в воде всегда разные.
+  ok('Большие обитатели все разные, и любой из них может приплыть (не одни медузы)',
+    sea.friendsUniq === sea.friends && sea.friendsCycle === sea.friendsAll && sea.friendsAll >= 20,
     'в воде ' + sea.friends + ' разных из ' + sea.friendsAll +
-    ', по кругу приходят ' + sea.friendsCycle);
+    ', случайно выпадает ' + sea.friendsCycle);
   // Состав должен не просто существовать, а меняться по ходу игры
   ok('Состав больших обитателей сменяется: один уплыл к краю — другой приплыл',
     sea.friendsAfter !== sea.friendsBefore &&
@@ -1024,18 +1028,18 @@ if (boot) {
     '; 20 → ' + milestones.at20 + '; 50 → ' + milestones.at50 +
     '; 100 → ' + milestones.at100 + '; прогресс «' + milestones.prog + '»');
   ok('Клюёт только рыбка: больших обитателей поймать нельзя',
-    sea.friendCaught === false && sea.hint.indexOf('не ловим') !== -1,
+    sea.friendCaught === false && sea.hint.length > 0 && sea.hint.indexOf('Черепаха') === 0,
     'подсказка: ' + sea.hint.slice(0, 70));
   ok('Улов рыбалки копится по разным видам и сохраняется в профиле',
     sea.caught === 6 && sea.seen >= 2 && sea.ach === 3,
     'поймано ' + sea.caught + ', разных видов в улове ' + sea.seen + ', ступеней коллекции ' + sea.ach);
 
   // Замечание заказчика v1.3.12: «когда ловишь рыбу — постоянно надпись „Акула
-  // уплывает“… думаю, „уплывает“ тут лишнее». Проверяем текст подсказки: имени
-  // достаточно, слово «уплывает» убрано, а объяснение осталось.
-  const hintNoFloat = sea.hint.indexOf('уплывает') === -1 && sea.hint.indexOf('не ловим') !== -1 &&
-    sea.hint.indexOf('Черепаха') === 0;
-  ok('В подсказке о большом обитателе нет слова «уплывает»', hintNoFloat,
+  // уплывает“… думаю, „уплывает“ тут лишнее». Проверяем текст подсказки: осталось
+  // имя и факт об обитателе, слово «уплывает» и приписка «не ловим» убраны.
+  const hintNoFloat = sea.hint.indexOf('уплывает') === -1 && sea.hint.indexOf('не ловим') === -1 &&
+    sea.hint.indexOf('Черепаха') === 0 && sea.hint.indexOf('Живёт больше ста лет') !== -1;
+  ok('В подсказке о большом обитателе нет слов «уплывает» и «не ловим» — только имя и факт', hintNoFloat,
     'подсказка: ' + sea.hint.slice(0, 80));
 
   // Замечание заказчика v1.3.12: «слишком быстро пропадает информация о пойманных
@@ -1061,7 +1065,8 @@ if (boot) {
     catchTimers.first >= 12 && catchTimers.longest >= 12,
     'первая ' + catchTimers.first + ' с, максимум ' + catchTimers.longest + ' с (было 5–6 с)');
 
-  // Плашку можно убрать тапом, и этот тап не считается неудачной подсечкой
+  // Плашку можно убрать тапом мимо неё, и этот тап не считается неудачной
+  // подсечкой; тап по самой плашке её не закрывает (ребёнок дочитывает факт).
   const tapAway = (function () {
     const qs2 = boot.scenes.quiet;
     qs2.init();
@@ -1071,13 +1076,17 @@ if (boot) {
     qs2.tryFish();
     const before = qs2.resultTimer;
     const box = qs2.resultPlateBox();
-    const hit = qs2.handleClick(box.x + box.w / 2, box.y + box.h / 2);
+    // по плашке — читаем дальше (таймер не сбросился)
+    qs2.handleClick(box.x + box.w / 2, box.y + box.h / 2);
+    const onPlate = qs2.resultTimer;
+    // мимо плашки — убираем, и это не «Рано!»
+    const hit = qs2.handleClick(box.x + box.w + 8, box.y + 8);
     const after = qs2.resultTimer;
-    return { before: before, hit: hit, after: after };
+    return { before: before, onPlate: onPlate, hit: hit, after: after };
   })();
-  ok('Тап по плашке убирает её и не считается промахом',
-    tapAway.before > 0 && tapAway.hit === true && tapAway.after === 0,
-    'было ' + tapAway.before + ' с → стало ' + tapAway.after + ' с');
+  ok('Тап мимо плашки убирает её и не считается промахом (по плашке — читаем дальше)',
+    tapAway.before > 0 && tapAway.onPlate === tapAway.before && tapAway.hit === true && tapAway.after === 0,
+    'было ' + tapAway.before + ' с → на плашке ' + tapAway.onPlate + ' с → мимо ' + tapAway.after + ' с');
 
   // Замечание заказчика v1.3.12: «чтобы можно было посмотреть всю коллекцию рыб,
   // которых ты уже поймал… поймал новую — там в списке появлялось. И чтобы это было
@@ -1616,6 +1625,10 @@ if (boot) {
       const p = S.progress;
       p.trips += full ? 6 : 2; p.minigames += full ? 4 : 1; p.quiet += full ? 3 : 1;
       p.feeds += full ? 3 : 2; p.washes += 1; p.plays += full ? 3 : 1; p.tttWins += 1;
+      // Мини-игры (v1.3.16): «камень, ножницы, бумага» и «Огоньки» — их достижения
+      // тоже должны открываться за год игры
+      p.rpsWins += full ? 2 : 1;
+      p.simonBest = Math.max(p.simonBest || 0, full ? 8 : 4);
       if (full) p.furniture += 1;
       S.stats.energy = 45; S.startSleep(); S.tick(600000);
       S.earnCoins(full ? 120 : 40); S.addXP(full ? 250 : 70);
