@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chat Benchmark — 32 сценария</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0d1117;color:#c9d1d9;padding:20px}
+header{max-width:900px;margin:0 auto 30px;text-align:center}
+header h1{font-size:28px;margin-bottom:8px}
+header p{color:#8b949e;font-size:14px}
+.stats{display:flex;gap:16px;justify-content:center;margin:16px 0;flex-wrap:wrap}
+.stat{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 20px;text-align:center;min-width:120px}
+.stat .num{font-size:24px;font-weight:700;color:#58a6ff}
+.stat .label{font-size:12px;color:#8b949e;margin-top:4px}
+.filter-bar{max-width:900px;margin:0 auto 20px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.filter-btn{background:#21262d;border:1px solid #30363d;color:#c9d1d9;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px}
+.filter-btn:hover,.filter-btn.active{background:#388bfd;border-color:#388bfd}
+.scenario{background:#161b22;border:1px solid #30363d;border-radius:8px;margin-bottom:12px;max-width:900px;margin-left:auto;margin-right:auto}
+.scenario-header{padding:14px 18px;cursor:pointer;display:flex;align-items:center;gap:12px}
+.scenario-header:hover{background:#1c2128}
+.scenario-header.open{background:#1c2128;border-bottom:1px solid #30363d}
+.scenario-body{display:none;padding:0 18px 18px}
+.scenario-body.open{display:block}
+.chat-log{background:#0d1117;border-radius:6px;padding:12px;margin:12px 0}
+.chat-msg{margin-bottom:8px;padding:6px 10px;border-radius:4px}
+.chat-msg.person{background:#1c2128;border-left:3px solid #58a6ff}
+.chat-msg.user{background:#1c2128;border-left:3px solid #3fb950;text-align:right}
+.chat-msg .role{font-size:11px;font-weight:700;margin-bottom:2px}
+.chat-msg.person .role{color:#58a6ff}
+.chat-msg.user .role{color:#3fb950}
+.chat-msg .text{font-size:13px;line-height:1.4}
+.checkpoint{background:#161b22;border:1px solid #f0883e;border-radius:6px;padding:12px;margin:12px 0}
+.checkpoint h4{color:#f0883e;font-size:13px;margin-bottom:8px}
+.checkpoint .field{margin-bottom:4px;font-size:13px}
+.checkpoint .field span{color:#8b949e}
+.play-btn{background:#238636;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;margin-top:8px}
+.play-btn:hover{background:#2ea043}
+.playing .chat-msg{opacity:0.3}
+.playing .chat-msg.active{opacity:1}
+.playing .chat-msg.current{opacity:1;background:#1c2128;border:1px solid #58a6ff}
+.error{color:#f85149;padding:20px;text-align:center}
+</style>
+</head>
+<body>
+<header>
+  <h1>Chat Benchmark</h1>
+  <p>Проверка удержания контекста персонажами</p>
+  <div class="stats" id="stats"></div>
+</header>
+<div class="filter-bar" id="filterBar"></div>
+<div id="scenarios"></div>
+<script>
+var SCENARIOS=null;
+var catCount={},diffCount={easy:0,medium:0,hard:0};
+var catLabels={memory_facts:'Память фактов',context_switches:'Контекст',false_hints:'Ложные подсказки',multiple_entities:'Сущности',emotional_arc:'Эмоции',contradictions:'Противоречия',causal_chain:'Причинность'};
+var diffLabels={easy:'Лёгкий',medium:'Средний',hard:'Сложный'};
+function init(){
+  var el=document.getElementById('scenarios');
+  var xhr=new XMLHttpRequest();
+  xhr.open('GET','chat-benchmark-scenarios.json',true);
+  xhr.onload=function(){
+    if(xhr.status===200){
+      var data=JSON.parse(xhr.responseText);
+      SCENARIOS=data.scenarios||[];
+      buildAll();
+    }else{
+      el.innerHTML='<div class="error">Не удалось загрузить сценарии. Запустите локальный сервер: python3 -m http.server 8080</div>';
+    }
+  };
+  xhr.onerror=function(){
+    el.innerHTML='<div class="error">Ошибка сети. Запустите локальный сервер.</div>';
+  };
+  xhr.send();
+}
+function buildAll(){
+  var scenarios=SCENARIOS;
+  catCount={};diffCount={easy:0,medium:0,hard:0};
+  for(var i=0;i<scenarios.length;i++){
+    var s=scenarios[i];
+    catCount[s.category]=(catCount[s.category]||0)+1;
+    diffCount[s.difficulty]=(diffCount[s.difficulty]||0)+1;
+  }
+  var statsEl=document.getElementById('stats');
+  statsEl.innerHTML='<div class="stat"><div class="num">'+scenarios.length+'</div><div class="label">Сценариев</div></div><div class="stat"><div class="num">'+Object.keys(catCount).length+'</div><div class="label">Категорий</div></div><div class="stat"><div class="num" style="color:#238636">'+diffCount.easy+'</div><div class="label">Лёгких</div></div><div class="stat"><div class="num" style="color:#d29922">'+diffCount.medium+'</div><div class="label">Средних</div></div><div class="stat"><div class="num" style="color:#da3633">'+diffCount.hard+'</div><div class="label">Сложных</div></div>';
+  var catNames=Object.keys(catCount);
+  var filterBar=document.getElementById('filterBar');
+  filterBar.innerHTML='<button class="filter-btn active" data-cat="all">Все</button>';
+  for(var i=0;i<catNames.length;i++){
+    filterBar.innerHTML+='<button class="filter-btn" data-cat="'+catNames[i]+'">'+catNames[i]+' ('+catCount[catNames[i]]+')</button>';
+  }
+  filterBar.addEventListener('click',function(e){
+    if(!e.target.classList.contains('filter-btn'))return;
+    var btns=filterBar.querySelectorAll('.filter-btn');
+    for(var i=0;i<btns.length;i++) btns[i].classList.remove('active');
+    e.target.classList.add('active');
+    renderFilter(e.target.getAttribute('data-cat'));
+  });
+  renderFilter('all');
+}
+function renderFilter(filter){
+  var el=document.getElementById('scenarios');
+  el.innerHTML='';
+  var filtered=filter==='all'?SCENARIOS:SCENARIOS.filter(function(s){return s.category===filter;});
+  for(var i=0;i<filtered.length;i++){
+    var s=filtered[i];
+    var realIndex=SCENARIOS.indexOf(s);
+    var diffClass='diff-'+s.difficulty;
+    var diffLabel=diffLabels[s.difficulty]||s.difficulty;
+    var catLabel=catLabels[s.category]||s.category;
+    var chatHtml='';
+    for(var j=0;j<s.replies.length;j++){
+      var r=s.replies[j];
+      var isActive=r.role==='person'?'person':'user';
+      var roleName=r.role==='person'?' Персонаж':' Спрашивающий';
+      var isCheckpoint=j===(s.checkpoint&&s.checkpoint.at_index);
+      var extra='';
+      if(isCheckpoint) extra=' style="border-left-color:#f0883e;background:#21262d;font-weight:600"';
+      var cpStar=isCheckpoint?' CHECKPOINT':'';
+      chatHtml+='<div class="chat-msg '+isActive+'" data-index="'+j+'"'+extra+'><div class="role">'+roleName+cpStar+'</div><div class="text">'+r.text+'</div></div>';
+    }
+    var cpHtml='';
+    if(s.checkpoint){
+      cpHtml='<div class="checkpoint"><h4>Checkpoint (реплика '+s.checkpoint.at_index+')</h4>';
+      cpHtml+='<div class="field"><span>Вопрос:</span> '+s.checkpoint.question+'</div>';
+      cpHtml+='<div class="field"><span>Ожидалось:</span> <code>'+s.checkpoint.expected_pattern+'</code></div>';
+      if(s.checkpoint.should_not_contain){
+        cpHtml+='<div class="field"><span>Не должно быть:</span> <code>'+s.checkpoint.should_not_contain+'</code></div>';
+      }
+      cpHtml+='</div>';
+    }
+    el.innerHTML+='<div class="scenario" data-id="'+s.id+'"><div class="scenario-header" onclick="toggleScenario(this)"><span class="scenario-id">'+s.id+'</span><span class="scenario-cat">'+catLabel+'</span><span class="scenario-diff '+diffClass+'">'+diffLabel+'</span><span class="scenario-desc">'+s.description+'</span></div><div class="scenario-body"><div class="checkpoint-area">'+cpHtml+'</div><div class="chat-log" id="chat-'+realIndex+'">'+chatHtml+'</div><button class="play-btn" onclick="playChat('+realIndex+','+s.replies.length+')">Воспроизвести диалог</button></div></div>';
+  }
+}
+function toggleScenario(header){
+  var body=header.nextElementSibling;
+  header.classList.toggle('open');
+  body.classList.toggle('open');
+}
+function playChat(startIdx,count){
+  var chatEl=document.getElementById('chat-'+startIdx);
+  if(!chatEl)return;
+  chatEl.classList.add('playing');
+  var msgs=chatEl.querySelectorAll('.chat-msg');
+  for(var i=0;i<msgs.length;i++) msgs[i].classList.remove('active','current');
+  var i=0;
+  var interval=setInterval(function(){
+    if(i>0)msgs[i-1].classList.remove('current');
+    if(i>=msgs.length){
+      clearInterval(interval);
+      setTimeout(function(){chatEl.classList.remove('playing');for(var k=0;k<msgs.length;k++) msgs[k].classList.remove('active');},500);
+      return;
+    }
+    msgs[i].classList.add('current');
+    i++;
+  },800);
+}
+init();
+</script>
+</body>
+</html>

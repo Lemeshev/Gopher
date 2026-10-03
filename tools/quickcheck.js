@@ -14,7 +14,7 @@ const FILES = [
   'helpers.js', 'gopher.js', 'characters.js', 'system.js', 'game_content.js',
   'game_room.js', 'game_scenery.js', 'audio.js',
   'game_menu.js', 'game_map.js', 'game_home.js', 'game_shop.js',
-  'game_minigames.js', 'chat_lines.js', 'chat_kid.js', 'semantic.js', 'chat_semantic.js', 'chat_bank.js', 'chat_talk.js', 'game_chat.js',
+  'game_minigames.js', 'chat_lines.js', 'chat_kid.js', 'semantic.js', 'chat_semantic.js', 'chat_bank.js', 'chat_talk.js', 'chat_memory.js', 'game_chat.js', 'game_tools.js',
   'game_quiet.js', 'game_aerial.js', 'game_stats.js',
   'game_clinic.js', 'game_visit.js', 'game_friends.js', 'game.js'
 ];
@@ -187,7 +187,7 @@ S.isSleeping = true;
 S.stats.energy = 40;
 const sleepBlocked = ['work', 'school', 'museums', 'museum_art', 'museum_nature', 'library',
   'cinema', 'park', 'pool', 'gym', 'restaurant', 'beach', 'friend', 'clinic'];
-const sleepOpen = ['home', 'shop', 'stats', 'minigames', 'quiet'];
+const sleepOpen = ['home', 'shop', 'stats', 'minigames', 'tools', 'quiet'];
 const wronglyOpen = sleepBlocked.filter(l => S.isLocationAvailable(l));
 const wronglyClosed = sleepOpen.filter(l => !S.isLocationAvailable(l));
 ok('Пока гофер спит, походы закрыты (музеи, работа, спорт, гости, поликлиника)',
@@ -2805,6 +2805,62 @@ S.profileName = sandbox.DEFAULT_PROFILE_NAME;
   ok('«Перемешка»: слово, собранное в верном порядке, победа',
     mini.mix.won === true, mini.mix.word);
 }
+
+ok('Карта: 16 плиток, 4 на 4, бассейна на карте нет, инструменты между мини-играми и инфо',
+  sandbox.MAP_LOCATIONS.length === 16 &&
+  !sandbox.MAP_LOCATIONS.some(l => l.id === 'pool') &&
+  sandbox.MAP_LOCATIONS.some(l => l.id === 'tools') &&
+  sandbox.MAP_LOCATIONS.findIndex(l => l.id === 'tools') === sandbox.MAP_LOCATIONS.findIndex(l => l.id === 'minigames') + 1 &&
+  sandbox.MAP_LOCATIONS.findIndex(l => l.id === 'stats') === sandbox.MAP_LOCATIONS.findIndex(l => l.id === 'tools') + 1);
+ok('В спортзале есть переход в бассейн, заплыв на месте',
+  sandbox.sportListFor('pool').map(d => d.id).join(',') === 'swim' &&
+  sandbox.sportListFor('gym').some(d => d.id === 'rings'));
+
+S.houseShrinkOk = true;
+S.resetProgress();
+S.profileLoaded = true;
+S.coins = 99999;
+S.buyFurniture('sofa', 'living');
+S.saveGame();
+const beforeHouse = S.housePieces().map(p => p.id).join(',');
+S.rooms.living.furniture = [];
+S.houseShrinkOk = false;
+S.saveGame();
+const afterHouse = S.housePieces().map(p => p.id).join(',');
+ok('Пустое сохранение не стирает купленную мебель', afterHouse.indexOf('sofa') !== -1, beforeHouse + ' → ' + afterHouse);
+
+const bench = JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'chat-benchmark-scenarios.json'), 'utf8'));
+let benchHit = 0;
+bench.scenarios.forEach(sc => {
+  sandbox.CHAT_MEMORY.reset();
+  const q = sc.checkpoint.question;
+  let qIdx = -1;
+  for (let i = sc.replies.length - 1; i >= 0; i--) {
+    if (sc.replies[i].text === q) { qIdx = i; break; }
+  }
+  if (qIdx < 0) qIdx = sc.checkpoint.at_index;
+  const goldIdx = (sc.replies[qIdx] && sc.replies[qIdx].role === 'person') ? qIdx : qIdx + 1;
+  sc.replies.slice(0, goldIdx).forEach(r => sandbox.CHAT_MEMORY.note(r.role === 'user' ? 'user' : 'person', r.text));
+  const ans = sandbox.CHAT_MEMORY.answer(q).toLowerCase().replace(/ё/g, 'е');
+  const re = new RegExp(sc.checkpoint.expected_pattern.toLowerCase().replace(/ё/g, 'е'), 'i');
+  const ban = sc.checkpoint.should_not_contain;
+  const bad = ban && ans.indexOf(String(ban).toLowerCase()) !== -1;
+  if (ans && re.test(ans) && !bad) benchHit++;
+});
+ok('Память диалога закрывает хотя бы половину сценариев из chat-benchmark',
+  benchHit >= 16, benchHit + '/' + bench.scenarios.length);
+
+const quiet = boot.scenes.quiet;
+quiet.startGame('window');
+const tale = quiet.win && quiet.win.birds[0] && quiet.win.birds[0].tale;
+ok('У окна у птицы есть подпись до клика', typeof tale === 'string' && tale.length > 8, tale);
+
+const letters = boot.scenes.minigames;
+letters.mode = 'letters';
+letters.initLetters();
+letters.draw(sandbox.__ctx);
+const key = letters.buttons.find(b => b.action === 'letter');
+ok('Клавиши «Букв» выше прежних 28 пикселей', key && key.h >= 36, key && key.h);
 
 console.log('\n' + '─'.repeat(50));
 console.log('ИТОГО: пройдено ' + pass + ' | провалено ' + fail);

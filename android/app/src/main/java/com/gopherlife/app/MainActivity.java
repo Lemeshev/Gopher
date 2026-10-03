@@ -143,6 +143,39 @@ public class MainActivity extends Activity {
             });
         }
 
+        // Дом пишется в файл приложения, а не только в localStorage WebView:
+        // после части обновлений хранилище страницы пустеет, а файл остаётся.
+        @JavascriptInterface
+        public void saveHouse(String json) {
+            if (json == null) return;
+            try {
+                File file = new File(getFilesDir(), "house-vault.json");
+                FileOutputStream out = new FileOutputStream(file);
+                out.write(json.getBytes("UTF-8"));
+                out.close();
+            } catch (Exception ignored) {}
+        }
+
+        @JavascriptInterface
+        public String loadHouse() {
+            try {
+                File file = new File(getFilesDir(), "house-vault.json");
+                if (!file.exists()) return "";
+                FileInputStream in = new FileInputStream(file);
+                byte[] buf = new byte[(int) file.length()];
+                int got = 0;
+                while (got < buf.length) {
+                    int n = in.read(buf, got, buf.length - got);
+                    if (n < 0) break;
+                    got += n;
+                }
+                in.close();
+                return new String(buf, 0, got, "UTF-8");
+            } catch (Exception ignored) {
+                return "";
+            }
+        }
+
         @JavascriptInterface
         public void downloadUpdate(String url) {
             if (url == null) return;

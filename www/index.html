@@ -177,6 +177,10 @@ html, body {
 #chatForm button { flex: 0 0 auto; white-space: nowrap; }
 #chatForm button { background: #6BCB77; color: #102014; }
 #chatClose { margin-top: 6px; background: #9aa3bd; color: #10121c; }
+#kitBar { display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; gap: 8px; padding: 8px; background: #10221f; }
+#kitBar.open { display: flex; }
+#kitInput { flex: 1; font-size: 18px; padding: 10px; border-radius: 10px; border: 0; }
+#kitOk { font-weight: bold; font-size: 16px; border: 0; border-radius: 10px; padding: 10px 14px; background: #6BCB77; }
 </style>
 </head>
 <body>
@@ -197,6 +201,10 @@ html, body {
   </div>
 </div>
 
+<div id="kitBar">
+  <input id="kitInput" type="text" maxlength="400" autocomplete="off" placeholder="Текст">
+  <button id="kitOk" type="button">Ок</button>
+</div>
 <div id="chatPanel">
   <div id="chatHead">Чат</div>
   <div id="chatLog"></div>
@@ -237,7 +245,9 @@ html, body {
 <script src="js/chat_semantic.js"></script>
 <script src="js/chat_bank.js"></script>
 <script src="js/chat_talk.js"></script>
+<script src="js/chat_memory.js"></script>
 <script src="js/game_chat.js"></script>
+<script src="js/game_tools.js"></script>
 <script src="js/game_quiet.js"></script>
 <script src="js/game_aerial.js"></script>
 <script src="js/game_stats.js"></script>

@@ -6,7 +6,6 @@ const MAP_LOCATIONS = [
   { id: 'work', emoji: '🏢', name: 'Работа', color: '#4D96FF', desc: 'Задания', req: 'energy>40' },
   { id: 'school', emoji: '🎓', name: 'Учёба', color: '#9B59B6', desc: 'Знания', req: 'energy>40' },
   { id: 'restaurant', emoji: '🍽️', name: 'Ресторан', color: '#FF8C42', desc: 'Блюда', cost: 30, req: 'energy>30' },
-  { id: 'pool', emoji: '🏊', name: 'Бассейн', color: '#00BCD4', desc: 'Плавание', req: 'hunger>30' },
   { id: 'park', emoji: '🎢', name: 'Парк', color: '#2ECC71', desc: 'Аттракционы', req: 'energy>40' },
   { id: 'clinic', emoji: '🏥', name: 'Поликлиника', color: '#E74C3C', desc: 'Лечение', req: 'health<70' },
   { id: 'museums', emoji: '🏛️', name: 'Музеи', color: '#E91E63',
@@ -18,6 +17,7 @@ const MAP_LOCATIONS = [
   { id: 'gym', emoji: '🏋️', name: 'Спортзал', color: '#16A085', desc: 'Сила и ловкость', cost: 15, req: 'energy>30' },
   { id: 'friend', emoji: '👥', name: 'Друзья', color: '#FF5722', desc: 'В гости' },
   { id: 'minigames', emoji: '🎮', name: 'Мини-игры', color: '#9C27B0', desc: 'Игры и тихие занятия' },
+  { id: 'tools', emoji: '🧰', name: 'Инструменты', color: '#00897B', desc: 'Полезные инструменты' },
   { id: 'stats', emoji: '📊', name: 'Инфо', color: '#546E7A', desc: 'Достижения' }
 ];
 
@@ -292,6 +292,7 @@ class MapScene {
     if (loc.id === 'chat') { this.game.transitionTo('chat'); return true; }
     if (loc.id === 'shop') { this.game.transitionTo('shop'); return true; }
     if (loc.id === 'minigames') { this.game.transitionTo('minigames'); return true; }
+    if (loc.id === 'tools') { this.game.transitionTo('tools'); return true; }
     if (loc.id === 'stats') { this.game.transitionTo('stats'); return true; }
 
     if (!System.isLocationAvailable(loc.id)) {

@@ -43,6 +43,7 @@ class Game {
       home: HomeScene,
       shop: ShopScene,
       minigames: MinigamesScene,
+      tools: ToolsScene,
       stats: StatsScene,
       clinic: ClinicScene,
       visit: VisitScene,

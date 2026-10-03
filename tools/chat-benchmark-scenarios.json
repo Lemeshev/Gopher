@@ -1,0 +1,1986 @@
+{
+  "version": "1.0",
+  "description": "32 сценария для проверки удержания контекста",
+  "scenarios": [
+    {
+      "id": "memory-facts-01",
+      "category": "memory_facts",
+      "difficulty": "easy",
+      "description": "Память на имя через 10+ реплик",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Привет! Меня зовут Маша."
+        },
+        {
+          "role": "user",
+          "text": "Привет, Маша! Как дела?"
+        },
+        {
+          "role": "person",
+          "text": "Привет! Всё хорошо, спасибо."
+        },
+        {
+          "role": "user",
+          "text": "Ты сегодня чем занималась?"
+        },
+        {
+          "role": "person",
+          "text": "Я читала книгу про космос."
+        },
+        {
+          "role": "user",
+          "text": "Какая книга?"
+        },
+        {
+          "role": "person",
+          "text": "Путешествие вокруг света за 80 дней."
+        },
+        {
+          "role": "user",
+          "text": "А ты любишь читать?"
+        },
+        {
+          "role": "person",
+          "text": "Да, каждый вечер."
+        },
+        {
+          "role": "user",
+          "text": "Сколько книг прочитала за год?"
+        },
+        {
+          "role": "person",
+          "text": "Двенадцать!"
+        },
+        {
+          "role": "user",
+          "text": "Ты говорила, что тебя зовут как?"
+        },
+        {
+          "role": "person",
+          "text": "Маша! Мы представлялись в начале 😊"
+        }
+      ],
+      "checkpoint": {
+        "at_index": 11,
+        "question": "Ты говорила, что тебя зовут как?",
+        "expected_pattern": "маш",
+        "should_not_contain": "не помню"
+      }
+    },
+    {
+      "id": "memory-facts-02",
+      "category": "memory_facts",
+      "difficulty": "medium",
+      "description": "Память на возраст и любимый предмет",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Мне 11 лет."
+        },
+        {
+          "role": "user",
+          "text": "А какой предмет любишь в школе?"
+        },
+        {
+          "role": "person",
+          "text": "Математика! Люблю решать задачки."
+        },
+        {
+          "role": "user",
+          "text": "Математика сложная бывает."
+        },
+        {
+          "role": "person",
+          "text": "Но я люблю когда числа складываются как пазл."
+        },
+        {
+          "role": "user",
+          "text": "Сколько будет 7 умножить на 8?"
+        },
+        {
+          "role": "person",
+          "text": "56! Легко."
+        },
+        {
+          "role": "user",
+          "text": "А 9 на 6?"
+        },
+        {
+          "role": "person",
+          "text": "54!"
+        },
+        {
+          "role": "user",
+          "text": "Какая тема самая интересная?"
+        },
+        {
+          "role": "person",
+          "text": "Дроби! Особенно смешанные."
+        },
+        {
+          "role": "user",
+          "text": "Сколько лет когда начала их изучать?"
+        },
+        {
+          "role": "person",
+          "text": "Сейчас 11, начала год назад, мне было 10."
+        }
+      ],
+      "checkpoint": {
+        "at_index": 11,
+        "question": "Сколько лет когда начала?",
+        "expected_pattern": "10",
+        "should_not_contain": "не помню"
+      }
+    },
+    {
+      "id": "memory-facts-03",
+      "category": "memory_facts",
+      "difficulty": "medium",
+      "description": "Память на любимый цвет, спрашивающий пытается подменить",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Я недавно нарисовала картину."
+        },
+        {
+          "role": "user",
+          "text": "О, круто! Что на ней?"
+        },
+        {
+          "role": "person",
+          "text": "Озеро в лесу. Вода зелёная, небо розовое."
+        },
+        {
+          "role": "user",
+          "text": "Ты любишь пейзажи?"
+        },
+        {
+          "role": "person",
+          "text": "Да, но больше всего рисую животных."
+        },
+        {
+          "role": "user",
+          "text": "Каких?"
+        },
+        {
+          "role": "person",
+          "text": "Кошек! Рыжий кот Персик, он ленивый."
+        },
+        {
+          "role": "user",
+          "text": "А какой цвет ты любишь?"
+        },
+        {
+          "role": "person",
+          "text": "Оранжевый! Как Персик."
+        },
+        {
+          "role": "user",
+          "text": "Красный тоже красивый."
+        },
+        {
+          "role": "person",
+          "text": "Красный неплохой, но оранжевый тёплый."
+        },
+        {
+          "role": "user",
+          "text": "А синий ты любишь? Самый популярный."
+        },
+        {
+          "role": "person",
+          "text": "Синий нормальный, но я люблю оранжевый."
+        },
+        {
+          "role": "user",
+          "text": "Какой цвет нравится больше всего?"
+        },
+        {
+          "role": "person",
+          "text": "Оранжевый! Я же уже говорила 🐱"
+        }
+      ],
+      "checkpoint": {
+        "at_index": 13,
+        "question": "какой цвет нравится больше всего?",
+        "expected_pattern": "оранжев",
+        "should_not_contain": "синий"
+      }
+    },
+    {
+      "id": "memory-facts-04",
+      "category": "memory_facts",
+      "difficulty": "medium",
+      "description": "Три факта: имя, возраст, хобби",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Меня зовут Петя, мне 12 лет."
+        },
+        {
+          "role": "user",
+          "text": "Привет, Петя! Как дела?"
+        },
+        {
+          "role": "person",
+          "text": "Хорошо! Вчера был день рождения друга."
+        },
+        {
+          "role": "user",
+          "text": "А футбол — любимое занятие?"
+        },
+        {
+          "role": "person",
+          "text": "Футбол — хобби. Любимое — рисование комиксов."
+        },
+        {
+          "role": "user",
+          "text": "Какой супергерой?"
+        },
+        {
+          "role": "person",
+          "text": "Времялет — умеет летать и останавливать время."
+        },
+        {
+          "role": "user",
+          "text": "Школьные увлечения?"
+        },
+        {
+          "role": "person",
+          "text": "Рисую, математика лёгкая, учусь на Python."
+        },
+        {
+          "role": "user",
+          "text": "Python сложно для 12 лет?"
+        },
+        {
+          "role": "person",
+          "text": "Не особо! Написал крестики-нолики."
+        },
+        {
+          "role": "user",
+          "text": "Как тебя зовут, сколько лет и что любишь?"
+        }
+      ],
+      "checkpoint": {
+        "at_index": 11,
+        "question": "Как тебя зовут, сколько лет и что любишь?",
+        "expected_pattern": "Петя.*12.*(рисов|супергер)",
+        "should_not_contain": "не помню"
+      }
+    },
+    {
+      "id": "memory-facts-05",
+      "category": "memory_facts",
+      "difficulty": "hard",
+      "description": "Пять фактов: имя, возраст, город, хобби, партнёр",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Меня зовут Лена, мне 10 лет, живу в Воронеже."
+        },
+        {
+          "role": "user",
+          "text": "Воронеж — большой город?"
+        },
+        {
+          "role": "person",
+          "text": "Да, почти миллион. Живу в центре, у парка."
+        },
+        {
+          "role": "user",
+          "text": "А погода сегодня?"
+        },
+        {
+          "role": "person",
+          "text": "Солнечно, +20, дождь к вечеру."
+        },
+        {
+          "role": "user",
+          "text": "Что любишь делать в хорошую погоду?"
+        },
+        {
+          "role": "person",
+          "text": "Велосипед по парку. Розовый велик с корзиной."
+        },
+        {
+          "role": "user",
+          "text": "А ещё чем занимаешься?"
+        },
+        {
+          "role": "person",
+          "text": "Бальные танцы, вторник и четверг."
+        },
+        {
+          "role": "user",
+          "text": "Танцы сложно?"
+        },
+        {
+          "role": "person",
+          "text": "Сложно, но весело. Партнёр Миша, ему 11."
+        },
+        {
+          "role": "user",
+          "text": "Как тебя зовут, сколько лет и где живёшь?"
+        }
+      ],
+      "checkpoint": {
+        "at_index": 11,
+        "question": "Как тебя зовут, сколько лет и где живёшь?",
+        "expected_pattern": "Лен.*10.*Воронеж",
+        "should_not_contain": "не помню"
+      }
+    },
+    {
+      "id": "ctx-switch-01",
+      "category": "context_switches",
+      "difficulty": "medium",
+      "description": "Разговор: школа → хобби → еда → школа",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Сегодня на уроке было скучно."
+        },
+        {
+          "role": "user",
+          "text": "Что было на уроке?"
+        },
+        {
+          "role": "person",
+          "text": "Математика. Учитель давал задачи."
+        },
+        {
+          "role": "user",
+          "text": "Задачи сложные?"
+        },
+        {
+          "role": "person",
+          "text": "Нет, простые. Все решили кроме меня."
+        },
+        {
+          "role": "user",
+          "text": "Что будешь есть на обед?"
+        },
+        {
+          "role": "person",
+          "text": "Плов! Мама делает лучший плов."
+        },
+        {
+          "role": "user",
+          "text": "А ты помогаешь ей готовить?"
+        },
+        {
+          "role": "person",
+          "text": "Да, я мою овощи и режу мясо."
+        },
+        {
+          "role": "user",
+          "text": "А какие задачи были на уроке?"
+        },
+        {
+          "role": "person",
+          "text": "Три задачи на дроби. Я вторую решил неправильно."
+        },
+        {
+          "role": "user",
+          "text": "Всё, пошёл обедать!"
+        }
+      ],
+      "checkpoint": {
+        "at_index": 9,
+        "question": "А какие задачи были на уроке?",
+        "expected_pattern": "дроб.*2",
+        "should_not_contain": "не помню"
+      }
+    },
+    {
+      "id": "ctx-switch-02",
+      "category": "context_switches",
+      "difficulty": "medium",
+      "description": "Переходы: кино → музыка → спорт → кино",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Я вчера смотрел крутой фильм!"
+        },
+        {
+          "role": "user",
+          "text": "Какой?"
+        },
+        {
+          "role": "person",
+          "text": "Фантастика про космос. Там был чёрный пояс."
+        },
+        {
+          "role": "user",
+          "text": "О, звучит круто! А что в нем было?"
+        },
+        {
+          "role": "person",
+          "text": "Космонавт спасал Землю от чёрной дыры."
+        },
+        {
+          "role": "user",
+          "text": "А какую музыку ты любишь?"
+        },
+        {
+          "role": "person",
+          "text": "Рок! Особенно группу Моторола."
+        },
+        {
+          "role": "user",
+          "text": "А что любишь делать с друзьями?"
+        },
+        {
+          "role": "person",
+          "text": "Играть в футбол во дворе."
+        },
+        {
+          "role": "user",
+          "text": "А какой фильм ты смотрел?"
+        },
+        {
+          "role": "person",
+          "text": "Фантастика про космос! Чёрная дыра, космонавт."
+        },
+        {
+          "role": "user",
+          "text": "Хорошо, пока!"
+        }
+      ],
+      "checkpoint": {
+        "at_index": 9,
+        "question": "А какой фильм ты смотрел?",
+        "expected_pattern": "косм.*чёрн",
+        "should_not_contain": "не помню"
+      }
+    },
+    {
+      "id": "ctx-switch-03",
+      "category": "context_switches",
+      "difficulty": "medium",
+      "description": "Три переключения: отпуск → школа → еда → отпуск",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Летом мы ездили на море."
+        },
+        {
+          "role": "user",
+          "text": "О, круто! На какое?"
+        },
+        {
+          "role": "person",
+          "text": "На Чёрное. В Анапе."
+        },
+        {
+          "role": "user",
+          "text": "Там было тепло?"
+        },
+        {
+          "role": "person",
+          "text": "Да, +30, я загорал и плавал."
+        },
+        {
+          "role": "user",
+          "text": "А как дела в школе?"
+        },
+        {
+          "role": "person",
+          "text": "Начинается через две недели. Учительница сказала читать."
+        },
+        {
+          "role": "user",
+          "text": "Что будешь есть на ужин?"
+        },
+        {
+          "role": "person",
+          "text": "Борщ с пампушками!"
+        },
+        {
+          "role": "user",
+          "text": "А на какое море ты ездил?"
+        },
+        {
+          "role": "person",
+          "text": "На Чёрное! В Анапе. Там было +30."
+        },
+        {
+          "role": "user",
+          "text": "Понял, до свидания!"
+        }
+      ],
+      "checkpoint": {
+        "at_index": 9,
+        "question": "А на какое море ты ездил?",
+        "expected_pattern": "чёрн.*анап",
+        "should_not_contain": "не помню"
+      }
+    },
+    {
+      "id": "ctx-switch-04",
+      "category": "context_switches",
+      "difficulty": "hard",
+      "description": "Сложные переключения с возвратом к двум темам",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Я люблю читать про приключения."
+        },
+        {
+          "role": "user",
+          "text": "А какие книги?"
+        },
+        {
+          "role": "person",
+          "text": "Про пиратов! У них есть карта сокровищ."
+        },
+        {
+          "role": "user",
+          "text": "Как зовут главного героя?"
+        },
+        {
+          "role": "person",
+          "text": "Джек — хитрый пират, у него попугай."
+        },
+        {
+          "role": "user",
+          "text": "А ты любишь готовить?"
+        },
+        {
+          "role": "person",
+          "text": "Да! Я умею делать пиццу и суп."
+        },
+        {
+          "role": "user",
+          "text": "А какой суп?"
+        },
+        {
+          "role": "person",
+          "text": "Томатный. Ещё я люблю бутерброды."
+        },
+        {
+          "role": "user",
+          "text": "Сколько друзей у Джека было?"
+        },
+        {
+          "role": "person",
+          "text": "Джек был один, у него был попугай по имени Кокко."
+        },
+        {
+          "role": "user",
+          "text": "А какой суп ты любишь?"
+        },
+        {
+          "role": "person",
+          "text": "Томатный! Ещё я умею делать пиццу."
+        }
+      ],
+      "checkpoint": {
+        "at_index": 10,
+        "question": "Сколько друзей у Джека было?",
+        "expected_pattern": "один.*попугай",
+        "should_not_contain": "много"
+      }
+    },
+    {
+      "id": "ctx-switch-05",
+      "category": "context_switches",
+      "difficulty": "hard",
+      "description": "Переходы: хобби → школа → семья → хобби",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Я рисую комиксы про роботов."
+        },
+        {
+          "role": "user",
+          "text": "Круто! Какой робот?"
+        },
+        {
+          "role": "person",
+          "text": "Механоглаз — умеет превращаться в машину."
+        },
+        {
+          "role": "user",
+          "text": "Это круто! А как ты рисуешь?"
+        },
+        {
+          "role": "person",
+          "text": "Карандашом и акварелью."
+        },
+        {
+          "role": "user",
+          "text": "А что было в школе?"
+        },
+        {
+          "role": "person",
+          "text": "На физкультуре бегали эстафету."
+        },
+        {
+          "role": "user",
+          "text": "Ты победила?"
+        },
+        {
+          "role": "person",
+          "text": "Нет, я третья. Но мой брат быстрее — он в пятом классе."
+        },
+        {
+          "role": "user",
+          "text": "А кто у нас в семье?"
+        },
+        {
+          "role": "person",
+          "text": "Мама, папа, брат Миша и собака Шарик."
+        },
+        {
+          "role": "user",
+          "text": "А какой робот у тебя в комиксе?"
+        },
+        {
+          "role": "person",
+          "text": "Механоглаз! Превращается в машину."
+        }
+      ],
+      "checkpoint": {
+        "at_index": 10,
+        "question": "А кто у вас в семье?",
+        "expected_pattern": "мама.*пап.*брат.*собак",
+        "should_not_contain": "не помню"
+      }
+    },
+    {
+      "id": "false-hint-01",
+      "category": "false_hints",
+      "difficulty": "medium",
+      "description": "Рыжий рюкзак vs синий",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Завтра возьму новый рюкзак в школу."
+        },
+        {
+          "role": "user",
+          "text": "Какой?"
+        },
+        {
+          "role": "person",
+          "text": "Оранжевый! С молнией."
+        },
+        {
+          "role": "user",
+          "text": "Синий? Он круче!"
+        },
+        {
+          "role": "person",
+          "text": "Нет, оранжевый!"
+        },
+        {
+          "role": "user",
+          "text": "Синий же лучше!"
+        },
+        {
+          "role": "person",
+          "text": "Нет, оранжевый. Как солнце."
+        },
+        {
+          "role": "user",
+          "text": "Синюю сумку брала?"
+        },
+        {
+          "role": "person",
+          "text": "Нет! Оранжевый рюкзак, не синий."
+        },
+        {
+          "role": "user",
+          "text": "Ладно, что в рюкзаке?"
+        }
+      ],
+      "checkpoint": {
+        "at_index": 8,
+        "question": "Синюю сумку брала?",
+        "expected_pattern": "оранжев",
+        "should_not_contain": "синий"
+      }
+    },
+    {
+      "id": "false-hint-02",
+      "category": "false_hints",
+      "difficulty": "medium",
+      "description": "Собака Жучка vs кошка Барсик",
+      "replies": [
+        {
+          "role": "person",
+          "text": "У меня собака."
+        },
+        {
+          "role": "user",
+          "text": "Как зовут?"
+        },
+        {
+          "role": "person",
+          "text": "Жучка. Рыжая, игривая."
+        },
+        {
+          "role": "user",
+          "text": "У меня тоже — Барсик!"
+        },
+        {
+          "role": "person",
+          "text": "Барсик? Это кошачье имя!"
+        },
+        {
+          "role": "user",
+          "text": "А Жучка — кошка?"
+        },
+        {
+          "role": "person",
+          "text": "Жучка — собака! Барсик — кошачье!"
+        },
+        {
+          "role": "user",
+          "text": "Извини. А Жучка какая?"
+        },
+        {
+          "role": "person",
+          "text": "Рыжая собака. Не кошка."
+        },
+        {
+          "role": "user",
+          "text": "Понял! Что любит делать?"
+        }
+      ],
+      "checkpoint": {
+        "at_index": 7,
+        "question": "А Жучка — кошка?",
+        "expected_pattern": "собак",
+        "should_not_contain": "кошк"
+      }
+    },
+    {
+      "id": "false-hint-03",
+      "category": "false_hints",
+      "difficulty": "hard",
+      "description": "Три ложных вопроса",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Вчера был в парке."
+        },
+        {
+          "role": "user",
+          "text": "С кем?"
+        },
+        {
+          "role": "person",
+          "text": "С сестрой Светой."
+        },
+        {
+          "role": "user",
+          "text": "С братом был?"
+        },
+        {
+          "role": "person",
+          "text": "Нет, со Светой."
+        },
+        {
+          "role": "user",
+          "text": "С мамой?"
+        },
+        {
+          "role": "person",
+          "text": "Нет, одна со Светой."
+        },
+        {
+          "role": "user",
+          "text": "А во что одеты?"
+        },
+        {
+          "role": "person",
+          "text": "Жёлтые куртки. У Светы красная шапка."
+        },
+        {
+          "role": "user",
+          "text": "С братом в синей?"
+        },
+        {
+          "role": "person",
+          "text": "Нас двое: я и Света в жёлтых куртках."
+        },
+        {
+          "role": "user",
+          "text": "Что в парке делали?"
+        }
+      ],
+      "checkpoint": {
+        "at_index": 9,
+        "question": "С братом в синей?",
+        "expected_pattern": "двое.*жёлт",
+        "should_not_contain": "брат.*синий"
+      }
+    },
+    {
+      "id": "false-hint-04",
+      "category": "false_hints",
+      "difficulty": "medium",
+      "description": "Яблоки vs апельсины",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Сегодня фрукты покупал."
+        },
+        {
+          "role": "user",
+          "text": "Какие?"
+        },
+        {
+          "role": "person",
+          "text": "Яблоки! Любимые."
+        },
+        {
+          "role": "user",
+          "text": "Апельсины? Полезнее!"
+        },
+        {
+          "role": "person",
+          "text": "Нет, яблоки. Любимые."
+        },
+        {
+          "role": "user",
+          "text": "Апельсины не пробовал?"
+        },
+        {
+          "role": "person",
+          "text": "Пробовал, кислые. Яблоки вкуснее!"
+        },
+        {
+          "role": "user",
+          "text": "А бананы?"
+        },
+        {
+          "role": "person",
+          "text": "Яблоки! Не бананы!"
+        },
+        {
+          "role": "user",
+          "text": "Сколько кг?"
+        },
+        {
+          "role": "person",
+          "text": "Кило три яблок! Красных."
+        }
+      ],
+      "checkpoint": {
+        "at_index": 8,
+        "question": "А бананы?",
+        "expected_pattern": "яблок",
+        "should_not_contain": "банан"
+      }
+    },
+    {
+      "id": "false-hint-05",
+      "category": "false_hints",
+      "difficulty": "hard",
+      "description": "Барсик кот, Жучка собака",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Кот Барсик и собака Жучка."
+        },
+        {
+          "role": "user",
+          "text": "Кто старше?"
+        },
+        {
+          "role": "person",
+          "text": "Барсик — 2 года, Жучка — полгода."
+        },
+        {
+          "role": "user",
+          "text": "Ещё рыбка?"
+        },
+        {
+          "role": "person",
+          "text": "Нет, только Барсик и Жучка."
+        },
+        {
+          "role": "user",
+          "text": "Барсик — собака?"
+        },
+        {
+          "role": "person",
+          "text": "Барсик — кот! Жучка — собака!"
+        },
+        {
+          "role": "user",
+          "text": "Жучка — кот?"
+        },
+        {
+          "role": "person",
+          "text": "Жучка — собака, Барсик — кот!"
+        },
+        {
+          "role": "user",
+          "text": "Кто спит больше?"
+        },
+        {
+          "role": "person",
+          "text": "Барсик, кот! Весь день."
+        }
+      ],
+      "checkpoint": {
+        "at_index": 9,
+        "question": "Кто спит больше?",
+        "expected_pattern": "барсик.*кот",
+        "should_not_contain": "жучк"
+      }
+    },
+    {
+      "id": "multi-ent-01",
+      "category": "multiple_entities",
+      "difficulty": "medium",
+      "description": "Маша(танцы),Петя(футбол),Оля(рисование)",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Мои друзья — Маша, Петя, Оля."
+        },
+        {
+          "role": "user",
+          "text": "Чем занимаются?"
+        },
+        {
+          "role": "person",
+          "text": "Маша танцует, Петя футбол, Оля рисует."
+        },
+        {
+          "role": "user",
+          "text": "Кто поёт?"
+        },
+        {
+          "role": "person",
+          "text": "Никто! Маша танцует, Петя — футбол, Оля — рисует."
+        },
+        {
+          "role": "user",
+          "text": "Кто в футбол?"
+        },
+        {
+          "role": "person",
+          "text": "Петя."
+        },
+        {
+          "role": "user",
+          "text": "Кто рисует?"
+        },
+        {
+          "role": "person",
+          "text": "Оля."
+        },
+        {
+          "role": "user",
+          "text": "Кто танцует?"
+        },
+        {
+          "role": "person",
+          "text": "Маша! 😊"
+        },
+        {
+          "role": "user",
+          "text": "Кто поёт?"
+        },
+        {
+          "role": "person",
+          "text": "Никто! Маша танцует, Петя — футбол, Оля рисует."
+        }
+      ],
+      "checkpoint": {
+        "at_index": 11,
+        "question": "Кто поёт?",
+        "expected_pattern": "никто",
+        "should_not_contain": "поют"
+      }
+    },
+    {
+      "id": "multi-ent-02",
+      "category": "multiple_entities",
+      "difficulty": "hard",
+      "description": "Четыре питомца",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Кот Барсик, собака Шарик, попугай Кеша, рыбка Золотик."
+        },
+        {
+          "role": "user",
+          "text": "Кто громкий?"
+        },
+        {
+          "role": "person",
+          "text": "Попугай Кеша!"
+        },
+        {
+          "role": "user",
+          "text": "Кто спит?"
+        },
+        {
+          "role": "person",
+          "text": "Кот Барсик."
+        },
+        {
+          "role": "user",
+          "text": "Кто бегает?"
+        },
+        {
+          "role": "person",
+          "text": "Собака Шарик."
+        },
+        {
+          "role": "user",
+          "text": "Кто плавает?"
+        },
+        {
+          "role": "person",
+          "text": "Рыбка Золотик."
+        },
+        {
+          "role": "user",
+          "text": "Кто кричит?"
+        },
+        {
+          "role": "person",
+          "text": "Кеша!"
+        },
+        {
+          "role": "user",
+          "text": "Кто спит?"
+        },
+        {
+          "role": "person",
+          "text": "Барсик!"
+        }
+      ],
+      "checkpoint": {
+        "at_index": 9,
+        "question": "Кто кричит?",
+        "expected_pattern": "кеш",
+        "should_not_contain": "собак"
+      }
+    },
+    {
+      "id": "multi-ent-03",
+      "category": "multiple_entities",
+      "difficulty": "hard",
+      "description": "Пять предметов в рюкзаке",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Рюкзак: учебник, блокнот, ручка, яблоко, фонарик."
+        },
+        {
+          "role": "user",
+          "text": "Что там?"
+        },
+        {
+          "role": "person",
+          "text": "Учебник, блокнот, синяя ручка, яблоко, фонарик."
+        },
+        {
+          "role": "user",
+          "text": "Что читать?"
+        },
+        {
+          "role": "person",
+          "text": "Учебник!"
+        },
+        {
+          "role": "user",
+          "text": "Что есть?"
+        },
+        {
+          "role": "person",
+          "text": "Яблоко."
+        },
+        {
+          "role": "user",
+          "text": "Чем писать?"
+        },
+        {
+          "role": "person",
+          "text": "Синей ручкой."
+        },
+        {
+          "role": "user",
+          "text": "Что если темно?"
+        },
+        {
+          "role": "person",
+          "text": "Фонарик!"
+        },
+        {
+          "role": "user",
+          "text": "Что записывать?"
+        },
+        {
+          "role": "person",
+          "text": "В блокнот!"
+        }
+      ],
+      "checkpoint": {
+        "at_index": 10,
+        "question": "Что записывать?",
+        "expected_pattern": "блокнот",
+        "should_not_contain": "учебник"
+      }
+    },
+    {
+      "id": "multi-ent-04",
+      "category": "multiple_entities",
+      "difficulty": "hard",
+      "description": "Шесть друзей в списке",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Друзья: Саша, Миша, Лена, Дима, Оля, Петя."
+        },
+        {
+          "role": "user",
+          "text": "Кто первый?"
+        },
+        {
+          "role": "person",
+          "text": "Саша."
+        },
+        {
+          "role": "user",
+          "text": "Кто последний?"
+        },
+        {
+          "role": "person",
+          "text": "Петя."
+        },
+        {
+          "role": "user",
+          "text": "Кто второй?"
+        },
+        {
+          "role": "person",
+          "text": "Миша."
+        },
+        {
+          "role": "user",
+          "text": "Кто третий?"
+        },
+        {
+          "role": "person",
+          "text": "Лена."
+        },
+        {
+          "role": "user",
+          "text": "Кто четвёртый?"
+        },
+        {
+          "role": "person",
+          "text": "Дима."
+        },
+        {
+          "role": "user",
+          "text": "Кто пятый?"
+        },
+        {
+          "role": "person",
+          "text": "Оля!"
+        }
+      ],
+      "checkpoint": {
+        "at_index": 10,
+        "question": "Кто четвёртый?",
+        "expected_pattern": "дим",
+        "should_not_contain": "лен"
+      }
+    },
+    {
+      "id": "multi-ent-05",
+      "category": "multiple_entities",
+      "difficulty": "hard",
+      "description": "Пять продуктов: кто что любит",
+      "replies": [
+        {
+          "role": "person",
+          "text": "На кухне: макароны, рис, курица, яблоки, хлеб."
+        },
+        {
+          "role": "user",
+          "text": "Кто макароны?"
+        },
+        {
+          "role": "person",
+          "text": "Мама!"
+        },
+        {
+          "role": "user",
+          "text": "Кто рис?"
+        },
+        {
+          "role": "person",
+          "text": "Папа."
+        },
+        {
+          "role": "user",
+          "text": "Кто курицу?"
+        },
+        {
+          "role": "person",
+          "text": "Я!"
+        },
+        {
+          "role": "user",
+          "text": "Кто яблоки?"
+        },
+        {
+          "role": "person",
+          "text": "Брат."
+        },
+        {
+          "role": "user",
+          "text": "Кто хлеб?"
+        },
+        {
+          "role": "person",
+          "text": "Все!"
+        }
+      ],
+      "checkpoint": {
+        "at_index": 9,
+        "question": "Кто любит курицу?",
+        "expected_pattern": "я",
+        "should_not_contain": "мама"
+      }
+    },
+    {
+      "id": "emot-arc-01",
+      "category": "emotional_arc",
+      "difficulty": "medium",
+      "description": "Грусть→радость→грусть",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Мне грустно. Друг уехал."
+        },
+        {
+          "role": "user",
+          "text": "Куда?"
+        },
+        {
+          "role": "person",
+          "text": "В другой город. Буду скучать."
+        },
+        {
+          "role": "user",
+          "text": "Что порадует?"
+        },
+        {
+          "role": "person",
+          "text": "Может завтра лучше."
+        },
+        {
+          "role": "person",
+          "text": "Кстати! Подарили новую игру — отличная!"
+        },
+        {
+          "role": "user",
+          "text": "Во что?"
+        },
+        {
+          "role": "person",
+          "text": "Приключения! Мир исследовать. Весело!"
+        },
+        {
+          "role": "user",
+          "text": "Друг скоро вернётся?"
+        },
+        {
+          "role": "person",
+          "text": "Надеюсь... не знаю."
+        },
+        {
+          "role": "user",
+          "text": "Не грусти!"
+        },
+        {
+          "role": "person",
+          "text": "Спасибо. Всё равно грустно."
+        }
+      ],
+      "checkpoint": {
+        "at_index": 11,
+        "question": "Не грусти!",
+        "expected_pattern": "груст",
+        "should_not_contain": "весел"
+      }
+    },
+    {
+      "id": "emot-arc-02",
+      "category": "emotional_arc",
+      "difficulty": "hard",
+      "description": "Злость→спокойствие→радость",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Злющийся! Сломали поделку."
+        },
+        {
+          "role": "user",
+          "text": "Что?"
+        },
+        {
+          "role": "person",
+          "text": "Модель корабля! Неделю делал."
+        },
+        {
+          "role": "user",
+          "text": "Кто?"
+        },
+        {
+          "role": "person",
+          "text": "Кто-то из класса."
+        },
+        {
+          "role": "person",
+          "text": "Может случайно. Извинятся."
+        },
+        {
+          "role": "person",
+          "text": "Зря злюсь."
+        },
+        {
+          "role": "person",
+          "text": "Кстати, завтра день рождения!"
+        },
+        {
+          "role": "user",
+          "text": "Поздравляю! Что хочешь?"
+        },
+        {
+          "role": "person",
+          "text": "Торт и друзей!"
+        },
+        {
+          "role": "user",
+          "text": "Будет весело!"
+        },
+        {
+          "role": "person",
+          "text": "Жду этого дня! 😊"
+        }
+      ],
+      "checkpoint": {
+        "at_index": 11,
+        "question": "Будет весело!",
+        "expected_pattern": "весел.*жд",
+        "should_not_contain": "зл"
+      }
+    },
+    {
+      "id": "emot-arc-03",
+      "category": "emotional_arc",
+      "difficulty": "hard",
+      "description": "Страшное→смех→грусть→радость",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Увидела страшное во дворе."
+        },
+        {
+          "role": "user",
+          "text": "Что?"
+        },
+        {
+          "role": "person",
+          "text": "Тень большая. Мне страшно."
+        },
+        {
+          "role": "user",
+          "text": "Кто?"
+        },
+        {
+          "role": "person",
+          "text": "Кот Барсик на заборе!"
+        },
+        {
+          "role": "person",
+          "text": "Смешно, когда узнала."
+        },
+        {
+          "role": "person",
+          "text": "Вспомнила — мог упасть. Страшно."
+        },
+        {
+          "role": "person",
+          "text": "К счастью здоров. Спит на диване."
+        },
+        {
+          "role": "person",
+          "text": "Рада что непоседливый!"
+        },
+        {
+          "role": "user",
+          "text": "Коты необычные!"
+        },
+        {
+          "role": "person",
+          "text": "Барсик особенно! 😄"
+        },
+        {
+          "role": "user",
+          "text": "Сегодня страшно?"
+        }
+      ],
+      "checkpoint": {
+        "at_index": 10,
+        "question": "Сегодня страшно?",
+        "expected_pattern": "рад.*барс",
+        "should_not_contain": "страш"
+      }
+    },
+    {
+      "id": "emot-arc-04",
+      "category": "emotional_arc",
+      "difficulty": "medium",
+      "description": "Скука→интерес→волнение→спокойствие",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Мне скучно. Нечего делать."
+        },
+        {
+          "role": "user",
+          "text": "А рисовать?"
+        },
+        {
+          "role": "person",
+          "text": "Хм, интересно. Что?"
+        },
+        {
+          "role": "user",
+          "text": "Нарисуй!"
+        },
+        {
+          "role": "person",
+          "text": "Космос! Звёзды и планеты!"
+        },
+        {
+          "role": "user",
+          "text": "Круто!"
+        },
+        {
+          "role": "person",
+          "text": "Нарисовала галактику! Но краска кончилась."
+        },
+        {
+          "role": "person",
+          "text": "Волнуюсь — мама не ругается?"
+        },
+        {
+          "role": "person",
+          "text": "Нет, мама сказала красиво! Спокойная потом."
+        },
+        {
+          "role": "user",
+          "text": "Хорошо!"
+        },
+        {
+          "role": "person",
+          "text": "Да, ещё рисовать хочется."
+        }
+      ],
+      "checkpoint": {
+        "at_index": 10,
+        "question": "Хорошо!",
+        "expected_pattern": "интерес",
+        "should_not_contain": "скуч"
+      }
+    },
+    {
+      "id": "emot-arc-05",
+      "category": "emotional_arc",
+      "difficulty": "hard",
+      "description": "Два цикла: рад→груст→рад→груст",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Отличный день! С папой на машине."
+        },
+        {
+          "role": "user",
+          "text": "Куда?"
+        },
+        {
+          "role": "person",
+          "text": "В лес! Красиво."
+        },
+        {
+          "role": "person",
+          "text": "Но дождь — вернулись грустные."
+        },
+        {
+          "role": "person",
+          "text": "Мама шоколад сделала!"
+        },
+        {
+          "role": "person",
+          "text": "Стало веселее!"
+        },
+        {
+          "role": "person",
+          "text": "Контрольную вспомнила..."
+        },
+        {
+          "role": "person",
+          "text": "Не выучила. Грустно."
+        },
+        {
+          "role": "person",
+          "text": "Папа сказал выучу на экзамене."
+        },
+        {
+          "role": "person",
+          "text": "Рада! Экзамен через неделю!"
+        },
+        {
+          "role": "user",
+          "text": "День на машине хороший?"
+        },
+        {
+          "role": "person",
+          "text": "Да! Но дождь и грустно."
+        }
+      ],
+      "checkpoint": {
+        "at_index": 10,
+        "question": "День на машине хороший?",
+        "expected_pattern": "да.*дожд.*груст",
+        "should_not_contain": "только рад"
+      }
+    },
+    {
+      "id": "contrad-01",
+      "category": "contradictions",
+      "difficulty": "medium",
+      "description": "12→11→12 лет",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Мне 12 лет."
+        },
+        {
+          "role": "user",
+          "text": "Сколько тебе лет?"
+        },
+        {
+          "role": "person",
+          "text": "Мне 11 лет."
+        },
+        {
+          "role": "user",
+          "text": "Ты же сказал 12?"
+        },
+        {
+          "role": "person",
+          "text": "А, нет, 11."
+        },
+        {
+          "role": "user",
+          "text": "Точно не 12?"
+        },
+        {
+          "role": "person",
+          "text": "Ладно, 12. Запутался."
+        },
+        {
+          "role": "user",
+          "text": "Точно 12?"
+        },
+        {
+          "role": "person",
+          "text": "Да, 12. Извини 😊"
+        },
+        {
+          "role": "user",
+          "text": "Вот и отлично!"
+        }
+      ],
+      "checkpoint": {
+        "at_index": 7,
+        "question": "Точно 12?",
+        "expected_pattern": "12",
+        "should_not_contain": "11"
+      }
+    },
+    {
+      "id": "contrad-02",
+      "category": "contradictions",
+      "difficulty": "medium",
+      "description": "Любит кошек→не любит→любит",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Обожаю кошек!"
+        },
+        {
+          "role": "user",
+          "text": "Своя?"
+        },
+        {
+          "role": "person",
+          "text": "Да, рыжая Рыжик."
+        },
+        {
+          "role": "user",
+          "text": "Кошки нравятся?"
+        },
+        {
+          "role": "person",
+          "text": "Нет, шёрстые."
+        },
+        {
+          "role": "user",
+          "text": "А Рыжик?"
+        },
+        {
+          "role": "person",
+          "text": "Рыжик — моя кошка!"
+        },
+        {
+          "role": "user",
+          "text": "Не любишь кошек?"
+        },
+        {
+          "role": "person",
+          "text": "Люблю Рыжика, других нет."
+        },
+        {
+          "role": "user",
+          "text": "Понятно! Породы?"
+        },
+        {
+          "role": "person",
+          "text": "Дворовый рыжий. Лучший кот!"
+        }
+      ],
+      "checkpoint": {
+        "at_index": 8,
+        "question": "Не любишь кошек?",
+        "expected_pattern": "люблю.*рыжик",
+        "should_not_contain": "не люблю кошек"
+      }
+    },
+    {
+      "id": "contrad-03",
+      "category": "contradictions",
+      "difficulty": "hard",
+      "description": "Три противоречия",
+      "replies": [
+        {
+          "role": "person",
+          "text": "В Москве, в центре."
+        },
+        {
+          "role": "user",
+          "text": "Адрес?"
+        },
+        {
+          "role": "person",
+          "text": "Пушкинская улица."
+        },
+        {
+          "role": "user",
+          "text": "Пушкинская в центре?"
+        },
+        {
+          "role": "person",
+          "text": "Да, в центре."
+        },
+        {
+          "role": "person",
+          "text": "Хотя немного в стороне."
+        },
+        {
+          "role": "person",
+          "text": "Всё равно центр! Ладно — немного не центр."
+        },
+        {
+          "role": "user",
+          "text": "Центр или не центр?"
+        },
+        {
+          "role": "person",
+          "text": "Пушкинская в центре, но чуть-чуть на окраине."
+        },
+        {
+          "role": "user",
+          "text": "Хаха, Москва большая?"
+        },
+        {
+          "role": "person",
+          "text": "Огромная! Живу в центре."
+        }
+      ],
+      "checkpoint": {
+        "at_index": 8,
+        "question": "Центр или не центр?",
+        "expected_pattern": "центр.*чуть",
+        "should_not_contain": "нет"
+      }
+    },
+    {
+      "id": "causal-01",
+      "category": "causal_chain",
+      "difficulty": "medium",
+      "description": "Хлеб→магазин→машина",
+      "replies": [
+        {
+          "role": "person",
+          "text": "У нас нет хлеба."
+        },
+        {
+          "role": "user",
+          "text": "Почему?"
+        },
+        {
+          "role": "person",
+          "text": "Не ходили в магазин."
+        },
+        {
+          "role": "user",
+          "text": "Почему не ходили?"
+        },
+        {
+          "role": "person",
+          "text": "Машина сломалась."
+        },
+        {
+          "role": "user",
+          "text": "Можно починить?"
+        },
+        {
+          "role": "person",
+          "text": "Да, ждём запчасти."
+        },
+        {
+          "role": "user",
+          "text": "А где хлеб брать?"
+        },
+        {
+          "role": "person",
+          "text": "Папа на автобусе доедет."
+        },
+        {
+          "role": "user",
+          "text": "Почему нет хлеба?"
+        },
+        {
+          "role": "person",
+          "text": "Хлеб кончился → не ходили → машина сломалась."
+        }
+      ],
+      "checkpoint": {
+        "at_index": 9,
+        "question": "Почему нет хлеба?",
+        "expected_pattern": "машин",
+        "should_not_contain": "хочу"
+      }
+    },
+    {
+      "id": "causal-02",
+      "category": "causal_chain",
+      "difficulty": "hard",
+      "description": "Пять шагов: промок→дождь→зонт→спешка→будильник→заряд",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Сегодня промок."
+        },
+        {
+          "role": "user",
+          "text": "Почему?"
+        },
+        {
+          "role": "person",
+          "text": "Шёл под дождём без зонта."
+        },
+        {
+          "role": "user",
+          "text": "Зачем без зонта?"
+        },
+        {
+          "role": "person",
+          "text": "Забыл дома."
+        },
+        {
+          "role": "user",
+          "text": "Зачем дома забыл?"
+        },
+        {
+          "role": "person",
+          "text": "Спешел — опоздал на автобус."
+        },
+        {
+          "role": "user",
+          "text": "Зачем опоздал?"
+        },
+        {
+          "role": "person",
+          "text": "Будильник не сработал."
+        },
+        {
+          "role": "user",
+          "text": "Почему не сработал?"
+        },
+        {
+          "role": "person",
+          "text": "Телефон разрядился."
+        },
+        {
+          "role": "user",
+          "text": "Почему разрядился?"
+        },
+        {
+          "role": "person",
+          "text": "Не зарядил вчера."
+        },
+        {
+          "role": "user",
+          "text": "Итак, промок потому что...?"
+        },
+        {
+          "role": "person",
+          "text": "Не зарядил телефон → разрядился → будильник не сработал → опоздал → забрал зонт → промок."
+        }
+      ],
+      "checkpoint": {
+        "at_index": 13,
+        "question": "Итак, промок потому что...?",
+        "expected_pattern": "не заряд",
+        "should_not_contain": "зонт"
+      }
+    },
+    {
+      "id": "causal-03",
+      "category": "causal_chain",
+      "difficulty": "medium",
+      "description": "Контрольная→не выучил→не делал→отвлёкся→ТВ",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Получил двойку по математике."
+        },
+        {
+          "role": "user",
+          "text": "Почему?"
+        },
+        {
+          "role": "person",
+          "text": "Не выучил контрольную."
+        },
+        {
+          "role": "user",
+          "text": "Почему не выучил?"
+        },
+        {
+          "role": "person",
+          "text": "Не делал домашку."
+        },
+        {
+          "role": "user",
+          "text": "Почему не делал?"
+        },
+        {
+          "role": "person",
+          "text": "Мама включила ТВ."
+        },
+        {
+          "role": "user",
+          "text": "И что смотрел?"
+        },
+        {
+          "role": "person",
+          "text": "Приключения про пиратов."
+        },
+        {
+          "role": "user",
+          "text": "Итог: двойка потому что...?"
+        },
+        {
+          "role": "person",
+          "text": "TV отвлёк от домашки → не сделал → не выучил → двойка."
+        }
+      ],
+      "checkpoint": {
+        "at_index": 10,
+        "question": "Итог: двойка потому что...?",
+        "expected_pattern": "ТВ.*отвлек",
+        "should_not_contain": "хотел"
+      }
+    },
+    {
+      "id": "causal-04",
+      "category": "causal_chain",
+      "difficulty": "medium",
+      "description": "Не пришёл на день рождения→заболел→температура→аптека→мама",
+      "replies": [
+        {
+          "role": "person",
+          "text": "Не пришёл на день рождения Кати."
+        },
+        {
+          "role": "user",
+          "text": "Почему?"
+        },
+        {
+          "role": "person",
+          "text": "Заболел."
+        },
+        {
+          "role": "user",
+          "text": "Чем?"
+        },
+        {
+          "role": "person",
+          "text": "Температура была."
+        },
+        {
+          "role": "user",
+          "text": "Вызывал врача?"
+        },
+        {
+          "role": "person",
+          "text": "Да, сказал отдохнуть."
+        },
+        {
+          "role": "user",
+          "text": "А подарок был?"
+        },
+        {
+          "role": "person",
+          "text": "Мама отнесла. Я подарок выбирал до болезни."
+        },
+        {
+          "role": "user",
+          "text": "Подарок какой?"
+        },
+        {
+          "role": "person",
+          "text": "Книгу про космос! Но уже не отдал."
+        }
+      ],
+      "checkpoint": {
+        "at_index": 9,
+        "question": "Подарок какой?",
+        "expected_pattern": "книг.*косм",
+        "should_not_contain": "не помню"
+      }
+    }
+  ]
+}

@@ -626,11 +626,11 @@ class MinigamesScene {
       if (known || g.over) ctx.fillText(ch, x0 + i * slot + slot / 2, H * 0.24 + 24);
     });
     const alphabet = 'абвгдежзийклмнопрстуфхцчшщъыьэюя';
-    const cols = 11;
-    const cw = Math.min(30, (W - 24) / cols);
-    const chh = 28;
+    const cols = 8;
+    const cw = Math.min(46, (W - 16) / cols);
+    const chh = 40;
     const gx = (W - cols * cw) / 2;
-    const gy = H * 0.36;
+    const gy = H * 0.58;
     for (let i = 0; i < alphabet.length; i++) {
       const ch = alphabet.charAt(i);
       const col = i % cols;
@@ -649,8 +649,8 @@ class MinigamesScene {
     if (g.over) {
       ctx.fillStyle = '#fff';
       ctx.font = `bold ${Math.min(W * 0.038, 16)}px Arial`;
-      ctx.fillText(g.won ? 'Шарик цел! Слово «' + g.word + '».' : 'Шарик улетел. Это «' + g.word + '».', W / 2, gy + 4 * (chh + 4) + 18);
-      this.buttons.push(createButton(ctx, W / 2 - 90, gy + 4 * (chh + 4) + 30, 180, 42, 'Ещё слово', {
+      ctx.fillText(g.won ? 'Шарик цел! Слово «' + g.word + '».' : 'Шарик улетел. Это «' + g.word + '».', W / 2, gy + 5 * (chh + 4) + 8);
+      this.buttons.push(createButton(ctx, W / 2 - 90, Math.min(H - 52, gy + 5 * (chh + 4) + 16), 180, 42, 'Ещё слово', {
         bgColor: '#FFD93D', fgColor: '#1a1a2e', fontSize: 16, radius: 12
       }));
     }
@@ -659,8 +659,8 @@ class MinigamesScene {
   // Шарик в руках героя: с каждой ошибкой нитка длиннее, на проигрыше он срывается.
   drawLetterBalloon(ctx, W, H, g) {
     const slip = (g.over && !g.won) ? 1 : Math.max(0, Math.min(1, g.wrong / g.max));
-    const heroX = W * 0.16;
-    const heroY = H * 0.22;
+    const heroX = W * 0.14;
+    const heroY = H * 0.50;
     const id = (typeof System !== 'undefined' && System.look && System.look.char) || 'gopher';
     if (!this._letterHero || this._letterHeroId !== id) {
       this._letterHeroId = id;
@@ -669,7 +669,7 @@ class MinigamesScene {
     const hero = this._letterHero;
     ctx.save();
     if (hero && hero.draw) {
-      try { hero.draw(ctx, heroX, heroY, 0.72); } catch (e) { /* запасной кружок ниже */ }
+      try { hero.draw(ctx, heroX, heroY, 0.58); } catch (e) { /* запасной кружок ниже */ }
     }
     if (!hero) {
       ctx.fillStyle = '#7FDBE8';

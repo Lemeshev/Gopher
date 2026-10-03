@@ -20,6 +20,7 @@ class ChatScene {
     this.thread = null;
     this.turns = [];
     this.bankCursor = 0;
+    if (window.CHAT_MEMORY && window.CHAT_MEMORY.reset) window.CHAT_MEMORY.reset();
     this.openPanel();
     const log = this.logEl();
     if (log) log.innerHTML = '';
@@ -145,6 +146,11 @@ class ChatScene {
     // 4) Явные темы ребёнка важнее косинуса: «работы много» не про погоду,
     // «Милка» не про суп, «ты суслик» не про объятия. Косинус ниже остаётся
     // для перефразировок, которых нет в коротком списке.
+    if (window.CHAT_MEMORY && window.CHAT_MEMORY.reply) {
+      const recalled = window.CHAT_MEMORY.reply(this, text);
+      if (recalled) return recalled;
+    }
+
     if (window.CHAT_TALK && window.CHAT_TALK.reply) {
       const talked = window.CHAT_TALK.reply(this, text, n);
       if (talked) return talked;

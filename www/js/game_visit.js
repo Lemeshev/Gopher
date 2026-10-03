@@ -669,7 +669,8 @@ class VisitScene {
     // (SPORT_DISCIPLINES в game_aerial.js), поэтому новая дисциплина
     // появляется в своей локации сама (v1.3.7).
     const sports = (typeof sportListFor === 'function') ? sportListFor(this.locationId) : [];
-    const sportH = sports.length ? sports.length * 36 : 0;
+    const poolLink = this.locationId === 'gym';
+    const sportH = (sports.length + (poolLink ? 1 : 0)) * 36;
     const gridTop = stageTop + stageH + 10 + sportH;
     // Внизу всегда живут кнопка награды, «другая подборка» и листание —
     // сетка не должна залезать на них (иначе клик открывает предмет вместо кнопки)
@@ -691,6 +692,14 @@ class VisitScene {
       });
       this.buttons.push({ x: ax, y: ay, w: aw, h: ah, text: 'sport_' + d.id });
     });
+    if (poolLink) {
+      const aw = Math.min(W - 32, 320), ah = 30;
+      const ax = (W - aw) / 2, ay = stageTop + stageH + 8 + sports.length * 36;
+      createButton(ctx, ax, ay, aw, ah, '🏊 Бассейн', {
+        bgColor: '#00BCD4', fgColor: '#fff', fontSize: 12.5, radius: 10
+      });
+      this.buttons.push({ x: ax, y: ay, w: aw, h: ah, text: 'goto_pool' });
+    }
 
     pageItems.forEach((item, i) => {
       const gi = from + i;
@@ -894,6 +903,13 @@ class VisitScene {
       }
 
       // Спортивная тренировка (кольца, полотна, заплыв, барьеры)
+      if (t === 'goto_pool') {
+        AudioSys.play('click');
+        System.saveGame();
+        this.game.transitionTo('visit', 'pool');
+        return true;
+      }
+
       if (t.indexOf('sport_') === 0) {
         AudioSys.play('click');
         System.saveGame();
