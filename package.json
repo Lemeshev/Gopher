@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "sync": "node tools/sync-www.js",
-    "build": "node tools/sync-www.js && cd android && ./gradlew assembleRelease",
+    "build": "node tools/sync-www.js && cd android && ./gradlew assembleRelease && cd ../.. && node tools/gh-release.js",
     "build:debug": "cd android && ./gradlew assembleDebug",
     "verify": "node tools/verify.js",
     "render": "node tools/render-check.js",
