@@ -12,6 +12,7 @@
     "store:assets": "node tools/store-assets.js",
     "apk:desktop": "npm run build && node tools/copy-apk.js",
     "release": "node tools/release.js",
+    "github:release": "node tools/gh-release.js",
     "rustore:meta": "node tools/rustore-publish.js meta",
     "rustore:check": "node tools/rustore-publish.js check --go",
     "rustore:status": "node tools/rustore-publish.js status --go",

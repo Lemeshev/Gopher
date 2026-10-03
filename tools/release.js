@@ -50,7 +50,9 @@ console.log('\n─────────────────────�
 console.log('📦 Версия ' + version + ' (versionCode ' + code + ') готова');
 console.log('   на рабочем столе: ' + desk);
 console.log('   md5: ' + md5);
-console.log('\nДальше — RuStore. Состояние смотрится командой:');
+console.log('\n① GitHub (кнопка «Обновить приложение» в игре качает отсюда):');
+console.log('   node tools/gh-release.js');
+console.log('\n② Дальше — RuStore. Состояние смотрится командой:');
 console.log('   node tools/rustore-publish.js status --go');
 console.log('Пока у приложения нет ОПУБЛИКОВАННОЙ версии, RuStore не даёт создать новую');
 console.log('(API отвечает 404 «Not found active version» — это их правило, а не ошибка');
