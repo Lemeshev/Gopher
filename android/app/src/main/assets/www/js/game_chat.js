@@ -11,7 +11,8 @@ class ChatScene {
     this.recent = [];
     this.lastTopic = null;
     this.openPanel();
-    this.logEl().innerHTML = '';
+    const log = this.logEl();
+    if (log) log.innerHTML = '';
     const name = this.petName();
     this.push('pet', 'Привет, я ' + name + '. Давай поболтаем.');
     const input = document.getElementById('chatInput');
@@ -21,7 +22,7 @@ class ChatScene {
   petName() {
     const id = (System.look && System.look.char) || 'gopher';
     const ch = (typeof findCharacter === 'function') ? findCharacter(id) : null;
-    return (ch && ch.name) || 'Гофер';
+    return (ch && ch.name) || 'Питомец';
   }
 
   charId() {
