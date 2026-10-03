@@ -9,6 +9,7 @@ class ChatScene {
 
   init() {
     this.recent = [];
+    this.lastTopic = null;
     this.openPanel();
     this.logEl().innerHTML = '';
     const name = this.petName();
@@ -98,20 +99,35 @@ class ChatScene {
     const n = this.norm(text);
     if (!n) return this.pick(window.CHAT_FALLBACK || ['Напиши хоть слово.']);
     const topics = window.CHAT_TOPICS || [];
+    const follow = ['да', 'нет', 'ага', 'угу', 'а ты', 'и что', 'почему', 'зачем', 'ну'];
+    if (this.lastTopic && follow.indexOf(n) !== -1) {
+      return this.pick(this.lastTopic.replies);
+    }
     let best = null;
     let score = 0;
     topics.forEach(topic => {
       let s = 0;
       (topic.keys || []).forEach(k => {
         const key = this.norm(k);
-        if (key && n.indexOf(key) !== -1) s += key.length;
+        if (!key) return;
+        const at = n.indexOf(key);
+        if (at === -1) return;
+        const before = at === 0 || n.charAt(at - 1) === ' ';
+        const afterAt = at + key.length;
+        const after = afterAt === n.length || n.charAt(afterAt) === ' ';
+        // Короткий кусок должен совпасть с целым словом, длинный корень может быть началом слова.
+        if (!before) return;
+        if (!after && key.length < 4) return;
+        s += key.length;
       });
       if (s > score) { score = s; best = topic; }
     });
-    let line = (best && score >= 3) ? this.pick(best.replies) : this.pick(window.CHAT_FALLBACK);
-    const voice = (window.CHAT_VOICES && window.CHAT_VOICES[this.charId()]) || [];
-    if (voice.length && Math.random() < 0.35) line += ' ' + this.pick(voice);
-    return line;
+    if (best && score >= 3) {
+      this.lastTopic = best;
+      return this.pick(best.replies);
+    }
+    this.lastTopic = null;
+    return this.pick(window.CHAT_FALLBACK);
   }
 
   onUser(text) {
