@@ -130,8 +130,7 @@ html, body {
   padding: 10px 10px 12px;
 }
 #chatPanel.open { display: flex; }
-#chatHead { color: #FFD93D; font-weight: bold; font-size: 16px; text-align: center; }
-#chatBadge { color: #9be3b0; font-size: 12px; text-align: center; margin: 4px 0 8px; }
+#chatHead { color: #FFD93D; font-weight: bold; font-size: 22px; text-align: center; margin-bottom: 8px; }
 #chatLog {
   flex: 1;
   overflow-y: auto;
@@ -148,7 +147,7 @@ html, body {
   padding: 8px 10px;
   border-radius: 12px;
   line-height: 1.35;
-  font-size: 15px;
+  font-size: 20px;
   -webkit-user-select: text;
   user-select: text;
 }
@@ -157,8 +156,8 @@ html, body {
 #chatForm { display: flex; gap: 6px; margin-top: 8px; }
 #chatInput {
   flex: 1;
-  font-size: 16px;
-  padding: 10px;
+  font-size: 22px;
+  padding: 14px;
   border-radius: 10px;
   border: 1px solid #8d93a8;
   -webkit-user-select: text;
@@ -167,9 +166,10 @@ html, body {
 }
 #chatForm button, #chatClose {
   font-weight: bold;
+  font-size: 18px;
   border: none;
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 14px 14px;
   touch-action: manipulation;
 }
 #chatForm button { background: #6BCB77; color: #102014; }
@@ -196,10 +196,9 @@ html, body {
 
 <div id="chatPanel">
   <div id="chatHead">Чат</div>
-  <div id="chatBadge">0+ · разговор только из добрых фраз внутри игры, без интернета</div>
   <div id="chatLog"></div>
   <form id="chatForm">
-    <input id="chatInput" type="text" maxlength="180" autocomplete="off" placeholder="Напиши что-нибудь доброе">
+    <input id="chatInput" type="text" maxlength="180" autocomplete="off" placeholder="Напиши сообщение">
     <button type="submit">Сказать</button>
   </form>
   <button id="chatClose" type="button">← Назад домой</button>

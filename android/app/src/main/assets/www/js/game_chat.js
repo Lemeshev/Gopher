@@ -12,7 +12,7 @@ class ChatScene {
     this.openPanel();
     this.logEl().innerHTML = '';
     const name = this.petName();
-    this.push('pet', 'Привет! Я ' + name + '. Это чат 0+: я отвечаю только добрыми фразами, которые уже лежат в игре.');
+    this.push('pet', 'Привет, я ' + name + '. Давай поболтаем.');
     const input = document.getElementById('chatInput');
     if (input) input.value = '';
   }
@@ -34,7 +34,7 @@ class ChatScene {
     if (!panel) return;
     panel.classList.add('open');
     const head = document.getElementById('chatHead');
-    if (head) head.textContent = 'Чат с ' + this.petName();
+    if (head) head.textContent = this.petName();
     if (!this.bound) {
       this.bound = true;
       const form = document.getElementById('chatForm');
@@ -132,7 +132,7 @@ class ChatScene {
     ctx.fillStyle = '#FFD93D';
     ctx.font = 'bold 18px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('Чат 0+', W / 2, H * 0.72);
+    ctx.fillText(this.petName(), W / 2, H * 0.72);
   }
 }
 
