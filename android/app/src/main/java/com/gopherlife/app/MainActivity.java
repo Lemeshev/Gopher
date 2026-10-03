@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.os.Build;
 import android.view.View;
 import android.view.WindowManager;
+import android.content.ClipData;
 import android.content.Intent;
 import android.net.Uri;
 import android.webkit.JavascriptInterface;
@@ -17,6 +18,7 @@ import android.content.pm.ActivityInfo;
 import android.graphics.Color;
 import android.provider.Settings;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -81,8 +83,8 @@ public class MainActivity extends Activity {
 
         setContentView(webView);
 
-        // Load game from assets
-        webView.loadUrl("file:///android_asset/www/index.html");
+        // Load game from assets (index.html теперь лежит прямо в assets/, а не в assets/www/)
+        webView.loadUrl("file:///android_asset/index.html");
 
         // Dark background
         webView.setBackgroundColor(Color.parseColor("#1a1a2e"));
@@ -151,24 +153,35 @@ public class MainActivity extends Activity {
                         File dir = new File(getCacheDir(), "updates");
                         if (!dir.exists()) dir.mkdirs();
                         File apk = new File(dir, "Gopher.apk");
-                        URL u = new URL(target);
-                        conn = (HttpURLConnection) u.openConnection();
-                        // Запрет кэша: чтобы 'latest/download' всегда шёл на актуальный релиз,
-                        // а не на кэшированный 302 или старый файл
-                        conn.setInstanceFollowRedirects(true);
-                        conn.setRequestProperty("Cache-Control", "no-cache");
-                        conn.setRequestProperty("Pragma", "no-cache");
-                        conn.setRequestProperty("If-None-Match", "*");
-                        conn.setConnectTimeout(15000);
-                        conn.setReadTimeout(60000);
-                        conn.setRequestProperty("User-Agent", "GopherLife");
+                        // GitHub latest/download отвечает 302, затем ещё одним 302 на CDN.
+                        // Один переход и Content-Length первого ответа сохраняют HTML, а не APK.
+                        conn = openFollowingRedirects(target);
+                        int code = conn.getResponseCode();
+                        long contentLength = conn.getContentLength();
+                        if (code != 200) {
+                            apk.delete();
+                            tellUpdate("fail");
+                            return;
+                        }
+                        apk.delete();
                         InputStream in = conn.getInputStream();
                         FileOutputStream out = new FileOutputStream(apk);
                         byte[] buf = new byte[8192];
+                        long totalRead = 0;
                         int n;
-                        while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                        while ((n = in.read(buf)) > 0) {
+                            out.write(buf, 0, n);
+                            totalRead += n;
+                        }
                         out.close();
                         in.close();
+                        if (totalRead < 80000 || !isZipApk(apk)
+                                || (contentLength > 0 && totalRead != contentLength)) {
+                            apk.delete();
+                            tellUpdate("fail");
+                            return;
+                        }
+                        
                         final File ready = apk;
                         runOnUiThread(new Runnable() {
                             @Override
@@ -181,6 +194,44 @@ public class MainActivity extends Activity {
                     }
                 }
             }).start();
+        }
+    }
+
+    /** GET с ручным проходом 301/302/303/307/308. Content-Length берётся только с итогового 200. */
+    private HttpURLConnection openFollowingRedirects(String start) throws Exception {
+        String current = start;
+        for (int hop = 0; hop < 6; hop++) {
+            HttpURLConnection conn = (HttpURLConnection) new URL(current).openConnection();
+            conn.setInstanceFollowRedirects(false);
+            conn.setUseCaches(false);
+            conn.setConnectTimeout(20000);
+            conn.setReadTimeout(120000);
+            conn.setRequestProperty("Cache-Control", "no-cache");
+            conn.setRequestProperty("User-Agent", "GopherLife");
+            int code = conn.getResponseCode();
+            if (code == 301 || code == 302 || code == 303 || code == 307 || code == 308) {
+                String loc = conn.getHeaderField("Location");
+                conn.disconnect();
+                if (loc == null || loc.length() == 0) throw new java.io.IOException("empty redirect");
+                current = new URL(new URL(current), loc).toExternalForm();
+                continue;
+            }
+            return conn;
+        }
+        throw new java.io.IOException("too many redirects");
+    }
+
+    private boolean isZipApk(File apk) {
+        FileInputStream in = null;
+        try {
+            in = new FileInputStream(apk);
+            byte[] mag = new byte[4];
+            if (in.read(mag) != 4) return false;
+            return mag[0] == 'P' && mag[1] == 'K' && mag[2] == 3 && mag[3] == 4;
+        } catch (Exception e) {
+            return false;
+        } finally {
+            if (in != null) try { in.close(); } catch (Exception ignored) {}
         }
     }
 
@@ -207,6 +258,7 @@ public class MainActivity extends Activity {
             Uri uri = UpdateFileProvider.uriFor(this, apk);
             Intent view = new Intent(Intent.ACTION_VIEW);
             view.setDataAndType(uri, "application/vnd.android.package-archive");
+            view.setClipData(ClipData.newRawUri("", uri));
             view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
             tellUpdate("install");
             startActivity(view);
