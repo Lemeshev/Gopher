@@ -289,6 +289,8 @@ class Game {
       // Время в игре: раньше счётчик прибавлялся раз в минуту, а статистика
       // делила его на 60 — поэтому у всех было «0 мин» (v1.3.6)
       if (System.profileLoaded) System.addPlaySeconds(Math.min(this.dt / 1000, 5));
+      // Таймер инструментов должен звонить на любой сцене, не только в «Инструментах».
+      if (this.scenes.tools && this.scenes.tools.checkTimer) this.scenes.tools.checkTimer();
       AudioSys.musicTick();   // фоновая музыка: ноты расписываются вперёд на доли секунды
       this.ensureCharacter();
       scene.update(this.dt);

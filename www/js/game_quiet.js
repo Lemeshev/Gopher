@@ -2606,7 +2606,8 @@ class QuietScene {
           x: dir > 0 ? -0.12 : 1.12,
           speed: randFloat(0.018, 0.03),
           phase: 0,
-          actor: createCharacter(ch.id, 42)
+          color: ch.body || '#7FDBE8',
+          tale: 'Это ' + ch.name + '. ' + (ch.desc || '')
         };
       } else win.farIn = 40;
     }
@@ -2650,15 +2651,14 @@ class QuietScene {
     const wing = (alpha) => {
       ctx.save();
       ctx.globalAlpha = alpha;
-      ctx.translate(-s * 0.05, 0);
-      ctx.rotate(-0.2 - lift * 0.9);
+      ctx.translate(s * 0.02, 0);
+      ctx.rotate(-0.35 - lift * 0.7);
       ctx.fillStyle = id === 'tit' ? '#3d6f9a' : b.color;
       ctx.beginPath();
       ctx.moveTo(0, 0);
-      ctx.quadraticCurveTo(-s * 0.45, -s * 0.08, -s * 1.05, s * 0.02);
-      ctx.lineTo(-s * 0.82, s * 0.1);
-      ctx.lineTo(-s * 0.95, s * 0.16);
-      ctx.quadraticCurveTo(-s * 0.4, s * 0.2, 0, s * 0.04);
+      ctx.quadraticCurveTo(-s * 0.22, -s * 0.05, -s * 0.48, s * 0.02);
+      ctx.lineTo(-s * 0.36, s * 0.08);
+      ctx.quadraticCurveTo(-s * 0.16, s * 0.1, 0, s * 0.03);
       ctx.closePath();
       ctx.fill();
       ctx.restore();
@@ -2695,26 +2695,21 @@ class QuietScene {
     ctx.lineTo(s * 0.44, s * 0.06);
     ctx.closePath();
     ctx.fill();
+    ctx.fillStyle = b.color;
+    ctx.beginPath();
     if (id === 'swallow') {
-      ctx.fillStyle = b.color;
-      ctx.beginPath();
-      ctx.moveTo(-s * 0.36, 0);
-      ctx.quadraticCurveTo(-s * 0.85, -s * 0.22, -s * 1.15, -s * 0.02);
-      ctx.quadraticCurveTo(-s * 0.8, s * 0.02, -s * 0.36, s * 0.04);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(-s * 0.36, s * 0.04);
-      ctx.quadraticCurveTo(-s * 0.85, s * 0.24, -s * 1.1, s * 0.06);
-      ctx.quadraticCurveTo(-s * 0.75, s * 0.04, -s * 0.36, s * 0.02);
-      ctx.fill();
+      ctx.moveTo(-s * 0.28, -s * 0.02);
+      ctx.quadraticCurveTo(-s * 0.55, -s * 0.16, -s * 0.78, -s * 0.05);
+      ctx.lineTo(-s * 0.32, s * 0.02);
+      ctx.lineTo(-s * 0.78, s * 0.1);
+      ctx.quadraticCurveTo(-s * 0.5, s * 0.14, -s * 0.28, s * 0.04);
     } else {
-      ctx.fillStyle = b.color;
-      ctx.beginPath();
-      ctx.moveTo(-s * 0.32, -s * 0.02);
-      ctx.quadraticCurveTo(-s * 0.62, -s * 0.16, -s * 0.5, s * 0.02);
-      ctx.quadraticCurveTo(-s * 0.62, s * 0.16, -s * 0.3, s * 0.06);
-      ctx.fill();
+      ctx.moveTo(-s * 0.3, -s * 0.04);
+      ctx.quadraticCurveTo(-s * 0.62, -s * 0.1, -s * 0.58, s * 0.02);
+      ctx.quadraticCurveTo(-s * 0.62, s * 0.12, -s * 0.28, s * 0.06);
     }
+    ctx.closePath();
+    ctx.fill();
     if (b.look && b.look.carry === 'bead') {
       ctx.fillStyle = '#7ec8f0';
       ctx.beginPath();
@@ -2798,94 +2793,86 @@ class QuietScene {
     ctx.save();
     ctx.translate(x, y);
     ctx.scale(p.dir, 1);
-    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
     ctx.lineWidth = 2;
-    ctx.setLineDash([4, 5]);
+    ctx.setLineDash([5, 6]);
     ctx.beginPath();
-    ctx.moveTo(-70, 2);
-    ctx.lineTo(-28, 2);
+    ctx.moveTo(-78, 2);
+    ctx.lineTo(-36, 2);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = '#f7fbff';
-    ctx.strokeStyle = '#9bb0c2';
-    ctx.lineWidth = 1.2;
+    ctx.fillStyle = '#f4f8fc';
+    ctx.strokeStyle = '#8aa0b4';
+    ctx.lineWidth = 1.3;
     ctx.beginPath();
-    ctx.moveTo(30, 0);
-    ctx.quadraticCurveTo(28, -8, 8, -8);
-    ctx.lineTo(-22, -7);
-    ctx.quadraticCurveTo(-34, -6, -32, 0);
-    ctx.quadraticCurveTo(-34, 6, -22, 7);
-    ctx.lineTo(8, 8);
-    ctx.quadraticCurveTo(28, 8, 30, 0);
+    ctx.ellipse(0, 0, 34, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(28, 0);
+    ctx.lineTo(40, 0);
+    ctx.lineTo(30, 5);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(-6, -2);
-    ctx.quadraticCurveTo(2, -22, 22, -4);
-    ctx.quadraticCurveTo(4, -2, -2, 2);
-    ctx.quadraticCurveTo(2, 14, 16, 5);
+    ctx.moveTo(-4, -2);
+    ctx.lineTo(16, -2);
+    ctx.lineTo(6, -18);
+    ctx.lineTo(-10, -4);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(-24, -3);
-    ctx.quadraticCurveTo(-36, -16, -22, -4);
+    ctx.moveTo(-28, -2);
+    ctx.lineTo(-22, -14);
+    ctx.lineTo(-34, -2);
+    ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = '#b9def2';
-    ctx.beginPath();
-    ctx.ellipse(16, -1, 6, 3.2, 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#9fd4ee';
+    for (let i = 0; i < 4; i++) {
+      ctx.beginPath();
+      ctx.ellipse(8 + i * 6, 0, 2.2, 2.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
   }
 
   drawWindowPerson(ctx, step, opt) {
     const skin = opt.skin || '#f3c7a8';
-    const bob = step * 3;
-    ctx.fillStyle = opt.pants;
-    ctx.beginPath(); ctx.ellipse(-5, 4 + bob, 3.4, 8, 0.2, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(5, 4 - bob, 3.4, 8, -0.2, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#2c2c2c';
-    ctx.beginPath(); ctx.ellipse(-5, 11, 4, 2.1, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(5, 11, 4, 2.1, 0, 0, Math.PI * 2); ctx.fill();
+    const stride = step * 4;
     if (opt.bag) {
       ctx.fillStyle = opt.bag;
-      ctx.beginPath(); ctx.ellipse(-9, -4, 6, 7, 0.2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-6, -6, 6, 7, 0.1, 0, Math.PI * 2); ctx.fill();
     }
+    ctx.fillStyle = opt.pants;
+    ctx.beginPath(); ctx.ellipse(-1, 4, 3.2, 8, 0.35 + stride * 0.03, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(5, 4, 3.2, 8, -0.45 - stride * 0.03, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#2c2c2c';
+    ctx.beginPath(); ctx.ellipse(0, 11, 4.2, 2, 0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(7, 11, 4.2, 2, -0.2, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = opt.shirt;
-    ctx.beginPath(); ctx.ellipse(0, -8, 9, 11, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(3, -8, 8, 11, 0.08, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = skin;
-    ctx.lineWidth = 3.2;
+    ctx.lineWidth = 3;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(-6, -10);
-    ctx.quadraticCurveTo(-14, -4, -8, 2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(7, -10);
-    if (opt.armUp) ctx.quadraticCurveTo(14, -16, 16, -22);
-    else ctx.quadraticCurveTo(14, -2, 10, 2 + step);
+    ctx.moveTo(4, -12);
+    if (opt.armUp) ctx.quadraticCurveTo(12, -18, 16, -24);
+    else ctx.quadraticCurveTo(10, -4, 8 + stride, 2);
     ctx.stroke();
     ctx.fillStyle = skin;
-    ctx.beginPath(); ctx.arc(0, -22, 7.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(8, -22, 6.2, 7, 0.1, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(14, -21, 2.3, 1.6, 0, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = opt.hair;
-    ctx.beginPath();
-    ctx.arc(0, -24, 7.4, Math.PI * 1.05, Math.PI * 1.95);
-    ctx.fill();
-    if (opt.who === 'grandma') {
-      ctx.fillStyle = '#d9d3ea';
-      ctx.beginPath(); ctx.ellipse(0, -27, 8, 3.2, 0, 0, Math.PI * 2); ctx.fill();
-    }
-    if (opt.who === 'grandpa') {
-      ctx.fillStyle = '#eee';
-      ctx.beginPath(); ctx.ellipse(0, -29, 8, 2.4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(6, -26, 7, 3.6, -0.2, Math.PI, 0); ctx.fill();
+    if (opt.who === 'grandma' || opt.who === 'grandpa') {
+      ctx.fillStyle = opt.who === 'grandma' ? '#d9d3ea' : '#eee';
+      ctx.beginPath(); ctx.ellipse(7, -29, 8, 2.2, 0, 0, Math.PI * 2); ctx.fill();
     }
     ctx.fillStyle = '#2a241f';
-    ctx.beginPath(); ctx.arc(-2.5, -23, 1, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(2.5, -23, 1, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#c47a6a';
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.arc(0, -20, 2.4, 0.25, Math.PI - 0.25); ctx.stroke();
+    ctx.beginPath(); ctx.arc(11, -23, 1.05, 0, Math.PI * 2); ctx.fill();
   }
 
   drawWindowWheel(ctx, x, y, r) {
@@ -2974,29 +2961,30 @@ class QuietScene {
     } else if (p.id === 'car') {
       ctx.fillStyle = look.hex || '#3d7ec4';
       ctx.beginPath();
-      ctx.moveTo(-32, 2);
-      ctx.quadraticCurveTo(-34, -8, -20, -10);
-      ctx.lineTo(-8, -10);
-      ctx.quadraticCurveTo(-4, -26, 10, -26);
-      ctx.lineTo(20, -22);
-      ctx.quadraticCurveTo(28, -18, 30, -8);
-      ctx.lineTo(36, -6);
-      ctx.quadraticCurveTo(40, 0, 32, 4);
-      ctx.lineTo(-32, 4);
+      ctx.moveTo(-36, 4);
+      ctx.lineTo(-36, -8);
+      ctx.lineTo(-10, -10);
+      ctx.lineTo(-6, -24);
+      ctx.lineTo(10, -24);
+      ctx.lineTo(22, -12);
+      ctx.lineTo(40, -10);
+      ctx.lineTo(42, 4);
       ctx.closePath();
       ctx.fill();
       ctx.fillStyle = '#d7eef8';
       ctx.beginPath();
       ctx.moveTo(-4, -12);
-      ctx.quadraticCurveTo(0, -22, 12, -22);
-      ctx.lineTo(18, -18);
-      ctx.lineTo(16, -12);
+      ctx.lineTo(-2, -21);
+      ctx.lineTo(10, -21);
+      ctx.lineTo(18, -12);
       ctx.closePath();
       ctx.fill();
+      ctx.fillStyle = '#c4564a';
+      ctx.fillRect(-36, -7, 4, 4);
       ctx.fillStyle = '#fff6c2';
-      ctx.beginPath(); ctx.ellipse(34, -2, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
-      this.drawWindowWheel(ctx, -16, 4, 6);
-      this.drawWindowWheel(ctx, 16, 4, 6);
+      ctx.beginPath(); ctx.ellipse(38, -4, 3, 2.2, 0, 0, Math.PI * 2); ctx.fill();
+      this.drawWindowWheel(ctx, -18, 4, 6);
+      this.drawWindowWheel(ctx, 18, 4, 6);
     } else if (p.id === 'scooter') {
       ctx.strokeStyle = '#3a4558';
       ctx.lineWidth = 2.6;
@@ -3037,6 +3025,27 @@ class QuietScene {
       this.drawWindowPerson(ctx, step * 1.4, { shirt: '#e25b5b', pants: '#2c3a55', hair: '#3a2a22' });
     }
     ctx.restore();
+  }
+
+  drawWindowFar(ctx, x, y, far) {
+    const step = Math.sin((far.phase || 0) * 6);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(far.dir || 1, 1);
+    ctx.fillStyle = far.color || '#7FDBE8';
+    ctx.beginPath(); ctx.ellipse(0, -6, 8, 10, 0.1, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(6, -18, 6, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(11, -17, 2, 1.4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#2a241f';
+    ctx.beginPath(); ctx.arc(8, -19, 1, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = far.color || '#7FDBE8';
+    ctx.beginPath(); ctx.ellipse(-2, 6, 3, 6, 0.4 + step * 0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(4, 6, 3, 6, -0.4 - step * 0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = '#1b2430';
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(far.name || '', x, y - 30);
   }
 
   drawWindow(ctx, W, H) {
@@ -3261,15 +3270,16 @@ class QuietScene {
     ctx.quadraticCurveTo(frame.x + frame.w * 0.5, groundY + 56, frame.x, groundY + 62);
     ctx.fill();
 
-    if (win.far && win.far.actor) {
+    if (win.far) {
       const fx = frame.x + frame.w * win.far.x;
-      ctx.save();
-      ctx.globalAlpha = 0.92;
-      win.far.actor.draw(ctx, fx, groundY + 8, 0.55);
-      ctx.restore();
+      this.drawWindowFar(ctx, fx, groundY + 18, win.far);
     }
 
     win.hits = [];
+    if (win.far) {
+      const fx = frame.x + frame.w * win.far.x;
+      win.hits.push({ x: fx - 28, y: groundY - 36, w: 64, h: 64, tale: win.far.tale });
+    }
     win.passers.filter(p => p.id !== 'plane').forEach(p => {
       const px = frame.x + frame.w * p.x;
       if (p.id === 'cat') this.drawWindowCat(ctx, px, groundY + 12, p);
