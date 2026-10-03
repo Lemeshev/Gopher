@@ -58,12 +58,12 @@ class ChatScene {
   leave() {
     this.hidePanel();
     AudioSys.play('click');
-    this.game.transitionTo('home');
+    this.game.transitionTo('map');
   }
 
   handleBack() {
     this.hidePanel();
-    this.game.transitionTo('home');
+    this.game.transitionTo('map');
     return true;
   }
 

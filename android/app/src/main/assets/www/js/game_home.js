@@ -63,7 +63,7 @@ class HomeScene {
       this.setBubble(System.offlineMessage());
       System.offlineReport = null;
     } else if (System.isSleeping) {
-      this.setBubble('\ud83d\udca4 \u0413\u043e\u0444\u0435\u0440 \u0441\u043f\u0438\u0442: \u043f\u043e\u0445\u043e\u0434\u044b \u0437\u0430\u043a\u0440\u044b\u0442\u044b \u2014 \u0441\u0435\u0439\u0447\u0430\u0441 \u0442\u0438\u0445\u0438\u0435 \u0438\u0433\u0440\u044b \u0438 \u043c\u0438\u043d\u0438-\u0438\u0433\u0440\u044b');
+      this.setBubble('\ud83d\udca4 \u0413\u043e\u0444\u0435\u0440 \u0441\u043f\u0438\u0442: \u043f\u043e\u0445\u043e\u0434\u044b \u0437\u0430\u043a\u0440\u044b\u0442\u044b \u2014 \u0441\u0435\u0439\u0447\u0430\u0441 \u043f\u043e\u0431\u043e\u043b\u0442\u0430\u0442\u044c, \u0442\u0438\u0445\u0438\u0435 \u0438\u0433\u0440\u044b \u0438 \u043c\u0438\u043d\u0438-\u0438\u0433\u0440\u044b');
     } else if (System.stressHint()) {
       this.setBubble(System.stressHint());
     } else if (System.furnitureCount() === 0) {
@@ -78,7 +78,7 @@ class HomeScene {
     const btnH = Math.max(38, Math.min(46, H * 0.066));
     const btnCols = 4;
     const btnW = (W - 20 - (btnCols - 1) * btnGap) / btnCols;
-    const rows = 3;
+    const rows = 2;
     const actionsH = rows * btnH + (rows - 1) * btnGap;
     const actionsTop = H - 8 - actionsH;
 
@@ -560,8 +560,6 @@ class HomeScene {
       { emoji: '\ud83c\udfb5', text: 'Музыка', action: 'music', color: '#9B59B6', room: 'living',
         off: sleeping || this.music > 0, hint: sleeping ? sleepHint : 'Музыка играет в гостиной' },
       { emoji: '\ud83e\udd2b', text: 'Тихие игры', action: 'quiet', color: sleeping ? '#3E8E5A' : '#546E7A',
-        off: false, hint: '' },
-      { emoji: '\ud83d\udcac', text: 'Поболтать', action: 'chat', color: '#5C6BC0',
         off: false, hint: '' },
       { emoji: '\ud83d\udecb\ufe0f', text: 'Обстановка', action: 'decorToggle',
         color: this.decorMode ? '#6BCB77' : '#2ECC71', off: false, hint: '' },
@@ -1257,11 +1255,6 @@ class HomeScene {
       case 'quiet':
         System.saveGame();
         this.game.transitionTo('quiet');
-        return true;
-
-      case 'chat':
-        System.saveGame();
-        this.game.transitionTo('chat');
         return true;
 
       case 'help':

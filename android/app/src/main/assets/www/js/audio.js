@@ -530,7 +530,8 @@ const AudioSys = {
     const scene = this.musicScene || 'menu';
     if (scene === 'home') return 'home';
     if (scene === 'shop' || scene === 'minigames' || scene === 'quiet' ||
-        scene === 'aerial' || scene === 'sport' || scene === 'friends') return 'play';
+        scene === 'aerial' || scene === 'sport' || scene === 'friends' ||
+        scene === 'chat') return 'play';
     if (scene === 'clinic') return 'museum';
     if (scene.indexOf('visit:') === 0) {
       // Тихая «музейная» музыка во всех музеях, библиотеке и учёбе. Список музеев

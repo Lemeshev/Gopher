@@ -1,6 +1,7 @@
 // ============ СПИСОК ЛОКАЦИЙ ============
 const MAP_LOCATIONS = [
   { id: 'home', emoji: '🏠', name: 'Дом', color: '#FF6B6B', desc: 'Еда, сон, игры' },
+  { id: 'chat', emoji: '💬', name: 'Поболтать', color: '#5C6BC0', desc: 'Разговор' },
   { id: 'shop', emoji: '🛒', name: 'Магазин', color: '#F39C12', desc: 'Покупки' },
   { id: 'work', emoji: '🏢', name: 'Работа', color: '#4D96FF', desc: 'Задания', req: 'energy>40' },
   { id: 'school', emoji: '🎓', name: 'Учёба', color: '#9B59B6', desc: 'Знания', req: 'energy>40' },
@@ -288,6 +289,7 @@ class MapScene {
     if (!loc) return false;
 
     if (loc.id === 'home') { this.game.transitionTo('home'); return true; }
+    if (loc.id === 'chat') { this.game.transitionTo('chat'); return true; }
     if (loc.id === 'shop') { this.game.transitionTo('shop'); return true; }
     if (loc.id === 'minigames') { this.game.transitionTo('minigames'); return true; }
     if (loc.id === 'stats') { this.game.transitionTo('stats'); return true; }

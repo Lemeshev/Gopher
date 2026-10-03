@@ -103,13 +103,13 @@ const System = {
   VISIT_ENERGY: {
     pool: 5, gym: 6, work: 8, school: 5, museum_any: 3, museums: 3, library: 2,
     cinema: 4, park: 5, restaurant: 2, beach: 6, friend: 3, clinic: 0, shop: 0,
-    home: 0, stats: 0, minigames: 0, quiet: 0
+    home: 0, stats: 0, minigames: 0, quiet: 0, chat: 0
   },
   // ---- Что можно, пока гофер спит (v1.2.1) ----
   // Спит — значит спит: походы (музеи, работа, учёба, спорт, парк, кино, гости,
   // поликлиника) закрыты. Открыто только то, что от питомца не зависит:
   // мини-игры, тихие игры, магазин (просто каталог), инфо/настройки и сам дом.
-  SLEEP_ALLOWED: ['home', 'shop', 'stats', 'minigames', 'quiet'],
+  SLEEP_ALLOWED: ['home', 'shop', 'stats', 'minigames', 'quiet', 'chat'],
   offlineReport: null,          // что случилось, пока приложение было закрыто
   justWoke: false,              // питомец только что выспался (для облачка дома)
   lastTick: 0,
@@ -530,7 +530,7 @@ const System = {
       case 'museum_space': return this.canAfford(30);
       case 'museum_history': return this.canAfford(30);
       case 'library': return this.canAfford(10);
-      case 'minigames': case 'quiet': case 'home': case 'stats': return true;
+      case 'minigames': case 'quiet': case 'home': case 'stats': case 'chat': return true;
       default: return true;
     }
   },
@@ -542,7 +542,7 @@ const System = {
     const hunger = this.stats.hunger;
     if (this.isLocationAvailable(loc)) return 'Сюда можно идти 🙂';
     if (this.sleepBlocks(loc)) {
-      return '{Pet} спит 💤 — походы подождут. Сейчас можно: тихие игры, мини-игры, магазин и инфо';
+      return '{Pet} спит 💤 — походы подождут. Сейчас можно: поболтать, тихие игры, мини-игры, магазин и инфо';
     }
 
     const price = {
@@ -579,7 +579,7 @@ const System = {
 
   // Что открыто, пока гофер спит — одной строкой для подсказок на экране
   sleepAllowedHint() {
-    return 'тихие игры · мини-игры · магазин · инфо';
+    return 'поболтать · тихие игры · мини-игры · магазин · инфо';
   },
 
   spendEnergy(amount) {
