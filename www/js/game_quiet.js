@@ -332,6 +332,54 @@ class QuietScene {
     this.fish.swimmers.filter(s => s.kind === 'friend').forEach(s => this.queueFriendHint(s.id));
   }
 
+  // Кто сейчас перед глазами: ближе всех к середине и не у самого края.
+  // Подпись берётся у него, а не из очереди появления — иначе у кита в центре
+  // висит факт акулы, которая плывёт сзади.
+  centeredFriend() {
+    const f = this.fish;
+    const W = (this.game && this.game.width) || 360;
+    if (!f) return null;
+    const list = (f.swimmers || []).filter(s =>
+      s.kind === 'friend' && s.x > W * 0.12 && s.x < W * 0.88);
+    if (!list.length) return null;
+    list.sort((a, b) => Math.abs(a.x - W / 2) - Math.abs(b.x - W / 2));
+    return list[0];
+  }
+
+  syncFriendCaption(sec) {
+    const f = this.fish;
+    if (!f || this.readingCatch()) return;
+    const vis = this.centeredFriend();
+    const visId = vis ? vis.id : '';
+    if (visId && f.friendHintId === visId && f.friendHint > 0) {
+      f.friendHint -= sec;
+      return;
+    }
+    if (visId) {
+      const hint = (typeof seaFriendHint === 'function') ? seaFriendHint(visId) : '';
+      if (hint) {
+        f.friendHintId = visId;
+        f.friendHintText = hint;
+        f.friendHint = 5;
+      }
+      return;
+    }
+    if (f.diver && f.diver.note) {
+      f.friendHintText = f.diver.note;
+      f.friendHintId = 'diver';
+      f.friendHint = 5;
+      f.diver.note = '';
+      return;
+    }
+    if (f.friendHintId === 'diver' && f.friendHint > 0) {
+      f.friendHint -= sec;
+      return;
+    }
+    f.friendHint = 0;
+    f.friendHintText = '';
+    f.friendHintId = '';
+  }
+
   // Описание большого обитателя ставится в очередь один раз за появление.
   // Раньше текст вспыхивал только у крючка, поэтому косатка и кит проплывали молча.
   queueFriendHint(id) {
@@ -460,22 +508,7 @@ class QuietScene {
         f.splash = 0.6;
       }
 
-      if (f.friendHint > 0 && !this.readingCatch()) f.friendHint -= sec;
-      if (f.diver && f.diver.note && f.friendHint <= 0 && !this.readingCatch()) {
-        f.friendHintText = f.diver.note;
-        f.friendHintId = 'diver';
-        f.friendHint = 5;
-        f.diver.note = '';
-      }
-      if (f.friendHint <= 0 && !this.readingCatch() && f.friendQueue && f.friendQueue.length) {
-        const id = f.friendQueue.shift();
-        const hint = (typeof seaFriendHint === 'function') ? seaFriendHint(id) : '';
-        if (hint) {
-          f.friendHintId = id;
-          f.friendHintText = hint;
-          f.friendHint = 5;
-        }
-      }
+      this.syncFriendCaption(sec);
       if (f.splash > 0) f.splash -= sec;
 
       // Стайка проносится через весь экран и уходит. Следующая — не сразу,
@@ -1821,31 +1854,56 @@ class QuietScene {
       ctx.moveTo(b * 0.05, -b * 0.22); ctx.quadraticCurveTo(b * 0.18, -b * 0.62, b * 0.38, -b * 0.16); ctx.fill();
       eye(b * 0.72, -b * 0.08, b * 0.055);
     } else if (k === 'whale') {
-      ctx.fillStyle = '#4e6678';
+      // Кит: тупая голова, фонтан, широкий горизонтальный хвост, горб сзади.
+      // Острого рыла и высокого плавника посередине нет — так рисуется акула.
+      ctx.fillStyle = '#5c7d94';
       ctx.beginPath();
-      ctx.moveTo(b * 1.45, 0);
-      ctx.quadraticCurveTo(b * 0.6, -b * 0.42, -b * 0.3, -b * 0.32);
-      ctx.quadraticCurveTo(-b * 1.0, -b * 0.18, -b * 1.25, 0);
-      ctx.quadraticCurveTo(-b * 1.55, -b * 0.22, -b * 1.35, b * 0.02);
-      ctx.quadraticCurveTo(-b * 1.55, b * 0.24, -b * 1.2, b * 0.06);
-      ctx.quadraticCurveTo(-b * 0.2, b * 0.36, b * 1.2, b * 0.12);
-      ctx.quadraticCurveTo(b * 1.5, b * 0.06, b * 1.45, 0);
+      ctx.ellipse(-b * 0.05, 0, b * 1.05, b * 0.38, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#d5e0e8';
       ctx.beginPath();
-      ctx.ellipse(b * 0.2, b * 0.12, b * 0.7, b * 0.12, 0, 0, Math.PI);
+      ctx.ellipse(b * 0.82, -b * 0.02, b * 0.46, b * 0.32, 0, 0, Math.PI * 2);
       ctx.fill();
-      for (let i = 0; i < 4; i++) {
-        ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+      ctx.fillStyle = '#d5e4ec';
+      ctx.beginPath();
+      ctx.ellipse(b * 0.15, b * 0.14, b * 0.85, b * 0.14, 0.04, 0, Math.PI);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(70,96,112,0.4)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 5; i++) {
         ctx.beginPath();
-        ctx.moveTo(b * (0.5 - i * 0.18), b * 0.02);
-        ctx.quadraticCurveTo(b * (0.4 - i * 0.18), b * 0.12, b * (0.55 - i * 0.18), b * 0.16);
+        ctx.moveTo(b * (0.7 - i * 0.16), b * 0.05);
+        ctx.quadraticCurveTo(b * (0.62 - i * 0.16), b * 0.16, b * (0.74 - i * 0.16), b * 0.22);
         ctx.stroke();
       }
-      ctx.fillStyle = '#4e6678';
+      ctx.fillStyle = '#4a6a80';
       ctx.beginPath();
-      ctx.moveTo(-b * 0.15, -b * 0.28); ctx.quadraticCurveTo(0, -b * 0.55, b * 0.2, -b * 0.22); ctx.fill();
-      eye(b * 0.95, -b * 0.08, b * 0.05);
+      ctx.moveTo(b * 0.35, b * 0.12);
+      ctx.quadraticCurveTo(b * 0.05, b * 0.62, -b * 0.28, b * 0.4);
+      ctx.quadraticCurveTo(b * 0.12, b * 0.2, b * 0.35, b * 0.12);
+      ctx.fill();
+      ctx.fillStyle = '#4e7088';
+      ctx.beginPath();
+      ctx.moveTo(-b * 1.05, 0);
+      ctx.quadraticCurveTo(-b * 1.45, -b * 0.08, -b * 1.9, -b * 0.42);
+      ctx.quadraticCurveTo(-b * 1.4, -b * 0.02, -b * 1.05, 0);
+      ctx.quadraticCurveTo(-b * 1.4, b * 0.02, -b * 1.9, b * 0.42);
+      ctx.quadraticCurveTo(-b * 1.45, b * 0.08, -b * 1.05, 0);
+      ctx.fill();
+      ctx.fillStyle = '#5c7d94';
+      ctx.beginPath();
+      ctx.moveTo(-b * 0.55, -b * 0.32);
+      ctx.quadraticCurveTo(-b * 0.46, -b * 0.46, -b * 0.3, -b * 0.3);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(226,240,246,0.9)';
+      for (let i = 0; i < 5; i++) {
+        ctx.beginPath();
+        ctx.arc(b * (0.48 + i * 0.035), -b * (0.4 + i * 0.1), Math.max(1.2, b * 0.035), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(b * (0.68 + i * 0.04), -b * (0.38 + i * 0.1), Math.max(1.2, b * 0.03), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      eye(b * 0.95, -b * 0.04, b * 0.045);
     } else if (k === 'ray') {
       const flap = Math.sin(t * 2) * 0.15;
       ctx.fillStyle = '#8a7568';
@@ -2256,22 +2314,49 @@ class QuietScene {
       ctx.moveTo(-b * 0.2, -b * 0.55); ctx.quadraticCurveTo(0, -b * 0.35, b * 0.05, -b * 0.2); ctx.stroke();
       eye(b * 0.32, -b * 0.04, b * 0.03);
     } else if (k === 'narwhal') {
+      // Нарвал: округлая голова, пятна разного размера и спиральный бивень.
+      // Ряда одинаковых кругов нет — так получались иллюминаторы.
+      ctx.fillStyle = '#e4ebf2';
+      ctx.beginPath();
+      ctx.ellipse(-b * 0.08, 0, b * 0.92, b * 0.28, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(b * 0.7, -b * 0.04, b * 0.34, b * 0.24, 0.15, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#7f8fa0';
+      [[-0.55, 0.06, 0.1, 0.06], [-0.22, -0.08, 0.06, 0.09], [0.02, 0.1, 0.12, 0.07],
+        [0.28, -0.02, 0.05, 0.08], [0.42, 0.1, 0.07, 0.04]].forEach(p => {
+        ctx.beginPath();
+        ctx.ellipse(b * p[0], b * p[1], b * p[2], b * p[3], 0.5, 0, Math.PI * 2);
+        ctx.fill();
+      });
       ctx.fillStyle = '#d5dde6';
       ctx.beginPath();
-      ctx.moveTo(b * 0.85, 0);
-      ctx.quadraticCurveTo(b * 0.2, -b * 0.32, -b * 0.7, -b * 0.12);
-      ctx.quadraticCurveTo(-b * 1.15, -b * 0.28, -b * 0.95, 0);
-      ctx.quadraticCurveTo(-b * 1.15, b * 0.22, -b * 0.7, b * 0.12);
-      ctx.quadraticCurveTo(b * 0.2, b * 0.28, b * 0.85, 0);
+      ctx.moveTo(-b * 0.78, 0);
+      ctx.quadraticCurveTo(-b * 1.15, -b * 0.2, -b * 1.38, -b * 0.1);
+      ctx.quadraticCurveTo(-b * 1.05, 0, -b * 0.78, 0);
+      ctx.quadraticCurveTo(-b * 1.15, b * 0.2, -b * 1.38, b * 0.1);
+      ctx.quadraticCurveTo(-b * 1.05, 0, -b * 0.78, 0);
       ctx.fill();
-      ctx.fillStyle = '#9aa8b8';
-      for (let i = 0; i < 4; i++) {
-        ctx.beginPath(); ctx.arc(-b * 0.2 + i * b * 0.22, -b * 0.02, b * 0.07, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#c5d0da';
+      ctx.lineWidth = Math.max(1.4, b * 0.04);
+      ctx.beginPath();
+      ctx.moveTo(-b * 0.15, -b * 0.26);
+      ctx.quadraticCurveTo(b * 0.15, -b * 0.34, b * 0.4, -b * 0.2);
+      ctx.stroke();
+      ctx.strokeStyle = '#f6f0dc';
+      ctx.lineWidth = Math.max(2.4, b * 0.055);
+      ctx.beginPath();
+      ctx.moveTo(b * 0.98, -b * 0.02);
+      ctx.lineTo(b * 1.85, -b * 0.08);
+      ctx.stroke();
+      ctx.lineWidth = Math.max(1.2, b * 0.03);
+      for (let i = 0; i < 7; i++) {
+        ctx.beginPath();
+        ctx.arc(b * (1.08 + i * 0.1), -b * 0.03 - i * b * 0.008, b * 0.045, 0.4, Math.PI * 1.15);
+        ctx.stroke();
       }
-      ctx.strokeStyle = '#f7f1df';
-      ctx.lineWidth = Math.max(2.2, b * 0.07);
-      ctx.beginPath(); ctx.moveTo(b * 0.8, -b * 0.02); ctx.lineTo(b * 1.7, -b * 0.08); ctx.stroke();
-      eye(b * 0.45, -b * 0.1, b * 0.045);
+      eye(b * 0.78, -b * 0.08, b * 0.04);
     } else if (k === 'manta') {
       const flap = Math.sin(t * 2) * b * 0.12;
       ctx.fillStyle = '#2c3d4f';

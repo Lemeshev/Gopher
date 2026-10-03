@@ -224,6 +224,9 @@ class Game {
     if (this.scenes[sceneName]) {
       this.dragging = false;
       this.dragScene = null;
+      // Поле «Новый пункт» — это HTML поверх канваса. Жест «Назад» меняет сцену
+      // мимо кнопки на экране, и без этого поле остаётся на всех экранах.
+      if (typeof KitBar !== 'undefined' && KitBar.close) KitBar.close();
       // Панель кода друга не должна висеть поверх других сцен
       if (typeof ClipBridge !== 'undefined' && ClipBridge.hide && sceneName !== 'friends') ClipBridge.hide();
       // Временные эффекты не должны «протекать» в другую сцену
