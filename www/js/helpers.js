@@ -239,7 +239,7 @@ function wrapLines(ctx, text, maxW, maxLines) {
 }
 
 // ============ ВЕРСИЯ И ВНЕШНИЕ ССЫЛКИ ============
-const GAME_VERSION = '1.3.30';
+const GAME_VERSION = '1.3.31';
 
 // ============ БУФЕР ОБМЕНА И ВВОД ТЕКСТА ============
 // Проблема: в canvas-игре нельзя выделить текст, а значит нельзя скопировать
@@ -498,13 +498,21 @@ function openGameUpdate() {
   return openExternalLink(GAME_UPDATE_URL);
 }
 
-// Проверить наличие новой версии на GitHub. При совпадении возвращает null,
-// при обнаружении новой — устанавливает GAME_UPDATE_URL на конкретную версию
-// (без 302-редиректа latest/download) и возвращает { version, url }.
-// Последняя проверка кэшируется в localStorage на 15 минут, чтобы не спамить API.
+// Подсказка «есть новее». Скачивание всегда идёт по GAME_UPDATE_URL:
+// прямая ссылка на релиз всё равно отвечает 302 на CDN, это разбирает Android.
+function versionIsNewer(tag, ver) {
+  const a = String(tag || '').split('.');
+  const b = String(ver || '').split('.');
+  for (let i = 0; i < 3; i++) {
+    const x = parseInt(a[i], 10) || 0;
+    const y = parseInt(b[i], 10) || 0;
+    if (x > y) return true;
+    if (x < y) return false;
+  }
+  return false;
+}
 let _lastCheck = null;
 window.checkForLatestVersion = function() {
-  // Быстрый путь: последний кэш ещё свеж
   if (_lastCheck && Date.now() - _lastCheck.time < 15 * 60 * 1000) {
     return _lastCheck.result;
   }
@@ -514,26 +522,16 @@ window.checkForLatestVersion = function() {
       .then(r => r.json())
       .then(data => {
         const tag = (data.tag_name || '').replace(/^v/, '');
-        const ver = String(GAME_VERSION || '');
-        if (tag > ver) {
-          // Обновляем GAME_UPDATE_URL на прямую ссылку (без 302-редиректа)
-          const url = 'https://github.com/Lemeshev/Gopher/releases/download/v' + tag + '/Gopher.apk';
+        if (versionIsNewer(tag, GAME_VERSION)) {
           window.__updateNote = 'Доступна версия ' + tag;
-          _lastCheck = { time: Date.now(), result: { version: tag, url: url } };
-          // Сохраняем в localStorage для работы без сети
-          try { localStorage.setItem('_gopher_update', JSON.stringify(_lastCheck)); } catch(e) {}
+          _lastCheck = { time: Date.now(), result: { version: tag, url: GAME_UPDATE_URL } };
         } else {
           _lastCheck = { time: Date.now(), result: null };
         }
       })
-      .catch(() => {
-        // Ошибки сети не критичны
-        _lastCheck = { time: Date.now(), result: null };
-      });
-  } catch (e) {
-    _lastCheck = { time: Date.now(), result: null };
-  }
-  return null;
+      .catch(() => {});
+  } catch (e) {}
+  return _lastCheck ? _lastCheck.result : null;
 };
 
 window.onUpdateStatus = function (state) {

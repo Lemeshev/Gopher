@@ -41,6 +41,7 @@ if (wantCheck) run('node tools/quickcheck.js');
 run('node tools/sync-www.js');
 run('./gradlew assembleRelease', path.join(ROOT, 'android'));
 run('node tools/copy-apk.js');
+run('node tools/gh-release.js');
 
 const apk = path.join(ROOT, 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk');
 const desk = path.join(require('os').homedir(), 'Desktop', 'Gopher.apk');

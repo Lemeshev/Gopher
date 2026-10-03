@@ -1,11 +1,11 @@
 {
   "name": "gopher-life",
-  "version": "1.3.29",
+  "version": "1.3.31",
   "description": "Interactive pet game with Go gopher mascot",
   "main": "index.js",
   "scripts": {
     "sync": "node tools/sync-www.js",
-    "build": "node tools/sync-www.js && cd android && ./gradlew assembleRelease && cd ../.. && node tools/gh-release.js",
+    "build": "node tools/sync-www.js && cd android && ./gradlew assembleRelease && cd .. && node tools/gh-release.js",
     "build:debug": "cd android && ./gradlew assembleDebug",
     "verify": "node tools/verify.js",
     "render": "node tools/render-check.js",

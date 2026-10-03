@@ -239,7 +239,7 @@ function wrapLines(ctx, text, maxW, maxLines) {
 }
 
 // ============ ВЕРСИЯ И ВНЕШНИЕ ССЫЛКИ ============
-const GAME_VERSION = '1.3.28';
+const GAME_VERSION = '1.3.31';
 
 // ============ БУФЕР ОБМЕНА И ВВОД ТЕКСТА ============
 // Проблема: в canvas-игре нельзя выделить текст, а значит нельзя скопировать
@@ -497,6 +497,42 @@ function openGameUpdate() {
   } catch (e) {}
   return openExternalLink(GAME_UPDATE_URL);
 }
+
+// Подсказка «есть новее». Скачивание всегда идёт по GAME_UPDATE_URL:
+// прямая ссылка на релиз всё равно отвечает 302 на CDN, это разбирает Android.
+function versionIsNewer(tag, ver) {
+  const a = String(tag || '').split('.');
+  const b = String(ver || '').split('.');
+  for (let i = 0; i < 3; i++) {
+    const x = parseInt(a[i], 10) || 0;
+    const y = parseInt(b[i], 10) || 0;
+    if (x > y) return true;
+    if (x < y) return false;
+  }
+  return false;
+}
+let _lastCheck = null;
+window.checkForLatestVersion = function() {
+  if (_lastCheck && Date.now() - _lastCheck.time < 15 * 60 * 1000) {
+    return _lastCheck.result;
+  }
+  try {
+    const api = 'https://api.github.com/repos/Lemeshev/Gopher/releases/latest';
+    fetch(api, { cache: 'no-store' })
+      .then(r => r.json())
+      .then(data => {
+        const tag = (data.tag_name || '').replace(/^v/, '');
+        if (versionIsNewer(tag, GAME_VERSION)) {
+          window.__updateNote = 'Доступна версия ' + tag;
+          _lastCheck = { time: Date.now(), result: { version: tag, url: GAME_UPDATE_URL } };
+        } else {
+          _lastCheck = { time: Date.now(), result: null };
+        }
+      })
+      .catch(() => {});
+  } catch (e) {}
+  return _lastCheck ? _lastCheck.result : null;
+};
 
 window.onUpdateStatus = function (state) {
   if (state === 'downloading') window.__updateNote = 'скачиваем…';

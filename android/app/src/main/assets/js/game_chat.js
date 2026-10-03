@@ -6,12 +6,14 @@ class ChatScene {
     this.recent = [];
     this.bound = false;
     this.pending = null;   // «что я только что спросил» (null | 'mood'), чтобы понять ответ ребёнка
+    this.guess = null;     // состояние текстовой игры «угадай слово»
   }
 
   init() {
     this.recent = [];
     this.lastTopic = null;
     this.pending = null;
+    this.guess = null;
     this.openPanel();
     const log = this.logEl();
     if (log) log.innerHTML = '';
@@ -109,6 +111,10 @@ class ChatScene {
     const n = this.norm(text);
     if (!n) return this.pick(window.CHAT_FALLBACK || ['Напиши хоть слово.']);
 
+    // 0) Текстовая игра «угадай слово»: пока идёт игра, любое слово — догадка.
+    if (this.guess) return this.guessTurn(n);
+    if (this.wantGuessGame(n)) return this.startGuessGame();
+
     // 1) Ответ на только что заданный вопрос («как дела?» → «не очень»). Раньше
     // такой ответ не распознавался и уходил в «какое тут главное слово?».
     const pending = this.answerPending(n);
@@ -119,21 +125,21 @@ class ChatScene {
     const ack = this.acknowledge(n);
     if (ack) return ack;
 
-    const topics = window.CHAT_TOPICS || [];
-    const follow = ['да', 'нет', 'ага', 'угу', 'а ты', 'и что', 'почему', 'зачем', 'ну', 'давай', 'хорошо', 'ладно'];
-    if (this.lastTopic && follow.indexOf(n) !== -1) {
-      return this.pick(this.lastTopic.replies);
-    }
+    // 3) Безопасность: вредные слова не пропускаем (как раньше).
     const blocked = this.topicById('safe');
     if (blocked && this.scoreTopic(n, blocked) > 0) {
       this.lastTopic = blocked;
       this.pending = null;
       return this.pick(blocked.replies);
     }
-    const intents = window.CHAT_INTENTS || [];
-    for (let i = 0; i < intents.length; i++) {
-      if (intents[i].re.test(n)) {
-        const topic = this.topicById(intents[i].id);
+
+    // 4) Смысловой поиск по темам: эмбеддинги (слова + n-граммы, косинус) вместо
+    // регулярок и точных ключей. «я расстроился» и «мне грустно» ведут в одну тему.
+    const sem = window.CHAT_SEMANTIC;
+    if (sem && sem.best) {
+      const hit = sem.best(n);
+      if (hit && hit.score >= (sem.THRESHOLD || 0.3)) {
+        const topic = this.topicById(hit.id);
         if (topic) {
           this.lastTopic = topic;
           this.pending = topic.ask || null;
@@ -141,24 +147,11 @@ class ChatScene {
         }
       }
     }
-    const words = n.split(' ');
-    if (words.length <= 3 && n.length < 28) {
-      const nounLine = this.nounLine(n);
-      if (nounLine) return nounLine;
-    }
-    let best = null;
-    let score = 0;
-    topics.forEach(topic => {
-      const s = this.scoreTopic(n, topic);
-      if (s > score) { score = s; best = topic; }
-    });
-    if (best && score >= 3) {
-      this.lastTopic = best;
-      this.pending = best.ask || null;
-      return this.pick(best.replies);
-    }
+
+    // 5) Одиночное существительное без своей темы — общий тёплый отклик про слово.
     const nounLine = this.nounLine(n);
     if (nounLine) return nounLine;
+
     this.lastTopic = null;
     this.pending = null;
     return this.pick(window.CHAT_KID_FALLBACK || window.CHAT_FALLBACK);
@@ -190,6 +183,48 @@ class ChatScene {
     if ((A.noWords || []).indexOf(n) !== -1) return this.pick(A.no);
     if ((A.fillerWords || []).indexOf(n) !== -1) return this.pick(A.filler);
     return '';
+  }
+
+  // Команда «угадай слово» запускает текстовую мини-игру на том же движке.
+  wantGuessGame(n) {
+    return ['угадай слово', 'угадайка', 'угадай что', 'угадай что я загадал', 'загадай слово',
+      'давай в угадайку', 'поиграем в угадайку', 'сыграем в угадайку', 'игра в угадайку'].indexOf(n) !== -1;
+  }
+
+  startGuessGame() {
+    const words = window.CHAT_GUESS_WORDS || [];
+    const pickWord = words[Math.floor(Math.random() * words.length)];
+    this.guess = { word: pickWord.word, hints: pickWord.hints, tries: 0 };
+    this.lastTopic = null;
+    this.pending = null;
+    return this.pick((window.CHAT_GUESS_PHRASES || {}).start || ['Я загадал слово. Угадай!']);
+  }
+
+  // Догадка ребёнка: сравниваем с загаданным словом и его подсказками по косинусу.
+  guessTurn(n) {
+    const g = this.guess;
+    if (!g) return '';
+    const P = window.CHAT_GUESS_PHRASES || {};
+    if (['стоп', 'хватит', 'выход', 'выйти', 'не хочу играть'].indexOf(n) !== -1) {
+      this.guess = null;
+      return this.pick(P.stop || ['Хорошо, поиграли.']);
+    }
+    const idf = (window.CHAT_SEMANTIC && window.CHAT_SEMANTIC.index) ? window.CHAT_SEMANTIC.index.idf : null;
+    let best = 0;
+    const targets = [g.word].concat(g.hints);
+    for (const t of targets) {
+      const s = Semantic.cosine(Semantic.vectorize(n, idf), Semantic.vectorize(t, idf));
+      if (s > best) best = s;
+    }
+    g.tries++;
+    if (best >= 0.5 || n === Semantic.normalize(g.word)) {
+      const name = g.word;
+      this.guess = null;
+      return this.pick((P.win || []).map(p => p.split('{w}').join(name)));
+    }
+    if (best >= 0.35) return this.pick(P.hot || ['Очень тепло!']);
+    if (best >= 0.2) return this.pick(P.warm || ['Тепло.']);
+    return this.pick(P.cold || ['Холодно. Попробуй ещё.']);
   }
 
   nounLine(n) {
