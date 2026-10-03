@@ -398,14 +398,6 @@ class MenuScene {
       bgColor: '#4D96FF', fgColor: '#fff', fontSize: 15, radius: 12
     }));
 
-    // Проверка обновления (v1.3.30: проверяем GitHub API, если новая версия — обновляем URL без 302-редиректа)
-    ctx.fillStyle = '#8899cc';
-    ctx.font = `${Math.min(W * 0.025, 11)}px Arial`;
-    ctx.fillText('Нажмите «Проверить» для новой версии', W / 2, panelY + panelH - 70);
-    this.buttons.push(createButton(ctx, panelX + 20, panelY + panelH - 50, panelW - 40, 36, '🔍 Проверить обновление', {
-      bgColor: '#FFD93D', fgColor: '#1a1a2e', fontSize: 14, radius: 10
-    }));
-
     this.buttons.push(createButton(ctx, panelX + 20, panelY + panelH - 56, panelW - 40, 42, '← Закрыть', {
       bgColor: 'rgba(255,255,255,0.2)', fgColor: '#fff', fontSize: 15, radius: 10
     }));
@@ -698,23 +690,7 @@ class MenuScene {
           return true;
         }
         if (t.indexOf('Обновить игру') !== -1) {
-          // Если обнаружена новая версия — используем прямую ссылку (без 302-редиректа)
-          if (this.hasUpdate) {
-            GAME_UPDATE_URL = 'https://github.com/Lemeshev/Gopher/releases/download/v' + this.hasUpdate.version + '/Gopher.apk';
-          }
           openGameUpdate();
-          return true;
-        }
-        if (t.indexOf('Проверить обновление') !== -1) {
-          try {
-            const res = window.checkForLatestVersion && window.checkForLatestVersion();
-            if (res) {
-              this.hasUpdate = res;
-              window.__updateNote = 'Доступна версия ' + res.version;
-            } else {
-              window.__updateNote = 'У вас последняя версия.';
-            }
-          } catch (e) { window.__updateNote = 'Не удалось проверить.'; }
           return true;
         }
         if (t.indexOf('Об авторе') !== -1) { this.aboutMode = true; return true; }
