@@ -243,6 +243,17 @@ const AudioSys = {
         osc.start(now);
         osc.stop(now + 0.25);
         break;
+      case 'alarm':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.setValueAtTime(1174, now + 0.18);
+        osc.frequency.setValueAtTime(880, now + 0.36);
+        gain.gain.setValueAtTime(0.22, now);
+        gain.gain.setValueAtTime(0.22, now + 0.5);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+        osc.start(now);
+        osc.stop(now + 0.7);
+        break;
       case 'sleep':
         osc.type = 'sine';
         osc.frequency.setValueAtTime(200, now);

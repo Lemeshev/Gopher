@@ -1142,7 +1142,7 @@ const System = {
   // не меняли, честнее показать имя героя: иначе у Милки в углу написано «Гофер»
   profileLabel() {
     const own = (this.profileName || '').trim();
-    if (own && own !== DEFAULT_PROFILE_NAME) return own;
+    if (own && own !== DEFAULT_PROFILE_NAME && !/^Питомец \d+$/.test(own)) return own;
     return this.characterName();
   },
 
@@ -1167,13 +1167,49 @@ const System = {
   profileLabelFor(profileId) {
     const pr = this.getProfiles().find(p => p.id === profileId);
     const own = ((pr && pr.name) || '').trim();
-    if (own && own !== DEFAULT_PROFILE_NAME) return own;
+    if (own && own !== DEFAULT_PROFILE_NAME && !/^Питомец \d+$/.test(own)) return own;
     if (typeof findCharacter !== 'function') return own || 'Питомец';
     return findCharacter(this.characterForProfile(profileId)).name;
   },
 
   // Эмодзи героя конкретного профиля: в списке профилей вместо 🐹 должно стоять
   // лицо того, кто там живёт (у Милки — 🐇).
+  renameProfile(id, name) {
+    const list = this.getProfiles();
+    const pr = list.find(p => p.id === id);
+    if (!pr) return false;
+    pr.name = String(name || '').trim().slice(0, 16);
+    this.saveProfiles(list);
+    if (this.profileId === id) {
+      this.profileName = pr.name || DEFAULT_PROFILE_NAME;
+      this.saveGame();
+    }
+    return true;
+  },
+
+  deleteProfile(id) {
+    const list = this.getProfiles();
+    if (list.length < 2) return false;
+    const next = list.filter(p => p.id !== id);
+    if (next.length === list.length) return false;
+    this.saveProfiles(next);
+    try {
+      localStorage.removeItem(this.saveKeyFor(id));
+      localStorage.removeItem(this.backupKeyFor(id));
+      localStorage.removeItem(this.saveKeyFor(id) + '_house');
+    } catch (e) {}
+    if (this.profileId === id) {
+      this.profileId = next[0].id;
+      this.profileName = next[0].name || DEFAULT_PROFILE_NAME;
+      if (this.hasSave()) this.loadGame();
+      else {
+        this.resetProgress();
+        this.saveGame();
+      }
+    }
+    return true;
+  },
+
   emojiForProfile(profileId) {
     if (typeof findCharacter !== 'function') return '🐾';
     return findCharacter(this.characterForProfile(profileId)).emoji || '🐾';

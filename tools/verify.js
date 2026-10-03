@@ -2281,10 +2281,11 @@ function reviewerRuStore(rt) {
     .map(f => fs.readFileSync(path.join(WWW, 'js', f), 'utf8')).join('\n');
 
   // --- 1. Разрешения и офлайн ---
-  check('APK запрашивает только нужные для обновления разрешения (интернет + установка обновлений)',
-    (manifest.match(/uses-permission/g) || []).length === 2 &&
+  check('APK запрашивает только нужные разрешения (интернет, установка, вибрация таймера)',
+    (manifest.match(/uses-permission/g) || []).length === 3 &&
     manifest.indexOf('android.permission.INTERNET') !== -1 &&
-    manifest.indexOf('android.permission.REQUEST_INSTALL_PACKAGES') !== -1,
+    manifest.indexOf('android.permission.REQUEST_INSTALL_PACKAGES') !== -1 &&
+    manifest.indexOf('android.permission.VIBRATE') !== -1,
     'строк uses-permission: ' + (manifest.match(/uses-permission/g) || []).length);
   check('Запрещён открытый HTTP (usesCleartextTraffic=false)',
     manifest.indexOf('usesCleartextTraffic="false"') !== -1);

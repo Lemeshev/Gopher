@@ -2368,6 +2368,28 @@ const labelNamed = S.profileLabelFor('p2');
 ok('В списке профилей профиль без своего имени подписан именем своего героя',
   labelDefault === 'Милка' && labelNamed === 'Витя',
   '«Гофер»-профиль → ' + labelDefault + ', переименованный → ' + labelNamed);
+sandbox.localStorage.setItem(S.PROFILE_KEY, JSON.stringify([
+  { id: 'p1', name: 'Питомец 2' },
+  { id: 'p2', name: 'Витя' }
+]));
+ok('Автоимя «Питомец 2» не перекрывает имя героя',
+  S.profileLabelFor('p1') === 'Милка', S.profileLabelFor('p1'));
+const keepId = S.profileId;
+const keepName = S.profileName;
+ok('Профиль можно переименовать и удалить, последний не удаляется',
+  S.renameProfile('p2', 'Мила') && S.profileLabelFor('p2') === 'Мила' &&
+  S.deleteProfile('p1') === true && S.deleteProfile('p2') === false);
+S.profileId = keepId;
+S.profileName = keepName;
+
+const tools = new sandbox.ToolsScene({ width: 360, height: 640, transitionTo() {} });
+ok('Калькулятор считает слева направо: 9×2+2÷2 = 10',
+  tools.evalCalc('9*2+2/2') === '10', tools.evalCalc('9*2+2/2'));
+const toolSrc = fs.readFileSync(path.join(WWW, 'game_tools.js'), 'utf8');
+ok('В инструментах нет «Умножения» и «Выбора», есть секундомер и своё время таймера',
+  toolSrc.indexOf('Умножение') === -1 && toolSrc.indexOf('Кто сегодня') === -1 &&
+  toolSrc.indexOf('Секундомер') !== -1 && toolSrc.indexOf('60') !== -1 &&
+  toolSrc.indexOf('Включите звук') !== -1);
 ok('В списке профилей стоит эмодзи героя этого профиля, а не общий 🐹',
   emojiDefault === '🐇', emojiDefault);
 // Вернули состояние стенда: профили и сохранения как были

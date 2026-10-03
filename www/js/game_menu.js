@@ -506,7 +506,7 @@ class MenuScene {
     const rows = list.length;
     const canAdd = rows < 4;
     const panelW = Math.min(W * 0.9, 340);
-    const panelH = Math.min(H * 0.9, (canAdd ? 190 : 140) + rows * 62);
+    const panelH = Math.min(H * 0.92, (canAdd ? 200 : 150) + rows * 70);
     const px = (W - panelW) / 2;
     const py = (H - panelH) / 2;
 
@@ -532,38 +532,59 @@ class MenuScene {
     list.forEach(pr => {
       const active = pr.id === System.profileId;
       ctx.fillStyle = active ? 'rgba(107,203,119,0.25)' : 'rgba(255,255,255,0.09)';
-      roundRect(ctx, px + 16, y, panelW - 32, 54, 12);
+      roundRect(ctx, px + 16, y, panelW - 32, 62, 12);
       ctx.fill();
       ctx.strokeStyle = active ? '#6BCB77' : 'rgba(255,255,255,0.15)';
       ctx.lineWidth = 2;
-      roundRect(ctx, px + 16, y, panelW - 32, 54, 12);
+      roundRect(ctx, px + 16, y, panelW - 32, 62, 12);
       ctx.stroke();
 
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#fff';
       ctx.font = `${Math.min(W * 0.05, 22)}px Arial`;
-      // Эмодзи героя этого профиля, а не общий 🐹: у Милки в списке должен быть
-      // её зайчик (v1.3.5 — нашлось на кадре рендера menu@profiles)
-      ctx.fillText(active ? '✅' : System.emojiForProfile(pr.id), px + 26, y + 27);
+      ctx.fillText(active ? '✅' : System.emojiForProfile(pr.id), px + 26, y + 22);
 
       ctx.fillStyle = '#fff';
       ctx.font = `bold ${Math.min(W * 0.038, 15)}px Arial`;
       const prLabel = System.profileLabelFor(pr.id);
-      const nameSize = fitFontSize(ctx, prLabel, panelW - 110, Math.min(W * 0.038, 15), 9, true);
+      const nameSize = fitFontSize(ctx, prLabel, panelW - 168, Math.min(W * 0.038, 15), 9, true);
       ctx.font = `bold ${nameSize}px Arial`;
-      ctx.fillText(prLabel, px + 58, y + 20);
+      ctx.fillText(prLabel, px + 52, y + 20);
 
       ctx.fillStyle = '#9aa';
       ctx.font = `${Math.min(W * 0.028, 11)}px Arial`;
       const lv = this.profileLevel(pr.id);
-      ctx.fillText(active ? ('Играем сейчас · Ур.' + lv) : ('Ур.' + lv), px + 58, y + 38);
+      ctx.fillText(active ? ('Сейчас · Ур.' + lv) : ('Ур.' + lv), px + 52, y + 40);
 
       ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#4D96FF';
+      roundRect(ctx, px + panelW - 118, y + 16, 46, 30, 8);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 12px Arial';
+      ctx.fillText('Имя', px + panelW - 95, y + 31);
+      this.buttons.push({ x: px + panelW - 118, y: y + 16, w: 46, h: 30, text: 'rename_' + pr.id });
+      if (list.length > 1) {
+        ctx.fillStyle = '#E74C3C';
+        roundRect(ctx, px + panelW - 66, y + 16, 36, 30, 8);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.fillText('✕', px + panelW - 48, y + 31);
+        this.buttons.push({ x: px + panelW - 66, y: y + 16, w: 36, h: 30, text: 'drop_' + pr.id });
+      }
       ctx.textBaseline = 'alphabetic';
-      this.buttons.push({ x: px + 16, y: y, w: panelW - 32, h: 54, text: 'profile_' + pr.id });
-      y += 62;
+      this.buttons.push({ x: px + 16, y: y, w: panelW - 130, h: 62, text: 'profile_' + pr.id });
+      y += 70;
     });
+
+    if (this.confirmDrop) {
+      ctx.fillStyle = '#ffb4b4';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Нажми ✕ ещё раз, чтобы удалить', W / 2, y + 14);
+    }
 
     if (canAdd) {
       this.buttons.push(createButton(ctx, px + 16, y + 4, panelW - 32, 42, '＋ Новый питомец', {
@@ -611,14 +632,11 @@ class MenuScene {
     if (list.length >= 4) return;
     // Имя профиля — «кто играет». Питомец может быть любым героем, поэтому и
     // вопрос, и запасное имя нейтральные (v1.3.4): раньше было «Как зовут гофера?»
-    const fallback = 'Питомец ' + (list.length + 1);
-    let name = '';
-    try { name = (window.prompt('Как зовут питомца?', fallback) || '').trim(); } catch (e) { name = ''; }
-    if (!name) name = fallback;
-    name = name.slice(0, 16);
-
-    System.saveGame();                       // сохраняем текущего игрока
+    // prompt() в WebView часто не открывается, и профиль навсегда оставался
+    // «Питомец 2». Имя пустое: в списке видно героя, своё имя ставится кнопкой «Имя».
+    System.saveGame();
     const id = 'p' + Date.now().toString(36);
+    const name = '';
     list.push({ id: id, name: name });
     System.saveProfiles(list);
     System.profileId = id;
@@ -629,7 +647,7 @@ class MenuScene {
     this.hasSave = true;
     this.profilesMode = false;
     this.game.transitionTo('map');
-    System.showAchievement('🐾', 'Новый питомец: ' + name);
+    System.showAchievement('🐾', 'Новый питомец: ' + System.profileLabel());
   }
 
   handleClick(mx, my) {
@@ -665,6 +683,29 @@ class MenuScene {
 
       // ---- Профили ----
       if (this.profilesMode) {
+        if (t.indexOf('rename_') === 0) {
+          const id = t.slice(7);
+          const pr = System.getProfiles().find(p => p.id === id);
+          const raw = (pr && pr.name) || '';
+          const current = raw && raw !== DEFAULT_PROFILE_NAME && !/^Питомец \d+$/.test(raw) ? raw : '';
+          if (window.KitBar) {
+            KitBar.open('Как зовут питомца?', current, (text) => {
+              System.renameProfile(id, text);
+              KitBar.close();
+            });
+          }
+          return true;
+        }
+        if (t.indexOf('drop_') === 0) {
+          const id = t.slice(5);
+          if (this.confirmDrop === id) {
+            System.deleteProfile(id);
+            this.confirmDrop = null;
+            if (this.game && this.game.ensureCharacter) this.game.ensureCharacter();
+            System.applyLookTo(this.game.gopher);
+          } else this.confirmDrop = id;
+          return true;
+        }
         if (t.indexOf('profile_') === 0) { this.switchToProfile(t.slice(8)); return true; }
         if (t.indexOf('Новый питомец') !== -1) { this.createProfile(); return true; }
         if (t.indexOf('Закрыть') !== -1 || t.indexOf('Назад') !== -1) { this.profilesMode = false; return true; }
