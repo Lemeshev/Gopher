@@ -2638,6 +2638,40 @@ ok('Старое имя сцены «aerial» по-прежнему ведёт �
     'секрет: ' + secretWord + '; мимо: ' + cold + '; победа: ' + win);
 }
 
+/* ---------- Чат держит тему (v1.3.36): разговор заказчика ---------- */
+{
+  const c = new sandbox.ChatScene({});
+  const say = (t) => c.replyTo(t);
+  const work = say('некогда, работы много');
+  const back = say('а при чём тут погода? мы же о работе говорим');
+  const storm = say('гроза');
+  const storm2 = say('гроза');
+  const alive = say('Ты живой?');
+  const sus = say('Ты суслик?');
+  const sus2 = say('Но ты суслик?');
+  const milka = say('Ты знаешь Милку?');
+  const what = say('Что? Ты о чём?');
+  const hw = say('О, помоги сделать уроки.');
+  say('расскажи что-нибудь интересное');
+  const deep = say('Это глубокая мысль.');
+  const weatherLeak = /погод|солнце, дождь|солнечно/.test(String(work).toLowerCase());
+  ok('Чат: «работы много» не уводит в погоду',
+    !weatherLeak && /дел|работ|урок/.test(work.toLowerCase()), work);
+  ok('Чат: «при чём тут погода» возвращает разговор к делам',
+    /дел|работ|урок/.test(back.toLowerCase()), back);
+  ok('Чат: «гроза» дважды отвечает про грозу',
+    /гроз|гром|молни/.test(storm.toLowerCase()) && /гроз|гром|молни/.test(storm2.toLowerCase()),
+    storm + ' / ' + storm2);
+  ok('Чат: «ты живой» и «ты суслик» отвечают про героя, а не про объятия',
+    /игр|не настоя|игруш|дыш|зовут|персонаж/.test(alive.toLowerCase()) &&
+    /суслик/.test(sus.toLowerCase()) && /суслик/.test(sus2.toLowerCase()),
+    [alive, sus, sus2].join(' / '));
+  ok('Чат: Милка — игрушка из игры, уроки — про уроки, «глубокая мысль» не про мурчание',
+    /милк/i.test(milka) && !/суп/.test(milka.toLowerCase()) &&
+    /милк/i.test(what) && /урок|дел/.test(hw.toLowerCase()) && !/мурчу/.test(deep),
+    [milka, what, hw, deep].join(' / '));
+}
+
 S.setCharacter('gopher');
 S.profileName = sandbox.DEFAULT_PROFILE_NAME;
 
@@ -2705,6 +2739,29 @@ S.profileName = sandbox.DEFAULT_PROFILE_NAME;
   ok('«Буквы»: слово из банка открывается по буквам и засчитывает победу',
     mini.letters.won === true && mini.letters.word === secret,
     secret);
+  const balloonCtx = new Proxy({
+    canvas: { width: 390, height: 844 },
+    measureText: s => ({ width: String(s).length * 8 }),
+    createLinearGradient: () => ({ addColorStop() {} }),
+    createRadialGradient: () => ({ addColorStop() {} })
+  }, { get(t, p) { return p in t ? t[p] : function () {}; }, set(t, p, v) { t[p] = v; return true; } });
+  mini.initLetters();
+  mini.mode = 'letters';
+  mini.letters.wrong = 0;
+  mini.letters.over = false;
+  mini.draw(balloonCtx);
+  const yHold = mini.letters.balloonY;
+  mini.letters.wrong = 5;
+  mini.draw(balloonCtx);
+  const ySlip = mini.letters.balloonY;
+  mini.letters.wrong = 6;
+  mini.letters.over = true;
+  mini.letters.won = false;
+  mini.draw(balloonCtx);
+  const yGone = mini.letters.balloonY;
+  ok('«Буквы»: шарик в руках героя поднимается с ошибками и срывается на проигрыше',
+    typeof yHold === 'number' && ySlip < yHold && yGone < ySlip,
+    'высота ' + Math.round(yHold) + ' → ' + Math.round(ySlip) + ' → ' + Math.round(yGone));
   mini.initMix();
   mini.mix.picked = mini.mix.tiles.slice().sort((a, b) => a.id - b.id).map(t => t.id);
   mini.mix.tiles.forEach(t => { t.used = true; });
