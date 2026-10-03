@@ -2389,7 +2389,26 @@ ok('Калькулятор сначала умножает: 10+20×2 = 50 и 9×
 ok('Таймер понимает минуты и секунды',
   tools.parseTimer('1:30') === 90000 && tools.parseTimer('25') === 1500000 && tools.parseTimer('1.5') === 90000,
   String(tools.parseTimer('1:30')));
+tools.ensureKit();
+ok('Пустое имя рисунка — дата и время через подчёркивания',
+  tools.drawingStamp(new Date(2026, 9, 24, 11, 48)) === '2026-10-24_11_48');
+sandbox.System.kit.lists = [{ id: 'z', title: 'Молоко', items: [{ text: 'хлеб', done: false }] }];
+tools.tool = 'lists';
+tools.listId = null;
+tools._listNameOpen = true;
+tools.draw(sandbox.__ctx);
+const delList = tools.buttons.find(b => b.action === 'del-list:z');
+if (delList) tools.handleClick(delList.x + 2, delList.y + 2);
+ok('Список целиком можно удалить', !!delList && sandbox.System.kit.lists.length === 0);
+tools.board = [{ pts: [{ x: 1, y: 1 }] }, { pts: [{ x: 2, y: 2 }] }];
+tools.buttons = [{ x: 0, y: 0, w: 10, h: 10, action: 'undo-stroke', text: '' }];
+tools.handleClick(1, 1);
+ok('Доска стирает только последний штрих', tools.board.length === 1);
 const toolSrc = fs.readFileSync(path.join(WWW, 'game_tools.js'), 'utf8');
+const notesFn = toolSrc.split('drawNotes(ctx, W, H)')[1].split('drawLists(ctx, W, H)')[0];
+ok('Заметки — отдельные записи, текст не дублируется на холсте',
+  Array.isArray(sandbox.System.kit.pages) && toolSrc.indexOf('del-note:') !== -1 &&
+  notesFn.indexOf('this.wrap') === -1 && toolSrc.indexOf('Пункты:') !== -1 && toolSrc.indexOf('Новый список') !== -1);
 ok('В инструментах нет «Умножения» и «Выбора», есть секундомер и своё время таймера',
   toolSrc.indexOf('Умножение') === -1 && toolSrc.indexOf('Кто сегодня') === -1 &&
   toolSrc.indexOf('Секундомер') !== -1 && toolSrc.indexOf('60') !== -1 &&
@@ -2939,6 +2958,38 @@ for (let n = 0; n < 48; n++) {
 }
 ok('Подпись у окна совпадает с рисунком: шарик, рюкзак и цвет машины',
   windowMismatch === 0, 'расхождений ' + windowMismatch);
+const girlTale = quiet.windowTale('runner', { girl: true, name: 'Даша' });
+const boyTale = quiet.windowTale('runner', { girl: false, name: 'Петя' });
+const dogTale = quiet.windowTale('dog', { name: 'Барбос', prop: 'none' });
+const stickTale = quiet.windowTale('dog', { name: 'Шарик', prop: 'stick' });
+const busTale = quiet.windowTale('bus', { name: 'жёлтый', bus: 'Ромашка' });
+const kidTale = quiet.windowTale('kid', { name: 'Глаша', prop: 'balloon', girl: true });
+ok('У окна у спортсмена, пёсика и автобуса есть имя и живая фраза',
+  girlTale.indexOf('спортсменка') !== -1 && girlTale.indexOf('Даша') !== -1 && girlTale.indexOf('5 км') !== -1 &&
+  boyTale.indexOf('спортсмен ') !== -1 && boyTale.indexOf('Петя') !== -1 &&
+  dogTale.indexOf('Барбос') !== -1 && dogTale.indexOf('палку') === -1 &&
+  stickTale.indexOf('палку') !== -1 &&
+  busTale.indexOf('жёлтый') !== -1 && busTale.indexOf('Ромашка') !== -1 &&
+  kidTale.indexOf('шарик') !== -1 && kidTale.indexOf('Глаша') !== -1);
+sandbox.__ctx.font = 'bold 13px Arial';
+const capLines = sandbox.wrapLines(sandbox.__ctx, girlTale, 280, 3);
+ok('Длинная подпись у окна укладывается в три строки рамы',
+  capLines.length >= 1 && capLines.length <= 3 && capLines.every(line => sandbox.__ctx.measureText(line).width <= 280),
+  capLines.join(' | '));
+const boyBag = (seaSrc.split("WINDOW_BOYS = '")[1] || '').split("'")[0];
+const girlBag = (seaSrc.split("WINDOW_GIRLS = '")[1] || '').split("'")[0];
+const dogBag = (seaSrc.split("WINDOW_DOGS = '")[1] || '').split("'")[0];
+ok('Имён и кличек хватает на десятки',
+  boyBag.split(',').length >= 80 && girlBag.split(',').length >= 80 && dogBag.split(',').length >= 40,
+  boyBag.split(',').length + '/' + girlBag.split(',').length + '/' + dogBag.split(',').length);
+ok('Маскоты у окна снова рисуются как раньше, без подписи над головой',
+  seaSrc.indexOf('drawWindowFar') === -1 && seaSrc.indexOf('actor: createCharacter') !== -1 &&
+  seaSrc.indexOf('fillText(far.name') === -1);
+quiet.win.far = null;
+quiet.win.farIn = 0;
+quiet.updateWindow(1);
+ok('Прохожий-маскот на дорожке — прежняя фигурка, и по ней есть подпись',
+  !!(quiet.win.far && quiet.win.far.actor && typeof quiet.win.far.actor.draw === 'function' && quiet.win.far.tale && quiet.win.far.tale.indexOf(quiet.win.far.name) !== -1));
 
 const letters = boot.scenes.minigames;
 letters.mode = 'letters';

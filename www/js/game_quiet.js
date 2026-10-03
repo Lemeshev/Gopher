@@ -11,6 +11,10 @@
 // только медузу, не увидел ни одной акулы, черепахи или осьминога». Теперь в воде
 // одновременно три РАЗНЫХ обитателя, а раз в 14–22 секунды один уплывает к краю и
 // на его место приходит случайный из тех, кого сейчас нет в воде.
+const WINDOW_BOYS = 'Петя,Вася,Коля,Миша,Саша,Дима,Илья,Егор,Артём,Матвей,Кирилл,Тимофей,Лёва,Федя,Гриша,Боря,Толя,Витя,Паша,Рома,Серёжа,Антон,Глеб,Марк,Лев,Яша,Стёпа,Вова,Женя,Костя,Никита,Даня,Тима,Олег,Игорь,Юра,Слава,Гена,Ваня,Алёша,Филипп,Платон,Захар,Семён,Прохор,Денис,Андрей,Максим,Аркадий,Борис,Вадим,Гаврила,Давид,Елисей,Зорий,Иннокентий,Карл,Лавр,Макар,Назар,Остап,Пётр,Радий,Савва,Тарас,Устин,Фома,Харитон,Эрик,Юлиан,Яков,Арсений,Богдан,Всеволод,Геннадий,Демид,Ефим,Кузьма,Лука,Мирон,Нестор,Осип,Порфирий,Родион,Святослав,Тихон,Фаддей,Эдуард,Ярослав,Аким,Влас,Гордей,Добрыня,Елисей,Зиновий,Игнат,Клим,Леонтий,Модест,Никанор,Онуфрий,Панкрат,Ростислав,Серафим,Терентий,Фрол,Эраст'.split(',');
+const WINDOW_GIRLS = 'Даша,Глаша,Диана,Аня,Маша,Лена,Оля,Катя,Настя,Соня,Вика,Алина,Полина,Кира,Мила,Ника,Таня,Ира,Юля,Света,Надя,Люда,Вера,Нина,Зоя,Лиза,Варя,Ася,Тома,Рита,Ксюша,Яна,Арина,Ева,Майя,Сара,Нюра,Галя,Лариса,Оксана,Инна,Жанна,Регина,Элина,Агата,Богдана,Василиса,Галина,Дарина,Есения,Женя,Злата,Ия,Карина,Лада,Маргарита,Нелли,Олеся,Рада,Снежана,Тамара,Ульяна,Фаина,Эмма,Юнона,Ярослава,Алёна,Берта,Варвара,Глафира,Дина,Евдокия,Зина,Ирина,Клавдия,Люба,Марфа,Наташа,Пелагея,Раиса,Софья,Таисия,Фекла,Эльза,Ядвига,Адель,Белла,Виолетта,Грета,Дора,Ева,Забава,Илона,Кристина,Лилия,Мира,Нонна,Ольга,Полина,Роза,Стелла,Тея,Флора,Эвелина'.split(',');
+const WINDOW_DOGS = 'Барбос,Шарик,Тузик,Бобик,Дружок,Рекс,Мухтар,Полкан,Граф,Джек,Барон,Плуто,Тобик,Кузя,Персик,Рыжик,Черныш,Пушок,Снежок,Норд,Лорд,Грей,Арчи,Бим,Найда,Жучка,Тоша,Буся,Лаки,Пират,Цезарь,Герцог,Фокс,Вулкан,Алмаз,Буран,Тайсон,Оскар,Симба,Бадди,Чарли,Макс,Ричи,Беня,Топаз,Искра,Зевс,Амур,Пончик,Кекс,Пломбир,Вафлик,Бублик,Смайлик,Хвостик,Носик,Лапка,Уголёк,Облачко,Карамель,Ватрушка,Пряник,Сухарик,Комочек,Топтыжка,Шустрик,Тихоня,Забияка,Верный,Солнышко,Зоркий,Быстрый,Добряк,Весельчак,Храбрец,Малыш,Кроха,Боцман,Юнга,Капитан,Адмирал,Шкипер,Лоцман,Матрос,Корсар,Фрегат,Шторм,Бриз,Туман,Рассвет,Закат,Иней,Проталинка'.split(',');
+const WINDOW_BUSES = 'Ромашка,Солнышко,Лучик,Василёк,Одуванчик,Незабудка,Колокольчик,Ягодка,Пчёлкин,Радуга'.split(',');
 const SEA_FRIENDS_IN_WATER = 3;
 const FRIEND_SWAP_MIN = 14;
 const FRIEND_SWAP_MAX = 22;
@@ -2485,6 +2489,11 @@ class QuietScene {
   }
 
   // Что реально будет на рисунке. Подпись ниже берёт только эти поля.
+  pickWindowName(kind) {
+    const bag = kind === 'girl' ? WINDOW_GIRLS : (kind === 'dog' ? WINDOW_DOGS : (kind === 'bus' ? WINDOW_BUSES : WINDOW_BOYS));
+    return bag[Math.floor(Math.random() * bag.length)];
+  }
+
   windowLook(id) {
     const paint = [
       { hex: '#d64545', name: 'красная' },
@@ -2492,17 +2501,30 @@ class QuietScene {
       { hex: '#e2b33a', name: 'жёлтая' },
       { hex: '#3c9a4c', name: 'зелёная' }
     ];
+    const girl = Math.random() < 0.5;
     if (id === 'car') return paint[Math.floor(Math.random() * paint.length)];
-    if (id === 'bus') return { hex: '#f0c14a', name: 'жёлтый' };
+    if (id === 'bus') return { hex: '#f0c14a', name: 'жёлтый', bus: this.pickWindowName('bus') };
     if (id === 'kid') {
       const prop = Math.random() < 0.5 ? 'balloon' : 'bag';
       const balloons = ['#ff5a7a', '#7ec8f0', '#ffe56a'];
-      return { prop: prop, balloon: balloons[Math.floor(Math.random() * balloons.length)] };
+      return {
+        prop: prop,
+        balloon: balloons[Math.floor(Math.random() * balloons.length)],
+        girl: girl,
+        name: this.pickWindowName(girl ? 'girl' : 'boy')
+      };
     }
-    if (id === 'dog') return { prop: Math.random() < 0.5 ? 'stick' : 'none', color: '#c68642' };
-    if (id === 'cat') return { color: ['#e07a3d', '#6d6a66', '#c9a27a', '#3d3a38'][Math.floor(Math.random() * 4)] };
-    if (id === 'bike') return { basket: Math.random() < 0.5 };
-    if (id === 'walker') return { who: Math.random() < 0.5 ? 'grandma' : 'grandpa' };
+    if (id === 'dog') return { prop: Math.random() < 0.5 ? 'stick' : 'none', color: '#c68642', name: this.pickWindowName('dog') };
+    if (id === 'cat') return { color: ['#e07a3d', '#6d6a66', '#c9a27a', '#3d3a38'][Math.floor(Math.random() * 4)], name: this.pickWindowName('boy') };
+    if (id === 'bike' || id === 'scooter' || id === 'runner') {
+      return { basket: Math.random() < 0.5, girl: girl, name: this.pickWindowName(girl ? 'girl' : 'boy') };
+    }
+    if (id === 'walker') {
+      const who = Math.random() < 0.5 ? 'grandma' : 'grandpa';
+      return { who: who, name: this.pickWindowName(who === 'grandma' ? 'girl' : 'boy') };
+    }
+    if (id === 'stroller') return { girl: girl, name: this.pickWindowName(girl ? 'girl' : 'boy') };
+    if (id === 'plane') return { name: this.pickWindowName('bus') };
     if (id === 'bird') return {};
     return {};
   }
@@ -2510,23 +2532,55 @@ class QuietScene {
   // Подпись говорит только то, что видно: цвет машины, шарик, палка, коляска.
   windowTale(id, look) {
     const L = look || {};
-    if (id === 'sparrow') return L.carry === 'twig' ? 'Это воробей, несёт веточку.' : 'Это воробей, летит.';
-    if (id === 'swallow') return 'Это ласточка, летит быстро.';
-    if (id === 'crow') return L.carry === 'bead' ? 'Это ворона, несёт блестяшку.' : 'Это ворона, летит.';
-    if (id === 'pigeon') return 'Это голубь, летит.';
-    if (id === 'tit') return 'Это синица, жёлтая снизу.';
-    if (id === 'cat') return 'Это кот, идёт по дорожке.';
-    if (id === 'dog') return L.prop === 'stick' ? 'Это пёс, несёт палку.' : 'Это пёс, гуляет.';
-    if (id === 'kid') return L.prop === 'balloon' ? 'Это ребёнок, несёт шарик.' : 'Это ребёнок, идёт с рюкзаком.';
-    if (id === 'bike') return L.basket ? 'Это человек на велосипеде, в корзине цветы.' : 'Это человек на велосипеде.';
-    if (id === 'car') return 'Это ' + (L.name || 'синяя') + ' машина.';
-    if (id === 'bus') return 'Это жёлтый автобус.';
-    if (id === 'plane') return 'Это самолёт, за ним белая полоса.';
-    if (id === 'scooter') return 'Это человек на самокате.';
-    if (id === 'stroller') return 'Это коляска, в ней малыш.';
-    if (id === 'walker') return L.who === 'grandma' ? 'Это бабушка с сумкой.' : 'Это дедушка с тростью.';
-    if (id === 'runner') return 'Это человек, бежит.';
-    return 'Кто-то идёт по улице.';
+    const who = L.name || 'друг';
+    if (id === 'sparrow') return L.carry === 'twig' ? 'Это воробей Чирик. Несёт веточку в гнездо.' : 'Это воробей Чирик. Летит над двором.';
+    if (id === 'swallow') return 'Это ласточка Стрелка. Летит быстро и низко.';
+    if (id === 'crow') return L.carry === 'bead' ? 'Это ворона Каркуша. Несёт блестяшку.' : 'Это ворона Каркуша. Летит важно.';
+    if (id === 'pigeon') return 'Это голубь Сизый. Кружит над крышами.';
+    if (id === 'tit') return 'Это синица Зинка. Жёлтая снизу, сидит на ветке.';
+    if (id === 'cat') return 'Это кот ' + who + '. Идёт по дорожке и смотрит по сторонам.';
+    if (id === 'dog') {
+      return L.prop === 'stick'
+        ? 'Это пёсик ' + who + '. Несёт палку и виляет хвостом!'
+        : 'Это пёсик ' + who + '. Ходит и нюхает воздух!';
+    }
+    if (id === 'kid') {
+      return L.prop === 'balloon'
+        ? 'Это ребёнок ' + who + '. Бежит с шариком и радуется!'
+        : 'Это ребёнок ' + who + '. Идёт с рюкзаком и машет!';
+    }
+    if (id === 'bike') {
+      const ride = L.girl ? 'Это велосипедистка ' : 'Это велосипедист ';
+      return ride + who + (L.basket ? '. В корзине цветы.' : '. Крутит педали по улице.');
+    }
+    if (id === 'car') return 'Это ' + (L.name || 'синяя') + ' машина. Едет по улице и гудит.';
+    if (id === 'bus') return 'Это жёлтый автобус «' + (L.bus || 'Ромашка') + '». Весёлый, везёт людей гулять!';
+    if (id === 'plane') return 'Это самолёт «' + who + '». За ним белая полоса.';
+    if (id === 'scooter') {
+      return (L.girl ? 'Это девочка ' : 'Это мальчик ') + who + '. Катится на самокате и смеётся!';
+    }
+    if (id === 'stroller') return 'Это коляска. В ней малыш ' + who + ', смотрит на небо.';
+    if (id === 'walker') {
+      return L.who === 'grandma'
+        ? 'Это бабушка ' + who + ' с сумкой. Идёт не спеша.'
+        : 'Это дедушка ' + who + ' с тростью. Гуляет у домов.';
+    }
+    if (id === 'runner') {
+      return L.girl
+        ? 'Это спортсменка ' + who + '. Сегодня вышла пробежать 5 км!'
+        : 'Это спортсмен ' + who + '. Сегодня вышел пробежать 5 км!';
+    }
+    return 'Кто-то идёт по улице и машет.';
+  }
+
+  mascotTale(ch) {
+    const n = (ch && ch.name) || 'друг';
+    const bits = [
+      n + ' гуляет по дорожке и машет.',
+      'Смотри: ' + n + ' вышел подышать воздухом.',
+      n + ' идёт мимо окна и улыбается.'
+    ];
+    return bits[Math.floor(Math.random() * bits.length)];
   }
 
   windowWeatherName(w) {
@@ -2606,8 +2660,8 @@ class QuietScene {
           x: dir > 0 ? -0.12 : 1.12,
           speed: randFloat(0.018, 0.03),
           phase: 0,
-          color: ch.body || '#7FDBE8',
-          tale: 'Это ' + ch.name + '. ' + (ch.desc || '')
+          actor: createCharacter(ch.id, 42),
+          tale: this.mascotTale(ch)
         };
       } else win.farIn = 40;
     }
@@ -2917,9 +2971,15 @@ class QuietScene {
       }
     } else if (p.id === 'kid') {
       if (look.prop === 'bag') {
-        this.drawWindowPerson(ctx, step, { shirt: '#6db3e8', pants: '#34507a', hair: '#5a3824', bag: '#e25b5b' });
+        this.drawWindowPerson(ctx, step, {
+        shirt: look.girl ? '#f0a0c0' : '#6db3e8', pants: '#34507a',
+        hair: look.girl ? '#c47a4a' : '#5a3824', bag: '#e25b5b'
+      });
       } else {
-        this.drawWindowPerson(ctx, step, { shirt: '#6db3e8', pants: '#34507a', hair: '#5a3824', armUp: true });
+        this.drawWindowPerson(ctx, step, {
+          shirt: look.girl ? '#f0a0c0' : '#6db3e8', pants: '#34507a',
+          hair: look.girl ? '#c47a4a' : '#5a3824', armUp: true
+        });
         ctx.strokeStyle = '#8a8a8a';
         ctx.lineWidth = 1.2;
         ctx.beginPath(); ctx.moveTo(16, -22); ctx.lineTo(24, -40); ctx.stroke();
@@ -3022,30 +3082,13 @@ class QuietScene {
         ctx.beginPath(); ctx.moveTo(14, -8); ctx.lineTo(18, 12); ctx.stroke();
       }
     } else if (p.id === 'runner') {
-      this.drawWindowPerson(ctx, step * 1.4, { shirt: '#e25b5b', pants: '#2c3a55', hair: '#3a2a22' });
+      this.drawWindowPerson(ctx, step * 1.4, {
+        shirt: look.girl ? '#e25b8a' : '#e25b5b',
+        pants: look.girl ? '#4a3060' : '#2c3a55',
+        hair: look.girl ? '#c47a4a' : '#3a2a22'
+      });
     }
     ctx.restore();
-  }
-
-  drawWindowFar(ctx, x, y, far) {
-    const step = Math.sin((far.phase || 0) * 6);
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.scale(far.dir || 1, 1);
-    ctx.fillStyle = far.color || '#7FDBE8';
-    ctx.beginPath(); ctx.ellipse(0, -6, 8, 10, 0.1, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(6, -18, 6, 6, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(11, -17, 2, 1.4, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#2a241f';
-    ctx.beginPath(); ctx.arc(8, -19, 1, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = far.color || '#7FDBE8';
-    ctx.beginPath(); ctx.ellipse(-2, 6, 3, 6, 0.4 + step * 0.2, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(4, 6, 3, 6, -0.4 - step * 0.2, 0, Math.PI * 2); ctx.fill();
-    ctx.restore();
-    ctx.fillStyle = '#1b2430';
-    ctx.font = 'bold 12px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(far.name || '', x, y - 30);
   }
 
   drawWindow(ctx, W, H) {
@@ -3270,15 +3313,18 @@ class QuietScene {
     ctx.quadraticCurveTo(frame.x + frame.w * 0.5, groundY + 56, frame.x, groundY + 62);
     ctx.fill();
 
-    if (win.far) {
+    if (win.far && win.far.actor) {
       const fx = frame.x + frame.w * win.far.x;
-      this.drawWindowFar(ctx, fx, groundY + 18, win.far);
+      ctx.save();
+      ctx.globalAlpha = 0.92;
+      win.far.actor.draw(ctx, fx, groundY + 8, 0.55);
+      ctx.restore();
     }
 
     win.hits = [];
     if (win.far) {
       const fx = frame.x + frame.w * win.far.x;
-      win.hits.push({ x: fx - 28, y: groundY - 36, w: 64, h: 64, tale: win.far.tale });
+      win.hits.push({ x: fx - 28, y: groundY - 48, w: 64, h: 78, tale: win.far.tale });
     }
     win.passers.filter(p => p.id !== 'plane').forEach(p => {
       const px = frame.x + frame.w * p.x;
@@ -3372,13 +3418,25 @@ class QuietScene {
     ctx.textAlign = 'center';
     ctx.fillText(dayName + ' · ' + seasonName + ' · ' + this.windowWeatherName(win.weather), W / 2, frame.y + frame.h + 36);
     if (win.caption) {
+      const bw = Math.min(W - 24, frame.w - 12);
+      let size = Math.min(W * 0.03, 13);
+      let lines = [];
+      while (size >= 9) {
+        ctx.font = 'bold ' + size + 'px Arial';
+        lines = wrapLines(ctx, win.caption, bw - 16, 3);
+        if (lines.every(line => ctx.measureText(line).width <= bw - 16)) break;
+        size -= 0.5;
+      }
+      const lh = size + 3;
+      const bh = Math.max(28, lines.length * lh + 12);
+      const x = frame.x + (frame.w - bw) / 2;
       ctx.fillStyle = 'rgba(20,24,40,0.88)';
-      const tw = Math.min(W - 24, ctx.measureText(win.caption).width + 24);
-      roundRect(ctx, (W - tw) / 2, frame.y + 8, tw, 28, 8);
+      roundRect(ctx, x, frame.y + 6, bw, bh, 8);
       ctx.fill();
       ctx.fillStyle = '#fff';
-      ctx.font = `bold ${Math.min(W * 0.032, 14)}px Arial`;
-      ctx.fillText(win.caption, W / 2, frame.y + 26);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      lines.forEach((line, i) => ctx.fillText(line, frame.x + frame.w / 2, frame.y + 16 + size + i * lh));
     }
   }
 
