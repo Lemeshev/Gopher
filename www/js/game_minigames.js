@@ -603,12 +603,13 @@ class MinigamesScene {
   drawLetters(ctx, W, H) {
     const g = this.letters;
     if (!g) return;
+    this.drawLetterBalloon(ctx, W, H, g);
     const hearts = '❤'.repeat(Math.max(0, g.max - g.wrong)) + '♡'.repeat(g.wrong);
     ctx.fillStyle = '#ff8fa3';
     ctx.font = `${Math.min(W * 0.045, 18)}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText(hearts, W / 2, H * 0.15);
+    ctx.fillText(hearts, W * 0.62, H * 0.15);
     ctx.fillStyle = '#fff';
     ctx.font = `${Math.min(W * 0.034, 14)}px Arial`;
     ctx.fillText('Подсказка: ' + g.hint, W / 2, H * 0.20);
@@ -653,6 +654,58 @@ class MinigamesScene {
         bgColor: '#FFD93D', fgColor: '#1a1a2e', fontSize: 16, radius: 12
       }));
     }
+  }
+
+  // Шарик в руках героя: с каждой ошибкой нитка длиннее, на проигрыше он срывается.
+  drawLetterBalloon(ctx, W, H, g) {
+    const slip = (g.over && !g.won) ? 1 : Math.max(0, Math.min(1, g.wrong / g.max));
+    const heroX = W * 0.16;
+    const heroY = H * 0.22;
+    const id = (typeof System !== 'undefined' && System.look && System.look.char) || 'gopher';
+    if (!this._letterHero || this._letterHeroId !== id) {
+      this._letterHeroId = id;
+      this._letterHero = (typeof createCharacter === 'function') ? createCharacter(id, 78) : null;
+    }
+    const hero = this._letterHero;
+    ctx.save();
+    if (hero && hero.draw) {
+      try { hero.draw(ctx, heroX, heroY, 0.72); } catch (e) { /* запасной кружок ниже */ }
+    }
+    if (!hero) {
+      ctx.fillStyle = '#7FDBE8';
+      ctx.beginPath();
+      ctx.arc(heroX, heroY, 18, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    const wobble = Math.sin((this.time || 0) / 180) * (4 + slip * 10);
+    const gone = g.over && !g.won;
+    const bx = heroX + 34 + slip * 26 + (gone ? 48 : 0) + wobble;
+    const by = heroY - 36 - slip * H * 0.11 - (gone ? H * 0.06 : 0);
+    g.balloonY = by;
+    const handX = heroX + 16;
+    const handY = heroY - 8;
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(handX, handY);
+    if (gone) ctx.lineTo(handX + 10, handY - 16);
+    else ctx.quadraticCurveTo((handX + bx) / 2, (handY + by) / 2 + 8, bx, by + 16);
+    ctx.stroke();
+    ctx.translate(bx, by);
+    ctx.rotate(wobble / 80);
+    ctx.scale(1, 1.25);
+    ctx.fillStyle = gone ? 'rgba(255,120,140,0.55)' : '#ff6b8a';
+    ctx.beginPath();
+    ctx.arc(0, 0, 16 + slip * 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.beginPath();
+    ctx.arc(-5, -5, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
 
   drawMix(ctx, W, H) {
@@ -926,7 +979,7 @@ class MinigamesScene {
           this.word.note = 'Да! Это «' + this.word.answer + '».';
           AudioSys.play('success');
           System.countAction('guessWins');
-          System.addCoins(2);
+          System.earnCoins(2);
         } else {
           this.word.note = 'Это было «' + this.word.answer + '».';
           AudioSys.play('fail');
