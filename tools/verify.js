@@ -27,7 +27,7 @@ const SCRIPT_ORDER = [
   'js/helpers.js', 'js/gopher.js', 'js/characters.js', 'js/system.js', 'js/game_content.js',
   'js/game_room.js', 'js/game_scenery.js', 'js/audio.js',
   'js/game_menu.js', 'js/game_map.js', 'js/game_home.js', 'js/game_shop.js',
-  'js/game_minigames.js', 'js/chat_lines.js', 'js/chat_kid.js', 'js/game_chat.js',
+  'js/game_minigames.js', 'js/chat_lines.js', 'js/chat_kid.js', 'js/semantic.js', 'js/chat_semantic.js', 'js/game_chat.js',
   'js/game_quiet.js', 'js/game_aerial.js', 'js/game_stats.js',
   'js/game_clinic.js', 'js/game_visit.js', 'js/game_friends.js', 'js/game.js'
 ];

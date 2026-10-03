@@ -14,7 +14,7 @@ const FILES = [
   'helpers.js', 'gopher.js', 'characters.js', 'system.js', 'game_content.js',
   'game_room.js', 'game_scenery.js', 'audio.js',
   'game_menu.js', 'game_map.js', 'game_home.js', 'game_shop.js',
-  'game_minigames.js', 'chat_lines.js', 'chat_kid.js', 'game_chat.js',
+  'game_minigames.js', 'chat_lines.js', 'chat_kid.js', 'semantic.js', 'chat_semantic.js', 'game_chat.js',
   'game_quiet.js', 'game_aerial.js', 'game_stats.js',
   'game_clinic.js', 'game_visit.js', 'game_friends.js', 'game.js'
 ];
@@ -2590,6 +2590,50 @@ ok('Старое имя сцены «aerial» по-прежнему ведёт �
   ok('Чат: «понятно»/«ты тупенький»/«хахаха»/«а ты?» подхватываются тепло',
     [a2, a3, a4, a5].every(t => !!t && !isFallback(t) && t.length > 3),
     [a2, a3, a4, a5].join(' / '));
+}
+
+/* ---------- Смысловой чат на эмбеддингах (v1.3.29): вместо регулярок ---------- */
+{
+  const S = sandbox.Semantic;
+  const sem = sandbox.CHAT_SEMANTIC;
+  const cat = sem ? sem.best.bind(sem) : (() => null);
+  ok('Есть смысловой движок: нормализация, косинус и индекс по темам',
+    !!S && typeof S.cosine === 'function' && !!sem && sem.index && sem.queryCount > 300,
+    sem ? ('записей в индексе: ' + sem.queryCount) : 'нет CHAT_SEMANTIC');
+
+  // Перефразировки, которых не было в ключах, должны вести в правильную тему
+  const map = {};
+  ['кошка', 'котёнок', 'я расстроился', 'хочу есть', 'как у тебя дела', 'мне страшно',
+   'спой песню', 'приветик', 'пока', 'сколько тебе лет', 'поиграем', 'расскажи сказку',
+   'обними меня', 'красный цвет', 'дождь на улице'].forEach(q => { map[q] = cat(q) ? cat(q).id : ''; });
+  ok('Смысловой поиск ведёт «кошку» в животных, а «я расстроился» в грусть',
+    map['кошка'] === 'animals' && map['котёнок'] === 'animals' &&
+    map['я расстроился'] === 'moodBad' && map['хочу есть'] === 'food',
+    JSON.stringify(map));
+  ok('Смысловой поиск узнаёт «как у тебя дела», «сказку», «песню» и «сколько тебе лет»',
+    map['как у тебя дела'] === 'how' && map['расскажи сказку'] === 'story' &&
+    map['спой песню'] === 'song' && map['сколько тебе лет'] === 'age',
+    JSON.stringify(map));
+
+  // База ответов должна быть «несколько десятков тысяч»
+  const nounsN = (sandbox.CHAT_NOUNS || []).length;
+  const patsN = (sandbox.CHAT_NOUN_PATTERNS || []).length;
+  const topicN = (sandbox.CHAT_TOPICS || []).reduce((a, t) => a + (t.replies || []).length, 0);
+  const totalN = nounsN * patsN + topicN;
+  ok('Каталог ответов — несколько десятков тысяч фраз (слова × шаблоны + темы)',
+    totalN >= 30000,
+    nounsN + ' слов × ' + patsN + ' шаблонов = ' + (nounsN * patsN) + ' + темы ' + topicN + ' = ' + totalN);
+
+  // Текстовая мини-игра «угадай слово» работает на том же движке
+  const cg = new sandbox.ChatScene({});
+  const start = cg.replyTo('угадай слово');
+  const secretWord = cg.guess && cg.guess.word;
+  const hasSecret = !!secretWord;
+  const cold = cg.replyTo('абракадабра');
+  const win = cg.replyTo(secretWord);
+  ok('Мини-игра «угадай слово»: загадывает и принимает правильный ответ',
+    hasSecret && start.length > 5 && cold.length > 3 && cg.guess === null && win.indexOf(secretWord) !== -1,
+    'секрет: ' + secretWord + '; мимо: ' + cold + '; победа: ' + win);
 }
 
 S.setCharacter('gopher');
