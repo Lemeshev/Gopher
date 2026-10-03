@@ -15,6 +15,8 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.app.Activity;
 import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.graphics.Color;
 import android.provider.Settings;
 import java.io.File;
@@ -23,6 +25,7 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.List;
 
 public class MainActivity extends Activity {
     private WebView webView;
@@ -260,6 +263,14 @@ public class MainActivity extends Activity {
             view.setDataAndType(uri, "application/vnd.android.package-archive");
             view.setClipData(ClipData.newRawUri("", uri));
             view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            // Без явного разрешения установщик на Android 7+ открывает пустой файл
+            // и пишет «проблема с файлом приложения».
+            PackageManager pm = getPackageManager();
+            List<ResolveInfo> handlers = pm.queryIntentActivities(view, 0);
+            for (int i = 0; i < handlers.size(); i++) {
+                String pkg = handlers.get(i).activityInfo.packageName;
+                grantUriPermission(pkg, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            }
             tellUpdate("install");
             startActivity(view);
         } catch (Exception ignored) {
