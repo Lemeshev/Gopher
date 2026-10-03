@@ -95,39 +95,89 @@ class ChatScene {
     return line;
   }
 
+  topicById(id) {
+    const topics = window.CHAT_TOPICS || [];
+    for (let i = 0; i < topics.length; i++) if (topics[i].id === id) return topics[i];
+    return null;
+  }
+
+  // Сначала вредные темы, потом точные детские фразы, потом слова из фразы.
   replyTo(text) {
     const n = this.norm(text);
     if (!n) return this.pick(window.CHAT_FALLBACK || ['Напиши хоть слово.']);
     const topics = window.CHAT_TOPICS || [];
-    const follow = ['да', 'нет', 'ага', 'угу', 'а ты', 'и что', 'почему', 'зачем', 'ну'];
+    const follow = ['да', 'нет', 'ага', 'угу', 'а ты', 'и что', 'почему', 'зачем', 'ну', 'давай', 'хорошо', 'ладно'];
     if (this.lastTopic && follow.indexOf(n) !== -1) {
       return this.pick(this.lastTopic.replies);
+    }
+    const blocked = this.topicById('safe');
+    if (blocked && this.scoreTopic(n, blocked) > 0) {
+      this.lastTopic = blocked;
+      return this.pick(blocked.replies);
+    }
+    const intents = window.CHAT_INTENTS || [];
+    for (let i = 0; i < intents.length; i++) {
+      if (intents[i].re.test(n)) {
+        const topic = this.topicById(intents[i].id);
+        if (topic) {
+          this.lastTopic = topic;
+          return this.pick(topic.replies);
+        }
+      }
+    }
+    const words = n.split(' ');
+    if (words.length <= 3 && n.length < 28) {
+      const nounLine = this.nounLine(n);
+      if (nounLine) return nounLine;
     }
     let best = null;
     let score = 0;
     topics.forEach(topic => {
-      let s = 0;
-      (topic.keys || []).forEach(k => {
-        const key = this.norm(k);
-        if (!key) return;
-        const at = n.indexOf(key);
-        if (at === -1) return;
-        const before = at === 0 || n.charAt(at - 1) === ' ';
-        const afterAt = at + key.length;
-        const after = afterAt === n.length || n.charAt(afterAt) === ' ';
-        // Короткий кусок должен совпасть с целым словом, длинный корень может быть началом слова.
-        if (!before) return;
-        if (!after && key.length < 4) return;
-        s += key.length;
-      });
+      const s = this.scoreTopic(n, topic);
       if (s > score) { score = s; best = topic; }
     });
     if (best && score >= 3) {
       this.lastTopic = best;
       return this.pick(best.replies);
     }
+    const nounLine = this.nounLine(n);
+    if (nounLine) return nounLine;
     this.lastTopic = null;
-    return this.pick(window.CHAT_FALLBACK);
+    return this.pick(window.CHAT_KID_FALLBACK || window.CHAT_FALLBACK);
+  }
+
+  nounLine(n) {
+    const nouns = window.CHAT_NOUNS || [];
+    let hit = null;
+    for (let i = 0; i < nouns.length; i++) {
+      const key = nouns[i].key;
+      const at = n.indexOf(key);
+      if (at === -1) continue;
+      const before = at === 0 || n.charAt(at - 1) === ' ';
+      if (!before) continue;
+      if (!hit || key.length > hit.key.length) hit = nouns[i];
+    }
+    if (!hit) return '';
+    this.lastTopic = null;
+    const patterns = window.CHAT_NOUN_PATTERNS || ['{s}! Расскажи ещё.'];
+    return this.pick(patterns).split('{s}').join(hit.word);
+  }
+
+  scoreTopic(n, topic) {
+    let s = 0;
+    (topic.keys || []).forEach(k => {
+      const key = this.norm(k);
+      if (!key) return;
+      const at = n.indexOf(key);
+      if (at === -1) return;
+      const before = at === 0 || n.charAt(at - 1) === ' ';
+      const afterAt = at + key.length;
+      const after = afterAt === n.length || n.charAt(afterAt) === ' ';
+      if (!before) return;
+      if (!after && key.length < 4) return;
+      s += Math.max(key.length, 3);
+    });
+    return s;
   }
 
   onUser(text) {

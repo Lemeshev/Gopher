@@ -153,11 +153,13 @@ html, body {
 }
 .chat-row.me .chat-bubble { background: #4D96FF; }
 .chat-row.pet .chat-bubble { background: #2e3b63; }
-#chatForm { display: flex; gap: 6px; margin-top: 8px; }
+#chatForm { display: flex; gap: 6px; margin-top: 8px; width: 100%; min-width: 0; }
 #chatInput {
-  flex: 1;
-  font-size: 22px;
-  padding: 14px;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  font-size: 18px;
+  padding: 12px;
   border-radius: 10px;
   border: 1px solid #8d93a8;
   -webkit-user-select: text;
@@ -166,12 +168,13 @@ html, body {
 }
 #chatForm button, #chatClose {
   font-weight: bold;
-  font-size: 18px;
+  font-size: 16px;
   border: none;
   border-radius: 10px;
-  padding: 14px 14px;
+  padding: 12px 10px;
   touch-action: manipulation;
 }
+#chatForm button { flex: 0 0 auto; white-space: nowrap; }
 #chatForm button { background: #6BCB77; color: #102014; }
 #chatClose { margin-top: 6px; background: #9aa3bd; color: #10121c; }
 </style>
@@ -229,6 +232,7 @@ html, body {
 <script src="js/game_shop.js"></script>
 <script src="js/game_minigames.js"></script>
 <script src="js/chat_lines.js"></script>
+<script src="js/chat_kid.js"></script>
 <script src="js/game_chat.js"></script>
 <script src="js/game_quiet.js"></script>
 <script src="js/game_aerial.js"></script>
