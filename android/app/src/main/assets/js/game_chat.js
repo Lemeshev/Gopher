@@ -8,6 +8,8 @@ class ChatScene {
     this.pending = null;   // «что я только что спросил» (null | 'mood'), чтобы понять ответ ребёнка
     this.guess = null;     // состояние текстовой игры «угадай слово»
     this.thread = null;    // о чём сейчас говорим, чтобы не прыгать в погоду и кашу
+    this.turns = [];       // последние фразы ребёнка: эмбеддинг видит не только текущую
+    this.bankCursor = 0;
   }
 
   init() {
@@ -16,6 +18,8 @@ class ChatScene {
     this.pending = null;
     this.guess = null;
     this.thread = null;
+    this.turns = [];
+    this.bankCursor = 0;
     this.openPanel();
     const log = this.logEl();
     if (log) log.innerHTML = '';
@@ -112,6 +116,9 @@ class ChatScene {
   replyTo(text) {
     const n = this.norm(text);
     if (!n) return this.pick(window.CHAT_FALLBACK || ['Напиши хоть слово.']);
+    this.turns = this.turns || [];
+    this.turns.push(n);
+    if (this.turns.length > 6) this.turns.shift();
 
     // 0) Текстовая игра «угадай слово»: пока идёт игра, любое слово — догадка.
     if (this.guess) return this.guessTurn(n);
@@ -141,13 +148,27 @@ class ChatScene {
     const steered = this.steer(n);
     if (steered) return steered;
 
-    // 5) Смысловой поиск по темам: эмбеддинги (слова + n-граммы, косинус).
+    // Слово из банка длиннее трёх букв важнее косинуса: «котика» не уезжает в «раскраску».
+    const slotted = this.slotTopic(n);
+    if (slotted) return slotted;
+
+    // 5) Смысловой поиск. В запрос добавлены прошлые фразы, если текущая короткая:
+    // «ещё» остаётся про котика, а не про новую тему.
     const sem = window.CHAT_SEMANTIC;
     if (sem && sem.best) {
-      const hit = sem.best(n);
+      const hit = sem.best(this.contextQuery(n));
       if (hit && hit.score >= (sem.THRESHOLD || 0.3)) {
         const topic = this.topicById(hit.id);
+        if (topic && topic.ask) {
+          this.thread = hit.id;
+          this.lastTopic = topic;
+          this.pending = topic.ask;
+          return this.pick(topic.replies);
+        }
+        const fromBank = this.fromBank(hit.id, n);
+        if (fromBank) return fromBank;
         if (topic) {
+          this.thread = hit.id;
           this.lastTopic = topic;
           this.pending = topic.ask || null;
           return this.pick(topic.replies);
@@ -260,6 +281,12 @@ class ChatScene {
         'Милка — девочка-игрушка, не еда. Зелёные ушки, розовые подушечки на лапах.'
       ]);
     }
+    if (n === 'еще' || n === 'дальше' || n === 'другое' || n === 'продолжай') {
+      if (this.thread && this.thread !== 'fact') {
+        const more = this.fromBank(this.thread, (this.turns || []).join(' '));
+        if (more) return more;
+      }
+    }
     if (has(/интересн|факт|расскажи что/) || n === 'еще' || n === 'ещё') {
       if (n === 'еще' || n === 'ещё' || this.thread === 'fact' || has(/интересн|факт|расскажи что/)) {
         return say('fact', [
@@ -299,6 +326,65 @@ class ChatScene {
       }
     }
     return '';
+  }
+
+  // Самое длинное слово банка в реплике задаёт тему, если регулятор ещё не сработал.
+  slotTopic(n) {
+    const bank = window.CHAT_BANK;
+    if (!bank || !bank.topics) return '';
+    const hint = n.toLowerCase().replace(/ё/g, 'е');
+    let id = '';
+    let best = 3;
+    Object.keys(bank.topics).forEach(k => {
+      (bank.topics[k] || []).forEach(s => {
+        const w = String(s).toLowerCase().replace(/ё/g, 'е');
+        if (w.length > best && hint.indexOf(w) !== -1) {
+          best = w.length;
+          id = k;
+        }
+      });
+    });
+    if (!id) return '';
+    return this.fromBank(id, n);
+  }
+
+  // Короткая реплика ищется вместе с прошлыми фразами и названием темы.
+  contextQuery(n) {
+    const words = n.split(' ').filter(Boolean);
+    if (words.length > 4) return n;
+    const prev = (this.turns || []).slice(0, -1).slice(-2).join(' ');
+    return (n + ' ' + prev).replace(/\s+/g, ' ').trim();
+  }
+
+  // Эмбеддинг выбрал тему — фразу берём из банка, удерживая слово из реплики.
+  fromBank(topicId, hint) {
+    const bank = window.CHAT_BANK;
+    if (!bank) return '';
+    const alias = {
+      work: 'school', joke: 'jokes', fact: 'questions', milka: 'play',
+      moodGood: 'feelings', moodBad: 'feelings', how: 'feelings'
+    };
+    let id = bank.has(topicId) ? topicId : (alias[topicId] || '');
+    const hintText = ((this.turns || []).join(' ' ) + ' ' + (hint || '')).trim();
+    if (!id) {
+      const hintN = hintText.toLowerCase().replace(/ё/g, 'е');
+      const keys = Object.keys(bank.topics || {});
+      for (let i = 0; i < keys.length; i++) {
+        const slots = bank.topics[keys[i]] || [];
+        if (slots.some(s => s.length >= 4 && hintN.indexOf(String(s).toLowerCase().replace(/ё/g, 'е')) !== -1)) {
+          id = keys[i];
+          break;
+        }
+      }
+    }
+    if (!id || !bank.has(id)) return '';
+    const lines = [];
+    this.bankCursor = (this.bankCursor || 0) + 1;
+    for (let k = 0; k < 8; k++) lines.push(bank.line(id, this.bankCursor * 13 + k * 97, hintText));
+    this.thread = id;
+    this.pending = null;
+    this.lastTopic = { id: topicId };
+    return this.pick(lines.filter(Boolean));
   }
 
   // Ответ на мой последний вопрос. Возвращает '' если это не ответ, а новая тема.

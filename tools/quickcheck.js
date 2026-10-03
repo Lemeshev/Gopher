@@ -14,7 +14,7 @@ const FILES = [
   'helpers.js', 'gopher.js', 'characters.js', 'system.js', 'game_content.js',
   'game_room.js', 'game_scenery.js', 'audio.js',
   'game_menu.js', 'game_map.js', 'game_home.js', 'game_shop.js',
-  'game_minigames.js', 'chat_lines.js', 'chat_kid.js', 'semantic.js', 'chat_semantic.js', 'game_chat.js',
+  'game_minigames.js', 'chat_lines.js', 'chat_kid.js', 'semantic.js', 'chat_semantic.js', 'chat_bank.js', 'game_chat.js',
   'game_quiet.js', 'game_aerial.js', 'game_stats.js',
   'game_clinic.js', 'game_visit.js', 'game_friends.js', 'game.js'
 ];
@@ -2666,6 +2666,21 @@ ok('Старое имя сцены «aerial» по-прежнему ведёт �
     /игр|не настоя|игруш|дыш|зовут|персонаж/.test(alive.toLowerCase()) &&
     /суслик/.test(sus.toLowerCase()) && /суслик/.test(sus2.toLowerCase()),
     [alive, sus, sus2].join(' / '));
+  const bank = sandbox.CHAT_BANK;
+  const bankBytes = fs.statSync(path.join(WWW, 'chat_bank.js')).size;
+  const body = fs.readFileSync(path.join(WWW, 'chat_bank.js'), 'utf8').replace(/forbidden:\s*\[[^\]]*\]/, '');
+  const leaked = (bank.forbidden || []).filter(w => body.toLowerCase().indexOf(w) !== -1);
+  ok('Банк чата: больше ста тысяч фраз 0+ в маленьком файле',
+    bank && bank.count() >= 100000 && bankBytes < 200000 && leaked.length === 0,
+    'фраз ' + (bank ? bank.count() : 0) + ', файл ' + bankBytes + ' байт' +
+    (leaked.length ? ', запрещено: ' + leaked.join(',') : ''));
+  const cctx = new sandbox.ChatScene({});
+  cctx.replyTo('расскажи про котика');
+  const more1 = cctx.replyTo('ещё');
+  const more2 = cctx.replyTo('ещё');
+  ok('Чат держит контекст: «ещё» после котика снова про котика и не повторяет строку',
+    /котик|кот/.test(more1.toLowerCase()) && /котик|кот/.test(more2.toLowerCase()) && more1 !== more2,
+    more1 + ' / ' + more2);
   ok('Чат: Милка — игрушка из игры, уроки — про уроки, «глубокая мысль» не про мурчание',
     /милк/i.test(milka) && !/суп/.test(milka.toLowerCase()) &&
     /милк/i.test(what) && /урок|дел/.test(hw.toLowerCase()) && !/мурчу/.test(deep),
