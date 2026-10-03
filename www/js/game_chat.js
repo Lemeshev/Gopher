@@ -145,29 +145,22 @@ class ChatScene {
     // 4) Явные темы ребёнка важнее косинуса: «работы много» не про погоду,
     // «Милка» не про суп, «ты суслик» не про объятия. Косинус ниже остаётся
     // для перефразировок, которых нет в коротком списке.
+    if (window.CHAT_TALK && window.CHAT_TALK.reply) {
+      const talked = window.CHAT_TALK.reply(this, text, n);
+      if (talked) return talked;
+    }
+
     const steered = this.steer(n);
     if (steered) return steered;
 
-    // Слово из банка длиннее трёх букв важнее косинуса: «котика» не уезжает в «раскраску».
-    const slotted = this.slotTopic(n);
-    if (slotted) return slotted;
-
-    // 5) Смысловой поиск. В запрос добавлены прошлые фразы, если текущая короткая:
-    // «ещё» остаётся про котика, а не про новую тему.
+    // 5) Смысловой поиск по готовым темам. Случайную подстановку слова из банка не берём:
+    // она ломала падеж («какой игрушка», «про друг»).
     const sem = window.CHAT_SEMANTIC;
     if (sem && sem.best) {
-      const hit = sem.best(this.contextQuery(n));
+      const hit = sem.best(n);
       if (hit && hit.score >= (sem.THRESHOLD || 0.3)) {
         const topic = this.topicById(hit.id);
-        if (topic && topic.ask) {
-          this.thread = hit.id;
-          this.lastTopic = topic;
-          this.pending = topic.ask;
-          return this.pick(topic.replies);
-        }
-        const fromBank = this.fromBank(hit.id, n);
-        if (fromBank) return fromBank;
-        if (topic) {
+        if (topic && topic.replies && topic.replies.length) {
           this.thread = hit.id;
           this.lastTopic = topic;
           this.pending = topic.ask || null;
@@ -176,7 +169,6 @@ class ChatScene {
       }
     }
 
-    // 6) Одиночное существительное без своей темы — общий тёплый отклик про слово.
     const nounLine = this.nounLine(n);
     if (nounLine) return nounLine;
 
@@ -239,7 +231,7 @@ class ChatScene {
         'Пингвин купил шарф и сказал: «теперь я официально зима».'
       ]);
     }
-    if (has(/урок|домашк|тетрад|школ|работ|дел много|некогда/)) {
+    if (has(/урок|домашк|тетрад|школ|работы|работе|работу|дел много|некогда/)) {
       return say('work', [
         'Дел много — давай по одному. Назови, что горит.',
         'Урок я за тебя не решу. Скажи предмет: счёт, буквы или чтение — подскажу первый шаг.',
