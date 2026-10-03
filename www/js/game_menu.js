@@ -314,6 +314,7 @@ class MenuScene {
   // Системная кнопка «Назад»: закрываем окна по одному, а на главном экране меню
   // возвращаем false — тогда игра закрывается по-настоящему (v1.3.6).
   handleBack() {
+    if (typeof KitBar !== 'undefined' && KitBar.close) KitBar.close();
     if (this.showSettings) { this.showSettings = false; this.confirmReset = false; return true; }
     if (this.aboutMode) { this.aboutMode = false; return true; }
     if (this.profilesMode) { this.profilesMode = false; return true; }

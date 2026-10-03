@@ -482,6 +482,17 @@ class ToolsScene {
     KitBar.close();
   }
 
+  // Системный жест «Назад»: сначала выходим из списка или заметок и прячем поле,
+  // и только со списка инструментов отдаём ход карте.
+  handleBack() {
+    if (this.tool !== 'menu') {
+      this.leaveTool();
+      return true;
+    }
+    KitBar.close();
+    return false;
+  }
+
   handleClick(mx, my) {
     for (const btn of this.buttons) {
       if (!isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) continue;

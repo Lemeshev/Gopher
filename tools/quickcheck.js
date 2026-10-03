@@ -2390,6 +2390,46 @@ ok('В инструментах нет «Умножения» и «Выбора�
   toolSrc.indexOf('Умножение') === -1 && toolSrc.indexOf('Кто сегодня') === -1 &&
   toolSrc.indexOf('Секундомер') !== -1 && toolSrc.indexOf('60') !== -1 &&
   toolSrc.indexOf('Включите звук') !== -1);
+const kitBar = { className: 'open' };
+const prevGet = sandbox.document.getElementById;
+sandbox.document.getElementById = (id) => (id === 'kitBar' ? kitBar : prevGet(id));
+tools.tool = 'lists';
+tools.listId = 'abc';
+tools._listItemOpen = true;
+if (sandbox.System.kit) sandbox.System.kit.notes = '';
+ok('Жест «Назад» из списка закрывает поле «Новый пункт»',
+  tools.handleBack() === true && tools.tool === 'menu' && kitBar.className === '' && !tools.listId);
+ok('Жест «Назад» со списка инструментов отдаёт ход карте', tools.handleBack() === false);
+ok('Смена сцены сама закрывает поле ввода',
+  fs.readFileSync(path.join(WWW, 'game.js'), 'utf8').indexOf('KitBar.close') !== -1);
+sandbox.document.getElementById = prevGet;
+const seaScene = Object.create(sandbox.QuietScene.prototype);
+seaScene.game = { width: 400, height: 700 };
+seaScene.mode = 'fish';
+seaScene.result = '';
+seaScene.resultTimer = 0;
+seaScene.fish = {
+  swimmers: [
+    { kind: 'friend', id: 'shark', x: 20, y: 200 },
+    { kind: 'friend', id: 'whale', x: 200, y: 220 }
+  ],
+  friendHint: 0,
+  friendHintText: '',
+  friendHintId: '',
+  friendQueue: ['shark']
+};
+seaScene.syncFriendCaption(0.2);
+ok('Пока в центре кит, подпись про кита, даже если сзади акула',
+  seaScene.fish.friendHintText.indexOf('Кит:') === 0 && seaScene.fish.friendHintText.indexOf('Акула') === -1,
+  seaScene.fish.friendHintText);
+const seaSrc = fs.readFileSync(path.join(WWW, 'game_quiet.js'), 'utf8');
+const whaleDraw = (seaSrc.split("k === 'whale'")[1] || '').split("k === 'ray'")[0];
+const narwhalDraw = (seaSrc.split("k === 'narwhal'")[1] || '').split("k === 'manta'")[0];
+ok('Кит рисуется с тупой головой и фонтаном, без острого рыла',
+  whaleDraw.indexOf('ellipse(b * 0.82') !== -1 && whaleDraw.indexOf('moveTo(b * 1.45, 0)') === -1 &&
+  whaleDraw.indexOf('-b * 1.9') !== -1);
+ok('У нарвала спиральный бивень и нет ряда иллюминаторов',
+  narwhalDraw.indexOf('lineTo(b * 1.85') !== -1 && narwhalDraw.indexOf('for (let i = 0; i < 4') === -1);
 ok('В списке профилей стоит эмодзи героя этого профиля, а не общий 🐹',
   emojiDefault === '🐇', emojiDefault);
 // Вернули состояние стенда: профили и сохранения как были
