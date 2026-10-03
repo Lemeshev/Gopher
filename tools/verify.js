@@ -12,7 +12,7 @@ const cp = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 const WWW = path.join(ROOT, 'www');
-const ASSETS = path.join(ROOT, 'android', 'app', 'src', 'main', 'assets', 'www');
+const ASSETS = path.join(ROOT, 'android', 'app', 'src', 'main', 'assets');
 const ICON_FG = path.join(ROOT, 'android', 'app', 'src', 'main', 'res', 'drawable', 'ic_launcher_foreground.xml');
 const ICON_BG = path.join(ROOT, 'android', 'app', 'src', 'main', 'res', 'drawable', 'ic_launcher_background.xml');
 const ICON_ADAPTIVE = path.join(ROOT, 'android', 'app', 'src', 'main', 'res', 'mipmap-anydpi-v26', 'ic_launcher.xml');
@@ -76,7 +76,7 @@ function reviewerStatic() {
     if (!fs.existsSync(b)) { syncOk = false; syncDetail = 'нет ' + rel; break; }
     if (!fs.readFileSync(a).equals(fs.readFileSync(b))) { syncOk = false; syncDetail = 'расходится ' + rel; break; }
   }
-  check('www/ и android assets/www/ синхронизированы', syncOk, syncDetail);
+  check('www/ и android assets/ синхронизированы (корень assets, не assets/www)', syncOk, syncDetail);
 
   const idx = fs.readFileSync(path.join(WWW, 'index.html'), 'utf8');
   check('index.html вызывает new Game().init()', /new Game\(\)/.test(idx) && /game\.init\(\)/.test(idx));
@@ -507,7 +507,7 @@ function reviewerApk() {
   let list = '';
   try { list = cp.execSync('unzip -l "' + APK + '"', { encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 }); }
   catch (e) { check('APK читается как zip', false, e.message); return; }
-  check('APK содержит assets/www/index.html', list.indexOf('assets/www/index.html') !== -1);
+  check('APK содержит assets/index.html', list.indexOf('assets/index.html') !== -1);
   // В release-сборке AGP переименовывает файлы ресурсов (res/XX.xml),
   // поэтому имя ресурса ищем в содержимом APK (resources.arsc), а не в списке файлов
   let iconOk = list.indexOf('ic_launcher') !== -1;
@@ -518,7 +518,7 @@ function reviewerApk() {
 
   let idxOk = false;
   try {
-    const idxApk = cp.execSync('unzip -p "' + APK + '" assets/www/index.html',
+    const idxApk = cp.execSync('unzip -p "' + APK + '" assets/index.html',
       { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 });
     idxOk = /new Game\(\)/.test(idxApk) && /game\.init\(\)/.test(idxApk);
   } catch (e) { idxOk = false; }
@@ -527,7 +527,7 @@ function reviewerApk() {
   let jsOk = true, jsDetail = SCRIPT_ORDER.length + ' файлов';
   for (const rel of SCRIPT_ORDER) {
     try {
-      const inApk = cp.execSync('unzip -p "' + APK + '" assets/www/' + rel, { maxBuffer: 10 * 1024 * 1024 });
+      const inApk = cp.execSync('unzip -p "' + APK + '" assets/' + rel, { maxBuffer: 10 * 1024 * 1024 });
       if (!inApk.equals(fs.readFileSync(path.join(WWW, rel)))) { jsOk = false; jsDetail = 'устарел ' + rel; break; }
     } catch (e) { jsOk = false; jsDetail = 'отсутствует ' + rel; break; }
   }
@@ -2287,8 +2287,10 @@ function reviewerRuStore(rt) {
     'строк uses-permission: ' + (manifest.match(/uses-permission/g) || []).length);
   check('Запрещён открытый HTTP (usesCleartextTraffic=false)',
     manifest.indexOf('usesCleartextTraffic="false"') !== -1);
-  check('В игре нет сетевого кода (полный офлайн: fetch/XHR/WebSocket)',
-    !/fetch\s*\(|XMLHttpRequest|new WebSocket/.test(js));
+  check('Сеть только чтобы спросить GitHub о новой версии (игра и чат без запросов)',
+    !/XMLHttpRequest|new WebSocket/.test(js) &&
+    (js.match(/fetch\s*\(/g) || []).length === 1 &&
+    js.indexOf('api.github.com/repos/Lemeshev/Gopher/releases/latest') !== -1);
 
   // --- 2. Инструмент публикации и секреты ---
   check('Есть инструмент публикации через официальный API RuStore',

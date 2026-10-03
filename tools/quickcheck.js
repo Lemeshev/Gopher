@@ -1601,6 +1601,7 @@ if (boot) {
     S.resetProgress();
     const p = S.progress;
     p.trips = 999; p.minigames = 999; p.quiet = 999; p.tttWins = 99;
+    p.rpsWins = 99; p.guessWins = 99; p.letterWins = 99; p.mixWins = 99; p.simonBest = 99;
     p.feeds = 99; p.washes = 99; p.plays = 99; p.sleeps = 99; p.furniture = 99; p.coinsEarned = 99999;
     S.coins = 99999; S.addXP(99999);
     Object.keys(S.stats).forEach(k => { S.stats[k] = 99; });
@@ -1629,6 +1630,7 @@ if (boot) {
       // тоже должны открываться за год игры
       p.rpsWins += full ? 2 : 1;
       p.simonBest = Math.max(p.simonBest || 0, full ? 8 : 4);
+      p.guessWins += 1; p.letterWins += 1; p.mixWins += 1;
       if (full) p.furniture += 1;
       S.stats.energy = 45; S.startSleep(); S.tick(600000);
       S.earnCoins(full ? 120 : 40); S.addXP(full ? 250 : 70);
@@ -2638,6 +2640,78 @@ ok('Старое имя сцены «aerial» по-прежнему ведёт �
 
 S.setCharacter('gopher');
 S.profileName = sandbox.DEFAULT_PROFILE_NAME;
+
+/* ---------- Мини-игры со словами и матч в камень-ножницы (v1.3.34) ---------- */
+// Заказчик: игру «камень-ножницы» в один случайный тычок назвал недоделанной,
+// а виселицу и другие игры в буквы попросил добавить. Проверка падает, если
+// карточки пропали из списка или матч снова считается одним жестом.
+{
+  const java = fs.readFileSync(path.join(ROOT, 'android/app/src/main/java/com/gopherlife/app/MainActivity.java'), 'utf8');
+  ok('Загрузчик обновления идёт по редиректам, проверяет PK и выдаёт чтение установщику',
+    java.indexOf('openFollowingRedirects') !== -1 && java.indexOf("mag[0] == 'P'") !== -1 &&
+    java.indexOf('grantUriPermission') !== -1,
+    'без этого кнопка «Обновить игру» отдаёт установщику не APK');
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+  const gv = (fs.readFileSync(path.join(WWW, 'helpers.js'), 'utf8').match(/GAME_VERSION = '([^']+)'/) || [])[1];
+  const gradle = fs.readFileSync(path.join(ROOT, 'android/app/build.gradle'), 'utf8');
+  const vn = (gradle.match(/versionName "([^"]+)"/) || [])[1];
+  ok('Версия одна и та же в package.json, GAME_VERSION и versionName',
+    pkg === gv && gv === vn, pkg + ' / ' + gv + ' / ' + vn);
+
+  const game = { width: 390, height: 844, transitionTo() {} };
+  const mini = new sandbox.MinigamesScene(game);
+  const texts = [];
+  const ctx = new Proxy({
+    canvas: { width: 390, height: 844 },
+    measureText: s => ({ width: String(s).length * 8 }),
+    createLinearGradient: () => ({ addColorStop() {} })
+  }, { get(t, p) { return p in t ? t[p] : function () {}; }, set(t, p, v) { t[p] = v; if (p === 'fillText') {} return true; } });
+  const orig = ctx.fillText;
+  ctx.fillText = (s) => { texts.push(String(s)); if (orig) orig(s); };
+  mini.mode = 'select';
+  mini.draw(ctx);
+  const ids = (mini.buttons || []).map(b => b.action).filter(Boolean);
+  ok('В мини-играх есть «Угадай слово», «Буквы» и «Перемешка»',
+    ids.indexOf('word') !== -1 && ids.indexOf('letters') !== -1 && ids.indexOf('mix') !== -1,
+    ids.join(','));
+  const cards = mini.buttons.filter(b => b.action && b.h && b.y > 40);
+  let piled = false;
+  for (let i = 0; i < cards.length; i++) {
+    for (let j = i + 1; j < cards.length; j++) {
+      const a = cards[i], b = cards[j];
+      if (a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y) piled = true;
+    }
+  }
+  ok('Кнопки списка мини-игр не наезжают друг на друга',
+    !piled && cards.length >= 8, 'карточек ' + cards.length);
+
+  mini.initRps();
+  mini.rps.pick = 'rock';
+  mini.rps.petHand = 'scissors';
+  mini.rps.phase = 'count';
+  mini.finishRpsRound();
+  const afterOne = mini.rps.you === 1 && mini.rps.pet === 0 && mini.rps.phase === 'show';
+  mini.rps.pick = 'rock';
+  mini.rps.petHand = 'scissors';
+  mini.rps.phase = 'count';
+  mini.finishRpsRound();
+  ok('Камень-ножницы: победа считается раундом матча, монеты — когда дошли до двух',
+    afterOne && mini.rps.you === 2 && (sandbox.System.progress.rpsWins || 0) >= 1,
+    'счёт ' + mini.rps.you + ':' + mini.rps.pet + ', побед матчей ' + sandbox.System.progress.rpsWins);
+
+  mini.initLetters();
+  const secret = mini.letters.word;
+  secret.split('').filter((ch, i, a) => a.indexOf(ch) === i).forEach(ch => mini.guessLetter(ch));
+  ok('«Буквы»: слово из банка открывается по буквам и засчитывает победу',
+    mini.letters.won === true && mini.letters.word === secret,
+    secret);
+  mini.initMix();
+  mini.mix.picked = mini.mix.tiles.slice().sort((a, b) => a.id - b.id).map(t => t.id);
+  mini.mix.tiles.forEach(t => { t.used = true; });
+  mini.finishMix();
+  ok('«Перемешка»: слово, собранное в верном порядке, победа',
+    mini.mix.won === true, mini.mix.word);
+}
 
 console.log('\n' + '─'.repeat(50));
 console.log('ИТОГО: пройдено ' + pass + ' | провалено ' + fail);
