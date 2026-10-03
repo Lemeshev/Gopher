@@ -8,7 +8,9 @@ class MinigamesScene {
     this.ttt = { board: Array(9).fill(null), turn: 'X', over: false, winner: null };
     this.memory = { cards: [], flipped: [], matched: [], moves: 0, ready: false, done: false };
     this.coinFlip = { state: 'ready', timer: 0, result: null, angle: 0, flipDur: 1100 };
-    this.rps = { pick: null, pet: null, msg: '' };
+    this.rps = { you: 0, pet: 0, round: 1, phase: 'pick', pick: null, petHand: null, last: null, msg: '', timer: 0 };
+    this.letters = null;
+    this.mix = null;
     this.simon = { seq: [], phase: 'idle', timer: 0, lit: -1, input: 0, note: '' };
     this.word = null;
   }
@@ -40,8 +42,15 @@ class MinigamesScene {
   }
 
   initRps() {
-    this.rps = { pick: null, pet: null, msg: 'Выбери жест' };
+    this.rps = { you: 0, pet: 0, round: 1, phase: 'pick', pick: null, petHand: null, last: null, msg: 'До двух побед', timer: 0 };
     this.mode = 'rps';
+  }
+
+  wordBank() {
+    const bank = (typeof CHAT_GUESS_WORDS !== 'undefined' && CHAT_GUESS_WORDS.length)
+      ? CHAT_GUESS_WORDS
+      : [{ word: 'мяч', hints: ['круглый', 'игрушка'] }];
+    return bank[Math.floor(Math.random() * bank.length)];
   }
 
   initSimon() {
@@ -54,7 +63,7 @@ class MinigamesScene {
     const bank = (typeof CHAT_GUESS_WORDS !== 'undefined' && CHAT_GUESS_WORDS.length)
       ? CHAT_GUESS_WORDS
       : [{ word: 'мяч', hints: ['круглый', 'игрушка'] }];
-    const item = bank[Math.floor(Math.random() * bank.length)];
+    const item = this.wordBank();
     const pool = bank.map(w => w.word).filter(w => w !== item.word);
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -68,6 +77,25 @@ class MinigamesScene {
     const hint = item.hints[Math.floor(Math.random() * item.hints.length)];
     this.word = { answer: item.word, hint: hint, options: options, note: 'Это слово про: ' + hint, over: false };
     this.mode = 'word';
+  }
+
+  initLetters() {
+    const item = this.wordBank();
+    const hint = item.hints[Math.floor(Math.random() * item.hints.length)];
+    this.letters = { word: item.word, hint: hint, open: {}, miss: {}, wrong: 0, max: 6, over: false, won: false };
+    this.mode = 'letters';
+  }
+
+  initMix() {
+    const item = this.wordBank();
+    const chars = item.word.split('');
+    const tiles = chars.map((ch, i) => ({ ch: ch, id: i, used: false }));
+    for (let i = tiles.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = tiles[i]; tiles[i] = tiles[j]; tiles[j] = t;
+    }
+    this.mix = { word: item.word, hint: item.hints[0], tiles: tiles, picked: [], over: false, won: false };
+    this.mode = 'mix';
   }
 
   simonExtend() {
@@ -108,6 +136,10 @@ class MinigamesScene {
         System.addXP(2);
         System.saveGame();
       }
+    }
+    if (this.mode === 'rps' && this.rps.phase === 'count') {
+      this.rps.timer += dt;
+      if (this.rps.timer >= 900) this.finishRpsRound();
     }
     if (this.mode === 'simon' && this.simon.phase === 'show') {
       const s = this.simon;
@@ -210,6 +242,10 @@ class MinigamesScene {
       this.drawSimon(ctx, W, H);
     } else if (this.mode === 'word') {
       this.drawWord(ctx, W, H);
+    } else if (this.mode === 'letters') {
+      this.drawLetters(ctx, W, H);
+    } else if (this.mode === 'mix') {
+      this.drawMix(ctx, W, H);
     }
   }
 
@@ -218,18 +254,20 @@ class MinigamesScene {
       { id: 'tictactoe', emoji: '❌⭕', name: 'Крестики-нолики', desc: 'Сыграй против {pet_gen}', color: '#FF6B6B' },
       { id: 'memory', emoji: '🧠', name: 'Мемо', desc: 'Найди пары карточек', color: '#9B59B6' },
       { id: 'coinflip', emoji: '🪙', name: 'Монетка: Да или Нет', desc: 'Случайный ответ на вопрос', color: '#FFD93D' },
-      { id: 'rps', emoji: '✊', name: 'Камень, ножницы', desc: 'Сыграй жест против {pet_gen}', color: '#E07A3C' },
+      { id: 'rps', emoji: '✊', name: 'Камень, ножницы', desc: 'Матч до двух побед', color: '#E07A3C' },
       { id: 'simon', emoji: '💡', name: 'Огоньки', desc: 'Повтори, как зажигались', color: '#4D96FF' },
-      { id: 'word', emoji: '🔤', name: 'Угадай слово', desc: 'Прочитай подсказку и выбери слово', color: '#2E8B57' }
+      { id: 'word', emoji: '🔤', name: 'Угадай слово', desc: 'Прочитай подсказку и выбери слово', color: '#2E8B57' },
+      { id: 'letters', emoji: '🎈', name: 'Буквы', desc: 'Открой слово по одной букве', color: '#C06C84' },
+      { id: 'mix', emoji: '🧩', name: 'Перемешка', desc: 'Собери слово из букв', color: '#3D7EA6' }
     ];
 
     const btnW = Math.min(W * 0.78, 300);
-    const gap = 8;
-    const btnH = Math.max(44, Math.min(64, (H * 0.78 - H * 0.15) / games.length - gap));
+    const gap = 6;
+    const btnH = Math.max(38, Math.min(58, (H * 0.80 - H * 0.14) / games.length - gap));
     const startX = (W - btnW) / 2;
 
     games.forEach((g, i) => {
-      const y = H * 0.15 + i * (btnH + gap);
+      const y = H * 0.14 + i * (btnH + gap);
 
       ctx.fillStyle = g.color;
       roundRect(ctx, startX, y, btnW, btnH, 15);
@@ -515,15 +553,25 @@ class MinigamesScene {
     ctx.fillStyle = '#fff';
     ctx.font = `bold ${Math.min(W * 0.04, 18)}px Arial`;
     ctx.textAlign = 'center';
-    ctx.fillText(r.msg || 'Выбери жест', W / 2, H * 0.18);
-    if (r.pet) {
-      const pet = hands.find(h => h.id === r.pet);
+    ctx.fillText('Ты ' + r.you + ' : ' + r.pet + ' {pet}', W / 2, H * 0.16);
+    ctx.font = `${Math.min(W * 0.034, 15)}px Arial`;
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    let line = r.msg || 'Выбери жест';
+    if (r.phase === 'count') {
+      const n = r.timer < 300 ? 'Раз' : (r.timer < 600 ? 'Два' : 'Три');
+      line = n + '!';
+    }
+    ctx.fillText(line, W / 2, H * 0.22);
+    if (r.phase !== 'pick') {
+      const pet = hands.find(h => h.id === r.petHand);
       const mine = hands.find(h => h.id === r.pick);
-      ctx.font = `${Math.min(W * 0.12, 52)}px Arial`;
-      ctx.fillText((mine ? mine.emoji : '') + '   ' + (pet ? pet.emoji : ''), W / 2, H * 0.30);
-      ctx.font = `${Math.min(W * 0.032, 14)}px Arial`;
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.fillText('ты          {pet}', W / 2, H * 0.36);
+      ctx.font = `${Math.min(W * 0.14, 56)}px Arial`;
+      const left = r.phase === 'count' ? '✊' : (mine ? mine.emoji : '');
+      const right = r.phase === 'count' ? '✊' : (pet ? pet.emoji : '');
+      ctx.fillText(left + '    ' + right, W / 2, H * 0.34);
+      ctx.font = `${Math.min(W * 0.03, 13)}px Arial`;
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      ctx.fillText('ты              {pet}', W / 2, H * 0.40);
     }
     const bw = Math.min(W * 0.26, 100);
     const gap = 10;
@@ -531,7 +579,7 @@ class MinigamesScene {
     const x0 = (W - total) / 2;
     hands.forEach((h, i) => {
       const x = x0 + i * (bw + gap);
-      const y = H * 0.46;
+      const y = H * 0.48;
       ctx.fillStyle = r.pick === h.id ? '#6BCB77' : 'rgba(255,255,255,0.16)';
       roundRect(ctx, x, y, bw, 78, 14);
       ctx.fill();
@@ -544,7 +592,114 @@ class MinigamesScene {
       ctx.fillText(h.name, x + bw / 2, y + 58);
       this.buttons.push({ x: x, y: y, w: bw, h: 78, action: 'rps:' + h.id });
     });
+    if (r.phase === 'show' && (r.you >= 2 || r.pet >= 2)) {
+      this.buttons.push(createButton(ctx, W / 2 - 90, H * 0.72, 180, 44, 'Ещё матч', {
+        bgColor: '#FFD93D', fgColor: '#1a1a2e', fontSize: 16, radius: 12
+      }));
+    }
     ctx.textBaseline = 'alphabetic';
+  }
+
+  drawLetters(ctx, W, H) {
+    const g = this.letters;
+    if (!g) return;
+    const hearts = '❤'.repeat(Math.max(0, g.max - g.wrong)) + '♡'.repeat(g.wrong);
+    ctx.fillStyle = '#ff8fa3';
+    ctx.font = `${Math.min(W * 0.045, 18)}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(hearts, W / 2, H * 0.15);
+    ctx.fillStyle = '#fff';
+    ctx.font = `${Math.min(W * 0.034, 14)}px Arial`;
+    ctx.fillText('Подсказка: ' + g.hint, W / 2, H * 0.20);
+    const chars = g.word.split('');
+    const slot = Math.min(34, (W - 40) / chars.length);
+    const x0 = (W - chars.length * slot) / 2;
+    ctx.font = `bold ${Math.min(slot * 0.7, 22)}px Arial`;
+    chars.forEach((ch, i) => {
+      const known = !!g.open[ch];
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      roundRect(ctx, x0 + i * slot + 2, H * 0.24, slot - 4, 36, 6);
+      ctx.fill();
+      ctx.fillStyle = known ? '#fff' : (g.over ? '#ffb4b4' : '#fff');
+      if (known || g.over) ctx.fillText(ch, x0 + i * slot + slot / 2, H * 0.24 + 24);
+    });
+    const alphabet = 'абвгдежзийклмнопрстуфхцчшщъыьэюя';
+    const cols = 11;
+    const cw = Math.min(30, (W - 24) / cols);
+    const chh = 28;
+    const gx = (W - cols * cw) / 2;
+    const gy = H * 0.36;
+    for (let i = 0; i < alphabet.length; i++) {
+      const ch = alphabet.charAt(i);
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = gx + col * cw;
+      const y = gy + row * (chh + 4);
+      ctx.fillStyle = g.open[ch] ? '#6BCB77' : (g.miss && g.miss[ch] ? '#E74C3C' : 'rgba(255,255,255,0.16)');
+      roundRect(ctx, x, y, cw - 3, chh, 6);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${Math.min(cw * 0.55, 14)}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.fillText(ch, x + (cw - 3) / 2, y + chh / 2 + 5);
+      if (!g.over) this.buttons.push({ x: x, y: y, w: cw - 3, h: chh, text: ch, action: 'letter' });
+    }
+    if (g.over) {
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${Math.min(W * 0.038, 16)}px Arial`;
+      ctx.fillText(g.won ? 'Шарик цел! Слово «' + g.word + '».' : 'Шарик улетел. Это «' + g.word + '».', W / 2, gy + 4 * (chh + 4) + 18);
+      this.buttons.push(createButton(ctx, W / 2 - 90, gy + 4 * (chh + 4) + 30, 180, 42, 'Ещё слово', {
+        bgColor: '#FFD93D', fgColor: '#1a1a2e', fontSize: 16, radius: 12
+      }));
+    }
+  }
+
+  drawMix(ctx, W, H) {
+    const g = this.mix;
+    if (!g) return;
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${Math.min(W * 0.045, 18)}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('Собери слово', W / 2, H * 0.16);
+    ctx.font = `${Math.min(W * 0.034, 14)}px Arial`;
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fillText('Подсказка: ' + g.hint, W / 2, H * 0.21);
+    const built = g.picked.map(id => g.tiles.filter(t => t.id === id)[0].ch).join('');
+    ctx.font = `bold ${Math.min(W * 0.07, 28)}px Arial`;
+    ctx.fillStyle = '#fff';
+    ctx.fillText(built || '·', W / 2, H * 0.30);
+    const n = g.tiles.length;
+    const tw = Math.min(48, (W - 30) / Math.max(1, n));
+    const x0 = (W - n * tw) / 2;
+    g.tiles.forEach((t) => {
+      const i = g.tiles.indexOf(t);
+      const x = x0 + i * tw;
+      const y = H * 0.40;
+      ctx.fillStyle = t.used ? 'rgba(255,255,255,0.08)' : '#3D7EA6';
+      roundRect(ctx, x + 2, y, tw - 4, 46, 8);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${Math.min(tw * 0.5, 20)}px Arial`;
+      if (!t.used) ctx.fillText(t.ch, x + tw / 2, y + 30);
+      if (!t.used && !g.over) this.buttons.push({ x: x, y: y, w: tw, h: 46, action: 'mix:' + t.id });
+    });
+    if (!g.over) {
+      this.buttons.push(createButton(ctx, W / 2 - 110, H * 0.56, 100, 42, 'Стереть', {
+        bgColor: 'rgba(255,255,255,0.2)', fgColor: '#fff', fontSize: 15, radius: 10
+      }));
+      this.buttons.push(createButton(ctx, W / 2 + 10, H * 0.56, 100, 42, 'Готово', {
+        bgColor: '#FFD93D', fgColor: '#1a1a2e', fontSize: 15, radius: 10
+      }));
+    } else {
+      ctx.fillStyle = '#fff';
+      ctx.font = `${Math.min(W * 0.04, 16)}px Arial`;
+      ctx.fillText(g.won ? 'Верно!' : 'Это «' + g.word + '».', W / 2, H * 0.54);
+      this.buttons.push(createButton(ctx, W / 2 - 90, H * 0.60, 180, 44, 'Ещё слово', {
+        bgColor: '#FFD93D', fgColor: '#1a1a2e', fontSize: 16, radius: 12
+      }));
+    }
   }
 
   drawSimon(ctx, W, H) {
@@ -613,6 +768,8 @@ class MinigamesScene {
             case 'rps': this.initRps(); System.countAction('minigames'); break;
             case 'simon': this.initSimon(); System.countAction('minigames'); break;
             case 'word': this.initWord(); System.countAction('minigames'); break;
+            case 'letters': this.initLetters(); System.countAction('minigames'); break;
+            case 'mix': this.initMix(); System.countAction('minigames'); break;
           }
           return true;
         }
@@ -708,10 +865,51 @@ class MinigamesScene {
 
     if (this.mode === 'rps') {
       for (const btn of this.buttons) {
-        if (!btn.action || btn.action.indexOf('rps:') !== 0) continue;
         if (!isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) continue;
+        if (btn.text === 'Ещё матч') { this.initRps(); return true; }
+        if (this.rps.phase !== 'pick' && this.rps.phase !== 'show') return true;
+        if (this.rps.you >= 2 || this.rps.pet >= 2) return true;
+        if (!btn.action || btn.action.indexOf('rps:') !== 0) continue;
         this.playRps(btn.action.slice(4));
         return true;
+      }
+      return true;
+    }
+
+    if (this.mode === 'letters' && this.letters) {
+      for (let i = 1; i < this.buttons.length; i++) {
+        const b = this.buttons[i];
+        if (!isPointInRect(mx, my, b.x, b.y, b.w, b.h)) continue;
+        if (b.text === 'Ещё слово') { this.initLetters(); return true; }
+        if (this.letters.over || b.action !== 'letter') return true;
+        this.guessLetter(b.text);
+        return true;
+      }
+      return true;
+    }
+
+    if (this.mode === 'mix' && this.mix) {
+      for (let i = 1; i < this.buttons.length; i++) {
+        const b = this.buttons[i];
+        if (!isPointInRect(mx, my, b.x, b.y, b.w, b.h)) continue;
+        if (b.text === 'Ещё слово') { this.initMix(); return true; }
+        if (b.text === 'Стереть') {
+          const id = this.mix.picked.pop();
+          const tile = this.mix.tiles.filter(t => t.id === id)[0];
+          if (tile) tile.used = false;
+          return true;
+        }
+        if (b.text === 'Готово') { this.finishMix(); return true; }
+        if (b.action && b.action.indexOf('mix:') === 0 && !this.mix.over) {
+          const id = parseInt(b.action.slice(4), 10);
+          const tile = this.mix.tiles.filter(t => t.id === id)[0];
+          if (tile && !tile.used) {
+            tile.used = true;
+            this.mix.picked.push(id);
+            AudioSys.play('click');
+          }
+          return true;
+        }
       }
       return true;
     }
@@ -799,24 +997,94 @@ class MinigamesScene {
 
   playRps(pick) {
     const hands = ['rock', 'scissors', 'paper'];
-    const pet = hands[Math.floor(Math.random() * 3)];
     const beat = { rock: 'scissors', scissors: 'paper', paper: 'rock' };
-    let msg = 'Ничья';
-    if (beat[pick] === pet) {
-      msg = 'Ты выиграл!';
-      System.countAction('rpsWins');
-      System.earnCoins(8);
-      System.addXP(4);
-      System.stats.happiness = Math.min(100, System.stats.happiness + 4);
+    const lose = { rock: 'paper', scissors: 'rock', paper: 'scissors' };
+    let pet;
+    const roll = Math.random();
+    if (!this.rps.last || roll < 0.4) pet = hands[Math.floor(Math.random() * 3)];
+    else if (roll < 0.75) pet = lose[this.rps.last];
+    else pet = this.rps.last;
+    this.rps.pick = pick;
+    this.rps.petHand = pet;
+    this.rps.phase = 'count';
+    this.rps.timer = 0;
+    this.rps.msg = '';
+    AudioSys.play('click');
+  }
+
+  finishRpsRound() {
+    const r = this.rps;
+    if (r.phase !== 'count') return;
+    const beat = { rock: 'scissors', scissors: 'paper', paper: 'rock' };
+    r.phase = 'show';
+    r.last = r.pick;
+    if (beat[r.pick] === r.petHand) {
+      r.you++;
+      r.msg = 'Твой жест сильнее';
       AudioSys.play('success');
-    } else if (beat[pet] === pick) {
-      msg = '{Pet} выиграл';
+    } else if (beat[r.petHand] === r.pick) {
+      r.pet++;
+      r.msg = '{Pet} угадал твой жест';
       AudioSys.play('fail');
     } else {
+      r.msg = 'Одинаково. Раунд не считается';
       AudioSys.play('click');
     }
-    System.saveGame();
-    this.rps = { pick: pick, pet: pet, msg: msg };
+    if (r.you >= 2 || r.pet >= 2) {
+      if (r.you > r.pet) {
+        r.msg = 'Матч твой!';
+        System.countAction('rpsWins');
+        System.earnCoins(6);
+        System.addXP(4);
+        System.stats.happiness = Math.min(100, System.stats.happiness + 4);
+      } else {
+        r.msg = 'Матч за {pet_ins}';
+      }
+      System.saveGame();
+    }
+  }
+
+  guessLetter(ch) {
+    const g = this.letters;
+    if (g.open[ch] || g.miss[ch]) return;
+    if (g.word.indexOf(ch) !== -1) {
+      g.open[ch] = true;
+      AudioSys.play('click');
+      const done = g.word.split('').every(c => g.open[c]);
+      if (done) {
+        g.over = true;
+        g.won = true;
+        AudioSys.play('success');
+        System.countAction('letterWins');
+        System.earnCoins(4);
+        System.addXP(3);
+        System.saveGame();
+      }
+    } else {
+      g.miss[ch] = true;
+      g.wrong++;
+      AudioSys.play('fail');
+      if (g.wrong >= g.max) {
+        g.over = true;
+        g.won = false;
+      }
+    }
+  }
+
+  finishMix() {
+    const g = this.mix;
+    const built = g.picked.map(id => g.tiles.filter(t => t.id === id)[0].ch).join('');
+    g.over = true;
+    g.won = built === g.word;
+    if (g.won) {
+      AudioSys.play('success');
+      System.countAction('mixWins');
+      System.earnCoins(4);
+      System.addXP(3);
+      System.saveGame();
+    } else {
+      AudioSys.play('fail');
+    }
   }
 
   aiMove() {
