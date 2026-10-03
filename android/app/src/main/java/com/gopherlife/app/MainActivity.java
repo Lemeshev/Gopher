@@ -153,7 +153,12 @@ public class MainActivity extends Activity {
                         File apk = new File(dir, "Gopher.apk");
                         URL u = new URL(target);
                         conn = (HttpURLConnection) u.openConnection();
+                        // Запрет кэша: чтобы 'latest/download' всегда шёл на актуальный релиз,
+                        // а не на кэшированный 302 или старый файл
                         conn.setInstanceFollowRedirects(true);
+                        conn.setRequestProperty("Cache-Control", "no-cache");
+                        conn.setRequestProperty("Pragma", "no-cache");
+                        conn.setRequestProperty("If-None-Match", "*");
                         conn.setConnectTimeout(15000);
                         conn.setReadTimeout(60000);
                         conn.setRequestProperty("User-Agent", "GopherLife");
