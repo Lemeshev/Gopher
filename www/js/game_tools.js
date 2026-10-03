@@ -3,27 +3,31 @@
 const KitBar = {
   onOk: null,
   live: null,
-  open(placeholder, value, onOk, live) {
+  multi: false,
+  open(placeholder, value, onOk, live, multiline) {
     const bar = document.getElementById('kitBar');
-    const input = document.getElementById('kitInput');
+    const input = document.getElementById(multiline ? 'kitNote' : 'kitInput');
     if (!bar || !input) return;
     this.onOk = onOk || null;
     this.live = live || null;
-    bar.className = 'open';
+    this.multi = !!multiline;
+    bar.className = multiline ? 'open multi' : 'open';
     input.placeholder = placeholder || '';
     if (document.activeElement !== input) input.value = value || '';
     const self = this;
     if (!bar._bound) {
       bar._bound = true;
       document.getElementById('kitOk').addEventListener('click', () => self.commit());
-      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') self.commit(); });
-      input.addEventListener('input', () => { if (self.live) self.live(input.value); });
+      document.getElementById('kitInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') self.commit(); });
+      document.getElementById('kitInput').addEventListener('input', () => { if (self.live && !self.multi) self.live(document.getElementById('kitInput').value); });
+      const note = document.getElementById('kitNote');
+      if (note) note.addEventListener('input', () => { if (self.live && self.multi) self.live(note.value); });
     }
     try { input.focus(); } catch (e) {}
   },
   commit() {
-    const input = document.getElementById('kitInput');
-    const text = input ? String(input.value || '').slice(0, 400) : '';
+    const input = document.getElementById(this.multi ? 'kitNote' : 'kitInput');
+    const text = input ? String(input.value || '').slice(0, this.multi ? 4000 : 400) : '';
     if (this.onOk) this.onOk(text);
   },
   close() {
@@ -31,6 +35,7 @@ const KitBar = {
     if (bar) bar.className = '';
     this.onOk = null;
     this.live = null;
+    this.multi = false;
   }
 };
 window.KitBar = KitBar;
@@ -48,6 +53,9 @@ class ToolsScene {
     this.pen = '#24324a';
     this.penW = 6;
     this.rangFor = 0;
+    this.mem = 0;
+    this.listsScroll = 0;
+    this.itemScroll = 0;
     this.watch = { run: false, acc: 0, at: 0, laps: [] };
   }
 
@@ -63,7 +71,10 @@ class ToolsScene {
     KitBar.close();
   }
 
-  update() {
+  update() { this.checkTimer(); }
+
+  // Звонок не зависит от открытого экрана: цикл игры вызывает это каждый кадр.
+  checkTimer() {
     const end = System.kit && System.kit.timerEnd;
     if (!end) return;
     if (Date.now() < end) {
@@ -73,6 +84,7 @@ class ToolsScene {
     if (this.rangFor === end) return;
     this.rangFor = end;
     this.ring();
+    if (typeof System !== 'undefined' && System.showAchievement) System.showAchievement('⏱️', 'Время вышло');
   }
 
   ring() {
@@ -93,18 +105,21 @@ class ToolsScene {
     this.buttons = [];
     ctx.fillStyle = '#12312c';
     ctx.fillRect(0, 0, W, H);
-    this.buttons.push(createButton(ctx, 10, 10, this.tool === 'menu' ? 110 : 148, 36,
+    const backW = this.tool === 'menu' ? 112 : 122;
+    this.buttons.push(createButton(ctx, 8, 8, backW, 32,
       this.tool === 'menu' ? '← На карту' : '← К списку', {
-        bgColor: 'rgba(255,255,255,0.2)', fgColor: '#fff', fontSize: 14, radius: 10
+        bgColor: 'rgba(255,255,255,0.2)', fgColor: '#fff', fontSize: 13, radius: 10
       }));
     ctx.fillStyle = '#fff';
-    ctx.textAlign = 'center';
-    ctx.font = 'bold 20px Arial';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 18px Arial';
     const titles = {
       menu: 'Инструменты', calc: 'Калькулятор', notes: 'Заметки',
       lists: 'Списки', board: 'Доска', timer: 'Таймер', watch: 'Секундомер'
     };
-    ctx.fillText(titles[this.tool] || 'Инструменты', W / 2, 34);
+    ctx.fillText(titles[this.tool] || 'Инструменты', 16 + backW, 24);
+    ctx.textBaseline = 'alphabetic';
     if (this.tool === 'menu') this.drawMenu(ctx, W, H);
     else if (this.tool === 'calc') this.drawCalc(ctx, W, H);
     else if (this.tool === 'notes') this.drawNotes(ctx, W, H);
@@ -116,8 +131,8 @@ class ToolsScene {
 
   drawMenu(ctx, W, H) {
     const items = [
-      { id: 'calc', emoji: '🔢', name: 'Калькулятор', desc: 'Считает по порядку', color: '#1F6F5B' },
-      { id: 'notes', emoji: '📝', name: 'Заметки', desc: 'Короткий текст', color: '#3D6B8C' },
+      { id: 'calc', emoji: '🔢', name: 'Калькулятор', desc: 'Сначала умножение', color: '#1F6F5B' },
+      { id: 'notes', emoji: '📝', name: 'Заметки', desc: 'Блокнот', color: '#3D6B8C' },
       { id: 'lists', emoji: '✅', name: 'Списки', desc: 'Отметить и убрать', color: '#6B5B3D' },
       { id: 'board', emoji: '🎨', name: 'Доска', desc: 'Рисунок пальцем', color: '#8C4A6B' },
       { id: 'timer', emoji: '⏱️', name: 'Таймер', desc: 'Звонок в конце', color: '#8C5A2E' },
@@ -158,13 +173,20 @@ class ToolsScene {
     const shown = this.calc.length > 14 ? this.calc.slice(-14) : this.calc;
     ctx.fillText(shown, W - 28, 90);
     ctx.textAlign = 'center';
-    const keys = ['7', '8', '9', '÷', '4', '5', '6', '×', '1', '2', '3', '−', '0', 'C', '=', '+'];
+    if (this.mem) {
+      ctx.fillStyle = '#ffe082';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillText('M ' + this.mem, 28, 78);
+      this.buttons.push({ x: 16, y: 64, w: 110, h: 22, action: 'key:MR' });
+    }
+    const keys = ['√', '%', 'M+', 'MC', '7', '8', '9', '÷', '4', '5', '6', '×', '1', '2', '3', '−', '0', 'C', '=', '+'];
     const cols = 4;
     const cw = (W - 28) / cols;
-    const ch = Math.min(58, (H - 160) / 4 - 6);
+    const ch = Math.min(52, (H - 210) / 5 - 6);
     keys.forEach((k, i) => {
       const x = 14 + (i % cols) * cw;
-      const y = 138 + Math.floor(i / cols) * (ch + 8);
+      const y = 136 + Math.floor(i / cols) * (ch + 6);
       let bg = '#1d4a42';
       if ('÷×−+'.indexOf(k) !== -1) bg = '#0e7c66';
       if (k === '=') bg = '#6BCB77';
@@ -180,8 +202,37 @@ class ToolsScene {
     ctx.textBaseline = 'alphabetic';
   }
 
+  formatNum(n) {
+    if (!isFinite(n)) return '0';
+    const rounded = Math.round(n * 1000) / 1000;
+    return String(rounded);
+  }
+
   pressCalc(key) {
     if (key === 'C') { this.expr = ''; this.calc = '0'; return; }
+    if (key === 'M+') {
+      const n = parseFloat(this.calc);
+      if (isFinite(n)) this.mem = Math.round((this.mem + n) * 1000) / 1000;
+      return;
+    }
+    if (key === 'MC') { this.mem = 0; return; }
+    if (key === 'MR') {
+      this.expr = this.formatNum(this.mem);
+      this.calc = this.expr;
+      return;
+    }
+    if (key === '√') {
+      const n = parseFloat(this.calc);
+      if (!isFinite(n) || n < 0) { this.calc = 'нельзя'; this.expr = ''; return; }
+      this.calc = this.formatNum(Math.sqrt(n));
+      this.expr = this.calc;
+      return;
+    }
+    if (key === '%') {
+      this.calc = this.applyPercent(this.expr);
+      this.expr = this.calc === 'нельзя' ? '' : this.calc;
+      return;
+    }
     if (key === '=') {
       this.calc = this.evalCalc(this.expr);
       this.expr = this.calc === 'нельзя' ? '' : this.calc;
@@ -195,28 +246,51 @@ class ToolsScene {
     this.calc = this.expr || '0';
   }
 
-  // Слева направо: 9×2+2÷2 = ((9×2)+2)÷2 = 10.
+  // 200+10% = 220, одно число 50% = 0.5.
+  applyPercent(expr) {
+    const m = String(expr || '').match(/^([0-9.]+)([+\-*/])([0-9.]+)$/);
+    if (m) {
+      const a = parseFloat(m[1]);
+      const b = parseFloat(m[3]);
+      if (!isFinite(a) || !isFinite(b)) return '0';
+      const part = a * b / 100;
+      if (m[2] === '+') return this.formatNum(a + part);
+      if (m[2] === '-') return this.formatNum(a - part);
+      if (m[2] === '*') return this.formatNum(a * b / 100);
+      if (b === 0) return 'нельзя';
+      return this.formatNum(a / (b / 100));
+    }
+    const n = parseFloat(expr);
+    if (!isFinite(n)) return '0';
+    return this.formatNum(n / 100);
+  }
+
+  // Сначала умножение и деление: 10+20×2 = 50, 9×2+2÷2 = 19.
   evalCalc(expr) {
     if (!/^[0-9+\-*/.]+$/.test(expr || '')) return '0';
     const parts = expr.split(/([+\-*/])/).filter(s => s !== '');
     if (!parts.length) return '0';
-    let acc = parseFloat(parts[0]);
+    const flat = [];
+    for (let i = 0; i < parts.length; i++) {
+      const tok = parts[i];
+      if ((tok === '*' || tok === '/') && flat.length) {
+        const a = parseFloat(flat.pop());
+        const n = parseFloat(parts[++i]);
+        if (!isFinite(a) || !isFinite(n)) return '0';
+        if (tok === '/' && n === 0) return 'нельзя';
+        flat.push(String(tok === '*' ? a * n : a / n));
+      } else flat.push(tok);
+    }
+    let acc = parseFloat(flat[0]);
     if (!isFinite(acc)) return '0';
-    for (let i = 1; i < parts.length; i += 2) {
-      const op = parts[i];
-      const n = parseFloat(parts[i + 1]);
+    for (let i = 1; i < flat.length; i += 2) {
+      const n = parseFloat(flat[i + 1]);
       if (!isFinite(n)) break;
-      if (op === '+') acc += n;
-      else if (op === '-') acc -= n;
-      else if (op === '*') acc *= n;
-      else if (op === '/') {
-        if (n === 0) return 'нельзя';
-        acc /= n;
-      }
+      if (flat[i] === '+') acc += n;
+      else if (flat[i] === '-') acc -= n;
     }
     if (!isFinite(acc)) return '0';
-    const rounded = Math.round(acc * 1000) / 1000;
-    return String(rounded);
+    return this.formatNum(acc);
   }
 
   drawNotes(ctx, W, H) {
@@ -226,13 +300,13 @@ class ToolsScene {
       KitBar.open('Текст заметки', (System.kit && System.kit.notes) || '', (text) => {
         System.kit.notes = text;
         System.saveGame();
-      }, (text) => { System.kit.notes = text; });
+      }, (text) => { System.kit.notes = text; }, true);
     }
     ctx.fillStyle = 'rgba(255,255,255,0.92)';
     ctx.font = '16px Arial';
     ctx.textAlign = 'center';
-    const text = (System.kit && System.kit.notes) || 'Пиши в поле внизу. Кнопка «Ок» сохраняет.';
-    this.wrap(ctx, text, 20, 78, W - 40, 22);
+    const text = (System.kit && System.kit.notes) || 'Пиши в блокноте внизу. Кнопка «Ок» сохраняет.';
+    this.wrap(ctx, text, 20, 64, W - 40, 22);
   }
 
   drawLists(ctx, W, H) {
@@ -260,8 +334,18 @@ class ToolsScene {
         ctx.textAlign = 'center';
         ctx.fillText('Напиши название внизу и нажми Ок.', W / 2, 90);
       }
+      const top = 52;
+      const row = 52;
+      const viewH = H - top - 72;
+      const max = Math.max(0, lists.length * row - viewH);
+      this.listsScroll = Math.max(0, Math.min(this.listsScroll || 0, max));
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, top, W, viewH);
+      ctx.clip();
       lists.forEach((list, i) => {
-        const y = 64 + i * 52;
+        const y = top + i * row - this.listsScroll;
+        if (y + 46 < top || y > top + viewH) return;
         ctx.fillStyle = 'rgba(255,255,255,0.12)';
         roundRect(ctx, 16, y, W - 32, 46, 10);
         ctx.fill();
@@ -272,6 +356,7 @@ class ToolsScene {
         ctx.fillText(title + ' · ' + list.items.length, 28, y + 28);
         this.buttons.push({ x: 16, y: y, w: W - 32, h: 46, action: 'open-list:' + list.id });
       });
+      ctx.restore();
       return;
     }
     const list = this.currentList();
@@ -290,9 +375,19 @@ class ToolsScene {
     ctx.fillStyle = '#ffe082';
     ctx.font = 'bold 16px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(list.title, W / 2, 62);
-    list.items.slice(0, 8).forEach((item, i) => {
-      const y = 76 + i * 46;
+    ctx.fillText(list.title, W / 2, 50);
+    const top = 64;
+    const row = 46;
+    const viewH = H - top - 72;
+    const max = Math.max(0, list.items.length * row - viewH);
+    this.itemScroll = Math.max(0, Math.min(this.itemScroll || 0, max));
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, top, W, viewH);
+    ctx.clip();
+    list.items.forEach((item, i) => {
+      const y = top + i * row - this.itemScroll;
+      if (y + 42 < top || y > top + viewH) return;
       ctx.fillStyle = item.done ? 'rgba(107,203,119,0.35)' : 'rgba(255,255,255,0.12)';
       roundRect(ctx, 16, y, W - 32, 42, 10);
       ctx.fill();
@@ -310,6 +405,7 @@ class ToolsScene {
       ctx.fillText('✕', W - 46, y + 26);
       this.buttons.push({ x: W - 64, y: y + 6, w: 36, h: 30, action: 'del-item:' + i });
     });
+    ctx.restore();
   }
 
   drawBoard(ctx, W, H) {
@@ -364,20 +460,38 @@ class ToolsScene {
   }
 
   beginDrag(x, y) {
-    if (this.tool !== 'board' || !this.pad) return false;
-    const p = this.pad;
-    if (x < p.x || y < p.y || x > p.x + p.w || y > p.y + p.h) return false;
-    this.stroke = { color: this.pen, w: this.penW, pts: [{ x: x, y: y }] };
-    this.board.push(this.stroke);
-    return true;
+    if (this.tool === 'board' && this.pad) {
+      const p = this.pad;
+      if (x < p.x || y < p.y || x > p.x + p.w || y > p.y + p.h) return false;
+      this.stroke = { color: this.pen, w: this.penW, pts: [{ x: x, y: y }] };
+      this.board.push(this.stroke);
+      return true;
+    }
+    if (this.tool === 'lists') {
+      this._scrollDrag = {
+        x: x, y: y, moved: false,
+        at: this.listId ? (this.itemScroll || 0) : (this.listsScroll || 0)
+      };
+      return true;
+    }
+    return false;
   }
 
   dragMove(x, y) {
-    if (!this.stroke) return;
-    this.stroke.pts.push({ x: x, y: y });
+    if (this.stroke) this.stroke.pts.push({ x: x, y: y });
+    if (!this._scrollDrag) return;
+    const dy = this._scrollDrag.y - y;
+    if (Math.abs(dy) > 8 || Math.abs(x - this._scrollDrag.x) > 8) this._scrollDrag.moved = true;
+    const next = this._scrollDrag.at + dy;
+    if (this.listId) this.itemScroll = next;
+    else this.listsScroll = next;
   }
 
-  endDrag() { this.stroke = null; }
+  endDrag(x, y) {
+    if (this._scrollDrag && !this._scrollDrag.moved) this.handleClick(x, y);
+    this._scrollDrag = null;
+    this.stroke = null;
+  }
 
   drawTimer(ctx, W, H) {
     const leftMs = Math.max(0, ((System.kit && System.kit.timerEnd) || 0) - Date.now());
@@ -411,14 +525,30 @@ class ToolsScene {
 
   askCustomTimer() {
     const self = this;
-    KitBar.open('Минуты, например 25', '', (text) => {
-      const n = parseInt(text, 10);
-      if (!n || n < 1 || n > 180) return;
-      System.kit.timerEnd = Date.now() + n * 60000;
+    KitBar.open('1:30 или 25', '', (text) => {
+      const ms = self.parseTimer(text);
+      if (!ms) return;
+      System.kit.timerEnd = Date.now() + ms;
       self.rangFor = 0;
       System.saveGame();
       KitBar.close();
     });
+  }
+
+  // «1:30» — минута и 30 секунд. «25» и «1.5» — минуты.
+  parseTimer(text) {
+    const t = String(text || '').trim().replace(',', '.');
+    const clock = t.match(/^(\d+):(\d{1,2})$/);
+    if (clock) {
+      const m = parseInt(clock[1], 10);
+      const s = parseInt(clock[2], 10);
+      if (s > 59 || m > 180) return 0;
+      const ms = (m * 60 + s) * 1000;
+      return ms > 0 && ms <= 180 * 60000 ? ms : 0;
+    }
+    const n = parseFloat(t);
+    if (!isFinite(n) || n <= 0 || n > 180) return 0;
+    return Math.round(n * 60000);
   }
 
   drawWatch(ctx, W, H) {
@@ -515,6 +645,7 @@ class ToolsScene {
       if (a.indexOf('key:') === 0) { this.pressCalc(a.slice(4)); return true; }
       if (a.indexOf('open-list:') === 0) {
         this.listId = a.slice(10);
+        this.itemScroll = 0;
         this._listItemOpen = false;
         this._listNameOpen = false;
         KitBar.close();

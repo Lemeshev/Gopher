@@ -2383,8 +2383,12 @@ S.profileId = keepId;
 S.profileName = keepName;
 
 const tools = new sandbox.ToolsScene({ width: 360, height: 640, transitionTo() {} });
-ok('Калькулятор считает слева направо: 9×2+2÷2 = 10',
-  tools.evalCalc('9*2+2/2') === '10', tools.evalCalc('9*2+2/2'));
+ok('Калькулятор сначала умножает: 10+20×2 = 50 и 9×2+2÷2 = 19',
+  tools.evalCalc('10+20*2') === '50' && tools.evalCalc('9*2+2/2') === '19',
+  tools.evalCalc('10+20*2') + ' / ' + tools.evalCalc('9*2+2/2'));
+ok('Таймер понимает минуты и секунды',
+  tools.parseTimer('1:30') === 90000 && tools.parseTimer('25') === 1500000 && tools.parseTimer('1.5') === 90000,
+  String(tools.parseTimer('1:30')));
 const toolSrc = fs.readFileSync(path.join(WWW, 'game_tools.js'), 'utf8');
 ok('В инструментах нет «Умножения» и «Выбора», есть секундомер и своё время таймера',
   toolSrc.indexOf('Умножение') === -1 && toolSrc.indexOf('Кто сегодня') === -1 &&
