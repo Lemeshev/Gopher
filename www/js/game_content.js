@@ -2766,6 +2766,7 @@ const ACHIEVEMENTS = [
   { id: 'first_win',   tier: 'today', emoji: '❌', name: 'Победитель', desc: 'Выиграй в крестики-нолики', goal: 1, of: p => p.tttWins },
   { id: 'rps_win',     tier: 'today', emoji: '✊', name: 'Сильнее камня', desc: 'Выиграй в «Камень, ножницы, бумага»', goal: 1, of: p => p.rpsWins || 0 },
   { id: 'simon4',      tier: 'today', emoji: '💡', name: 'Огоньки', desc: 'Повтори 4 огонька подряд в мини-игре', goal: 4, of: p => p.simonBest || 0 },
+  { id: 'guess1',      tier: 'today', emoji: '🔤', name: 'Угадал слово', desc: 'Угадай слово в мини-игре', goal: 1, of: p => p.guessWins || 0 },
 
   // ---------- Ступень 2: несколько дней ----------
   { id: 'rich200',   tier: 'soon', emoji: '💰', name: 'Богач', desc: 'Накопи 200 монет', goal: 200, of: (p, S) => S.coins },
