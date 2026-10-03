@@ -2442,6 +2442,7 @@ Object.keys(storedSaves).forEach(id => {
 ok('Стенд вернулся в исходное состояние: профили как были',
   S.getProfiles().length === profilesBefore.length, 'профилей ' + S.getProfiles().length);
 
+if (S.look) S.look.char = 'milka';
 const popupText = (function () {
   S.showAchievement('😴', '{Pet} {pet:устал|устала} — сначала поспи');
   const t = S.lastPopup.text;
@@ -2916,6 +2917,24 @@ const quiet = boot.scenes.quiet;
 quiet.startGame('window');
 const tale = quiet.win && quiet.win.birds[0] && quiet.win.birds[0].tale;
 ok('У окна у птицы есть подпись до клика', typeof tale === 'string' && tale.length > 8, tale);
+let windowMismatch = 0;
+for (let n = 0; n < 48; n++) {
+  quiet.win.passers = [];
+  quiet.spawnWindowPasser(true);
+  const p = quiet.win.passers[0];
+  if (!p) continue;
+  const t = p.tale || '';
+  const look = p.look || {};
+  if (p.id === 'car' && t.indexOf(look.name) === -1) windowMismatch++;
+  if (p.id === 'car' && look.name !== 'красная' && t.indexOf('красн') !== -1) windowMismatch++;
+  if (p.id === 'kid' && look.prop === 'balloon' && (t.indexOf('шарик') === -1 || t.indexOf('портфел') !== -1)) windowMismatch++;
+  if (p.id === 'kid' && look.prop === 'bag' && t.indexOf('рюкзак') === -1) windowMismatch++;
+  if (p.id === 'dog' && look.prop === 'stick' && t.indexOf('палку') === -1) windowMismatch++;
+  if (p.id === 'dog' && look.prop !== 'stick' && t.indexOf('палку') !== -1) windowMismatch++;
+  if (t.indexOf('портфел') !== -1 || t.indexOf('мишк') !== -1) windowMismatch++;
+}
+ok('Подпись у окна совпадает с рисунком: шарик, рюкзак и цвет машины',
+  windowMismatch === 0, 'расхождений ' + windowMismatch);
 
 const letters = boot.scenes.minigames;
 letters.mode = 'letters';
