@@ -2447,6 +2447,9 @@ class QuietScene {
     ];
     const k = kinds[Math.floor(Math.random() * kinds.length)];
     const dir = Math.random() < 0.5 ? -1 : 1;
+    const look = {};
+    if (k.id === 'crow' && Math.random() < 0.45) look.carry = 'bead';
+    if (k.id === 'sparrow' && Math.random() < 0.45) look.carry = 'twig';
     this.win.birds.push({
       id: k.id, color: k.color, belly: k.belly,
       scale: k.scale * (Math.random() < 0.5 ? 1.35 : 1),
@@ -2457,7 +2460,8 @@ class QuietScene {
       dir: dir,
       speed: randFloat(0.07, 0.14) * (k.id === 'swallow' ? 1.4 : 1),
       phase: randFloat(0, 6),
-      tale: this.windowTale('bird', k.id)
+      look: look,
+      tale: this.windowTale(k.id, look)
     });
   }
 
@@ -2466,6 +2470,7 @@ class QuietScene {
     const id = kinds[Math.floor(Math.random() * kinds.length)];
     if (id === 'plane' && this.win.day === 'night') return;
     const dir = Math.random() < 0.5 ? -1 : 1;
+    const look = this.windowLook(id);
     this.win.passers.push({
       id: id,
       x: inside ? randFloat(0.2, 0.75) : (dir > 0 ? -0.2 : 1.2),
@@ -2473,34 +2478,55 @@ class QuietScene {
       speed: id === 'plane' ? randFloat(0.09, 0.14) : (id === 'cat' ? 0.045 : randFloat(0.05, 0.11)),
       phase: randFloat(0, 6),
       y: id === 'plane' ? randFloat(0.08, 0.22) : 0,
-      color: ['#e07a3d', '#6d6a66', '#c9a27a', '#3d3a38'][Math.floor(Math.random() * 4)],
-      tale: this.windowTale('walk', id)
+      color: look.color || '#c9a27a',
+      look: look,
+      tale: this.windowTale(id, look)
     });
   }
 
-  // Одна история на всё время, пока герой на экране. Следующий такой же
-  // получит другую фразу уже при появлении.
-  windowTale(group, id) {
-    const lines = {
-      sparrow: ['Это воробей Чирик, ищет крошки.', 'Это воробей, спешит к стае.', 'Это Чирик, несёт веточку в гнездо.'],
-      swallow: ['Это ласточка, ловит мошек.', 'Это ласточка Стрела, возвращается домой.', 'Это ласточка, рисует круги в небе.'],
-      crow: ['Это ворона Каркуша, смотрит с интересом.', 'Это ворона, несёт блестяшку.', 'Это Каркуша, летит к парку.'],
-      pigeon: ['Это голубь, гуляет по крыше.', 'Это голубь Сизый, ищет семечки.', 'Это голубь, несёт письмо никому.'],
-      tit: ['Это синица Зинка, скачет по ветке.', 'Это синица, ищет семечки.', 'Это Зинка, поёт тонким голосом.'],
-      cat: ['Это кот Мурзик, идёт по своим делам.', 'Это кошка Муся, спешит домой.', 'Это кот, обходит лужу.'],
-      dog: ['Это пёс Шарик, гуляет с хозяином.', 'Это собака Жучка, несёт палку.', 'Это пёс, бежит к парку.'],
-      kid: ['Это девочка Люся, идёт со школы.', 'Это мальчик Петя, несёт портфель.', 'Это ребёнок, спешит к друзьям.'],
-      bike: ['Это велосипедист, едет в парк.', 'Это девочка на велике, везёт корзину.', 'Это мальчик, крутит педали.'],
-      car: ['Это машина, везёт семью на дачу.', 'Это красная машина, едет тихо.', 'Это машина, везёт арбуз.'],
-      bus: ['Это автобус, едет по маршруту рынок-школа.', 'Это автобус, везёт ребят со школы.', 'Это автобус номер 5, едет к парку.'],
-      plane: ['Это самолёт, летит к морю.', 'Это самолёт, рисует белую полоску.', 'Это самолёт, везёт письма.'],
-      scooter: ['Это самокат, едет по дорожке.', 'Это мальчик на самокате, спешит к дому.', 'Это самокат, объезжает лужу.'],
-      stroller: ['Это коляска, в ней спит малыш.', 'Это коляска, мама везёт её к парку.', 'Это коляска с игрушечным мишкой.'],
-      walker: ['Это Григорий Иванович, идёт за пенсией.', 'Это сосед, несёт батон.', 'Это бабушка, идёт в магазин.'],
-      runner: ['Это бегун, тренируется к празднику.', 'Это девочка, бежит на тренировку.', 'Это бегун, считает шаги.']
-    };
-    const list = lines[id] || ['Кто-то идёт по улице.'];
-    return list[Math.floor(Math.random() * list.length)];
+  // Что реально будет на рисунке. Подпись ниже берёт только эти поля.
+  windowLook(id) {
+    const paint = [
+      { hex: '#d64545', name: 'красная' },
+      { hex: '#3d7ec4', name: 'синяя' },
+      { hex: '#e2b33a', name: 'жёлтая' },
+      { hex: '#3c9a4c', name: 'зелёная' }
+    ];
+    if (id === 'car') return paint[Math.floor(Math.random() * paint.length)];
+    if (id === 'bus') return { hex: '#f0c14a', name: 'жёлтый' };
+    if (id === 'kid') {
+      const prop = Math.random() < 0.5 ? 'balloon' : 'bag';
+      const balloons = ['#ff5a7a', '#7ec8f0', '#ffe56a'];
+      return { prop: prop, balloon: balloons[Math.floor(Math.random() * balloons.length)] };
+    }
+    if (id === 'dog') return { prop: Math.random() < 0.5 ? 'stick' : 'none', color: '#c68642' };
+    if (id === 'cat') return { color: ['#e07a3d', '#6d6a66', '#c9a27a', '#3d3a38'][Math.floor(Math.random() * 4)] };
+    if (id === 'bike') return { basket: Math.random() < 0.5 };
+    if (id === 'walker') return { who: Math.random() < 0.5 ? 'grandma' : 'grandpa' };
+    if (id === 'bird') return {};
+    return {};
+  }
+
+  // Подпись говорит только то, что видно: цвет машины, шарик, палка, коляска.
+  windowTale(id, look) {
+    const L = look || {};
+    if (id === 'sparrow') return L.carry === 'twig' ? 'Это воробей, несёт веточку.' : 'Это воробей, летит.';
+    if (id === 'swallow') return 'Это ласточка, летит быстро.';
+    if (id === 'crow') return L.carry === 'bead' ? 'Это ворона, несёт блестяшку.' : 'Это ворона, летит.';
+    if (id === 'pigeon') return 'Это голубь, летит.';
+    if (id === 'tit') return 'Это синица, жёлтая снизу.';
+    if (id === 'cat') return 'Это кот, идёт по дорожке.';
+    if (id === 'dog') return L.prop === 'stick' ? 'Это пёс, несёт палку.' : 'Это пёс, гуляет.';
+    if (id === 'kid') return L.prop === 'balloon' ? 'Это ребёнок, несёт шарик.' : 'Это ребёнок, идёт с рюкзаком.';
+    if (id === 'bike') return L.basket ? 'Это человек на велосипеде, в корзине цветы.' : 'Это человек на велосипеде.';
+    if (id === 'car') return 'Это ' + (L.name || 'синяя') + ' машина.';
+    if (id === 'bus') return 'Это жёлтый автобус.';
+    if (id === 'plane') return 'Это самолёт, за ним белая полоса.';
+    if (id === 'scooter') return 'Это человек на самокате.';
+    if (id === 'stroller') return 'Это коляска, в ней малыш.';
+    if (id === 'walker') return L.who === 'grandma' ? 'Это бабушка с сумкой.' : 'Это дедушка с тростью.';
+    if (id === 'runner') return 'Это человек, бежит.';
+    return 'Кто-то идёт по улице.';
   }
 
   windowWeatherName(w) {
@@ -2612,59 +2638,104 @@ class QuietScene {
   }
 
   drawWindowBird(ctx, x, y, b) {
-    const s = 26 * b.scale;
+    const s = 28 * b.scale;
+    const id = b.id;
+    const slim = id === 'swallow' ? 0.72 : (id === 'pigeon' ? 1.15 : 1);
     // Оба крыла на одном угле: поднимаются и опускаются вместе.
     const lift = Math.sin(b.phase);
     ctx.save();
     ctx.translate(x, y);
     ctx.scale(b.dir, 1);
-    ctx.rotate(Math.sin(b.x * b.wave) * 0.08);
+    ctx.rotate(Math.sin(b.x * b.wave) * 0.06);
     const wing = (alpha) => {
       ctx.save();
       ctx.globalAlpha = alpha;
-      ctx.translate(-s * 0.02, -s * 0.02);
-      ctx.rotate(-0.15 - lift * 0.85);
-      ctx.fillStyle = b.color;
+      ctx.translate(-s * 0.05, 0);
+      ctx.rotate(-0.2 - lift * 0.9);
+      ctx.fillStyle = id === 'tit' ? '#3d6f9a' : b.color;
       ctx.beginPath();
       ctx.moveTo(0, 0);
-      ctx.quadraticCurveTo(-s * 0.35, -s * 0.22, -s * 0.95, -s * 0.08);
-      ctx.quadraticCurveTo(-s * 0.7, s * 0.08, -s * 0.28, s * 0.1);
-      ctx.quadraticCurveTo(-s * 0.08, s * 0.04, 0, 0);
+      ctx.quadraticCurveTo(-s * 0.45, -s * 0.08, -s * 1.05, s * 0.02);
+      ctx.lineTo(-s * 0.82, s * 0.1);
+      ctx.lineTo(-s * 0.95, s * 0.16);
+      ctx.quadraticCurveTo(-s * 0.4, s * 0.2, 0, s * 0.04);
+      ctx.closePath();
       ctx.fill();
       ctx.restore();
     };
-    wing(0.45);
+    wing(0.4);
     ctx.fillStyle = b.color;
     ctx.beginPath();
-    ctx.ellipse(-s * 0.05, s * 0.02, s * 0.46, s * 0.22, -0.08, 0, Math.PI * 2);
+    ctx.ellipse(0, s * 0.02, s * 0.42 * slim, s * 0.2, -0.05, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = b.belly;
     ctx.beginPath();
-    ctx.ellipse(s * 0.02, s * 0.08, s * 0.26, s * 0.12, 0, 0, Math.PI);
+    ctx.ellipse(s * 0.04, s * 0.08, s * 0.24, s * 0.11, 0, 0, Math.PI);
     ctx.fill();
+    if (id === 'tit') {
+      ctx.fillStyle = '#1b1b1b';
+      ctx.beginPath();
+      ctx.arc(s * 0.34, -s * 0.08, s * 0.13, Math.PI * 0.95, Math.PI * 2.05);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.ellipse(s * 0.28, -s * 0.02, s * 0.07, s * 0.05, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
     wing(1);
     ctx.fillStyle = b.color;
     ctx.beginPath();
-    ctx.ellipse(s * 0.38, -s * 0.06, s * 0.18, s * 0.15, 0.2, 0, Math.PI * 2);
+    ctx.ellipse(s * 0.34, -s * 0.05, s * (id === 'pigeon' ? 0.14 : 0.16), s * 0.13, 0.15, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#f6d27a';
+    const beak = id === 'crow' ? s * 0.28 : (id === 'swallow' ? s * 0.16 : s * 0.12);
+    ctx.fillStyle = id === 'tit' ? '#222' : '#e2b15a';
     ctx.beginPath();
-    ctx.moveTo(s * 0.52, -s * 0.02);
-    ctx.quadraticCurveTo(s * 0.78, s * 0.02, s * 0.5, s * 0.07);
+    ctx.moveTo(s * 0.46, -s * 0.02);
+    ctx.lineTo(s * 0.46 + beak, s * 0.02);
+    ctx.lineTo(s * 0.44, s * 0.06);
     ctx.closePath();
     ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(-s * 0.42, 0);
-    ctx.quadraticCurveTo(-s * 0.7, -s * 0.18, -s * 0.58, 0);
-    ctx.quadraticCurveTo(-s * 0.7, s * 0.16, -s * 0.4, s * 0.04);
-    ctx.fill();
+    if (id === 'swallow') {
+      ctx.fillStyle = b.color;
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.36, 0);
+      ctx.quadraticCurveTo(-s * 0.85, -s * 0.22, -s * 1.15, -s * 0.02);
+      ctx.quadraticCurveTo(-s * 0.8, s * 0.02, -s * 0.36, s * 0.04);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.36, s * 0.04);
+      ctx.quadraticCurveTo(-s * 0.85, s * 0.24, -s * 1.1, s * 0.06);
+      ctx.quadraticCurveTo(-s * 0.75, s * 0.04, -s * 0.36, s * 0.02);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = b.color;
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.32, -s * 0.02);
+      ctx.quadraticCurveTo(-s * 0.62, -s * 0.16, -s * 0.5, s * 0.02);
+      ctx.quadraticCurveTo(-s * 0.62, s * 0.16, -s * 0.3, s * 0.06);
+      ctx.fill();
+    }
+    if (b.look && b.look.carry === 'bead') {
+      ctx.fillStyle = '#7ec8f0';
+      ctx.beginPath();
+      ctx.arc(s * 0.5 + beak, s * 0.08, s * 0.05, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (b.look && b.look.carry === 'twig') {
+      ctx.strokeStyle = '#6b4a32';
+      ctx.lineWidth = Math.max(1.4, s * 0.05);
+      ctx.beginPath();
+      ctx.moveTo(s * 0.48, s * 0.06);
+      ctx.lineTo(s * 0.78, s * 0.14);
+      ctx.stroke();
+    }
     ctx.fillStyle = '#1b1b1b';
     ctx.beginPath();
-    ctx.arc(s * 0.44, -s * 0.1, s * 0.035, 0, Math.PI * 2);
+    ctx.arc(s * 0.38, -s * 0.08, s * 0.035, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#fff';
     ctx.beginPath();
-    ctx.arc(s * 0.45, -s * 0.11, s * 0.012, 0, Math.PI * 2);
+    ctx.arc(s * 0.39, -s * 0.09, s * 0.012, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
@@ -2768,82 +2839,202 @@ class QuietScene {
     ctx.restore();
   }
 
+  drawWindowPerson(ctx, step, opt) {
+    const skin = opt.skin || '#f3c7a8';
+    const bob = step * 3;
+    ctx.fillStyle = opt.pants;
+    ctx.beginPath(); ctx.ellipse(-5, 4 + bob, 3.4, 8, 0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(5, 4 - bob, 3.4, 8, -0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#2c2c2c';
+    ctx.beginPath(); ctx.ellipse(-5, 11, 4, 2.1, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(5, 11, 4, 2.1, 0, 0, Math.PI * 2); ctx.fill();
+    if (opt.bag) {
+      ctx.fillStyle = opt.bag;
+      ctx.beginPath(); ctx.ellipse(-9, -4, 6, 7, 0.2, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = opt.shirt;
+    ctx.beginPath(); ctx.ellipse(0, -8, 9, 11, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = skin;
+    ctx.lineWidth = 3.2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-6, -10);
+    ctx.quadraticCurveTo(-14, -4, -8, 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(7, -10);
+    if (opt.armUp) ctx.quadraticCurveTo(14, -16, 16, -22);
+    else ctx.quadraticCurveTo(14, -2, 10, 2 + step);
+    ctx.stroke();
+    ctx.fillStyle = skin;
+    ctx.beginPath(); ctx.arc(0, -22, 7.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = opt.hair;
+    ctx.beginPath();
+    ctx.arc(0, -24, 7.4, Math.PI * 1.05, Math.PI * 1.95);
+    ctx.fill();
+    if (opt.who === 'grandma') {
+      ctx.fillStyle = '#d9d3ea';
+      ctx.beginPath(); ctx.ellipse(0, -27, 8, 3.2, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    if (opt.who === 'grandpa') {
+      ctx.fillStyle = '#eee';
+      ctx.beginPath(); ctx.ellipse(0, -29, 8, 2.4, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = '#2a241f';
+    ctx.beginPath(); ctx.arc(-2.5, -23, 1, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(2.5, -23, 1, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#c47a6a';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(0, -20, 2.4, 0.25, Math.PI - 0.25); ctx.stroke();
+  }
+
+  drawWindowWheel(ctx, x, y, r) {
+    ctx.fillStyle = '#222';
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#d7dde4';
+    ctx.beginPath(); ctx.arc(x, y, r * 0.45, 0, Math.PI * 2); ctx.fill();
+  }
+
   drawWindowPasser(ctx, x, y, p) {
     const step = Math.sin(p.phase);
+    const look = p.look || {};
     ctx.save();
     ctx.translate(x, y);
     ctx.scale(p.dir, 1);
     if (p.id === 'dog') {
       ctx.fillStyle = '#c68642';
-      ctx.beginPath(); ctx.ellipse(-4, -6, 14, 7, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(12, -10, 6, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(16, -15, 3, 5, 0.3, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#c68642'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(-16, -4); ctx.quadraticCurveTo(-24, -8 + step * 4, -22, -2); ctx.stroke();
-      ctx.strokeStyle = '#6b4423'; ctx.lineWidth = 2;
-      [-8, 0, 6].forEach((lx, i) => {
-        ctx.beginPath(); ctx.moveTo(lx, 0); ctx.lineTo(lx + step, 8); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(-2, -8, 18, 9, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(16, -14, 8, 7, 0.2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#8d5a2b';
+      ctx.beginPath(); ctx.ellipse(14, -20, 3.5, 6, -0.4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f3d2b0';
+      ctx.beginPath(); ctx.ellipse(22, -12, 4, 3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#222';
+      ctx.beginPath(); ctx.arc(24, -12, 1.4, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(18, -16, 1.3, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#c68642';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(-16, -8);
+      ctx.quadraticCurveTo(-28, -16 + step * 6, -24, -6);
+      ctx.stroke();
+      [-10, -2, 6, 12].forEach((lx, i) => {
+        const up = Math.sin(p.phase + i) * 3;
+        ctx.fillStyle = '#c68642';
+        ctx.beginPath(); ctx.ellipse(lx, 2 - Math.max(0, up), 3, 6, 0, 0, Math.PI * 2); ctx.fill();
       });
+      if (look.prop === 'stick') {
+        ctx.strokeStyle = '#6b4423';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath(); ctx.moveTo(20, -8); ctx.lineTo(34, -4); ctx.stroke();
+      }
     } else if (p.id === 'kid') {
-      ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(0, -16, 5, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, -11); ctx.lineTo(0, 0); ctx.moveTo(0, -6); ctx.lineTo(7, -2); ctx.moveTo(-2, 0); ctx.lineTo(-4 + step, 8); ctx.moveTo(2, 0); ctx.lineTo(4 - step, 8); ctx.stroke();
-      ctx.strokeStyle = '#e25b5b';
-      ctx.beginPath(); ctx.moveTo(7, -2); ctx.lineTo(12, -18); ctx.stroke();
-      ctx.fillStyle = '#ff5a7a';
-      ctx.beginPath(); ctx.arc(14, -22, 5, 0, Math.PI * 2); ctx.fill();
+      if (look.prop === 'bag') {
+        this.drawWindowPerson(ctx, step, { shirt: '#6db3e8', pants: '#34507a', hair: '#5a3824', bag: '#e25b5b' });
+      } else {
+        this.drawWindowPerson(ctx, step, { shirt: '#6db3e8', pants: '#34507a', hair: '#5a3824', armUp: true });
+        ctx.strokeStyle = '#8a8a8a';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.moveTo(16, -22); ctx.lineTo(24, -40); ctx.stroke();
+        ctx.fillStyle = look.balloon || '#ff5a7a';
+        ctx.beginPath(); ctx.ellipse(24, -48, 8, 10, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.beginPath(); ctx.arc(21, -51, 2, 0, Math.PI * 2); ctx.fill();
+      }
     } else if (p.id === 'bike') {
-      ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(-12, 2, 6, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(12, 2, 6, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(-12, 2); ctx.lineTo(0, -6); ctx.lineTo(12, 2); ctx.lineTo(2, 2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(2, -12, 4, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = '#3a4558';
+      ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.arc(-16, 6, 8, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(16, 6, 8, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-16, 6); ctx.lineTo(-2, -8); ctx.lineTo(16, 6); ctx.lineTo(4, 2); ctx.lineTo(-16, 6);
+      ctx.stroke();
+      if (look.basket) {
+        ctx.fillStyle = '#c47a4a';
+        ctx.beginPath(); ctx.ellipse(20, -2, 7, 5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#e25b8a';
+        ctx.beginPath(); ctx.arc(17, -6, 2.2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(22, -7, 2.2, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.save();
+      ctx.translate(0, -10);
+      this.drawWindowPerson(ctx, step, { shirt: '#7dbe6e', pants: '#34507a', hair: '#3a2a22' });
+      ctx.restore();
     } else if (p.id === 'bus') {
       ctx.fillStyle = '#f0c14a';
-      roundRect(ctx, -26, -16, 52, 18, 8); ctx.fill();
-      ctx.fillStyle = '#b9e2f5';
-      for (let i = 0; i < 4; i++) ctx.fillRect(-20 + i * 11, -12, 8, 7);
-      ctx.fillStyle = '#222';
-      ctx.beginPath(); ctx.arc(-14, 4, 4, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(14, 4, 4, 0, Math.PI * 2); ctx.fill();
-    } else if (p.id === 'car') {
-      ctx.fillStyle = '#4d8fd6';
-      roundRect(ctx, -18, -12, 36, 14, 7); ctx.fill();
+      roundRect(ctx, -36, -28, 72, 32, 8); ctx.fill();
       ctx.fillStyle = '#d7eef8';
-      ctx.fillRect(4, -8, 8, 6);
-      ctx.fillStyle = '#222';
-      ctx.beginPath(); ctx.arc(-8, 4, 4, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(8, 4, 4, 0, Math.PI * 2); ctx.fill();
-    } else if (p.id === 'scooter') {
-      ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(-8, 4, 5, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(12, 4, 5, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(-8, 4); ctx.lineTo(12, 4); ctx.lineTo(8, -14); ctx.stroke();
-      ctx.beginPath(); ctx.arc(6, -20, 4, 0, Math.PI * 2); ctx.stroke();
-    } else if (p.id === 'stroller') {
-      ctx.strokeStyle = '#5a6a88'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(-8, 4, 5, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(10, 4, 5, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = '#8eb4e8';
-      roundRect(ctx, -12, -14, 22, 14, 6); ctx.fill();
-      ctx.fillStyle = '#f3c7a8';
-      ctx.beginPath(); ctx.arc(0, -16, 4, 0, Math.PI * 2); ctx.fill();
-    } else if (p.id === 'walker') {
-      ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(0, -18, 4, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, -14); ctx.lineTo(0, 0); ctx.moveTo(0, -8); ctx.lineTo(6, -2);
-      ctx.moveTo(-1, 0); ctx.lineTo(-3 + step, 8); ctx.moveTo(1, 0); ctx.lineTo(3 - step, 8); ctx.stroke();
-      ctx.strokeStyle = '#8a5a32';
-      ctx.beginPath(); ctx.moveTo(8, -12); ctx.lineTo(8, 8); ctx.stroke();
-    } else if (p.id === 'runner') {
-      ctx.strokeStyle = '#c4492a'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(0, -16, 4, 0, Math.PI * 2); ctx.stroke();
+      for (let i = 0; i < 4; i++) {
+        roundRect(ctx, -28 + i * 15, -22, 11, 10, 2); ctx.fill();
+      }
+      ctx.fillStyle = '#8a6a20';
+      roundRect(ctx, 22, -16, 10, 16, 2); ctx.fill();
+      this.drawWindowWheel(ctx, -18, 6, 6);
+      this.drawWindowWheel(ctx, 16, 6, 6);
+    } else if (p.id === 'car') {
+      ctx.fillStyle = look.hex || '#3d7ec4';
       ctx.beginPath();
-      ctx.moveTo(0, -12); ctx.lineTo(4, -2);
-      ctx.moveTo(0, -8); ctx.lineTo(8, -6 + step * 2);
-      ctx.moveTo(2, -2); ctx.lineTo(-6 + step * 3, 8);
-      ctx.moveTo(4, -2); ctx.lineTo(10 - step * 2, 8);
-      ctx.stroke();
+      ctx.moveTo(-32, 2);
+      ctx.quadraticCurveTo(-34, -8, -20, -10);
+      ctx.lineTo(-8, -10);
+      ctx.quadraticCurveTo(-4, -26, 10, -26);
+      ctx.lineTo(20, -22);
+      ctx.quadraticCurveTo(28, -18, 30, -8);
+      ctx.lineTo(36, -6);
+      ctx.quadraticCurveTo(40, 0, 32, 4);
+      ctx.lineTo(-32, 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#d7eef8';
+      ctx.beginPath();
+      ctx.moveTo(-4, -12);
+      ctx.quadraticCurveTo(0, -22, 12, -22);
+      ctx.lineTo(18, -18);
+      ctx.lineTo(16, -12);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#fff6c2';
+      ctx.beginPath(); ctx.ellipse(34, -2, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
+      this.drawWindowWheel(ctx, -16, 4, 6);
+      this.drawWindowWheel(ctx, 16, 4, 6);
+    } else if (p.id === 'scooter') {
+      ctx.strokeStyle = '#3a4558';
+      ctx.lineWidth = 2.6;
+      ctx.beginPath(); ctx.arc(-10, 8, 6, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(16, 8, 6, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-10, 8); ctx.lineTo(16, 8); ctx.lineTo(8, -16); ctx.stroke();
+      ctx.fillStyle = '#e25b5b';
+      roundRect(ctx, 4, -6, 14, 4, 2); ctx.fill();
+      this.drawWindowPerson(ctx, step, { shirt: '#f0c14a', pants: '#34507a', hair: '#3a2a22' });
+    } else if (p.id === 'stroller') {
+      this.drawWindowWheel(ctx, -12, 8, 5);
+      this.drawWindowWheel(ctx, 12, 8, 5);
+      ctx.fillStyle = '#6d8ec4';
+      roundRect(ctx, -16, -16, 28, 18, 8); ctx.fill();
+      ctx.fillStyle = '#f7f4ee';
+      ctx.beginPath(); ctx.ellipse(0, -8, 8, 5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f3c7a8';
+      ctx.beginPath(); ctx.arc(2, -18, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.save();
+      ctx.translate(-28, -4);
+      this.drawWindowPerson(ctx, step * 0.3, { shirt: '#c47a9a', pants: '#34507a', hair: '#5a3824' });
+      ctx.restore();
+    } else if (p.id === 'walker') {
+      const grandma = look.who === 'grandma';
+      this.drawWindowPerson(ctx, step * 0.6, {
+        shirt: grandma ? '#c47a9a' : '#6d8ec4',
+        pants: grandma ? '#6a4a6a' : '#3a4558',
+        hair: grandma ? '#d9d3ea' : '#cfcfcf',
+        who: grandma ? 'grandma' : 'grandpa',
+        bag: grandma ? '#8a5a32' : null
+      });
+      if (!grandma) {
+        ctx.strokeStyle = '#8a5a32';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath(); ctx.moveTo(14, -8); ctx.lineTo(18, 12); ctx.stroke();
+      }
+    } else if (p.id === 'runner') {
+      this.drawWindowPerson(ctx, step * 1.4, { shirt: '#e25b5b', pants: '#2c3a55', hair: '#3a2a22' });
     }
     ctx.restore();
   }
@@ -2974,24 +3165,47 @@ class QuietScene {
       tree(frame.x + frame.w * 0.12, 70, leaf);
       tree(frame.x + frame.w * 0.9, 58, leaf);
     } else if (win.view === 'town') {
-      [[0.12, 78, '#e7d3c4'], [0.3, 108, '#d7c2b0'], [0.48, 64, '#efe0d2'], [0.66, 92, '#cbb59f']].forEach(([rx, hh, col]) => {
+      [[0.1, 92, '#f2e2d4', '#c45a4a'], [0.28, 124, '#e7d3c0', '#8a5a48'], [0.48, 78, '#f7efe6', '#6a7a8a'], [0.68, 108, '#e4cbb8', '#a35448']].forEach(([rx, hh, col, roof], i) => {
         const bx = frame.x + frame.w * rx;
-        const by = groundY + 40 - hh;
+        const by = groundY + 36 - hh;
         ctx.fillStyle = col;
-        roundRect(ctx, bx, by + 16, 34, hh - 16, 4);
+        roundRect(ctx, bx, by + 22, 46, hh - 18, 4);
         ctx.fill();
-        ctx.fillStyle = '#a35448';
+        ctx.fillStyle = roof;
         ctx.beginPath();
-        ctx.moveTo(bx - 4, by + 18);
-        ctx.lineTo(bx + 17, by);
-        ctx.lineTo(bx + 38, by + 18);
+        ctx.moveTo(bx - 6, by + 24);
+        ctx.lineTo(bx + 23, by);
+        ctx.lineTo(bx + 52, by + 24);
         ctx.closePath();
         ctx.fill();
-        ctx.fillStyle = day === 'night' ? '#ffe7a0' : '#b9dff0';
-        [[6, 24], [18, 24], [6, 40], [18, 40]].forEach(([wx, wy]) => {
-          roundRect(ctx, bx + wx, by + wy, 8, 10, 2);
+        ctx.fillStyle = '#8a7060';
+        roundRect(ctx, bx + 18, by - 8, 8, 16, 2);
+        ctx.fill();
+        ctx.fillStyle = day === 'night' ? '#ffe7a0' : '#c5e7f6';
+        [[8, 32], [24, 32], [8, 52], [24, 52]].forEach(([wx, wy]) => {
+          if (by + wy > groundY + 20) return;
+          roundRect(ctx, bx + wx, by + wy, 12, 14, 2);
           ctx.fill();
+          ctx.strokeStyle = 'rgba(80,60,40,0.35)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(bx + wx + 6, by + wy);
+          ctx.lineTo(bx + wx + 6, by + wy + 14);
+          ctx.moveTo(bx + wx, by + wy + 7);
+          ctx.lineTo(bx + wx + 12, by + wy + 7);
+          ctx.stroke();
         });
+        ctx.fillStyle = '#6b4a32';
+        roundRect(ctx, bx + 18, groundY + 18, 10, 18, 2);
+        ctx.fill();
+        if (i === 0) {
+          ctx.fillStyle = '#e25b5b';
+          ctx.beginPath();
+          ctx.moveTo(bx - 2, by + 28);
+          ctx.lineTo(bx + 18, by + 28);
+          ctx.lineTo(bx + 8, by + 40);
+          ctx.fill();
+        }
       });
     } else if (win.view === 'forest' || win.view === 'hills') {
       [0.08, 0.22, 0.38, 0.7, 0.86].forEach((rx, i) => tree(frame.x + frame.w * rx, 52 + (i % 3) * 16, leaf));
