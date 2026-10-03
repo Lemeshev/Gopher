@@ -2813,6 +2813,8 @@ const ACHIEVEMENTS = [
   { id: 'streak365',  tier: 'month', emoji: '🎖️', name: 'Год без пропусков', desc: 'Заходить 365 дней подряд — целый год ни дня мимо', goal: 365, of: p => p.streak },
   { id: 'level20',    tier: 'month', emoji: '🥇', name: 'Гроссмейстер', desc: 'Достигни 20 уровня — это примерно полгода занятий', goal: 20, of: (p, S) => S.level },
   { id: 'trips200',   tier: 'month', emoji: '🗺️', name: 'Двести походов', desc: 'Сходить по карте 200 раз', goal: 200, of: p => p.trips },
+  { id: 'words30', tier: 'month', emoji: '📚', name: 'Тридцать слов', desc: 'Угадай и собери 30 слов в мини-играх', goal: 30,
+    of: p => (p.guessWins || 0) + (p.letterWins || 0) + (p.mixWins || 0) },
   { id: 'museumsFull', tier: 'month', emoji: '🏛️', name: 'Хранитель музеев', desc: 'Посмотреть по 12 экспонатов в каждом из 50 музеев', goal: 50,
     of: (p, S) => MUSEUM_CATEGORIES.filter(c => S.seenCount(c) >= 12).length },
   // Улов: подводный мир рыбалки (v1.3.9, расширено в v1.3.10 до ста видов).

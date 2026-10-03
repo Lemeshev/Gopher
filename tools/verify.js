@@ -1273,6 +1273,7 @@ function reviewerAchievements(rt) {
       // тоже должны открываться за год игры
       p.rpsWins += full ? 2 : 1;
       p.simonBest = Math.max(p.simonBest || 0, full ? 8 : 4);
+      p.guessWins += 1; p.letterWins += 1; p.mixWins += 1;
       if (full) p.furniture += 1;
       System.stats.energy = 45; System.startSleep(); System.tick(600000);
       System.earnCoins(full ? 120 : 40); System.addXP(full ? 250 : 70);
