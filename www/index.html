@@ -116,6 +116,64 @@ html, body {
 #clipBtns button#clipCloseBtn { background: #9aa3bd; }
 #clipBtns button#clipCopyBtn { background: #7FD1F5; }
 #clipBtns button#clipSubmitBtn { background: #6BCB77; }
+#chatPanel {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 850;
+  touch-action: auto;
+  box-sizing: border-box;
+  background: #1a2140;
+  color: #fff;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  flex-direction: column;
+  padding: 10px 10px 12px;
+}
+#chatPanel.open { display: flex; }
+#chatHead { color: #FFD93D; font-weight: bold; font-size: 16px; text-align: center; }
+#chatBadge { color: #9be3b0; font-size: 12px; text-align: center; margin: 4px 0 8px; }
+#chatLog {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  background: rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 8px;
+}
+.chat-row { margin: 6px 0; display: flex; }
+.chat-row.me { justify-content: flex-end; }
+.chat-bubble {
+  max-width: 86%;
+  padding: 8px 10px;
+  border-radius: 12px;
+  line-height: 1.35;
+  font-size: 15px;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.chat-row.me .chat-bubble { background: #4D96FF; }
+.chat-row.pet .chat-bubble { background: #2e3b63; }
+#chatForm { display: flex; gap: 6px; margin-top: 8px; }
+#chatInput {
+  flex: 1;
+  font-size: 16px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #8d93a8;
+  -webkit-user-select: text;
+  user-select: text;
+  touch-action: auto;
+}
+#chatForm button, #chatClose {
+  font-weight: bold;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 12px;
+  touch-action: manipulation;
+}
+#chatForm button { background: #6BCB77; color: #102014; }
+#chatClose { margin-top: 6px; background: #9aa3bd; color: #10121c; }
 </style>
 </head>
 <body>
@@ -134,6 +192,17 @@ html, body {
     <button id="clipSubmitBtn" type="button" style="display:none">➕ Добавить</button>
     <button id="clipCloseBtn" type="button">Готово</button>
   </div>
+</div>
+
+<div id="chatPanel">
+  <div id="chatHead">Чат</div>
+  <div id="chatBadge">0+ · разговор только из добрых фраз внутри игры, без интернета</div>
+  <div id="chatLog"></div>
+  <form id="chatForm">
+    <input id="chatInput" type="text" maxlength="180" autocomplete="off" placeholder="Напиши что-нибудь доброе">
+    <button type="submit">Сказать</button>
+  </form>
+  <button id="chatClose" type="button">← Назад домой</button>
 </div>
 
 <!-- Базовые утилиты -->
@@ -160,6 +229,8 @@ html, body {
 <script src="js/game_home.js"></script>
 <script src="js/game_shop.js"></script>
 <script src="js/game_minigames.js"></script>
+<script src="js/chat_lines.js"></script>
+<script src="js/game_chat.js"></script>
 <script src="js/game_quiet.js"></script>
 <script src="js/game_aerial.js"></script>
 <script src="js/game_stats.js"></script>
