@@ -2,7 +2,7 @@
 
 Приложение в консоли RuStore: `Gopher Life`, appId **2063763308**,
 https://console.rustore.ru/apps/2063763308
-Package name: **com.gopherlife.app** · версия в сборке: **1.3.27** (versionCode 34)
+Package name: **com.gopherlife.app** · версия в сборке: **1.3.28** (versionCode 35)
 
 ---
 
@@ -26,8 +26,8 @@ Package name: **com.gopherlife.app** · версия в сборке: **1.3.27**
 Осталось: **первая загрузка через веб-консоль** — RuStore не даёт создать первую
 версию через API, а вход в консоль требует вашего VK ID. Загружать APK **1.3.10
 (versionCode 17)**, файл `android/app/build/outputs/apk/release/app-release.apk`
-(копия на рабочем столе: `~/Desktop/Gopher.apk`, 382 КБ,
-md5 `acef3aab87f9208418acd9d31de23475`).
+(копия на рабочем столе: `~/Desktop/Gopher.apk`, 384 КБ,
+md5 `89d3d2cb0f1a6ca45d7f558cbe7189d0`).
 
 ### Проверено вживую 01.10.2026 (важно для автоматизации)
 
@@ -91,7 +91,7 @@ node tools/rustore-publish.js save-key <keyId> <приватный ключ base
 
 | Файл | Что это |
 |---|---|
-| `android/app/build/outputs/apk/release/app-release.apk` | подписанный релизный APK (~382 КБ, md5 `acef3aab87f9208418acd9d31de23475`), версия 1.3.7 — копия на рабочем столе совпадает байт в байт |
+| `android/app/build/outputs/apk/release/app-release.apk` | подписанный релизный APK (~384 КБ, md5 `89d3d2cb0f1a6ca45d7f558cbe7189d0`), версия 1.3.7 — копия на рабочем столе совпадает байт в байт |
 | `store/icon-512.png` | иконка 512×512 |
 | `store/screens-9x16/*.jpg` | 10 скриншотов 1080×1920 (RuStore принимает от 3 до 10 — у нас ровно 10) |
 | `store/card.txt` | название, краткое и полное описание, «что нового», 8 пар FAQ |

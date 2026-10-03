@@ -5,11 +5,13 @@ class ChatScene {
     this.buttons = [];
     this.recent = [];
     this.bound = false;
+    this.pending = null;   // «что я только что спросил» (null | 'mood'), чтобы понять ответ ребёнка
   }
 
   init() {
     this.recent = [];
     this.lastTopic = null;
+    this.pending = null;
     this.openPanel();
     const log = this.logEl();
     if (log) log.innerHTML = '';
@@ -106,6 +108,17 @@ class ChatScene {
   replyTo(text) {
     const n = this.norm(text);
     if (!n) return this.pick(window.CHAT_FALLBACK || ['Напиши хоть слово.']);
+
+    // 1) Ответ на только что заданный вопрос («как дела?» → «не очень»). Раньше
+    // такой ответ не распознавался и уходил в «какое тут главное слово?».
+    const pending = this.answerPending(n);
+    if (pending) return pending;
+
+    // 2) Короткие «подхваты»: да/нет/понятно/ха-ха/«а ты?»/лёгкая грубость —
+    // отвечаем тепло и продолжаем, вместо того чтобы требовать «одно слово».
+    const ack = this.acknowledge(n);
+    if (ack) return ack;
+
     const topics = window.CHAT_TOPICS || [];
     const follow = ['да', 'нет', 'ага', 'угу', 'а ты', 'и что', 'почему', 'зачем', 'ну', 'давай', 'хорошо', 'ладно'];
     if (this.lastTopic && follow.indexOf(n) !== -1) {
@@ -114,6 +127,7 @@ class ChatScene {
     const blocked = this.topicById('safe');
     if (blocked && this.scoreTopic(n, blocked) > 0) {
       this.lastTopic = blocked;
+      this.pending = null;
       return this.pick(blocked.replies);
     }
     const intents = window.CHAT_INTENTS || [];
@@ -122,6 +136,7 @@ class ChatScene {
         const topic = this.topicById(intents[i].id);
         if (topic) {
           this.lastTopic = topic;
+          this.pending = topic.ask || null;
           return this.pick(topic.replies);
         }
       }
@@ -139,12 +154,42 @@ class ChatScene {
     });
     if (best && score >= 3) {
       this.lastTopic = best;
+      this.pending = best.ask || null;
       return this.pick(best.replies);
     }
     const nounLine = this.nounLine(n);
     if (nounLine) return nounLine;
     this.lastTopic = null;
+    this.pending = null;
     return this.pick(window.CHAT_KID_FALLBACK || window.CHAT_FALLBACK);
+  }
+
+  // Ответ на мой последний вопрос. Возвращает '' если это не ответ, а новая тема.
+  answerPending(n) {
+    const p = this.pending;
+    if (!p) return '';
+    const A = window.CHAT_ANSWER || {};
+    let out = '';
+    if (p === 'mood') {
+      if ((A.moodBadWords || []).indexOf(n) !== -1 || n === 'нет' || n === 'не') out = this.pick(A.moodBad);
+      else if ((A.moodGoodWords || []).indexOf(n) !== -1 || n === 'да') out = this.pick(A.moodGood);
+      else if ((A.moodOtherWords || []).indexOf(n) !== -1) out = this.pick(A.moodOther);
+      else { this.pending = null; return ''; }   // это не про настроение — обычный путь
+    }
+    this.pending = null;
+    return out;
+  }
+
+  // Тёплые «подхваты» для коротких ответов и междометий ребёнка.
+  acknowledge(n) {
+    const A = window.CHAT_ACK || {};
+    if ((A.mildKeys || []).some(k => n.indexOf(k) !== -1)) return this.pick(A.mild);
+    if ((A.laughWords || []).indexOf(n) !== -1) return this.pick(A.laugh);
+    if ((A.backWords || []).indexOf(n) !== -1) return this.pick(A.back);
+    if ((A.yesWords || []).indexOf(n) !== -1) return this.pick(A.yes);
+    if ((A.noWords || []).indexOf(n) !== -1) return this.pick(A.no);
+    if ((A.fillerWords || []).indexOf(n) !== -1) return this.pick(A.filler);
+    return '';
   }
 
   nounLine(n) {

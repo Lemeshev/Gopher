@@ -2564,6 +2564,34 @@ ok('Старое имя сцены «aerial» по-прежнему ведёт �
   new sandbox.SportScene(boot).disc.id === 'rings' && new sandbox.SportScene(boot, 'nope').disc.id === 'rings',
   'без параметра и с неизвестным id — кольца');
 
+/* ---------- Чат с питомцем (v1.3.28): отвечает тепло, а не «назови слово» ---------- */
+// Заказчик: «диалоги всё равно тупенькие». Раньше на «не очень» (ответ на «как
+// дела?») бот падал в «какое тут главное слово?». Теперь он помнит, что спросил,
+// и отвечает по настроению; короткие «да/нет/понятно/ха-ха» подхватывает тепло.
+{
+  const cs = new sandbox.ChatScene({});
+  const fallbackSet = sandbox.CHAT_KID_FALLBACK || [];
+  const isFallback = t => fallbackSet.indexOf(t) !== -1;
+
+  const q1 = cs.replyTo('как дела');
+  const asked = cs.pending === 'mood';
+  const a1 = cs.replyTo('не очень');
+  const a1warm = !!a1 && !isFallback(a1) && a1.length > 5;
+  const good = cs.replyTo('хорошо');
+  cs.pending = null;
+  const a2 = cs.replyTo('понятно');
+  const a3 = cs.replyTo('ты тупенький');
+  const a4 = cs.replyTo('хахаха');
+  const a5 = cs.replyTo('а ты?');
+
+  ok('Чат: «как дела» задаёт вопрос и ждёт ответ о настроении', asked && q1.length > 3, q1);
+  ok('Чат: «не очень» получает сочувствие, а не «назови слово»', a1warm, a1);
+  ok('Чат: «хорошо» после «как дела» — тёплый отклик, а не фолбэк', !!good && !isFallback(good), good);
+  ok('Чат: «понятно»/«ты тупенький»/«хахаха»/«а ты?» подхватываются тепло',
+    [a2, a3, a4, a5].every(t => !!t && !isFallback(t) && t.length > 3),
+    [a2, a3, a4, a5].join(' / '));
+}
+
 S.setCharacter('gopher');
 S.profileName = sandbox.DEFAULT_PROFILE_NAME;
 
