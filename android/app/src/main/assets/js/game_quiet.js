@@ -2371,7 +2371,8 @@ class QuietScene {
       wave: randFloat(4, 8),
       dir: dir,
       speed: randFloat(0.07, 0.14) * (k.id === 'swallow' ? 1.4 : 1),
-      phase: randFloat(0, 6)
+      phase: randFloat(0, 6),
+      tale: this.windowTale('bird', k.id)
     });
   }
 
@@ -2387,8 +2388,34 @@ class QuietScene {
       speed: id === 'plane' ? randFloat(0.09, 0.14) : (id === 'cat' ? 0.045 : randFloat(0.05, 0.11)),
       phase: randFloat(0, 6),
       y: id === 'plane' ? randFloat(0.08, 0.22) : 0,
-      color: ['#e07a3d', '#6d6a66', '#c9a27a', '#3d3a38'][Math.floor(Math.random() * 4)]
+      color: ['#e07a3d', '#6d6a66', '#c9a27a', '#3d3a38'][Math.floor(Math.random() * 4)],
+      tale: this.windowTale('walk', id)
     });
+  }
+
+  // Одна история на всё время, пока герой на экране. Следующий такой же
+  // получит другую фразу уже при появлении.
+  windowTale(group, id) {
+    const lines = {
+      sparrow: ['Это воробей Чирик, ищет крошки.', 'Это воробей, спешит к стае.', 'Это Чирик, несёт веточку в гнездо.'],
+      swallow: ['Это ласточка, ловит мошек.', 'Это ласточка Стрела, возвращается домой.', 'Это ласточка, рисует круги в небе.'],
+      crow: ['Это ворона Каркуша, смотрит с интересом.', 'Это ворона, несёт блестяшку.', 'Это Каркуша, летит к парку.'],
+      pigeon: ['Это голубь, гуляет по крыше.', 'Это голубь Сизый, ищет семечки.', 'Это голубь, несёт письмо никому.'],
+      tit: ['Это синица Зинка, скачет по ветке.', 'Это синица, ищет семечки.', 'Это Зинка, поёт тонким голосом.'],
+      cat: ['Это кот Мурзик, идёт по своим делам.', 'Это кошка Муся, спешит домой.', 'Это кот, обходит лужу.'],
+      dog: ['Это пёс Шарик, гуляет с хозяином.', 'Это собака Жучка, несёт палку.', 'Это пёс, бежит к парку.'],
+      kid: ['Это девочка Люся, идёт со школы.', 'Это мальчик Петя, несёт портфель.', 'Это ребёнок, спешит к друзьям.'],
+      bike: ['Это велосипедист, едет в парк.', 'Это девочка на велике, везёт корзину.', 'Это мальчик, крутит педали.'],
+      car: ['Это машина, везёт семью на дачу.', 'Это красная машина, едет тихо.', 'Это машина, везёт арбуз.'],
+      bus: ['Это автобус, едет по маршруту рынок-школа.', 'Это автобус, везёт ребят со школы.', 'Это автобус номер 5, едет к парку.'],
+      plane: ['Это самолёт, летит к морю.', 'Это самолёт, рисует белую полоску.', 'Это самолёт, везёт письма.'],
+      scooter: ['Это самокат, едет по дорожке.', 'Это мальчик на самокате, спешит к дому.', 'Это самокат, объезжает лужу.'],
+      stroller: ['Это коляска, в ней спит малыш.', 'Это коляска, мама везёт её к парку.', 'Это коляска с игрушечным мишкой.'],
+      walker: ['Это Григорий Иванович, идёт за пенсией.', 'Это сосед, несёт батон.', 'Это бабушка, идёт в магазин.'],
+      runner: ['Это бегун, тренируется к празднику.', 'Это девочка, бежит на тренировку.', 'Это бегун, считает шаги.']
+    };
+    const list = lines[id] || ['Кто-то идёт по улице.'];
+    return list[Math.floor(Math.random() * list.length)];
   }
 
   windowWeatherName(w) {
@@ -2943,10 +2970,12 @@ class QuietScene {
       ctx.restore();
     }
 
+    win.hits = [];
     win.passers.filter(p => p.id !== 'plane').forEach(p => {
       const px = frame.x + frame.w * p.x;
       if (p.id === 'cat') this.drawWindowCat(ctx, px, groundY + 12, p);
       else this.drawWindowPasser(ctx, px, groundY + 44, p);
+      win.hits.push({ x: px - 28, y: groundY - 10, w: 56, h: 58, tale: p.tale });
     });
 
     win.bugs.forEach(b => {
@@ -2964,7 +2993,17 @@ class QuietScene {
 
     win.birds.forEach(b => {
       const by = b.y0 + Math.sin(b.x * b.wave + b.phase * 0.15) * b.amp;
-      this.drawWindowBird(ctx, frame.x + frame.w * b.x, frame.y + frame.h * by, b);
+      const bx = frame.x + frame.w * b.x;
+      const byPx = frame.y + frame.h * by;
+      this.drawWindowBird(ctx, bx, byPx, b);
+      win.hits.push({ x: bx - 22, y: byPx - 16, w: 44, h: 32, tale: b.tale });
+    });
+    win.passers.filter(p => p.id === 'plane').forEach(p => {
+      win.hits.push({
+        x: frame.x + frame.w * p.x - 30,
+        y: frame.y + frame.h * p.y - 16,
+        w: 70, h: 28, tale: p.tale
+      });
     });
 
     win.flakes.forEach(f => {
@@ -3023,6 +3062,15 @@ class QuietScene {
     ctx.font = `${Math.min(W * 0.03, 13)}px Arial`;
     ctx.textAlign = 'center';
     ctx.fillText(dayName + ' · ' + seasonName + ' · ' + this.windowWeatherName(win.weather), W / 2, frame.y + frame.h + 36);
+    if (win.caption) {
+      ctx.fillStyle = 'rgba(20,24,40,0.88)';
+      const tw = Math.min(W - 24, ctx.measureText(win.caption).width + 24);
+      roundRect(ctx, (W - tw) / 2, frame.y + 8, tw, 28, 8);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${Math.min(W * 0.032, 14)}px Arial`;
+      ctx.fillText(win.caption, W / 2, frame.y + 26);
+    }
   }
 
   // ================= НАЖАТИЯ =================
@@ -3070,6 +3118,16 @@ class QuietScene {
       return true;
     }
 
+    if (this.mode === 'window' && this.win && this.win.hits) {
+      for (let i = this.win.hits.length - 1; i >= 0; i--) {
+        const h = this.win.hits[i];
+        if (isPointInRect(mx, my, h.x, h.y, h.w, h.h)) {
+          this.win.caption = h.tale || '';
+          AudioSys.play('click');
+          return true;
+        }
+      }
+    }
     if (this.mode === 'stars') return this.clickStars(mx, my);
     if (this.mode === 'color') return this.clickColor(mx, my);
     if (this.mode === 'fish') {

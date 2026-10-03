@@ -112,7 +112,7 @@ const System = {
   // Спит — значит спит: походы (музеи, работа, учёба, спорт, парк, кино, гости,
   // поликлиника) закрыты. Открыто только то, что от питомца не зависит:
   // мини-игры, тихие игры, магазин (просто каталог), инфо/настройки и сам дом.
-  SLEEP_ALLOWED: ['home', 'shop', 'stats', 'minigames', 'quiet', 'chat'],
+  SLEEP_ALLOWED: ['home', 'shop', 'stats', 'minigames', 'tools', 'quiet', 'chat'],
   offlineReport: null,          // что случилось, пока приложение было закрыто
   justWoke: false,              // питомец только что выспался (для облачка дома)
   lastTick: 0,
@@ -687,7 +687,81 @@ const System = {
     return 'Тебя не было ' + human + ' — {pet} {pet:скучал|скучала}, но держится ' + this.heroEmoji();
   },
 
+  // Все поставленные вещи и купленные id в сумке. Считаем и неизвестные
+  // каталогу: после обновления предмет не должен исчезнуть только потому,
+  // что его id переименовали.
+  housePieces() {
+    this.ensureRooms();
+    const placed = [];
+    for (const room of Object.keys(this.rooms)) {
+      const list = this.rooms[room].furniture || [];
+      for (const f of list) {
+        if (!f || !f.id) continue;
+        placed.push({ id: f.id, x: f.x, y: f.y, room: room });
+      }
+    }
+    return placed;
+  },
+
+  houseVaultKey() {
+    return this.saveKeyFor(this.profileId) + '_house';
+  },
+
+  readHouseVault() {
+    let best = null;
+    const take = (raw) => {
+      if (!raw) return;
+      try {
+        const data = JSON.parse(raw);
+        if (!data || !Array.isArray(data.placed)) return;
+        if (!best || data.placed.length > best.placed.length) best = data;
+      } catch (e) {}
+    };
+    try { take(localStorage.getItem(this.houseVaultKey())); } catch (e) {}
+    if (this.nativeHouseRaw) take(this.nativeHouseRaw);
+    return best;
+  },
+
+  writeHouseVault(placed) {
+    const payload = JSON.stringify({ placed: placed, at: Date.now() });
+    try { localStorage.setItem(this.houseVaultKey(), payload); } catch (e) {}
+    try {
+      if (window.AndroidBridge && AndroidBridge.saveHouse) AndroidBridge.saveHouse(payload);
+    } catch (e) {}
+    this.nativeHouseRaw = payload;
+  },
+
+  // Если в памяти дома вещей больше, чем в текущих комнатах, возвращаем пропавшие.
+  // Явный сброс прогресса ставит houseShrinkOk и имеет право оставить дом пустым.
+  restoreHouseFromVault() {
+    if (this.houseShrinkOk) return 0;
+    const vault = this.readHouseVault();
+    if (!vault) return 0;
+    this.ensureRooms();
+    let back = 0;
+    for (const it of vault.placed) {
+      if (!it || !it.id) continue;
+      if (this.roomOfItem(it.id)) continue;
+      if (this.inventory.indexOf(it.id) !== -1) continue;
+      const room = (this.rooms[it.room] && it.room) || 'living';
+      const target = this.rooms[room] || this.rooms.living;
+      target.furniture.push({
+        id: it.id,
+        x: typeof it.x === 'number' ? it.x : 0.3,
+        y: typeof it.y === 'number' ? it.y : 0.4
+      });
+      back++;
+    }
+    return back;
+  },
+
   saveGame() {
+    if (!this.houseShrinkOk) this.restoreHouseFromVault();
+    const placedNow = this.housePieces();
+    const vault = this.readHouseVault();
+    if (!this.houseShrinkOk && vault && placedNow.length < vault.placed.length) {
+      this.restoreHouseFromVault();
+    }
     const data = {
       stats: { ...this.stats },
       coins: this.coins,
@@ -721,6 +795,11 @@ const System = {
       sleptMinutes: this.sleptMinutes,
       profileId: this.profileId,
       profileName: this.profileName,
+      kit: {
+        notes: (this.kit && this.kit.notes) || '',
+        lists: (this.kit && this.kit.lists) || [],
+        timerEnd: (this.kit && this.kit.timerEnd) || 0
+      },
       savedAt: Date.now()
     };
     const key = this.saveKeyFor(this.profileId);
@@ -742,6 +821,13 @@ const System = {
         try { localStorage.setItem(this.backupKeyFor(this.profileId), json); } catch (e) {}
       }
       this.saveFailed = !ok;
+      if (ok) {
+        const pieces = this.housePieces();
+        if (this.houseShrinkOk || !vault || pieces.length >= vault.placed.length) {
+          this.writeHouseVault(pieces);
+        }
+        this.houseShrinkOk = false;
+      }
     } catch (e) {
       // Молча терять прогресс нельзя: родитель увидит это в статистике
       this.saveFailed = true;
@@ -834,6 +920,13 @@ const System = {
           target.furniture.push({ id: id, x: 0.22 + (i % 4) * 0.19, y: 0.30 + Math.floor(i / 4) * 0.26 });
         });
       }
+      const brought = this.restoreHouseFromVault();
+      if (brought > 0) this.houseRestored = brought;
+      this.kit = {
+        notes: (data.kit && typeof data.kit.notes === 'string') ? data.kit.notes : '',
+        lists: (data.kit && Array.isArray(data.kit.lists)) ? data.kit.lists : [],
+        timerEnd: (data.kit && data.kit.timerEnd) || 0
+      };
       this.look = this.migrateLook(Object.assign({ hat: null, glasses: null, neck: null, back: null, bowtie: false, fur: 'classic', char: 'gopher' }, data.look || {}));
       this.isSleeping = !!data.isSleeping;
       this.sleptMinutes = data.sleptMinutes || 0;
@@ -970,6 +1063,8 @@ const System = {
     // Дом: 4 комнаты с бесплатной отделкой, мебель начинается с пустой
     this.rooms = null;
     this.ensureRooms();
+    this.houseShrinkOk = true;
+    this.kit = { notes: '', lists: [], timerEnd: 0 };
     this.activeRoom = 'living';
     this.paint = { walls: ['warm'], floors: ['wood'] };
     this.furnitureColors = {};

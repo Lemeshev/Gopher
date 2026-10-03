@@ -171,7 +171,18 @@ const RoomView = {
   drawItem(ctx, item, rect, opts) {
     const o = opts || {};
     const f = (typeof findFurniture === 'function') ? findFurniture(item.id) : null;
-    if (!f) return;
+    if (!f) {
+      const p0 = this.posFor(item, rect);
+      const s0 = this.sizeFor(item.id, rect, item.y);
+      ctx.fillStyle = '#c4a574';
+      roundRect(ctx, p0.x - s0 * 0.35, p0.y - s0 * 0.35, s0 * 0.7, s0 * 0.7, 6);
+      ctx.fill();
+      ctx.fillStyle = '#3a2a18';
+      ctx.font = 'bold 11px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Вещь', p0.x, p0.y + 4);
+      return;
+    }
     const p = this.posFor(item, rect);
     const size = this.sizeFor(item.id, rect, item.y);
     const color = (typeof System !== 'undefined' && System.colorOf) ? System.colorOf(item.id) : null;
