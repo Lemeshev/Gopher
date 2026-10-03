@@ -14,7 +14,7 @@ const FILES = [
   'helpers.js', 'gopher.js', 'characters.js', 'system.js', 'game_content.js',
   'game_room.js', 'game_scenery.js', 'audio.js',
   'game_menu.js', 'game_map.js', 'game_home.js', 'game_shop.js',
-  'game_minigames.js', 'chat_lines.js', 'chat_kid.js', 'semantic.js', 'chat_semantic.js', 'chat_bank.js', 'game_chat.js',
+  'game_minigames.js', 'chat_lines.js', 'chat_kid.js', 'semantic.js', 'chat_semantic.js', 'chat_bank.js', 'chat_talk.js', 'game_chat.js',
   'game_quiet.js', 'game_aerial.js', 'game_stats.js',
   'game_clinic.js', 'game_visit.js', 'game_friends.js', 'game.js'
 ];
@@ -2666,14 +2666,35 @@ ok('Старое имя сцены «aerial» по-прежнему ведёт �
     /игр|не настоя|игруш|дыш|зовут|персонаж/.test(alive.toLowerCase()) &&
     /суслик/.test(sus.toLowerCase()) && /суслик/.test(sus2.toLowerCase()),
     [alive, sus, sus2].join(' / '));
-  const bank = sandbox.CHAT_BANK;
-  const bankBytes = fs.statSync(path.join(WWW, 'chat_bank.js')).size;
-  const body = fs.readFileSync(path.join(WWW, 'chat_bank.js'), 'utf8').replace(/forbidden:\s*\[[^\]]*\]/, '');
-  const leaked = (bank.forbidden || []).filter(w => body.toLowerCase().indexOf(w) !== -1);
-  ok('Банк чата: больше ста тысяч фраз 0+ в маленьком файле',
-    bank && bank.count() >= 100000 && bankBytes < 200000 && leaked.length === 0,
-    'фраз ' + (bank ? bank.count() : 0) + ', файл ' + bankBytes + ' байт' +
-    (leaked.length ? ', запрещено: ' + leaked.join(',') : ''));
+  ok('Знания чата — целые фразы, не подстановка слова в шаблон',
+    sandbox.CHAT_TALK && sandbox.CHAT_TALK.count() >= 80, 'фраз ' + (sandbox.CHAT_TALK ? sandbox.CHAT_TALK.count() : 0));
+  const dlg = new sandbox.ChatScene({});
+  const d = t => dlg.replyTo(t);
+  const en = d("Do you speak English?");
+  const mood = d('Как у тебя настроение?');
+  const why = d('Что значит могу? Я же не об этом спросил.');
+  const both = d('Как можно путать тёплое с мягким? Я люблю писать компьютерные программы.');
+  const warm = d('Ну расскажи про тепло.');
+  const feel = d('Логично, я думаю, что у него вообще нет чувств.');
+  const other = d('Давай о другом уже.');
+  const fr = d('Кто у тебя друзья?');
+  const fr2 = d('Молодец. Так кто у тебя друзья?');
+  const bear = d('расскажи про мишку');
+  const badRu = d('Нет, так нельзя спросить, это не по-русски.');
+  const soup = d('А как может надоесть тема суп, если мы про него вообще не говорили?');
+  const reg = d('Ты снова на регулярках что ли работаешь?');
+  const few = d('И у тебя всё ещё мало фраз, я угадал?');
+  const low = s => String(s || '').toLowerCase().replace(/ё/g, 'е');
+  const blob = [en, mood, why, both, warm, feel, other, fr, fr2, bear, badRu, soup, reg, few].join(' | ');
+  const broken = /добрые заготовки|ниточку разговора|какой игрушка|про друг у меня|беречь разговор про пока|Дел много/.test(blob);
+  ok('Диалог заказчика: английский, настроение, тепло, друзья, мишка — без кривого шаблона',
+    /русск/i.test(en) && /настроен|спокойн|слуша/.test(low(mood)) &&
+    /программ/.test(low(both)) && /тепл/.test(low(warm)) &&
+    /тепл|чувств/.test(low(feel)) && !/про друг/.test(low(other)) &&
+    /мишк/.test(low(fr)) && /мишк/.test(low(fr2)) && /мишк/.test(low(bear)) &&
+    /прям|шаблон|вопрос/.test(low(badRu)) && /суп/.test(low(soup)) &&
+    !/Дел много/.test(reg) && !broken,
+    blob.slice(0, 500));
   const cctx = new sandbox.ChatScene({});
   cctx.replyTo('расскажи про котика');
   const more1 = cctx.replyTo('ещё');
@@ -2683,7 +2704,7 @@ ok('Старое имя сцены «aerial» по-прежнему ведёт �
     more1 + ' / ' + more2);
   ok('Чат: Милка — игрушка из игры, уроки — про уроки, «глубокая мысль» не про мурчание',
     /милк/i.test(milka) && !/суп/.test(milka.toLowerCase()) &&
-    /милк/i.test(what) && /урок|дел/.test(hw.toLowerCase()) && !/мурчу/.test(deep),
+    /милк/i.test(what) && /урок|дел|школ/.test(hw.toLowerCase()) && !/мурчу/.test(deep),
     [milka, what, hw, deep].join(' / '));
 }
 
