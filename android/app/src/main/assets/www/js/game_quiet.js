@@ -10,7 +10,7 @@
 // из семи, и заказчик справедливо заметил: «из всех этих существ я вижу кроме рыб
 // только медузу, не увидел ни одной акулы, черепахи или осьминога». Теперь в воде
 // одновременно три РАЗНЫХ обитателя, а раз в 14–22 секунды один уплывает к краю и
-// на его место приходит следующий по кругу — за пару минут видно всех семерых.
+// на его место приходит случайный из тех, кого сейчас нет в воде.
 const SEA_FRIENDS_IN_WATER = 3;
 const FRIEND_SWAP_MIN = 14;
 const FRIEND_SWAP_MAX = 22;
@@ -252,20 +252,14 @@ class QuietScene {
     };
   }
 
-  // Кто из больших обитателей придёт следующим: виды идут по кругу, поэтому за
-  // пару минут видно всех семерых, а не одних медуз (заказчик v1.3.11: «из всех
-  // этих существ я вижу кроме рыб только медузу»). inWater — кого уже не надо:
-  // в воде не бывает двух одинаковых (кроме случая, когда выбора не осталось).
+  // Кто приплывёт вместо ушедшего: случайный вид из тех, кого сейчас нет на экране.
   nextFriendSpecies(inWater) {
     const all = (typeof SEA_FRIENDS !== 'undefined') ? SEA_FRIENDS : [];
     if (!all.length) return null;
-    if (typeof this.friendCursor !== 'number') this.friendCursor = Math.floor(Math.random() * all.length);
-    for (let i = 0; i < all.length * 2; i++) {
-      const sp = all[this.friendCursor % all.length];
-      this.friendCursor = (this.friendCursor + 1) % all.length;
-      if (!inWater || inWater.indexOf(sp.id) === -1) return sp;
-    }
-    return all[0];
+    const busy = inWater || [];
+    const free = all.filter(sp => busy.indexOf(sp.id) === -1);
+    const pool = free.length ? free : all;
+    return pool[Math.floor(Math.random() * pool.length)];
   }
 
   // Подводный мир: стайка рыбок + большие обитатели, все разные
@@ -348,19 +342,12 @@ class QuietScene {
     f.friendQueue.push(id);
   }
 
-  // Дайверы идут по кругу: каждый персонаж, включая Милку, появляется один раз,
-  // и только потом колода мешается снова. Иначе при шести героях Милку легко не увидеть.
+  // Каждый заплыв — случайный персонаж. Очереди нет: Милка может приплыть сразу
+  // и может приплыть два раза подряд.
   nextDiverCharacter() {
-    const all = (typeof CHARACTERS !== 'undefined' && CHARACTERS.length) ? CHARACTERS.slice() : [];
+    const all = (typeof CHARACTERS !== 'undefined' && CHARACTERS.length) ? CHARACTERS : [];
     if (!all.length) return null;
-    if (!this.diverQueue || !this.diverQueue.length) {
-      for (let i = all.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        const tmp = all[i]; all[i] = all[j]; all[j] = tmp;
-      }
-      this.diverQueue = all;
-    }
-    return this.diverQueue.pop();
+    return all[Math.floor(Math.random() * all.length)];
   }
 
   // Кто клюнет: ближайшая к крючку рыбка. Большие обитатели не клюют — их не ловят
