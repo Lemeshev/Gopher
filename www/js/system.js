@@ -796,8 +796,10 @@ const System = {
       profileId: this.profileId,
       profileName: this.profileName,
       kit: {
-        notes: (this.kit && this.kit.notes) || '',
+        notes: '',
+        pages: (this.kit && this.kit.pages) || [],
         lists: (this.kit && this.kit.lists) || [],
+        drawings: (this.kit && this.kit.drawings) || [],
         timerEnd: (this.kit && this.kit.timerEnd) || 0
       },
       savedAt: Date.now()
@@ -922,9 +924,16 @@ const System = {
       }
       const brought = this.restoreHouseFromVault();
       if (brought > 0) this.houseRestored = brought;
+      const oldNotes = (data.kit && typeof data.kit.notes === 'string') ? data.kit.notes : '';
+      let pages = (data.kit && Array.isArray(data.kit.pages)) ? data.kit.pages : [];
+      if (!pages.length && oldNotes.trim()) {
+        pages = [{ id: 'legacy', title: 'Заметка', body: oldNotes }];
+      }
       this.kit = {
-        notes: (data.kit && typeof data.kit.notes === 'string') ? data.kit.notes : '',
+        notes: '',
+        pages: pages,
         lists: (data.kit && Array.isArray(data.kit.lists)) ? data.kit.lists : [],
+        drawings: (data.kit && Array.isArray(data.kit.drawings)) ? data.kit.drawings : [],
         timerEnd: (data.kit && data.kit.timerEnd) || 0
       };
       this.look = this.migrateLook(Object.assign({ hat: null, glasses: null, neck: null, back: null, bowtie: false, fur: 'classic', char: 'gopher' }, data.look || {}));
@@ -1064,7 +1073,7 @@ const System = {
     this.rooms = null;
     this.ensureRooms();
     this.houseShrinkOk = true;
-    this.kit = { notes: '', lists: [], timerEnd: 0 };
+    this.kit = { notes: '', pages: [], lists: [], drawings: [], timerEnd: 0 };
     this.activeRoom = 'living';
     this.paint = { walls: ['warm'], floors: ['wood'] };
     this.furnitureColors = {};

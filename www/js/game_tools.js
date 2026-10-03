@@ -56,6 +56,10 @@ class ToolsScene {
     this.mem = 0;
     this.listsScroll = 0;
     this.itemScroll = 0;
+    this.noteId = null;
+    this.notesScroll = 0;
+    this.boardMode = 'draw';
+    this.albumScroll = 0;
     this.watch = { run: false, acc: 0, at: 0, laps: [] };
   }
 
@@ -65,10 +69,31 @@ class ToolsScene {
     this.expr = '';
     this.calc = '0';
     this.listId = null;
+    this.noteId = null;
+    this.boardMode = 'draw';
     this.pen = '#24324a';
     this.penW = 6;
-    if (!System.kit) System.kit = { notes: '', lists: [], timerEnd: 0 };
+    this.ensureKit();
     KitBar.close();
+  }
+
+  ensureKit() {
+    if (!System.kit) System.kit = { notes: '', pages: [], lists: [], drawings: [], timerEnd: 0 };
+    if (!Array.isArray(System.kit.pages)) System.kit.pages = [];
+    if (!Array.isArray(System.kit.lists)) System.kit.lists = [];
+    if (!Array.isArray(System.kit.drawings)) System.kit.drawings = [];
+    if (typeof System.kit.notes === 'string' && System.kit.notes.trim() && !System.kit.pages.length) {
+      System.kit.pages.push({ id: 'legacy', title: 'Заметка', body: System.kit.notes });
+      System.kit.notes = '';
+    }
+  }
+
+  // Пустое имя рисунка или заметки: 2026-10-24_11_48
+  drawingStamp(d) {
+    const when = d || new Date();
+    const p = (n) => (n < 10 ? '0' : '') + n;
+    return when.getFullYear() + '-' + p(when.getMonth() + 1) + '-' + p(when.getDate()) +
+      '_' + p(when.getHours()) + '_' + p(when.getMinutes());
   }
 
   update() { this.checkTimer(); }
@@ -105,11 +130,15 @@ class ToolsScene {
     this.buttons = [];
     ctx.fillStyle = '#12312c';
     ctx.fillRect(0, 0, W, H);
+    const nested = (this.tool === 'lists' && this.listId) || (this.tool === 'notes' && this.noteId) ||
+      (this.tool === 'board' && this.boardMode === 'album');
+    const backLabel = this.tool === 'menu' ? '← На карту' : (nested ? '← Назад' : '← К списку');
     const backW = this.tool === 'menu' ? 112 : 122;
-    this.buttons.push(createButton(ctx, 8, 8, backW, 32,
-      this.tool === 'menu' ? '← На карту' : '← К списку', {
-        bgColor: 'rgba(255,255,255,0.2)', fgColor: '#fff', fontSize: 13, radius: 10
-      }));
+    const backBtn = createButton(ctx, 8, 8, backW, 32, backLabel, {
+      bgColor: 'rgba(255,255,255,0.2)', fgColor: '#fff', fontSize: 13, radius: 10
+    });
+    backBtn.action = this.tool === 'menu' ? 'to-map' : (nested ? 'level-up' : 'leave');
+    this.buttons.push(backBtn);
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
@@ -132,7 +161,7 @@ class ToolsScene {
   drawMenu(ctx, W, H) {
     const items = [
       { id: 'calc', emoji: '🔢', name: 'Калькулятор', desc: 'Сначала умножение', color: '#1F6F5B' },
-      { id: 'notes', emoji: '📝', name: 'Заметки', desc: 'Блокнот', color: '#3D6B8C' },
+      { id: 'notes', emoji: '📝', name: 'Заметки', desc: 'Свои названия', color: '#3D6B8C' },
       { id: 'lists', emoji: '✅', name: 'Списки', desc: 'Отметить и убрать', color: '#6B5B3D' },
       { id: 'board', emoji: '🎨', name: 'Доска', desc: 'Рисунок пальцем', color: '#8C4A6B' },
       { id: 'timer', emoji: '⏱️', name: 'Таймер', desc: 'Звонок в конце', color: '#8C5A2E' },
@@ -293,28 +322,111 @@ class ToolsScene {
     return this.formatNum(acc);
   }
 
+  currentPage() {
+    const pages = (System.kit && System.kit.pages) || [];
+    return pages.find(p => p.id === this.noteId) || null;
+  }
+
   drawNotes(ctx, W, H) {
+    this.ensureKit();
+    const pages = System.kit.pages;
     const self = this;
-    if (!this._notesOpen) {
-      this._notesOpen = true;
-      KitBar.open('Текст заметки', (System.kit && System.kit.notes) || '', (text) => {
-        System.kit.notes = text;
-        System.saveGame();
-      }, (text) => { System.kit.notes = text; }, true);
+    if (!this.noteId) {
+      if (!this._noteTitleOpen) {
+        this._noteTitleOpen = true;
+        this._noteBodyOpen = false;
+        KitBar.open('Название заметки', '', (text) => {
+          const title = (text.trim() || self.drawingStamp(new Date())).slice(0, 32);
+          const id = 'n' + Date.now();
+          System.kit.pages.push({ id: id, title: title, body: '' });
+          self.noteId = id;
+          self._noteTitleOpen = false;
+          self._noteBodyOpen = false;
+          System.saveGame();
+        });
+      }
+      ctx.fillStyle = '#f4e7c5';
+      roundRect(ctx, 16, 48, W - 32, 44, 10);
+      ctx.fill();
+      ctx.fillStyle = '#3a2e16';
+      ctx.font = 'bold 15px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillText('Новая заметка', 28, 68);
+      ctx.font = '12px Arial';
+      ctx.fillText('Название — внизу. Пустое станет датой.', 28, 84);
+      if (!pages.length) {
+        ctx.fillStyle = '#d7fff4';
+        ctx.font = '15px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Пока нет ни одной записи.', W / 2, 130);
+      }
+      const top = 104;
+      const row = 52;
+      const viewH = H - top - 72;
+      const max = Math.max(0, pages.length * row - viewH);
+      this.notesScroll = Math.max(0, Math.min(this.notesScroll || 0, max));
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, top, W, viewH);
+      ctx.clip();
+      pages.forEach((page, i) => {
+        const y = top + i * row - this.notesScroll;
+        if (y + 46 < top || y > top + viewH) return;
+        ctx.fillStyle = 'rgba(125,190,230,0.28)';
+        roundRect(ctx, 16, y, W - 32, 46, 10);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'left';
+        const title = page.title.length > 18 ? page.title.slice(0, 18) + '…' : page.title;
+        ctx.fillText(title, 28, y + 28);
+        this.buttons.push({ x: 16, y: y, w: W - 100, h: 46, action: 'open-note:' + page.id });
+        ctx.fillStyle = '#E74C3C';
+        roundRect(ctx, W - 64, y + 8, 36, 30, 8);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.fillText('✕', W - 46, y + 28);
+        this.buttons.push({ x: W - 64, y: y + 8, w: 36, h: 30, action: 'del-note:' + page.id });
+      });
+      ctx.restore();
+      return;
     }
-    ctx.fillStyle = 'rgba(255,255,255,0.92)';
-    ctx.font = '16px Arial';
-    ctx.textAlign = 'center';
-    const text = (System.kit && System.kit.notes) || 'Пиши в блокноте внизу. Кнопка «Ок» сохраняет.';
-    this.wrap(ctx, text, 20, 64, W - 40, 22);
+    const page = this.currentPage();
+    if (!page) { this.noteId = null; return; }
+    if (!this._noteBodyOpen) {
+      this._noteBodyOpen = true;
+      this._noteTitleOpen = false;
+      KitBar.open('Текст заметки', page.body || '', (text) => {
+        const cur = self.currentPage();
+        if (cur) cur.body = text;
+        System.saveGame();
+      }, (text) => {
+        const cur = self.currentPage();
+        if (cur) cur.body = text;
+      }, true);
+    }
+    ctx.fillStyle = '#f7f1e3';
+    roundRect(ctx, 16, 52, W - 32, 92, 12);
+    ctx.fill();
+    ctx.fillStyle = '#3a2e16';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'left';
+    const title = page.title.length > 22 ? page.title.slice(0, 22) + '…' : page.title;
+    ctx.fillText(title, 28, 80);
+    ctx.font = '13px Arial';
+    ctx.fillText('Текст только в поле внизу.', 28, 104);
+    ctx.fillText('Переносы строк сохраняются.', 28, 124);
   }
 
   drawLists(ctx, W, H) {
-    const lists = (System.kit && System.kit.lists) || [];
+    this.ensureKit();
+    const lists = System.kit.lists;
     const self = this;
     if (!this.listId) {
       if (!this._listNameOpen) {
         this._listNameOpen = true;
+        this._listItemOpen = false;
         KitBar.open('Название списка', '', (text) => {
           const title = text.trim().slice(0, 24);
           if (!title) return;
@@ -328,13 +440,16 @@ class ToolsScene {
           if (input) input.value = '';
         });
       }
-      if (!lists.length) {
-        ctx.fillStyle = '#d7fff4';
-        ctx.font = '16px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('Напиши название внизу и нажми Ок.', W / 2, 90);
-      }
-      const top = 52;
+      ctx.fillStyle = '#1F6F5B';
+      roundRect(ctx, 16, 48, W - 32, 44, 10);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 15px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillText('Новый список', 28, 68);
+      ctx.font = '12px Arial';
+      ctx.fillText('Сюда пишется только название, не пункты.', 28, 84);
+      const top = 104;
       const row = 52;
       const viewH = H - top - 72;
       const max = Math.max(0, lists.length * row - viewH);
@@ -343,6 +458,12 @@ class ToolsScene {
       ctx.beginPath();
       ctx.rect(0, top, W, viewH);
       ctx.clip();
+      if (!lists.length) {
+        ctx.fillStyle = '#d7fff4';
+        ctx.font = '15px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Списков пока нет.', W / 2, top + 36);
+      }
       lists.forEach((list, i) => {
         const y = top + i * row - this.listsScroll;
         if (y + 46 < top || y > top + viewH) return;
@@ -352,9 +473,16 @@ class ToolsScene {
         ctx.fillStyle = '#fff';
         ctx.font = '16px Arial';
         ctx.textAlign = 'left';
-        const title = list.title.length > 18 ? list.title.slice(0, 18) + '…' : list.title;
+        const title = list.title.length > 16 ? list.title.slice(0, 16) + '…' : list.title;
         ctx.fillText(title + ' · ' + list.items.length, 28, y + 28);
-        this.buttons.push({ x: 16, y: y, w: W - 32, h: 46, action: 'open-list:' + list.id });
+        this.buttons.push({ x: 16, y: y, w: W - 100, h: 46, action: 'open-list:' + list.id });
+        ctx.fillStyle = '#E74C3C';
+        roundRect(ctx, W - 64, y + 8, 36, 30, 8);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.fillText('✕', W - 46, y + 28);
+        this.buttons.push({ x: W - 64, y: y + 8, w: 36, h: 30, action: 'del-list:' + list.id });
       });
       ctx.restore();
       return;
@@ -372,11 +500,17 @@ class ToolsScene {
         if (input) input.value = '';
       });
     }
-    ctx.fillStyle = '#ffe082';
-    ctx.font = 'bold 16px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(list.title, W / 2, 50);
-    const top = 64;
+    ctx.fillStyle = '#8C5A2E';
+    roundRect(ctx, 16, 46, W - 32, 48, 10);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 15px Arial';
+    ctx.textAlign = 'left';
+    const head = list.title.length > 18 ? list.title.slice(0, 18) + '…' : list.title;
+    ctx.fillText('Пункты: ' + head, 28, 66);
+    ctx.font = '12px Arial';
+    ctx.fillText('Внизу — новая строка, не новый список.', 28, 84);
+    const top = 104;
     const row = 46;
     const viewH = H - top - 72;
     const max = Math.max(0, list.items.length * row - viewH);
@@ -409,7 +543,12 @@ class ToolsScene {
   }
 
   drawBoard(ctx, W, H) {
-    KitBar.close();
+    this.ensureKit();
+    if (this.boardMode === 'album') {
+      this.drawAlbum(ctx, W, H);
+      return;
+    }
+    if (!this._drawNameOpen) KitBar.close();
     const colors = ['#24324a', '#e74c3c', '#2e8b57', '#4d96ff', '#ffd93d', '#ffffff'];
     colors.forEach((c, i) => {
       const x = 16 + i * 42;
@@ -433,7 +572,7 @@ class ToolsScene {
       ctx.fillRect(x + 8, 62 - w / 2, 18, Math.max(2, w / 2));
       this.buttons.push({ x: x, y: 50, w: 34, h: 28, action: 'width:' + w });
     });
-    const pad = { x: 16, y: 92, w: W - 32, h: H - 168 };
+    const pad = { x: 16, y: 92, w: W - 32, h: H - 250 };
     this.pad = pad;
     ctx.fillStyle = '#f7f1e3';
     roundRect(ctx, pad.x, pad.y, pad.w, pad.h, 12);
@@ -454,9 +593,76 @@ class ToolsScene {
       ctx.stroke();
     });
     ctx.restore();
-    this.buttons.push(createButton(ctx, W / 2 - 70, H - 58, 140, 40, 'Стереть', {
-      bgColor: '#E74C3C', fgColor: '#fff', fontSize: 16, radius: 10
-    }));
+    const bw = (W - 40) / 3;
+    const rowY = H - 58;
+    [['Шаг назад', 'undo-stroke', '#3D6B8C'], ['Стереть', 'clear-board', '#E74C3C'], ['Записать', 'save-board', '#1F6F5B']].forEach((spec, i) => {
+      const btn = createButton(ctx, 12 + i * (bw + 8), rowY, bw, 40, spec[0], {
+        bgColor: spec[2], fgColor: '#fff', fontSize: 14, radius: 10
+      });
+      btn.action = spec[1];
+      this.buttons.push(btn);
+    });
+    const album = createButton(ctx, W - 108, H - 148, 92, 30, 'Альбом', {
+      bgColor: 'rgba(255,255,255,0.2)', fgColor: '#fff', fontSize: 13, radius: 8
+    });
+    album.action = 'open-album';
+    this.buttons.push(album);
+  }
+
+  drawAlbum(ctx, W, H) {
+    KitBar.close();
+    this._drawNameOpen = false;
+    const pics = (System.kit && System.kit.drawings) || [];
+    ctx.fillStyle = '#d7fff4';
+    ctx.font = '15px Arial';
+    ctx.textAlign = 'center';
+    if (!pics.length) ctx.fillText('Сохранённых рисунков нет.', W / 2, 120);
+    const top = 56;
+    const row = 52;
+    const viewH = H - top - 24;
+    const max = Math.max(0, pics.length * row - viewH);
+    this.albumScroll = Math.max(0, Math.min(this.albumScroll || 0, max));
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, top, W, viewH);
+    ctx.clip();
+    pics.forEach((pic, i) => {
+      const y = top + i * row - this.albumScroll;
+      if (y + 46 < top || y > top + viewH) return;
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      roundRect(ctx, 16, y, W - 32, 46, 10);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = '16px Arial';
+      ctx.textAlign = 'left';
+      const title = String(pic.title || '').slice(0, 22);
+      ctx.fillText(title, 28, y + 28);
+      this.buttons.push({ x: 16, y: y, w: W - 100, h: 46, action: 'open-draw:' + pic.id });
+      ctx.fillStyle = '#E74C3C';
+      roundRect(ctx, W - 64, y + 8, 36, 30, 8);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'center';
+      ctx.fillText('✕', W - 46, y + 28);
+      this.buttons.push({ x: W - 64, y: y + 8, w: 36, h: 30, action: 'del-draw:' + pic.id });
+    });
+    ctx.restore();
+  }
+
+  askDrawingName() {
+    const self = this;
+    if (this._drawNameOpen) return;
+    this._drawNameOpen = true;
+    KitBar.open('Название рисунка', '', (text) => {
+      self._drawNameOpen = false;
+      const title = (text.trim() || self.drawingStamp(new Date())).slice(0, 32);
+      let strokes = [];
+      try { strokes = JSON.parse(JSON.stringify(self.board || [])); } catch (e) { strokes = []; }
+      System.kit.drawings.push({ id: 'd' + Date.now(), title: title, strokes: strokes });
+      if (System.kit.drawings.length > 30) System.kit.drawings.shift();
+      System.saveGame();
+      KitBar.close();
+    });
   }
 
   beginDrag(x, y) {
@@ -467,11 +673,11 @@ class ToolsScene {
       this.board.push(this.stroke);
       return true;
     }
-    if (this.tool === 'lists') {
-      this._scrollDrag = {
-        x: x, y: y, moved: false,
-        at: this.listId ? (this.itemScroll || 0) : (this.listsScroll || 0)
-      };
+    if (this.tool === 'lists' || (this.tool === 'notes' && !this.noteId) || (this.tool === 'board' && this.boardMode === 'album')) {
+      const at = this.tool === 'notes' ? (this.notesScroll || 0)
+        : (this.tool === 'board' ? (this.albumScroll || 0)
+          : (this.listId ? (this.itemScroll || 0) : (this.listsScroll || 0)));
+      this._scrollDrag = { x: x, y: y, moved: false, at: at, kind: this.tool + (this.listId ? '-in' : '') };
       return true;
     }
     return false;
@@ -483,7 +689,10 @@ class ToolsScene {
     const dy = this._scrollDrag.y - y;
     if (Math.abs(dy) > 8 || Math.abs(x - this._scrollDrag.x) > 8) this._scrollDrag.moved = true;
     const next = this._scrollDrag.at + dy;
-    if (this.listId) this.itemScroll = next;
+    const kind = this._scrollDrag.kind || '';
+    if (kind.indexOf('notes') === 0) this.notesScroll = next;
+    else if (kind.indexOf('board') === 0) this.albumScroll = next;
+    else if (this.listId) this.itemScroll = next;
     else this.listsScroll = next;
   }
 
@@ -605,10 +814,15 @@ class ToolsScene {
   leaveTool() {
     this.tool = 'menu';
     this.listId = null;
+    this.noteId = null;
+    this.boardMode = 'draw';
     this._notesOpen = false;
+    this._noteTitleOpen = false;
+    this._noteBodyOpen = false;
     this._listNameOpen = false;
     this._listItemOpen = false;
-    if (System.kit && System.kit.notes) System.saveGame();
+    this._drawNameOpen = false;
+    if (System.kit && ((System.kit.pages && System.kit.pages.length) || (System.kit.drawings && System.kit.drawings.length))) System.saveGame();
     KitBar.close();
   }
 
@@ -628,17 +842,36 @@ class ToolsScene {
       if (!isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) continue;
       const a = btn.action || '';
       const t = btn.text || '';
-      if (t.indexOf('На карту') !== -1) {
+      if (a === 'to-map' || t.indexOf('На карту') !== -1) {
         this.leaveTool();
         this.game.transitionTo('map');
         return true;
       }
-      if (t.indexOf('К списку') !== -1) { this.leaveTool(); return true; }
+      if (a === 'level-up') {
+        if (this.listId) {
+          this.listId = null;
+          this._listItemOpen = false;
+          this._listNameOpen = false;
+        } else if (this.noteId) {
+          this.noteId = null;
+          this._noteBodyOpen = false;
+          this._noteTitleOpen = false;
+        } else if (this.boardMode === 'album') this.boardMode = 'draw';
+        KitBar.close();
+        return true;
+      }
+      if (a === 'leave' || t.indexOf('К списку') !== -1) { this.leaveTool(); return true; }
       if (a.indexOf('tool:') === 0) {
         this.tool = a.slice(5);
+        this.listId = null;
+        this.noteId = null;
+        this.boardMode = 'draw';
         this._notesOpen = false;
+        this._noteTitleOpen = false;
+        this._noteBodyOpen = false;
         this._listNameOpen = false;
         this._listItemOpen = false;
+        this._drawNameOpen = false;
         KitBar.close();
         return true;
       }
@@ -662,9 +895,50 @@ class ToolsScene {
         if (list) { list.items.splice(parseInt(a.slice(9), 10), 1); System.saveGame(); }
         return true;
       }
+      if (a.indexOf('del-list:') === 0) {
+        const id = a.slice(9);
+        System.kit.lists = (System.kit.lists || []).filter(l => l.id !== id);
+        if (this.listId === id) this.listId = null;
+        System.saveGame();
+        return true;
+      }
+      if (a.indexOf('open-note:') === 0) {
+        this.noteId = a.slice(10);
+        this._noteBodyOpen = false;
+        this._noteTitleOpen = false;
+        KitBar.close();
+        return true;
+      }
+      if (a.indexOf('del-note:') === 0) {
+        const id = a.slice(9);
+        System.kit.pages = (System.kit.pages || []).filter(p => p.id !== id);
+        if (this.noteId === id) this.noteId = null;
+        System.saveGame();
+        return true;
+      }
       if (a.indexOf('pen:') === 0) { this.pen = a.slice(4); return true; }
       if (a.indexOf('width:') === 0) { this.penW = parseInt(a.slice(6), 10) || 6; return true; }
-      if (t === 'Стереть') { this.board = []; return true; }
+      if (a === 'undo-stroke' || t === 'Шаг назад') {
+        if (this.board.length) this.board.pop();
+        return true;
+      }
+      if (a === 'clear-board' || t === 'Стереть') { this.board = []; return true; }
+      if (a === 'save-board' || t === 'Записать') { this.askDrawingName(); return true; }
+      if (a === 'open-album') { this.boardMode = 'album'; this._drawNameOpen = false; KitBar.close(); return true; }
+      if (a.indexOf('open-draw:') === 0) {
+        const pic = (System.kit.drawings || []).find(d => d.id === a.slice(10));
+        if (pic) {
+          try { this.board = JSON.parse(JSON.stringify(pic.strokes || [])); } catch (e) { this.board = []; }
+        }
+        this.boardMode = 'draw';
+        return true;
+      }
+      if (a.indexOf('del-draw:') === 0) {
+        const id = a.slice(9);
+        System.kit.drawings = (System.kit.drawings || []).filter(d => d.id !== id);
+        System.saveGame();
+        return true;
+      }
       if (/^\d+ мин$/.test(t)) {
         const min = parseInt(t, 10) || 1;
         System.kit.timerEnd = Date.now() + min * 60000;
