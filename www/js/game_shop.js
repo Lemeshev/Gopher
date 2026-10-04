@@ -335,10 +335,10 @@ class ShopScene {
       ctx.font = `bold ${Math.min(itemW * 0.12, 13)}px Arial`;
       if (active) {
         ctx.fillStyle = '#1B5E20';
-        ctx.fillText('✓ Сейчас тут', ix + itemW - 15, iy + itemH - 14);
+        ctx.fillText(item.slot ? 'Снять' : '✓ Сейчас тут', ix + itemW - 15, iy + itemH - 14);
       } else if (owned) {
         ctx.fillStyle = '#2E7D32';
-        ctx.fillText((item.wallId || item.floorId) ? 'Применить' : '✓ Куплено', ix + itemW - 15, iy + itemH - 14);
+        ctx.fillText((item.wallId || item.floorId) ? 'Применить' : (item.slot ? 'Надеть' : '✓ Куплено'), ix + itemW - 15, iy + itemH - 14);
       } else if (item.cost === 0) {
         ctx.fillStyle = '#2E7D32';
         ctx.fillText('Бесплатно', ix + itemW - 15, iy + itemH - 14);
@@ -583,14 +583,16 @@ class ShopScene {
           const o = findOutfit(btn.slot, btn.value);
           if (!o) return true;
           if (System.look[btn.slot] === btn.value) {
-            this.showNotification('👗', o.name + ' уже надет');
-            AudioSys.play('fail');
+            System.setOutfit(btn.slot, null);
+            System.applyLookTo(this.game.gopher);
+            this.showNotification('👗', o.name + ' — в гардеробе');
+            AudioSys.play('click');
             return true;
           }
           if (System.ownsOutfit(btn.slot, btn.value)) {
             System.setOutfit(btn.slot, btn.value);
             System.applyLookTo(this.game.gopher);
-            this.showNotification(o.emoji, o.name + ' — надето');
+            this.showNotification(o.emoji, o.name + ' — из гардероба');
             AudioSys.play('success');
             AudioSys.voice(System.look.char, 'hello');   // герой «здоровается» в обновке
             return true;

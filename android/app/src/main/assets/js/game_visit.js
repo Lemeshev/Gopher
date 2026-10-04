@@ -970,9 +970,18 @@ class VisitScene {
           const item = this.items[idx];
           const d = this.data;
           if (d.kind === 'work' && item.coins) {
-            System.earnCoins(item.coins);
-            System.addXP(3);
-            this.setToast('+' + item.coins + ' монет за задание');
+            const pay = System.takeWorkJob(item.id || item.name, item.coins);
+            if (pay.paid > 0) {
+              System.addXP(3);
+              this.setToast('+' + pay.paid + ' монет за задание');
+            } else if (pay.reason === 'rest') {
+              const min = Math.max(1, Math.ceil((pay.left || 0) / 60000));
+              this.setToast('Смена кончилась. Отдых ' + min + ' мин');
+            } else if (pay.reason === 'energy') {
+              this.setToast('Сил мало. Сначала отдохни');
+            } else {
+              this.setToast('Это задание уже сделано');
+            }
           } else if (d.perItemReward) {
             const r = System.applyReward(d.perItemReward);
             if (r) this.setToast(r);

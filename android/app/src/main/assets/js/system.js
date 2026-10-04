@@ -841,6 +841,7 @@ const System = {
       paint: { walls: this.paint.walls.slice(), floors: this.paint.floors.slice() },
       furnitureColors: { ...this.furnitureColors },
       outfitsOwned: (this.outfitsOwned || []).slice(),
+      workShift: this.workShift || { at: 0, paid: [] },
       // legacy-поля: их читают старые коды друзей и сторонние проверки
       room: { wall: this.currentRoomData().wall, floor: this.currentRoomData().floor },
       furniture: this.currentRoomData().furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
@@ -953,6 +954,9 @@ const System = {
       };
       this.furnitureColors = data.furnitureColors || {};
       this.outfitsOwned = (data.outfitsOwned || []).slice();
+      this.workShift = (data.workShift && Array.isArray(data.workShift.paid))
+        ? { at: data.workShift.at || 0, paid: data.workShift.paid.slice() }
+        : { at: 0, paid: [] };
       // Старые сохранения (до v1.2) хранили одну комнату и плоский список мебели.
       // Переносим их в комнаты ТОЛЬКО если комнат в сохранении нет: иначе при
       // каждой загрузке предметы заново «переезжали» в свою основную комнату и
@@ -1140,6 +1144,7 @@ const System = {
     this.paint = { walls: ['warm'], floors: ['wood'] };
     this.furnitureColors = {};
     this.outfitsOwned = [];
+    this.workShift = { at: 0, paid: [] };
     this.inventory = [];
     // Персонаж — это «кто играет», он сохраняется между сбросами прогресса
     this.look = { hat: null, glasses: null, neck: null, back: null, bowtie: false, fur: 'classic', char: (this.look && this.look.char) || 'gopher' };
@@ -1344,6 +1349,30 @@ const System = {
       if (o) out[slot] = o.name;
     });
     return out;
+  },
+
+  // Смена на работе: два оплаченных задания, потом пауза.
+  // Иначе ребёнок жмёт задания подряд и набирает монеты без отдыха.
+  WORK_SHIFT_MS: 8 * 60 * 1000,
+  WORK_SHIFT_JOBS: 2,
+
+  takeWorkJob(id, coins) {
+    const now = Date.now();
+    if (!this.workShift || !Array.isArray(this.workShift.paid)) this.workShift = { at: 0, paid: [] };
+    if (!this.workShift.at || now - this.workShift.at >= this.WORK_SHIFT_MS) {
+      this.workShift = { at: now, paid: [] };
+    }
+    const key = String(id || '');
+    if (this.workShift.paid.indexOf(key) !== -1) return { paid: 0, reason: 'same' };
+    if (this.workShift.paid.length >= this.WORK_SHIFT_JOBS) {
+      return { paid: 0, reason: 'rest', left: this.WORK_SHIFT_MS - (now - this.workShift.at) };
+    }
+    if ((this.stats.energy || 0) < 8) return { paid: 0, reason: 'energy' };
+    this.stats.energy = Math.max(0, this.stats.energy - 8);
+    this.workShift.paid.push(key);
+    const n = Math.max(0, coins || 0);
+    this.earnCoins(n);
+    return { paid: n, reason: 'ok' };
   },
 
   // Снять всё (кнопка «Без аксессуаров» в магазине)
