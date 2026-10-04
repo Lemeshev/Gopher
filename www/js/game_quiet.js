@@ -1887,11 +1887,14 @@ class QuietScene {
       ctx.fill();
       ctx.fillStyle = '#4e7088';
       ctx.beginPath();
-      ctx.moveTo(-b * 1.05, 0);
-      ctx.quadraticCurveTo(-b * 1.45, -b * 0.08, -b * 1.9, -b * 0.42);
-      ctx.quadraticCurveTo(-b * 1.4, -b * 0.02, -b * 1.05, 0);
-      ctx.quadraticCurveTo(-b * 1.4, b * 0.02, -b * 1.9, b * 0.42);
-      ctx.quadraticCurveTo(-b * 1.45, b * 0.08, -b * 1.05, 0);
+      ctx.moveTo(-b * 0.9, -b * 0.12);
+      ctx.lineTo(-b * 1.35, -b * 0.1);
+      ctx.lineTo(-b * 1.9, -b * 0.42);
+      ctx.lineTo(-b * 1.48, 0);
+      ctx.lineTo(-b * 1.9, b * 0.42);
+      ctx.lineTo(-b * 1.35, b * 0.1);
+      ctx.lineTo(-b * 0.9, b * 0.12);
+      ctx.closePath();
       ctx.fill();
       ctx.fillStyle = '#5c7d94';
       ctx.beginPath();
@@ -2963,7 +2966,7 @@ class QuietScene {
 
   drawWindowPerson(ctx, step, opt) {
     const skin = opt.skin || '#f3c7a8';
-    const stride = Math.max(-1, Math.min(1, step)) * 3;
+    const swing = Math.max(-1, Math.min(1, step));
     const girl = !!opt.girl || opt.who === 'grandma';
     if (opt.bag) {
       ctx.fillStyle = opt.bag;
@@ -2980,21 +2983,21 @@ class QuietScene {
       ctx.fill();
     } else {
       ctx.fillStyle = opt.pants;
-      ctx.beginPath(); ctx.ellipse(-1, 3, 3, 7, 0.25 + stride * 0.04, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(6, 3, 3, 7, -0.25 - stride * 0.04, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-1, 3, 3, 7, 0.2 + swing * 0.55, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(6, 3, 3, 7, -0.2 - swing * 0.55, 0, Math.PI * 2); ctx.fill();
     }
     ctx.fillStyle = '#2c2c2c';
-    ctx.beginPath(); ctx.ellipse(0, 11, 4, 1.8, 0.2, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(7, 11, 4, 1.8, -0.15, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0 + swing * 4, 11, 4, 1.8, 0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(7 - swing * 4, 11, 4, 1.8, -0.15, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = opt.shirt;
     ctx.beginPath(); ctx.ellipse(4, -10, 8, 10, 0.05, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = skin;
     ctx.lineWidth = 2.6;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(2, -12);
+    ctx.moveTo(2, -14);
     if (opt.armUp) ctx.quadraticCurveTo(10, -20, 16, -26);
-    else ctx.quadraticCurveTo(8, -12, 7 + stride * 0.4, -6);
+    else ctx.quadraticCurveTo(8 + swing * 6, -12, 6 + swing * 10, -7);
     ctx.stroke();
     ctx.fillStyle = skin;
     ctx.beginPath(); ctx.ellipse(8, -22, 6.2, 6.6, 0.08, 0, Math.PI * 2); ctx.fill();

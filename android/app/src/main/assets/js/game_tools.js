@@ -617,6 +617,7 @@ class ToolsScene {
   drawAlbum(ctx, W, H) {
     KitBar.close();
     this._drawNameOpen = false;
+    this.pad = null;
     const pics = (System.kit && System.kit.drawings) || [];
     ctx.fillStyle = '#d7fff4';
     ctx.font = '15px Arial';
@@ -664,14 +665,13 @@ class ToolsScene {
       let strokes = [];
       try { strokes = JSON.parse(JSON.stringify(self.board || [])); } catch (e) { strokes = []; }
       System.kit.drawings.push({ id: 'd' + Date.now(), title: title, strokes: strokes });
-      if (System.kit.drawings.length > 30) System.kit.drawings.shift();
       System.saveGame();
       KitBar.close();
     });
   }
 
   beginDrag(x, y) {
-    if (this.tool === 'board' && this.pad) {
+    if (this.tool === 'board' && this.boardMode !== 'album' && this.pad) {
       const p = this.pad;
       if (x < p.x || y < p.y || x > p.x + p.w || y > p.y + p.h) return false;
       this.stroke = { color: this.pen, w: this.penW, pts: [{ x: x, y: y }] };
