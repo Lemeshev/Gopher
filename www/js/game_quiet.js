@@ -2506,11 +2506,13 @@ class QuietScene {
     if (id === 'kid') {
       const prop = Math.random() < 0.5 ? 'balloon' : 'bag';
       const balloons = ['#ff5a7a', '#7ec8f0', '#ffe56a'];
+      const role = girl ? 'girl' : 'boy';
       return {
         prop: prop,
         balloon: balloons[Math.floor(Math.random() * balloons.length)],
         girl: girl,
-        name: this.pickWindowName(girl ? 'girl' : 'boy'),
+        role: role,
+        name: this.pickWindowName(role),
         line: line
       };
     }
@@ -2520,10 +2522,15 @@ class QuietScene {
       return { basket: Math.random() < 0.5, girl: girl, name: this.pickWindowName(girl ? 'girl' : 'boy'), line: line };
     }
     if (id === 'walker') {
-      const who = Math.random() < 0.5 ? 'grandma' : 'grandpa';
-      return { who: who, name: this.pickWindowName(who === 'grandma' ? 'girl' : 'boy'), line: line };
+      const roles = ['mom', 'dad', 'grandma', 'grandpa'];
+      const who = roles[Math.floor(Math.random() * roles.length)];
+      const female = who === 'mom' || who === 'grandma';
+      return { who: who, role: who, girl: female, name: this.pickWindowName(female ? 'girl' : 'boy'), line: line };
     }
-    if (id === 'stroller') return { girl: girl, name: this.pickWindowName(girl ? 'girl' : 'boy'), line: line };
+    if (id === 'stroller') {
+      const who = girl ? 'mom' : 'dad';
+      return { who: who, role: who, girl: who === 'mom', name: this.pickWindowName(who === 'mom' ? 'girl' : 'boy'), line: line };
+    }
     if (id === 'plane') return { name: this.pickWindowName('bus'), line: line };
     if (id === 'bird') return {};
     return {};
@@ -2568,14 +2575,15 @@ class QuietScene {
         ], L));
     }
     if (id === 'kid') {
+      const child = L.girl ? 'Девочка' : 'Мальчик';
       return L.prop === 'balloon'
         ? n(this.taleAt([
-          'Ребёнок {n} бежит с шариком и хохочет.', '{n} держит шарик и подпрыгивает.',
-          'У {n} в руке шарик, он тянет вверх.', '{n} несёт шарик и машет свободной рукой.'
+          child + ' {n} бежит с шариком и хохочет.', child + ' {n} держит шарик и подпрыгивает.',
+          'У ' + child.toLowerCase() + ' {n} в руке шарик, он тянет вверх.', child + ' {n} несёт шарик и машет свободной рукой.'
         ], L))
         : n(this.taleAt([
-          '{n} идёт в сад с рюкзаком на спине.', 'Ребёнок {n} поправил рюкзак и шагает.',
-          'Это рюкзак у {n}, почти с него ростом.', '{n} несёт рюкзак и считает шаги.'
+          child + ' {n} идёт в сад с рюкзаком на спине.', child + ' {n} поправил рюкзак и шагает.',
+          'Это рюкзак у ' + child.toLowerCase() + ' {n}, почти с него ростом.', child + ' {n} несёт рюкзак и считает шаги.'
         ], L));
     }
     if (id === 'bike') {
@@ -2613,23 +2621,35 @@ class QuietScene {
         ' держит руль самоката крепко.', ' объезжает трещину на асфальте.'
       ], L);
     }
-    if (id === 'stroller') return this.taleAt([
-      'Коляска катится. Малыш ' + who + ' смотрит по сторонам.',
-      'В коляске сидит ' + who + ' и держит край покрывала.',
-      'Малыша ' + who + ' везут гулять. Коляска мягко прыгает.'
-    ], L);
+    if (id === 'stroller') {
+      const parent = L.who === 'dad' ? 'Папа' : 'Мама';
+      return this.taleAt([
+        parent + ' ' + who + ' везёт коляску. Малыш смотрит по сторонам.',
+        parent + ' ' + who + ' катит коляску вдоль домов.',
+        'Коляску везёт ' + parent.toLowerCase() + ' ' + who + '.'
+      ], L);
+    }
     if (id === 'walker') {
-      return L.who === 'grandma'
-        ? this.taleAt([
-          'Бабушка ' + who + ' несёт сумку и кивает прохожим.',
-          who + ' идёт с сумкой не торопясь.',
-          'Бабушка ' + who + ' остановилась поправить сумку.'
-        ], L)
-        : this.taleAt([
-          'Дедушка ' + who + ' опирается на трость.',
-          who + ' гуляет с тростью вдоль домов.',
-          'Дедушка ' + who + ' стучит тростью по дорожке.'
-        ], L);
+      if (L.who === 'mom') return this.taleAt([
+        'Мама ' + who + ' несёт сумку и идёт домой.',
+        'Мама ' + who + ' шагает по тротуару.',
+        'Мама ' + who + ' гуляет без спешки.'
+      ], L);
+      if (L.who === 'dad') return this.taleAt([
+        'Папа ' + who + ' идёт с работы широким шагом.',
+        'Папа ' + who + ' шагает по тротуару.',
+        'Папа ' + who + ' гуляет вдоль домов.'
+      ], L);
+      if (L.who === 'grandma') return this.taleAt([
+        'Бабушка ' + who + ' несёт сумку и кивает прохожим.',
+        'Бабушка ' + who + ' идёт с сумкой не торопясь.',
+        'Бабушка ' + who + ' остановилась поправить сумку.'
+      ], L);
+      return this.taleAt([
+        'Дедушка ' + who + ' опирается на трость. У него седая борода.',
+        'Дедушка ' + who + ' гуляет с тростью. Борода седая.',
+        'Дедушка ' + who + ' стучит тростью. Седая борода видна сразу.'
+      ], L);
     }
     if (id === 'runner') {
       return L.girl
@@ -3017,8 +3037,13 @@ class QuietScene {
     if (opt.who === 'grandpa') {
       ctx.fillStyle = '#eee';
       ctx.beginPath(); ctx.ellipse(8, -30, 7, 1.6, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#c8c8c8';
-      ctx.fillRect(12, -20, 3, 2);
+      ctx.fillStyle = '#d0d0d0';
+      ctx.beginPath(); ctx.ellipse(13, -17, 5.2, 4.6, 0.2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillRect(11, -20, 4, 5);
+    }
+    if (opt.who === 'dad') {
+      ctx.fillStyle = '#3a2a22';
+      ctx.fillRect(6, -29, 8, 2);
     }
     ctx.fillStyle = '#2a241f';
     ctx.beginPath(); ctx.arc(11, -23, 1.05, 0, Math.PI * 2); ctx.fill();
@@ -3191,22 +3216,35 @@ class QuietScene {
       ctx.beginPath(); ctx.arc(2, -18, 5, 0, Math.PI * 2); ctx.fill();
       ctx.save();
       ctx.translate(-28, -4);
-      this.drawWindowPerson(ctx, step * 0.3, { shirt: '#c47a9a', pants: '#34507a', hair: '#5a3824' });
+      const parent = look.who === 'dad' ? 'dad' : 'mom';
+      this.drawWindowPerson(ctx, step * 0.3, {
+        shirt: parent === 'mom' ? '#e07a9a' : '#4d6ea8',
+        pants: '#34507a', skirt: '#e07a9a',
+        hair: parent === 'mom' ? '#6a3a28' : '#2a211c',
+        girl: parent === 'mom', who: parent
+      });
       ctx.restore();
     } else if (p.id === 'walker') {
-      const grandma = look.who === 'grandma';
+      const who = look.who || 'dad';
+      const female = who === 'grandma' || who === 'mom';
+      const old = who === 'grandma' || who === 'grandpa';
+      ctx.save();
+      ctx.scale(1.18, 1.18);
       this.drawWindowPerson(ctx, step * 0.6, {
-        shirt: grandma ? '#c47a9a' : '#6d8ec4',
-        pants: grandma ? '#6a4a6a' : '#3a4558',
-        hair: grandma ? '#d9d3ea' : '#cfcfcf',
-        who: grandma ? 'grandma' : 'grandpa',
-        bag: grandma ? '#8a5a32' : null
+        shirt: female ? '#c47a9a' : '#4d6ea8',
+        pants: female ? '#6a4a6a' : '#2c3a55',
+        skirt: '#c47a9a',
+        hair: old ? (female ? '#d9d3ea' : '#cfcfcf') : (female ? '#6a3a28' : '#2a211c'),
+        who: who,
+        girl: female,
+        bag: female ? '#8a5a32' : null
       });
-      if (!grandma) {
+      if (who === 'grandpa') {
         ctx.strokeStyle = '#8a5a32';
         ctx.lineWidth = 2.4;
         ctx.beginPath(); ctx.moveTo(14, -8); ctx.lineTo(18, 12); ctx.stroke();
       }
+      ctx.restore();
     } else if (p.id === 'runner') {
       this.drawWindowPerson(ctx, step * 1.4, {
         shirt: look.girl ? '#e25b8a' : '#e25b5b',

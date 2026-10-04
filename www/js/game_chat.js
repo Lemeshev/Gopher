@@ -146,6 +146,11 @@ class ChatScene {
     // 4) Явные темы ребёнка важнее косинуса: «работы много» не про погоду,
     // «Милка» не про суп, «ты суслик» не про объятия. Косинус ниже остаётся
     // для перефразировок, которых нет в коротком списке.
+    if (window.CHAT_TALK && window.CHAT_TALK.small) {
+      const easy = window.CHAT_TALK.small(this, n);
+      if (easy) return easy;
+    }
+
     if (window.CHAT_MEMORY && window.CHAT_MEMORY.reply) {
       const recalled = window.CHAT_MEMORY.reply(this, text);
       if (recalled) return recalled;
@@ -161,26 +166,170 @@ class ChatScene {
 
     // 5) Смысловой поиск по готовым темам. Случайную подстановку слова из банка не берём:
     // она ломала падеж («какой игрушка», «про друг»).
-    const sem = window.CHAT_SEMANTIC;
-    if (sem && sem.best) {
-      const hit = sem.best(n);
-      if (hit && hit.score >= (sem.THRESHOLD || 0.3)) {
-        const topic = this.topicById(hit.id);
-        if (topic && topic.replies && topic.replies.length) {
-          this.thread = hit.id;
-          this.lastTopic = topic;
-          this.pending = topic.ask || null;
-          return this.pick(topic.replies);
-        }
-      }
-    }
-
-    const nounLine = this.nounLine(n);
-    if (nounLine) return nounLine;
+    const grounded = this.groundReply(n);
+    if (grounded) return grounded;
 
     this.lastTopic = null;
     this.pending = null;
     return this.pick(window.CHAT_KID_FALLBACK || window.CHAT_FALLBACK);
+  }
+
+  // Ответ только про слово, которое ребёнок реально написал.
+  // Шаблон «ошибки в {s}» сюда не попадает: падеж в нём ломается.
+  plainAbout(id, word) {
+    const q = '«' + word + '»';
+    const lines = {
+      animals: [
+        'Про ' + q + '. Это добрый зверь, в рассказе он никого не обижает.',
+        'Слышу ' + q + '. Пусть у этого зверя будет сытный день и тихий сон.'
+      ],
+      food: [
+        'Про ' + q + '. Еду дома даёт взрослый, а я говорю «приятного аппетита».',
+        'Слышу ' + q + '. Вкусно, когда не торопятся и благодарят.'
+      ],
+      family: [
+        'Про ' + q + '. Это близкий человек: живой и важнее любой игры.',
+        'Слышу ' + q + '. Я игрушка и его не заменяю.'
+      ],
+      school: [
+        'Про ' + q + '. Это учёба. Ошибки бывают в тетради, их не стыдно исправлять.',
+        'Слышу ' + q + '. Урок идёт по одному шагу, я не решаю его за тебя.'
+      ],
+      play: [
+        'Про ' + q + '. Играем без слёз и по очереди.',
+        'Слышу ' + q + '. Если надоело, можно спокойно остановиться.'
+      ],
+      nature: [
+        'Про ' + q + '. На это можно смотреть долго и спокойно.',
+        'Слышу ' + q + '. Природа никуда не спешит.'
+      ],
+      weather: [
+        'Про ' + q + '. Погоду за окном я не вижу и говорю только про это слово.',
+        'Слышу ' + q + '. Это про небо, не про другую тему.'
+      ],
+      scared: [
+        'Про ' + q + '. Страшно бывает, монстров в этом чате нет.',
+        'Слышу ' + q + '. Комната обычная, я рядом в игре.'
+      ],
+      how: [
+        'Дела спокойные. Я рад, что ты написал.',
+        'У меня всё тихо, можно просто поболтать.'
+      ],
+      hello: [
+        'Привет. Я рядом.',
+        'Здравствуй. Я слушаю.'
+      ],
+      moodGood: [
+        'Здорово, что тебе хорошо.',
+        'Я тоже этому рад.'
+      ],
+      moodBad: [
+        'Мне жаль, что тяжело. Я рядом.',
+        'Такое чувство можно назвать, и от этого чуть легче.'
+      ]
+    };
+    return lines[id] || [
+      'Я услышал ' + q + ' и остаюсь на этом слове.',
+      'Слово ' + q + ' я не меняю на другое.'
+    ];
+  }
+
+  withFocus(n, line) {
+    this.noteFocus(n);
+    const w = this.focusWord;
+    const stem = window.Semantic && window.Semantic.stem;
+    const root = stem ? stem(w || '') : '';
+    const low = String(line || '').toLowerCase().replace(/ё/g, 'е');
+    if (!w || !root || low.indexOf(root) !== -1) return line;
+    return 'Про «' + w + '». ' + line;
+  }
+
+  noteFocus(n) {
+    const skip = { ходил: 1, ходила: 1, ходили: 1, было: 1, была: 1, были: 1, тобой: 1, тебя: 1, тебе: 1, меня: 1, этом: 1, этот: 1, просто: 1, нормально: 1, очень: 1, расскажи: 1, это: 1, как: 1, что: 1, кто: 1, ещё: 1, еще: 1, про: 1, для: 1, или: 1 };
+    const words = String(n || '').split(' ').filter(w => w.length >= 3 && !skip[w]);
+    if (!words.length) return;
+    words.sort((a, b) => b.length - a.length);
+    this.focusWord = words[0];
+  }
+
+  holdFocus() {
+    const w = this.focusWord;
+    if (!w) return '';
+    this.pending = null;
+    return this.pick([
+      'Мы всё ещё про «' + w + '».',
+      'Я помню это слово: «' + w + '».'
+    ]);
+  }
+
+  groundReply(n) {
+    const miss = /бред|чушь|ерунд|не в тему|мимо|что за ответ/;
+    if (miss.test(n) && this.focusWord) {
+      this.pending = null;
+      return this.pick([
+        'Да, это было мимо. Тема одна: «' + this.focusWord + '».',
+        'Согласен, фраза мимо. Остаёмся на «' + this.focusWord + '».'
+      ]);
+    }
+    if (/^кто так/.test(n) && this.focusWord) {
+      this.pending = null;
+      return this.pick([
+        'Нового героя я не называл. Мы про «' + this.focusWord + '».',
+        'Это слово я не подменял. Речь про «' + this.focusWord + '».'
+      ]);
+    }
+
+    const sem = window.CHAT_SEMANTIC;
+    const hit = sem && sem.best ? sem.best(n) : null;
+    if (hit && hit.word && hit.score >= (sem.THRESHOLD || 0.3)) {
+      const topic = this.topicById(hit.id);
+      this.focusWord = hit.word;
+      this.thread = hit.id;
+      this.lastTopic = topic || { id: hit.id };
+      this.pending = topic && topic.ask ? topic.ask : null;
+      return this.pick(this.plainAbout(hit.id, hit.word));
+    }
+
+    const noun = this.nounHit(n);
+    if (noun) {
+      this.focusWord = noun.word;
+      this.thread = 'noun';
+      this.pending = null;
+      this.lastTopic = null;
+      return this.pick(this.plainAbout('noun', noun.word));
+    }
+
+    const skip = { ходил: 1, ходила: 1, ходили: 1, было: 1, была: 1, были: 1, тобой: 1, тебя: 1, тебе: 1, меня: 1, этом: 1, этот: 1, просто: 1, нормально: 1, очень: 1, это: 1, как: 1, что: 1, кто: 1, ещё: 1, еще: 1, про: 1, для: 1, или: 1 };
+    const words = n.split(' ').filter(w => w.length >= 3 && !skip[w]);
+    if (words.length) {
+      words.sort((a, b) => b.length - a.length);
+      const word = words[0];
+      const stem = window.Semantic && window.Semantic.stem;
+      if (stem && this.focusWord && stem(word) === stem(this.focusWord)) return this.holdFocus();
+      this.focusWord = word;
+      this.thread = 'word';
+      this.pending = null;
+      this.lastTopic = { id: 'word' };
+      return 'Я услышал слово «' + word + '» и не путаю его с другими.';
+    }
+    return this.holdFocus();
+  }
+
+  nounHit(n) {
+    const nouns = window.CHAT_NOUNS || [];
+    const stem = window.Semantic && window.Semantic.stem;
+    if (!stem) return null;
+    const words = n.split(' ').filter(w => w.length >= 4);
+    let hit = null;
+    for (let i = 0; i < nouns.length; i++) {
+      const key = stem(nouns[i].key);
+      if (key.length < 3) continue;
+      for (let j = 0; j < words.length; j++) {
+        if (stem(words[j]) !== key) continue;
+        if (!hit || nouns[i].word.length > hit.word.length) hit = nouns[i];
+      }
+    }
+    return hit;
   }
 
   // Короткий слой «держим тему». Пустая строка — пусть решает смысловой поиск.
@@ -209,6 +358,10 @@ class ChatScene {
       ]);
       if (this.thread === 'who') return say('who', [
         'Я про себя. Я ' + pet + ', игрушка на экране, не живой человек.'
+      ]);
+      if (this.focusWord) return say(this.thread || 'talk', [
+        'Мы про «' + this.focusWord + '». Другое слово я сюда не подставляю.',
+        'Тема не сменилась: «' + this.focusWord + '». Повтори, что с ним было.'
       ]);
       return say(this.thread || 'talk', [
         'Я сбился с темы. Повтори одним словом, о чём мы.'
@@ -279,11 +432,9 @@ class ChatScene {
         'Милка — девочка-игрушка, не еда. Зелёные ушки, розовые подушечки на лапах.'
       ]);
     }
-    if (n === 'еще' || n === 'дальше' || n === 'другое' || n === 'продолжай') {
-      if (this.thread && this.thread !== 'fact') {
-        const more = this.fromBank(this.thread, (this.turns || []).join(' '));
-        if (more) return more;
-      }
+    if (n === 'еще' || n === 'дальше' || n === 'другое' || n === 'продолжай' || n === 'скажи' || n === 'начинай' || n === 'я тоже' || n === 'и я') {
+      const held = this.holdFocus();
+      if (held) return held;
     }
     if (has(/интересн|факт|расскажи что/) || n === 'еще' || n === 'ещё') {
       if (n === 'еще' || n === 'ещё' || this.thread === 'fact' || has(/интересн|факт|расскажи что/)) {
@@ -470,6 +621,16 @@ class ChatScene {
     this.lastTopic = null;
     const patterns = window.CHAT_NOUN_PATTERNS || ['{s}! Расскажи ещё.'];
     return this.pick(patterns).split('{s}').join(hit.word);
+  }
+
+  semanticGrounded(n, hit) {
+    if (!hit || !hit.text) return false;
+    const stop = { это: 1, меня: 1, тебе: 1, тебя: 1, тоже: 1, просто: 1, такой: 1, такая: 1, такое: 1, было: 1, была: 1, были: 1, хочу: 1, могу: 1, надо: 1 };
+    const words = (s) => String(s || '').toLowerCase().replace(/ё/g, 'е').split(' ').filter(w => w.length >= 4 && !stop[w]);
+    const mine = words(n);
+    const theirs = words(hit.text);
+    if (!mine.length) return hit.score >= 0.97;
+    return mine.some(w => theirs.some(h => h === w || (w.length >= 5 && (h.indexOf(w) === 0 || w.indexOf(h) === 0))));
   }
 
   scoreTopic(n, topic) {

@@ -6,7 +6,7 @@
     slots.forEach(slot => {
       patterns.forEach(p => replies.push(p.split('{s}').join(slot)));
     });
-    return { keys: keys, replies: replies };
+    return { keys: keys, replies: replies, patterns: patterns, slots: slots };
   }
 
   const hello = {

@@ -112,9 +112,41 @@
 
   const index = new Semantic.Index(entries);
 
+  // Тема — только если целое слово ребёнка совпало со словом подсказки или с его корнем.
+  // Косинус по кускам букв («театр» ≈ «темно», «тётя») в выбор темы не входит.
+  function bestWord(text) {
+    const words = Semantic.normalize(text).split(' ').filter(w => w.length >= 4);
+    let found = null;
+    for (let i = 0; i < entries.length; i++) {
+      const parts = String(entries[i].text || '').split(' ').filter(p => p.length >= 3);
+      let shared = 0;
+      for (let a = 0; a < words.length; a++) {
+        const sw = Semantic.stem(words[a]);
+        for (let b = 0; b < parts.length; b++) {
+          if (words[a] === parts[b] || (sw.length >= 3 && sw === Semantic.stem(parts[b]))) shared++;
+        }
+      }
+      for (let a = 0; a < words.length; a++) {
+        const w = words[a];
+        const sw = Semantic.stem(w);
+        for (let b = 0; b < parts.length; b++) {
+          const p = parts[b];
+          const exact = w === p;
+          const same = sw.length >= 3 && sw === Semantic.stem(p);
+          if (!exact && !same) continue;
+          const rank = (exact ? 200 : 100) + w.length + shared * 50 - parts.length;
+          if (!found || rank > found.rank) {
+            found = { id: entries[i].id, text: entries[i].text, score: exact ? 1 : 0.9, rank: rank, word: w };
+          }
+        }
+      }
+    }
+    return found;
+  }
+
   window.CHAT_SEMANTIC = {
     index: index,
-    best: function (text) { return index.best(text); },
+    best: bestWord,
     search: function (text, k) { return index.search(text, k || 5); },
     // Порог: ниже него считаем, что тема не найдена (уходим в существительное/фолбэк).
     THRESHOLD: 0.3,

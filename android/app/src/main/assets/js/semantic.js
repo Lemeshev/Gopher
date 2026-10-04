@@ -13,6 +13,20 @@
       .replace(/[^a-zа-я0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
   }
 
+  // Общий корень без падежного хвоста. «мама» и «маму» сходятся, «театр» и «тётя» нет:
+  // остаток короче 3 букв не отрезаем, мягкий знак снимаем до сравнения.
+  function stem(s) {
+    let w = normalize(s).replace(/ь/g, '');
+    if (!w || w.indexOf(' ') !== -1) w = w.split(' ')[0] || '';
+    const ends = ['иями', 'ами', 'ями', 'ого', 'ему', 'ому', 'ыми', 'ими', 'иях', 'ах', 'ях', 'ами', 'ов', 'ев', 'ам', 'ям', 'ою', 'ею', 'ая', 'яя', 'ое', 'ее', 'ые', 'ие', 'ой', 'ей', 'ий', 'ый', 'ом', 'ем', 'ую', 'юю', 'ия', 'ья', 'а', 'я', 'ы', 'и', 'у', 'ю', 'е', 'о'];
+    if (w.length <= 3) return w;
+    for (let i = 0; i < ends.length; i++) {
+      const e = ends[i];
+      if (w.length - e.length >= 3 && w.slice(w.length - e.length) === e) return w.slice(0, w.length - e.length);
+    }
+    return w;
+  }
+
   // Слова + символьные 3/4-граммы с границами «#». «кот» → w:кот, g3:#ко, g3:кот,
   // g3:от#, g4:#кот, g4:кот# — поэтому «котик» и «кот» пересекаются.
   function tokens(s) {
@@ -86,5 +100,5 @@
     best(query) { return this.search(query, 1)[0] || null; }
   }
 
-  window.Semantic = { normalize, tokens, vectorize, cosine, countDf, Index };
+  window.Semantic = { normalize, stem, tokens, vectorize, cosine, countDf, Index };
 })();
