@@ -68,6 +68,10 @@ class Game {
   init() {
     this.resize();
     window.addEventListener('resize', () => this.resize());
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => this.resize());
+      window.visualViewport.addEventListener('scroll', () => this.resize());
+    }
 
     // Единая система ввода: touch + mouse -> координаты канваса
     const toCanvas = (clientX, clientY) => {
@@ -209,14 +213,21 @@ class Game {
   }
 
   resize() {
-    const w = window.innerWidth || 360;
-    const h = window.innerHeight || 640;
+    const vv = window.visualViewport;
+    const w = Math.round((vv && vv.width) || window.innerWidth || 360);
+    const h = Math.round((vv && vv.height) || window.innerHeight || 640);
     this.width = w;
     this.height = h;
     this.canvas.width = w;
     this.canvas.height = h;
     this.canvas.style.width = w + 'px';
     this.canvas.style.height = h + 'px';
+    if (vv) this.canvas.style.marginTop = Math.round(vv.offsetTop || 0) + 'px';
+    const bar = document.getElementById('kitBar');
+    if (bar && vv) {
+      const lift = Math.max(0, Math.round(window.innerHeight - vv.height - (vv.offsetTop || 0)));
+      bar.style.bottom = lift + 'px';
+    }
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 

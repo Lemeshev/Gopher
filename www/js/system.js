@@ -707,7 +707,17 @@ const System = {
     return this.saveKeyFor(this.profileId) + '_house';
   },
 
+  pullNativeHouse() {
+    try {
+      if (window.AndroidBridge && typeof AndroidBridge.loadHouse === 'function') {
+        const raw = AndroidBridge.loadHouse();
+        if (raw) this.nativeHouseRaw = raw;
+      }
+    } catch (e) {}
+  },
+
   readHouseVault() {
+    this.pullNativeHouse();
     let best = null;
     const take = (raw) => {
       if (!raw) return;
@@ -715,6 +725,7 @@ const System = {
         const data = JSON.parse(raw);
         if (!data || !Array.isArray(data.placed)) return;
         if (!best || data.placed.length > best.placed.length) best = data;
+        else if (best && data.placed.length === best.placed.length && data.kit && !best.kit) best = data;
       } catch (e) {}
     };
     try { take(localStorage.getItem(this.houseVaultKey())); } catch (e) {}
@@ -722,8 +733,51 @@ const System = {
     return best;
   },
 
+  // Заметки, списки, рисунки и сумка лежат в том же файле, что и дом:
+  // localStorage WebView после обновления иногда пустеет, файл — нет.
+  restorePocketFromVault() {
+    const vault = this.readHouseVault();
+    if (!vault) return 0;
+    let back = 0;
+    if (!Array.isArray(this.inventory)) this.inventory = [];
+    if (Array.isArray(vault.inventory)) {
+      vault.inventory.forEach(id => {
+        if (!id || this.inventory.indexOf(id) !== -1) return;
+        this.inventory.push(id);
+        back++;
+      });
+    }
+    if (!this.kit) this.kit = { notes: '', pages: [], lists: [], drawings: [], timerEnd: 0 };
+    const pocket = vault.kit;
+    if (pocket && typeof pocket === 'object') {
+      if ((!this.kit.pages || !this.kit.pages.length) && Array.isArray(pocket.pages) && pocket.pages.length) {
+        this.kit.pages = pocket.pages;
+        back++;
+      }
+      if ((!this.kit.lists || !this.kit.lists.length) && Array.isArray(pocket.lists) && pocket.lists.length) {
+        this.kit.lists = pocket.lists;
+        back++;
+      }
+      if ((!this.kit.drawings || !this.kit.drawings.length) && Array.isArray(pocket.drawings) && pocket.drawings.length) {
+        this.kit.drawings = pocket.drawings;
+        back++;
+      }
+    }
+    return back;
+  },
+
   writeHouseVault(placed) {
-    const payload = JSON.stringify({ placed: placed, at: Date.now() });
+    const payload = JSON.stringify({
+      placed: placed,
+      at: Date.now(),
+      inventory: (this.inventory || []).slice(),
+      kit: {
+        pages: (this.kit && this.kit.pages) || [],
+        lists: (this.kit && this.kit.lists) || [],
+        drawings: (this.kit && this.kit.drawings) || [],
+        timerEnd: 0
+      }
+    });
     try { localStorage.setItem(this.houseVaultKey(), payload); } catch (e) {}
     try {
       if (window.AndroidBridge && AndroidBridge.saveHouse) AndroidBridge.saveHouse(payload);
@@ -853,7 +907,12 @@ const System = {
         }
       }
     } catch (e) { data = null; }
-    if (!data) return false;
+    if (!data) {
+      this.ensureRooms();
+      const brought = this.restoreHouseFromVault();
+      const pocket = this.restorePocketFromVault();
+      return brought > 0 || pocket > 0;
+    }
     if (typeof data !== 'object') return false;
     this.restoredFromBackup = fromBackup;   // флаг всегда про последнюю загрузку
     try {
@@ -929,13 +988,16 @@ const System = {
       if (!pages.length && oldNotes.trim()) {
         pages = [{ id: 'legacy', title: 'Заметка', body: oldNotes }];
       }
+      let timerEnd = (data.kit && data.kit.timerEnd) || 0;
+      if (!isFinite(timerEnd) || timerEnd <= Date.now()) timerEnd = 0;
       this.kit = {
         notes: '',
         pages: pages,
         lists: (data.kit && Array.isArray(data.kit.lists)) ? data.kit.lists : [],
         drawings: (data.kit && Array.isArray(data.kit.drawings)) ? data.kit.drawings : [],
-        timerEnd: (data.kit && data.kit.timerEnd) || 0
+        timerEnd: timerEnd
       };
+      this.restorePocketFromVault();
       this.look = this.migrateLook(Object.assign({ hat: null, glasses: null, neck: null, back: null, bowtie: false, fur: 'classic', char: 'gopher' }, data.look || {}));
       this.isSleeping = !!data.isSleeping;
       this.sleptMinutes = data.sleptMinutes || 0;

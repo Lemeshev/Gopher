@@ -1898,15 +1898,10 @@ class QuietScene {
       ctx.moveTo(-b * 0.55, -b * 0.32);
       ctx.quadraticCurveTo(-b * 0.46, -b * 0.46, -b * 0.3, -b * 0.3);
       ctx.fill();
-      ctx.fillStyle = 'rgba(226,240,246,0.9)';
-      for (let i = 0; i < 5; i++) {
-        ctx.beginPath();
-        ctx.arc(b * (0.48 + i * 0.035), -b * (0.4 + i * 0.1), Math.max(1.2, b * 0.035), 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(b * (0.68 + i * 0.04), -b * (0.38 + i * 0.1), Math.max(1.2, b * 0.03), 0, Math.PI * 2);
-        ctx.fill();
-      }
+      ctx.fillStyle = 'rgba(226,240,246,0.75)';
+      ctx.beginPath();
+      ctx.ellipse(b * 0.72, -b * 0.34, b * 0.08, b * 0.05, 0, 0, Math.PI * 2);
+      ctx.fill();
       eye(b * 0.95, -b * 0.04, b * 0.045);
     } else if (k === 'ray') {
       const flap = Math.sin(t * 2) * 0.15;
@@ -2502,8 +2497,9 @@ class QuietScene {
       { hex: '#3c9a4c', name: 'зелёная' }
     ];
     const girl = Math.random() < 0.5;
-    if (id === 'car') return paint[Math.floor(Math.random() * paint.length)];
-    if (id === 'bus') return { hex: '#f0c14a', name: 'жёлтый', bus: this.pickWindowName('bus') };
+    const line = Math.floor(Math.random() * 20);
+    if (id === 'car') return Object.assign({ line: line }, paint[Math.floor(Math.random() * paint.length)]);
+    if (id === 'bus') return { hex: '#f0c14a', name: 'жёлтый', bus: this.pickWindowName('bus'), line: line };
     if (id === 'kid') {
       const prop = Math.random() < 0.5 ? 'balloon' : 'bag';
       const balloons = ['#ff5a7a', '#7ec8f0', '#ffe56a'];
@@ -2511,66 +2507,141 @@ class QuietScene {
         prop: prop,
         balloon: balloons[Math.floor(Math.random() * balloons.length)],
         girl: girl,
-        name: this.pickWindowName(girl ? 'girl' : 'boy')
+        name: this.pickWindowName(girl ? 'girl' : 'boy'),
+        line: line
       };
     }
-    if (id === 'dog') return { prop: Math.random() < 0.5 ? 'stick' : 'none', color: '#c68642', name: this.pickWindowName('dog') };
-    if (id === 'cat') return { color: ['#e07a3d', '#6d6a66', '#c9a27a', '#3d3a38'][Math.floor(Math.random() * 4)], name: this.pickWindowName('boy') };
+    if (id === 'dog') return { prop: Math.random() < 0.5 ? 'stick' : 'none', color: '#c68642', name: this.pickWindowName('dog'), line: line };
+    if (id === 'cat') return { color: ['#e07a3d', '#6d6a66', '#c9a27a', '#3d3a38'][Math.floor(Math.random() * 4)], name: this.pickWindowName('boy'), line: line };
     if (id === 'bike' || id === 'scooter' || id === 'runner') {
-      return { basket: Math.random() < 0.5, girl: girl, name: this.pickWindowName(girl ? 'girl' : 'boy') };
+      return { basket: Math.random() < 0.5, girl: girl, name: this.pickWindowName(girl ? 'girl' : 'boy'), line: line };
     }
     if (id === 'walker') {
       const who = Math.random() < 0.5 ? 'grandma' : 'grandpa';
-      return { who: who, name: this.pickWindowName(who === 'grandma' ? 'girl' : 'boy') };
+      return { who: who, name: this.pickWindowName(who === 'grandma' ? 'girl' : 'boy'), line: line };
     }
-    if (id === 'stroller') return { girl: girl, name: this.pickWindowName(girl ? 'girl' : 'boy') };
-    if (id === 'plane') return { name: this.pickWindowName('bus') };
+    if (id === 'stroller') return { girl: girl, name: this.pickWindowName(girl ? 'girl' : 'boy'), line: line };
+    if (id === 'plane') return { name: this.pickWindowName('bus'), line: line };
     if (id === 'bird') return {};
     return {};
   }
 
   // Подпись говорит только то, что видно: цвет машины, шарик, палка, коляска.
+  taleAt(lines, look) {
+    const i = Math.abs((look && look.line) || 0) % lines.length;
+    return lines[i];
+  }
+
   windowTale(id, look) {
     const L = look || {};
     const who = L.name || 'друг';
-    if (id === 'sparrow') return L.carry === 'twig' ? 'Это воробей Чирик. Несёт веточку в гнездо.' : 'Это воробей Чирик. Летит над двором.';
-    if (id === 'swallow') return 'Это ласточка Стрелка. Летит быстро и низко.';
-    if (id === 'crow') return L.carry === 'bead' ? 'Это ворона Каркуша. Несёт блестяшку.' : 'Это ворона Каркуша. Летит важно.';
-    if (id === 'pigeon') return 'Это голубь Сизый. Кружит над крышами.';
-    if (id === 'tit') return 'Это синица Зинка. Жёлтая снизу, сидит на ветке.';
-    if (id === 'cat') return 'Это кот ' + who + '. Идёт по дорожке и смотрит по сторонам.';
+    const n = (s) => s.split('{n}').join(who);
+    if (id === 'sparrow') {
+      return L.carry === 'twig'
+        ? this.taleAt(['Воробей Чирик тащит веточку в гнездо.', 'Чирик нашёл веточку и летит с ней домой.', 'Маленький воробей Чирик несёт веточку.'], L)
+        : this.taleAt(['Воробей Чирик прыгает с провода на провод.', 'Чирик летит низко над двором.', 'Воробей Чирик ищет крошки у дороги.'], L);
+    }
+    if (id === 'swallow') return this.taleAt(['Ласточка Стрелка режет воздух крылом.', 'Стрелка несётся низко и быстро.', 'Ласточка Стрелка ныряет к самой земле.'], L);
+    if (id === 'crow') {
+      return L.carry === 'bead'
+        ? this.taleAt(['Ворона Каркуша унесла блестяшку.', 'Каркуша нашла блестяшку и не отдаёт.', 'Ворона Каркуша прячет блестяшку в клюве.'], L)
+        : this.taleAt(['Ворона Каркуша летит тяжело и важно.', 'Каркуша каркает на всю улицу.', 'Ворона Каркуша высматривает, что блестит.'], L);
+    }
+    if (id === 'pigeon') return this.taleAt(['Голубь Сизый кружит над крышей.', 'Сизый сел было на провод и снова взлетел.', 'Голубь Сизый воркует на лету.'], L);
+    if (id === 'tit') return this.taleAt(['Синица Зинка жёлтая снизу и скачет по ветке.', 'Зинка перелетает с куста на куст.', 'Синица Зинка жёлтая снизу, клюёт семечки.'], L);
+    if (id === 'cat') return n(this.taleAt([
+      'Кот {n} крадётся вдоль забора.', 'Кот {n} остановился и смотрит в траву.',
+      '{n} идёт по дорожке, хвост трубой.', 'Кот {n} перебегает двор короткими шагами.'
+    ], L));
     if (id === 'dog') {
       return L.prop === 'stick'
-        ? 'Это пёсик ' + who + '. Несёт палку и виляет хвостом!'
-        : 'Это пёсик ' + who + '. Ходит и нюхает воздух!';
+        ? n(this.taleAt([
+          'Пёсик {n} несёт палку и гордится.', 'Пёсик {n} держит палку в зубах, хвост мелькает.',
+          '{n} нашёл палку и никому её не отдаёт.', 'Пёсик {n} тащит палку домой.'
+        ], L))
+        : n(this.taleAt([
+          'Пёсик {n} нюхает каждый куст.', '{n} бежит по дорожке и виляет хвостом.',
+          'Пёсик {n} остановился послушать улицу.', '{n} гуляет без поводка и всё обнюхивает.'
+        ], L));
     }
     if (id === 'kid') {
       return L.prop === 'balloon'
-        ? 'Это ребёнок ' + who + '. Бежит с шариком и радуется!'
-        : 'Это ребёнок ' + who + '. Идёт с рюкзаком и машет!';
+        ? n(this.taleAt([
+          'Ребёнок {n} бежит с шариком и хохочет.', '{n} держит шарик и подпрыгивает.',
+          'У {n} в руке шарик, он тянет вверх.', '{n} несёт шарик и машет свободной рукой.'
+        ], L))
+        : n(this.taleAt([
+          '{n} идёт в сад с рюкзаком на спине.', 'Ребёнок {n} поправил рюкзак и шагает.',
+          'Это рюкзак у {n}, почти с него ростом.', '{n} несёт рюкзак и считает шаги.'
+        ], L));
     }
     if (id === 'bike') {
-      const ride = L.girl ? 'Это велосипедистка ' : 'Это велосипедист ';
-      return ride + who + (L.basket ? '. В корзине цветы.' : '. Крутит педали по улице.');
+      const flower = L.basket ? ' В корзине цветы.' : '';
+      const whoRide = L.girl ? 'Велосипедистка ' : 'Велосипедист ';
+      return whoRide + who + '.' + flower + this.taleAt([
+        ' Крутит педали ровно.', ' Едет и держит руль обеими руками.',
+        ' Объезжает лужу.', ' Звонит в звонок на повороте.'
+      ], L);
     }
-    if (id === 'car') return 'Это ' + (L.name || 'синяя') + ' машина. Едет по улице и гудит.';
-    if (id === 'bus') return 'Это жёлтый автобус «' + (L.bus || 'Ромашка') + '». Весёлый, везёт людей гулять!';
-    if (id === 'plane') return 'Это самолёт «' + who + '». За ним белая полоса.';
+    if (id === 'car') {
+      const color = L.name || 'синяя';
+      return 'Это ' + color + ' машина. ' + this.taleAt([
+        'Едет по своей полосе.', 'Мягко гудит на перекрёстке.',
+        'Везёт кого-то по улице.', 'Катит мимо домов.'
+      ], L);
+    }
+    if (id === 'bus') {
+      const bus = L.bus || 'Ромашка';
+      return this.taleAt([
+        'Это жёлтый автобус «' + bus + '». Подъезжает к остановке.',
+        'Мимо идёт жёлтый автобус «' + bus + '». В окнах пассажиры.',
+        'Это жёлтый автобус «' + bus + '». Везёт людей по маршруту.',
+        'По дороге едет жёлтый автобус «' + bus + '».'
+      ], L);
+    }
+    if (id === 'plane') return this.taleAt([
+      'Самолёт «' + who + '» тянет за собой белую полосу.',
+      'Высоко летит самолёт «' + who + '». Полоса ещё белая.',
+      'Самолёт «' + who + '» гудит далеко. За ним белая полоса.'
+    ], L);
     if (id === 'scooter') {
-      return (L.girl ? 'Это девочка ' : 'Это мальчик ') + who + '. Катится на самокате и смеётся!';
+      return (L.girl ? 'Девочка ' : 'Мальчик ') + who + this.taleAt([
+        ' стоит на самокате и катится.', ' отталкивается ногой и едет.',
+        ' держит руль самоката крепко.', ' объезжает трещину на асфальте.'
+      ], L);
     }
-    if (id === 'stroller') return 'Это коляска. В ней малыш ' + who + ', смотрит на небо.';
+    if (id === 'stroller') return this.taleAt([
+      'Коляска катится. Малыш ' + who + ' смотрит по сторонам.',
+      'В коляске сидит ' + who + ' и держит край покрывала.',
+      'Малыша ' + who + ' везут гулять. Коляска мягко прыгает.'
+    ], L);
     if (id === 'walker') {
       return L.who === 'grandma'
-        ? 'Это бабушка ' + who + ' с сумкой. Идёт не спеша.'
-        : 'Это дедушка ' + who + ' с тростью. Гуляет у домов.';
+        ? this.taleAt([
+          'Бабушка ' + who + ' несёт сумку и кивает прохожим.',
+          who + ' идёт с сумкой не торопясь.',
+          'Бабушка ' + who + ' остановилась поправить сумку.'
+        ], L)
+        : this.taleAt([
+          'Дедушка ' + who + ' опирается на трость.',
+          who + ' гуляет с тростью вдоль домов.',
+          'Дедушка ' + who + ' стучит тростью по дорожке.'
+        ], L);
     }
     if (id === 'runner') {
       return L.girl
-        ? 'Это спортсменка ' + who + '. Сегодня вышла пробежать 5 км!'
-        : 'Это спортсмен ' + who + '. Сегодня вышел пробежать 5 км!';
+        ? this.taleAt([
+          'Это спортсменка ' + who + '. Сегодня вышла пробежать 5 км.',
+          who + ' бежит легко. Это спортсменка, дистанция 5 км.',
+          'Это спортсменка ' + who + '. Считает шаги на своих 5 км.'
+        ], L)
+        : this.taleAt([
+          'Это спортсмен ' + who + '. Сегодня вышел пробежать 5 км.',
+          who + ' бежит по дорожке. Это спортсмен, план — 5 км.',
+          'Это спортсмен ' + who + '. Дышит ровно на дистанции 5 км.'
+        ], L);
     }
-    return 'Кто-то идёт по улице и машет.';
+    return 'Кто-то идёт по улице.';
   }
 
   mascotTale(ch) {
@@ -2702,22 +2773,19 @@ class QuietScene {
     ctx.translate(x, y);
     ctx.scale(b.dir, 1);
     ctx.rotate(Math.sin(b.x * b.wave) * 0.06);
-    const wing = (alpha) => {
+    ctx.translate(0, lift * s * 0.06);
+    const wing = (alpha, sign) => {
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.translate(s * 0.02, 0);
-      ctx.rotate(-0.35 - lift * 0.7);
+      ctx.rotate(sign * (-0.15 - lift * 0.9));
       ctx.fillStyle = id === 'tit' ? '#3d6f9a' : b.color;
       ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.quadraticCurveTo(-s * 0.22, -s * 0.05, -s * 0.48, s * 0.02);
-      ctx.lineTo(-s * 0.36, s * 0.08);
-      ctx.quadraticCurveTo(-s * 0.16, s * 0.1, 0, s * 0.03);
-      ctx.closePath();
+      ctx.ellipse(-s * 0.2, -s * 0.02, s * 0.26, s * 0.07, -0.15, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     };
-    wing(0.4);
+    wing(0.45, 1);
     ctx.fillStyle = b.color;
     ctx.beginPath();
     ctx.ellipse(0, s * 0.02, s * 0.42 * slim, s * 0.2, -0.05, 0, Math.PI * 2);
@@ -2736,7 +2804,7 @@ class QuietScene {
       ctx.ellipse(s * 0.28, -s * 0.02, s * 0.07, s * 0.05, 0, 0, Math.PI * 2);
       ctx.fill();
     }
-    wing(1);
+    wing(1, 1);
     ctx.fillStyle = b.color;
     ctx.beginPath();
     ctx.ellipse(s * 0.34, -s * 0.05, s * (id === 'pigeon' ? 0.14 : 0.16), s * 0.13, 0.15, 0, Math.PI * 2);
@@ -2895,35 +2963,59 @@ class QuietScene {
 
   drawWindowPerson(ctx, step, opt) {
     const skin = opt.skin || '#f3c7a8';
-    const stride = step * 4;
+    const stride = Math.max(-1, Math.min(1, step)) * 3;
+    const girl = !!opt.girl || opt.who === 'grandma';
     if (opt.bag) {
       ctx.fillStyle = opt.bag;
-      ctx.beginPath(); ctx.ellipse(-6, -6, 6, 7, 0.1, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-8, -8, 6, 7, 0.1, 0, Math.PI * 2); ctx.fill();
     }
-    ctx.fillStyle = opt.pants;
-    ctx.beginPath(); ctx.ellipse(-1, 4, 3.2, 8, 0.35 + stride * 0.03, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(5, 4, 3.2, 8, -0.45 - stride * 0.03, 0, Math.PI * 2); ctx.fill();
+    if (girl && opt.who !== 'grandpa') {
+      ctx.fillStyle = opt.skirt || opt.pants;
+      ctx.beginPath();
+      ctx.moveTo(-2, -2);
+      ctx.lineTo(12, -2);
+      ctx.lineTo(14, 10);
+      ctx.lineTo(-6, 10);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.fillStyle = opt.pants;
+      ctx.beginPath(); ctx.ellipse(-1, 3, 3, 7, 0.25 + stride * 0.04, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(6, 3, 3, 7, -0.25 - stride * 0.04, 0, Math.PI * 2); ctx.fill();
+    }
     ctx.fillStyle = '#2c2c2c';
-    ctx.beginPath(); ctx.ellipse(0, 11, 4.2, 2, 0.3, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(7, 11, 4.2, 2, -0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, 11, 4, 1.8, 0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(7, 11, 4, 1.8, -0.15, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = opt.shirt;
-    ctx.beginPath(); ctx.ellipse(3, -8, 8, 11, 0.08, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(4, -10, 8, 10, 0.05, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = skin;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2.6;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(4, -12);
-    if (opt.armUp) ctx.quadraticCurveTo(12, -18, 16, -24);
-    else ctx.quadraticCurveTo(10, -4, 8 + stride, 2);
+    ctx.moveTo(2, -12);
+    if (opt.armUp) ctx.quadraticCurveTo(10, -20, 16, -26);
+    else ctx.quadraticCurveTo(8, -12, 7 + stride * 0.4, -6);
     ctx.stroke();
     ctx.fillStyle = skin;
-    ctx.beginPath(); ctx.ellipse(8, -22, 6.2, 7, 0.1, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(14, -21, 2.3, 1.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(8, -22, 6.2, 6.6, 0.08, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(14, -21, 2.2, 1.5, 0, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = opt.hair;
-    ctx.beginPath(); ctx.ellipse(6, -26, 7, 3.6, -0.2, Math.PI, 0); ctx.fill();
-    if (opt.who === 'grandma' || opt.who === 'grandpa') {
-      ctx.fillStyle = opt.who === 'grandma' ? '#d9d3ea' : '#eee';
-      ctx.beginPath(); ctx.ellipse(7, -29, 8, 2.2, 0, 0, Math.PI * 2); ctx.fill();
+    if (girl) {
+      ctx.beginPath(); ctx.ellipse(6, -27, 7.2, 4.2, -0.15, Math.PI * 0.9, Math.PI * 2.1); ctx.fill();
+      ctx.fillRect(2, -26, 3.2, 12);
+      ctx.beginPath(); ctx.ellipse(3.5, -14, 2.4, 3, 0.2, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.beginPath(); ctx.ellipse(7, -27, 6.4, 3.2, -0.1, Math.PI, 0); ctx.fill();
+    }
+    if (opt.who === 'grandma') {
+      ctx.fillStyle = '#d9d3ea';
+      ctx.beginPath(); ctx.ellipse(6, -30, 3.5, 3.2, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    if (opt.who === 'grandpa') {
+      ctx.fillStyle = '#eee';
+      ctx.beginPath(); ctx.ellipse(8, -30, 7, 1.6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#c8c8c8';
+      ctx.fillRect(12, -20, 3, 2);
     }
     ctx.fillStyle = '#2a241f';
     ctx.beginPath(); ctx.arc(11, -23, 1.05, 0, Math.PI * 2); ctx.fill();
@@ -2973,12 +3065,14 @@ class QuietScene {
       if (look.prop === 'bag') {
         this.drawWindowPerson(ctx, step, {
         shirt: look.girl ? '#f0a0c0' : '#6db3e8', pants: '#34507a',
-        hair: look.girl ? '#c47a4a' : '#5a3824', bag: '#e25b5b'
+        skirt: '#f0a0c0', hair: look.girl ? '#c47a4a' : '#5a3824',
+        girl: look.girl, bag: '#e25b5b'
       });
       } else {
         this.drawWindowPerson(ctx, step, {
           shirt: look.girl ? '#f0a0c0' : '#6db3e8', pants: '#34507a',
-          hair: look.girl ? '#c47a4a' : '#5a3824', armUp: true
+          skirt: '#f0a0c0', hair: look.girl ? '#c47a4a' : '#5a3824',
+          girl: look.girl, armUp: true
         });
         ctx.strokeStyle = '#8a8a8a';
         ctx.lineWidth = 1.2;
@@ -2990,22 +3084,39 @@ class QuietScene {
       }
     } else if (p.id === 'bike') {
       ctx.strokeStyle = '#3a4558';
-      ctx.lineWidth = 2.4;
-      ctx.beginPath(); ctx.arc(-16, 6, 8, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(16, 6, 8, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 2.2;
+      ctx.beginPath(); ctx.arc(-18, 8, 8, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(16, 8, 8, 0, Math.PI * 2); ctx.stroke();
       ctx.beginPath();
-      ctx.moveTo(-16, 6); ctx.lineTo(-2, -8); ctx.lineTo(16, 6); ctx.lineTo(4, 2); ctx.lineTo(-16, 6);
+      ctx.moveTo(-18, 8); ctx.lineTo(0, -6); ctx.lineTo(16, 8); ctx.lineTo(-4, 2); ctx.closePath();
+      ctx.moveTo(0, -6); ctx.lineTo(14, -12); ctx.moveTo(12, -14); ctx.lineTo(18, -10);
+      ctx.stroke();
+      ctx.fillStyle = '#3a4558';
+      ctx.fillRect(-2, -8, 7, 2);
+      const spin = p.phase || 0;
+      ctx.strokeStyle = look.girl ? '#e7b08a' : '#d7a07a';
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.moveTo(2, -2);
+      ctx.lineTo(2 + Math.cos(spin) * 7, 4 + Math.sin(spin) * 5);
+      ctx.moveTo(2, -2);
+      ctx.lineTo(2 + Math.cos(spin + Math.PI) * 7, 4 + Math.sin(spin + Math.PI) * 5);
       ctx.stroke();
       if (look.basket) {
         ctx.fillStyle = '#c47a4a';
-        ctx.beginPath(); ctx.ellipse(20, -2, 7, 5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(20, -8, 6, 4, 0, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = '#e25b8a';
-        ctx.beginPath(); ctx.arc(17, -6, 2.2, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(22, -7, 2.2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(18, -12, 2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(22, -12, 2, 0, Math.PI * 2); ctx.fill();
       }
       ctx.save();
-      ctx.translate(0, -10);
-      this.drawWindowPerson(ctx, step, { shirt: '#7dbe6e', pants: '#34507a', hair: '#3a2a22' });
+      ctx.translate(-2, -16);
+      ctx.scale(0.72, 0.72);
+      this.drawWindowPerson(ctx, 0, {
+        shirt: look.girl ? '#f0a0c0' : '#7dbe6e',
+        pants: '#34507a', skirt: '#f0a0c0',
+        hair: look.girl ? '#c47a4a' : '#3a2a22', girl: look.girl
+      });
       ctx.restore();
     } else if (p.id === 'bus') {
       ctx.fillStyle = '#f0c14a';
@@ -3047,13 +3158,25 @@ class QuietScene {
       this.drawWindowWheel(ctx, 18, 4, 6);
     } else if (p.id === 'scooter') {
       ctx.strokeStyle = '#3a4558';
-      ctx.lineWidth = 2.6;
-      ctx.beginPath(); ctx.arc(-10, 8, 6, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(16, 8, 6, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(-10, 8); ctx.lineTo(16, 8); ctx.lineTo(8, -16); ctx.stroke();
-      ctx.fillStyle = '#e25b5b';
-      roundRect(ctx, 4, -6, 14, 4, 2); ctx.fill();
-      this.drawWindowPerson(ctx, step, { shirt: '#f0c14a', pants: '#34507a', hair: '#3a2a22' });
+      ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.arc(-12, 10, 5, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(14, 10, 5, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-12, 10); ctx.lineTo(14, 10);
+      ctx.moveTo(8, 10); ctx.lineTo(6, -16);
+      ctx.moveTo(0, -16); ctx.lineTo(12, -16);
+      ctx.stroke();
+      ctx.fillStyle = '#5a6570';
+      roundRect(ctx, -6, 4, 16, 3, 1); ctx.fill();
+      ctx.save();
+      ctx.translate(-4, -8);
+      ctx.scale(0.78, 0.78);
+      this.drawWindowPerson(ctx, step * 0.3, {
+        shirt: look.girl ? '#f0a0c0' : '#f0c14a',
+        pants: '#34507a', skirt: '#f0a0c0',
+        hair: look.girl ? '#c47a4a' : '#3a2a22', girl: look.girl
+      });
+      ctx.restore();
     } else if (p.id === 'stroller') {
       this.drawWindowWheel(ctx, -12, 8, 5);
       this.drawWindowWheel(ctx, 12, 8, 5);
@@ -3085,7 +3208,9 @@ class QuietScene {
       this.drawWindowPerson(ctx, step * 1.4, {
         shirt: look.girl ? '#e25b8a' : '#e25b5b',
         pants: look.girl ? '#4a3060' : '#2c3a55',
-        hair: look.girl ? '#c47a4a' : '#3a2a22'
+        skirt: '#e25b8a',
+        hair: look.girl ? '#c47a4a' : '#3a2a22',
+        girl: look.girl
       });
     }
     ctx.restore();

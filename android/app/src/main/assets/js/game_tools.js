@@ -100,14 +100,25 @@ class ToolsScene {
 
   // Звонок не зависит от открытого экрана: цикл игры вызывает это каждый кадр.
   checkTimer() {
-    const end = System.kit && System.kit.timerEnd;
-    if (!end) return;
-    if (Date.now() < end) {
-      if (this.rangFor === end) this.rangFor = 0;
+    const kit = System.kit;
+    const end = kit && kit.timerEnd;
+    // Ноль, NaN и старая метка из сохранения не считаются запущенным таймером.
+    // Иначе плашка «Время вышло» всплывает на каждом экране, хотя таймер не ставили.
+    if (!end || !isFinite(end)) {
+      if (kit && kit.timerEnd) kit.timerEnd = 0;
       return;
     }
-    if (this.rangFor === end) return;
-    this.rangFor = end;
+    if (Date.now() < end) {
+      this.timerLive = end;
+      return;
+    }
+    if (this.timerLive !== end) {
+      kit.timerEnd = 0;
+      return;
+    }
+    this.timerLive = 0;
+    kit.timerEnd = 0;
+    if (System.saveGame) System.saveGame();
     this.ring();
     if (typeof System !== 'undefined' && System.showAchievement) System.showAchievement('⏱️', 'Время вышло');
   }
@@ -406,17 +417,11 @@ class ToolsScene {
         if (cur) cur.body = text;
       }, true);
     }
-    ctx.fillStyle = '#f7f1e3';
-    roundRect(ctx, 16, 52, W - 32, 92, 12);
-    ctx.fill();
     ctx.fillStyle = '#3a2e16';
-    ctx.font = 'bold 16px Arial';
+    ctx.font = 'bold 20px Arial';
     ctx.textAlign = 'left';
-    const title = page.title.length > 22 ? page.title.slice(0, 22) + '…' : page.title;
-    ctx.fillText(title, 28, 80);
-    ctx.font = '13px Arial';
-    ctx.fillText('Текст только в поле внизу.', 28, 104);
-    ctx.fillText('Переносы строк сохраняются.', 28, 124);
+    const title = page.title.length > 24 ? page.title.slice(0, 24) + '…' : page.title;
+    ctx.fillText(title, 20, 78);
   }
 
   drawLists(ctx, W, H) {
