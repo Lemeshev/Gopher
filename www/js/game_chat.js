@@ -170,14 +170,10 @@ class ChatScene {
     const steered = this.steer(n);
     if (steered) return steered;
 
-    // 5) Смысловой поиск по готовым темам. Случайную подстановку слова из банка не берём:
-    // она ломала падеж («какой игрушка», «про друг»).
-    const grounded = this.groundReply(n);
-    if (grounded) return grounded;
-
+    // Фраза не совпала ни с одной целой репликой. Слово из неё не вытаскиваем.
     this.lastTopic = null;
     this.pending = null;
-    return this.pick(window.CHAT_KID_FALLBACK || window.CHAT_FALLBACK);
+    return 'Я рядом. Мне приятно, что ты пишешь.';
   }
 
   // Ответ только про слово, которое ребёнок реально написал.
