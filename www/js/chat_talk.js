@@ -234,7 +234,30 @@
     return fact;
   }
 
+  function act(scene, n) {
+    if (/как оно|как сам|как ты там|как жизнь|как день|день прош|как прош/.test(n)) {
+      const first = 'У меня день спокойный: я на экране и рад твоим фразам. Прогулки нет, разговор есть.';
+      const again = 'День у меня короткий: я в этом чате и отвечаю тебе.';
+      if (scene.smallFact === first) return again;
+      return remember(scene, first);
+    }
+    if (/жалко|жаль|бедный|бедная/.test(n)) {
+      const prev = String(scene.lastPet || '').toLowerCase();
+      if (/прогул|экран/.test(prev)) return 'Да, гулять я не могу. Мне хватает того, что ты здесь пишешь.';
+      return 'Жаль. Я это принял и остаюсь рядом.';
+    }
+    if (/уже слыш|уже это слыш|одно и то же|повторяешь|где то я/.test(n)) {
+      return 'Да, я повторился. Эту фразу больше не кручу.';
+    }
+    if (/не понял|не поняли|прости|извини/.test(n)) {
+      return 'Ты прав: я не уловил мысль. Я с тобой и слушаю дальше.';
+    }
+    return '';
+  }
+
   function small(scene, n) {
+    const social = act(scene, n);
+    if (social) return social;
     const math = mathLine(n);
     if (math) return remember(scene, math);
     const cue = /^(почему|зачем|еще|дальше|скажи|начинай|я тоже|и я|ладно|хорошо|понятно)$/.test(n) || /при чем|причем|что за бред|бред|чушь|кто так/.test(n);

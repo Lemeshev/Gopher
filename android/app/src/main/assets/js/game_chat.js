@@ -115,6 +115,12 @@ class ChatScene {
 
   // Сначала вредные темы, потом точные детские фразы, потом слова из фразы.
   replyTo(text) {
+    const line = this.compose(text);
+    this.lastPet = line;
+    return line;
+  }
+
+  compose(text) {
     const n = this.norm(text);
     if (!n) return this.pick(window.CHAT_FALLBACK || ['Напиши хоть слово.']);
     this.turns = this.turns || [];
@@ -306,11 +312,11 @@ class ChatScene {
       const word = words[0];
       const stem = window.Semantic && window.Semantic.stem;
       if (stem && this.focusWord && stem(word) === stem(this.focusWord)) return this.holdFocus();
-      this.focusWord = word;
-      this.thread = 'word';
+      this.focusWord = '';
+      this.thread = 'talk';
       this.pending = null;
-      this.lastTopic = { id: 'word' };
-      return 'Я услышал слово «' + word + '» и не путаю его с другими.';
+      this.lastTopic = { id: 'talk' };
+      return 'Я рядом. Мне приятно, что ты пишешь.';
     }
     return this.holdFocus();
   }
