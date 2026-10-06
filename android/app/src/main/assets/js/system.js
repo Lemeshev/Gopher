@@ -955,8 +955,12 @@ const System = {
       this.furnitureColors = data.furnitureColors || {};
       this.outfitsOwned = (data.outfitsOwned || []).slice();
       this.workShift = (data.workShift && Array.isArray(data.workShift.paid))
-        ? { at: data.workShift.at || 0, paid: data.workShift.paid.slice() }
-        : { at: 0, paid: [] };
+        ? {
+          at: data.workShift.at || 0,
+          paid: data.workShift.paid.slice(),
+          day: data.workShift.day || this.dayKey(data.workShift.at || Date.now())
+        }
+        : { at: 0, paid: [], day: this.dayKey() };
       // Старые сохранения (до v1.2) хранили одну комнату и плоский список мебели.
       // Переносим их в комнаты ТОЛЬКО если комнат в сохранении нет: иначе при
       // каждой загрузке предметы заново «переезжали» в свою основную комнату и
@@ -1144,7 +1148,7 @@ const System = {
     this.paint = { walls: ['warm'], floors: ['wood'] };
     this.furnitureColors = {};
     this.outfitsOwned = [];
-    this.workShift = { at: 0, paid: [] };
+    this.workShift = { at: 0, paid: [], day: this.dayKey() };
     this.inventory = [];
     // Персонаж — это «кто играет», он сохраняется между сбросами прогресса
     this.look = { hat: null, glasses: null, neck: null, back: null, bowtie: false, fur: 'classic', char: (this.look && this.look.char) || 'gopher' };
@@ -1351,25 +1355,36 @@ const System = {
     return out;
   },
 
-  // Смена на работе: два оплаченных задания, потом пауза.
-  // Иначе ребёнок жмёт задания подряд и набирает монеты без отдыха.
+  // Смена на работе: два разных задания за календарный день.
+  // Сон, новый заход и повторный тык по «Бухгалтерии» оплату не обновляют:
+  // раньше пауза в 8 минут кончалась, пока питомец спал, и монеты шли снова.
   WORK_SHIFT_MS: 8 * 60 * 1000,
   WORK_SHIFT_JOBS: 2,
 
+  workJobDone(id) {
+    const key = String(id || '');
+    const w = this.workShift;
+    if (!key || !w || !Array.isArray(w.paid)) return false;
+    if (w.day && w.day !== this.dayKey()) return false;
+    return w.paid.indexOf(key) !== -1;
+  },
+
   takeWorkJob(id, coins) {
     const now = Date.now();
-    if (!this.workShift || !Array.isArray(this.workShift.paid)) this.workShift = { at: 0, paid: [] };
-    if (!this.workShift.at || now - this.workShift.at >= this.WORK_SHIFT_MS) {
-      this.workShift = { at: now, paid: [] };
-    }
+    const day = this.dayKey(now);
+    if (!this.workShift || !Array.isArray(this.workShift.paid)) this.workShift = { at: now, paid: [], day: day };
+    // Новый день — новая пара заданий. Пропавшая метка времени список не стирает.
+    if (this.workShift.day !== day) this.workShift = { at: now, paid: [], day: day };
+    if (!this.workShift.at) this.workShift.at = now;
     const key = String(id || '');
-    if (this.workShift.paid.indexOf(key) !== -1) return { paid: 0, reason: 'same' };
+    if (!key || this.workShift.paid.indexOf(key) !== -1) return { paid: 0, reason: 'same' };
     if (this.workShift.paid.length >= this.WORK_SHIFT_JOBS) {
-      return { paid: 0, reason: 'rest', left: this.WORK_SHIFT_MS - (now - this.workShift.at) };
+      return { paid: 0, reason: 'rest', left: this.WORK_SHIFT_MS };
     }
     if ((this.stats.energy || 0) < 8) return { paid: 0, reason: 'energy' };
     this.stats.energy = Math.max(0, this.stats.energy - 8);
     this.workShift.paid.push(key);
+    this.workShift.day = day;
     const n = Math.max(0, coins || 0);
     this.earnCoins(n);
     return { paid: n, reason: 'ok' };

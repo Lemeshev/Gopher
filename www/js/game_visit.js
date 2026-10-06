@@ -466,6 +466,25 @@ class VisitScene {
     this.freshCount = picked.filter(it => !System.hasSeen(d.content, it.id)).length;
   }
 
+  // Оплата задания — один раз за день и только с кнопки «Забрать деньги».
+  collectWorkPay() {
+    const item = this.items[this.selected];
+    const d = this.data;
+    if (!item || !d || d.kind !== 'work' || !item.coins) return;
+    const pay = System.takeWorkJob(item.id || item.name, item.coins);
+    if (pay.paid > 0) {
+      System.addXP(3);
+      this.setToast('+' + pay.paid + ' монет за задание');
+    } else if (pay.reason === 'rest') {
+      this.setToast('На сегодня хватит заданий');
+    } else if (pay.reason === 'energy') {
+      this.setToast('Сил мало. Сначала отдохни');
+    } else {
+      this.setToast('Это задание уже сделано');
+    }
+    System.saveGame();
+  }
+
   setToast(msg) {
     this.toast = msg;
     this.toastTimer = 1.8;
@@ -842,11 +861,15 @@ class VisitScene {
       ctx.fillStyle = '#6BCB77';
       ctx.font = `bold ${Math.min(panelW * 0.05, 14)}px Arial`;
       ctx.textAlign = 'center';
-      ctx.fillText('Оплата: 🪙' + (item.coins || 12) + (item.id && System.hasSeen(d.content, item.id) ? ' (повтор)' : ''), W / 2, py + panelH - 62);
+      const done = System.workJobDone && System.workJobDone(item.id || item.name);
+      ctx.fillText((done ? 'Уже забрано: 🪙' : 'Оплата: 🪙') + (item.coins || 12), W / 2, py + panelH - 62);
     }
 
+    const workLabel = (d.kind === 'work')
+      ? ((System.workJobDone && System.workJobDone(item.id || item.name)) ? 'Уже забрано' : 'Забрать деньги')
+      : 'Понятно!';
     this.buttons.push(createButton(ctx, px + 20, py + panelH - 48, panelW - 40, 38,
-      (d.kind === 'work' ? '💼 Взять задание' : 'Понятно!'),
+      workLabel,
       { bgColor: '#6BCB77', fgColor: '#fff', fontSize: 14, radius: 10 }));
   }
 
@@ -881,9 +904,12 @@ class VisitScene {
     if (this.state === 'fact') {
       for (const b of this.buttons) {
         const bt = b.text || '';
-        if (bt !== 'Понятно!' && bt.indexOf('Взять задание') === -1) continue;
+        const collect = bt.indexOf('Забрать деньги') !== -1 || bt.indexOf('Взять задание') !== -1;
+        const closed = bt === 'Понятно!' || bt.indexOf('Уже забрано') !== -1 || collect;
+        if (!closed) continue;
         if (!isPointInRect(mx, my, b.x, b.y, b.w, b.h)) continue;
         AudioSys.play('click');
+        if (collect) this.collectWorkPay();
         this.state = 'browse';
         this.selected = null;
         return true;
@@ -969,20 +995,7 @@ class VisitScene {
           // Награда за сам предмет
           const item = this.items[idx];
           const d = this.data;
-          if (d.kind === 'work' && item.coins) {
-            const pay = System.takeWorkJob(item.id || item.name, item.coins);
-            if (pay.paid > 0) {
-              System.addXP(3);
-              this.setToast('+' + pay.paid + ' монет за задание');
-            } else if (pay.reason === 'rest') {
-              const min = Math.max(1, Math.ceil((pay.left || 0) / 60000));
-              this.setToast('Смена кончилась. Отдых ' + min + ' мин');
-            } else if (pay.reason === 'energy') {
-              this.setToast('Сил мало. Сначала отдохни');
-            } else {
-              this.setToast('Это задание уже сделано');
-            }
-          } else if (d.perItemReward) {
+          if (d.kind !== 'work' && d.perItemReward) {
             const r = System.applyReward(d.perItemReward);
             if (r) this.setToast(r);
           }
