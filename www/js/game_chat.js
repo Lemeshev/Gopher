@@ -592,6 +592,8 @@ class ChatScene {
 
     // 2) Основные категории
     if ((A.mildKeys || []).some(k => n.indexOf(k) !== -1)) return this.pick(A.mild);
+    const laughBits = n.split(' ').filter(Boolean);
+    if (laughBits.length && laughBits.every(w => /^(ха|хи|хе|хех|аха|ахах)+$/.test(w))) return this.pick(A.laugh);
     if ((A.laughWords || []).indexOf(n) !== -1) return this.pick(A.laugh);
     if ((A.backWords || []).indexOf(n) !== -1) return this.pick(A.back);
     if ((A.yesWords || []).indexOf(n) !== -1) return this.pick(A.yes);
