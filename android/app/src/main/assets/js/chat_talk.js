@@ -362,6 +362,7 @@
     const ctx = scene.lastPet ? bestContext(n, scene.lastPet) : null;
     const hit = ctx && (!direct || ctx.es > (content(tokens(direct.query)).length)) ? ctx : direct;
     if (hit) return applyHit(scene, hit);
+    if ((' ' + n + ' ').indexOf(' кто ') !== -1 && (' ' + n + ' ').indexOf(' ты ') !== -1) return '';
     if (scene.phraseReply && (content(tokens(n)).length === 0 || onlyDiscourse(n))) {
       const say = scene.smallTurn ? scene.smallAlt : scene.phraseReply;
       scene.smallTurn = !scene.smallTurn;

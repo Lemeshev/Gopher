@@ -481,6 +481,281 @@
     return stock;
   }
 
+  var DIM = 24;
+  function mixDense(text) {
+    var v = new Float32Array(DIM);
+    normalize(text).split(' ').forEach(function (w) {
+      if (!w || w.length < 3 || SKIP[w] || FUNC[w]) return;
+      var s = stem(w);
+      if (!s || s.length < 3 || SKIP[s]) return;
+      var h = 2166136261;
+      for (var i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+        v[(h >>> 0) % DIM] += ((h >>> 15) & 1) ? 1 : -1;
+      }
+      if (stemToDim[s] !== undefined) {
+        var g = stemToDim[s] + 1;
+        v[g % DIM] += 2;
+      }
+    });
+    return v;
+  }
+  function dotD(a, b) {
+    var s = 0;
+    for (var i = 0; i < a.length; i++) s += a[i] * b[i];
+    return s;
+  }
+  function cosD(a, b) {
+    var d = dotD(a, b), na = dotD(a, a), nb = dotD(b, b);
+    if (!na || !nb) return 0;
+    return d / Math.sqrt(na * nb);
+  }
+  function hashSalt(v, salt) {
+    var h = salt * 131 + 17;
+    for (var i = 0; i < v.length; i++) h = Math.imul(h, 33) + ((v[i] * 100) | 0);
+    return h >>> 0;
+  }
+  function rememberLine(scene, line) {
+    scene.said = scene.said || {};
+    scene.said[line] = 1;
+    scene.embedN = (scene.embedN || 0) + 1;
+    return line;
+  }
+  function unused(scene, line) { return !(scene.said && scene.said[line]); }
+
+  var HEROES = [
+    { t: 'Зайчик', g: 'm', words: 'зайчик заяц' },
+    { t: 'Котёнок', g: 'm', words: 'котёнок кот котик кошка' },
+    { t: 'Мишка', g: 'm', words: 'мишка медведь' },
+    { t: 'Робот', g: 'm', words: 'робот' },
+    { t: 'Щенок', g: 'm', words: 'щенок собака пёс' },
+    { t: 'Ёжик', g: 'm', words: 'ёжик ежик' },
+    { t: 'Милка', g: 'f', words: 'милка' },
+    { t: 'Белочка', g: 'f', words: 'белка белочка' },
+    { t: 'Лиса', g: 'f', words: 'лиса лисица' },
+    { t: 'Птичка', g: 'f', words: 'птица птичка' },
+    { t: 'Черепаха', g: 'f', words: 'черепаха' },
+    { t: 'Панда', g: 'f', words: 'панда' }
+  ];
+  var ACTS = [
+    { m: 'нашёл', f: 'нашла', thing: true, words: 'нашёл нашла найти' },
+    { m: 'принёс', f: 'принесла', thing: true, words: 'принёс принесла' },
+    { m: 'потерял', f: 'потеряла', thing: true, words: 'потерял потеряла' },
+    { m: 'нарисовал', f: 'нарисовала', thing: true, words: 'нарисовал рисовать' },
+    { m: 'угостил друга', f: 'угостила друга', thing: false, words: 'угостил угостила' },
+    { m: 'пошёл гулять', f: 'пошла гулять', thing: false, words: 'гулять гулял' },
+    { m: 'сел читать', f: 'села читать', thing: false, words: 'читать книга' },
+    { m: 'стал играть', f: 'стала играть', thing: false, words: 'играть игрушка' }
+  ];
+  var THINGS = [
+    { t: 'мяч', words: 'мяч' },
+    { t: 'книжку', words: 'книга книжка' },
+    { t: 'шапку', words: 'шапка' },
+    { t: 'морковку', words: 'морковь морковка' },
+    { t: 'яблоко', words: 'яблоко' },
+    { t: 'карандаш', words: 'карандаш' },
+    { t: 'чашку', words: 'чашка чай' },
+    { t: 'мячик', words: 'игрушка' },
+    { t: 'рисунок', words: 'рисунок' },
+    { t: 'корзинку', words: 'корзина' },
+    { t: 'шарф', words: 'шарф' },
+    { t: 'письмо', words: 'письмо' }
+  ];
+  var PLACES = [
+    { t: 'во дворе', words: 'двор улица' },
+    { t: 'дома на кухне', words: 'кухня дом' },
+    { t: 'в парке', words: 'парк' },
+    { t: 'у окна', words: 'окно' },
+    { t: 'в комнате', words: 'комната' },
+    { t: 'у моря', words: 'море' },
+    { t: 'в школе', words: 'школа урок' },
+    { t: 'на площадке', words: 'площадка качели' }
+  ];
+  var TAILS = [
+    'А у тебя было похожее?',
+    'Хочешь, придумаем, что было дальше?',
+    'Это можно нарисовать.',
+    'Если хочешь, сыграем в слова про это.',
+    'Расскажи, как бы ты поступил.',
+    'Мне интересно, нравится ли тебе такой конец.'
+  ];
+  HEROES.forEach(function (x) { x.v = mixDense(x.words); });
+  ACTS.forEach(function (x) { x.v = mixDense(x.words); });
+  THINGS.forEach(function (x) { x.v = mixDense(x.words); });
+  PLACES.forEach(function (x) { x.v = mixDense(x.words); });
+
+  function nearItem(list, qv, salt) {
+    var best = 0, score = -1;
+    for (var i = 0; i < list.length; i++) {
+      var s = cosD(qv, list[i].v);
+      if (s > score) { score = s; best = i; }
+    }
+    if (score < 0.28) best = (hashSalt(qv, 1) + salt) % list.length;
+    else best = (best + (salt % 3)) % list.length;
+    return { item: list[best], score: score, i: best };
+  }
+
+  function storyLine(scene, qv) {
+    var salt = scene.embedN || 1;
+    for (var hop = 0; hop < 8; hop++) {
+      var hero = nearItem(HEROES, qv, salt + hop);
+      var act = nearItem(ACTS, qv, salt + hop * 3);
+      var place = nearItem(PLACES, qv, salt + hop * 5);
+      var thing = nearItem(THINGS, qv, salt + hop * 7);
+      var actWord = hero.item.g === 'f' ? act.item.f : act.item.m;
+      var mid = act.item.thing ? (actWord + ' ' + thing.item.t) : actWord;
+      var tail = TAILS[(hashSalt(qv, salt + hop) + hop) % TAILS.length];
+      var line = hero.item.t + ' ' + mid + ' ' + place.item.t + '. ' + tail;
+      if (unused(scene, line)) return line;
+    }
+    return HEROES[0].t + ' ' + ACTS[0].m + ' ' + THINGS[0].t + ' ' + PLACES[0].t + '. ' + TAILS[salt % TAILS.length];
+  }
+
+  var FAMILIES = {
+    greet: {
+      a: ['Привет!', 'Здравствуй.', 'Я здесь.', 'Рад тебя видеть.', 'Ку-ку.', 'Добрый день.'],
+      b: ['Как ты сегодня?', 'Что было хорошего?', 'Как прошёл день?', 'О чём хочется говорить?', 'Я на экране и слушаю.', 'Можно просто поболтать.']
+    },
+    play: {
+      a: ['Давай поиграем.', 'Я за игру.', 'Можно сыграть здесь.', 'Игра уже рядом.'],
+      b: ['Напиши «угадай слово», и я загадаю.', 'На карте есть тихие игры и рыбалка.', 'Назови вещь, а я скажу, что с ней делают.', 'Или расскажи, во что играешь дома.']
+    },
+    laugh: {
+      a: ['Ха-ха.', 'Смешно.', 'Я тоже улыбаюсь.', 'Вот это да.'],
+      b: ['Что тебя рассмешило?', 'Расскажи смешную деталь.', 'Ещё одна шутка есть?', 'Мне от этого тепло.']
+    },
+    thanks: {
+      a: ['Пожалуйста.', 'Не за что.', 'Всегда пожалуйста.', 'Мне приятно.'],
+      b: ['За что спасибо?', 'Продолжаем, если хочешь.', 'Что дальше?', 'Можно просто посидеть в разговоре.']
+    },
+    praise: {
+      a: ['Приятно слышать.', 'Спасибо.', 'Здорово.', 'Мне тепло от этих слов.'],
+      b: ['А ты сегодня что успел?', 'Ты тоже молодец, что пишешь.', 'Чем займёмся дальше?', 'Расскажи одну удачу дня.']
+    },
+    who: {
+      a: ['Я питомец на экране.', 'Я игрушка из этой игры.', 'Живой человек я не настоящий.', 'Дышать я не умею, говорить умею.'],
+      b: ['Могу болтать и играть.', 'Герой на экране — это я.', 'Суслик с улицы я не настоящий.', 'Спроси про день, игру или сказку.']
+    },
+    tell: {
+      a: ['Вот история.', 'Короткая сказка.', 'Слушай день героя.', 'Одна история из двора.'],
+      b: ['Утром был чай, днём двор, вечером книжка.', 'Зверь поделился едой и никого не обидел.', 'Хочешь другую историю?', 'Могу ещё одну, если скажешь «ещё».']
+    },
+    why: {
+      a: ['Отвечаю на всю фразу.', 'Держу мысль целиком.', 'Не вытаскиваю одно слово.'],
+      b: ['Спроси обычным предложением.', 'Если я ушёл в сторону, поправь меня.', 'Можно про игру, день или сказку.']
+    },
+    doubt: {
+      a: ['Поболтать выйдет.', 'Разговор уже идёт.', 'Получится.'],
+      b: ['Спроси, кто я, или попроси сказку.', 'Хочешь слова, рыбалку или историю?', 'Задай любой вопрос.']
+    },
+    meta: {
+      a: ['Это и есть беседа.', 'Я на связи, беседа обычная.', 'Так и разговаривают.'],
+      b: ['Ты говоришь, я отвечаю.', 'Спроси, кто я, или попроси поиграть.', 'Могу историю или просто послушать.']
+    },
+    agree: {
+      a: ['Хорошо.', 'Принято.', 'Ладно.', 'Договорились.'],
+      b: ['Что дальше: игра, история или твой день?', 'Одно событие из сегодня.', 'Хочешь короткую историю?', 'Твоя очередь говорить.']
+    },
+    none: {
+      a: ['Ничего — тоже ответ.', 'День бывает пустым.', 'Событий нет, и это нормально.'],
+      b: ['Тогда я начну историю.', 'Можно поиграть.', 'Скажи «расскажи» или «кто ты».']
+    },
+    complain: {
+      a: ['Ты прав, я повторялся.', 'Замечание честное.', 'Больше не буду твердить одно и то же.', 'Скучно так говорить, согласен.'],
+      b: ['Сейчас отвечу по-другому.', 'Спроси про игру, еду или день.', 'Какой вопрос задать?', 'Выбери: история или слова.']
+    },
+    mood: {
+      a: ['У меня спокойно.', 'Настроение ровное.', 'Мне хорошо, когда ты пишешь.'],
+      b: ['А у тебя как?', 'Тепло или так себе?', 'Можно сказать одним словом.']
+    },
+    bye: {
+      a: ['Пока.', 'До встречи.', 'Я останусь в игре.'],
+      b: ['Заходи ещё.', 'Было приятно болтать.', 'Возвращайся, когда захочешь.']
+    }
+  };
+
+  function familyLine(scene, id, qv) {
+    var fam = FAMILIES[id] || FAMILIES.agree;
+    var salt = scene.embedN || 1;
+    for (var hop = 0; hop < fam.a.length * fam.b.length; hop++) {
+      var h = hashSalt(qv, salt + hop);
+      var line = fam.a[h % fam.a.length] + ' ' + fam.b[(h >>> 8) % fam.b.length];
+      if (unused(scene, line)) return line;
+    }
+    return fam.a[0] + ' ' + fam.b[0];
+  }
+
+  var bank = null;
+  function ensureBank() {
+    if (bank) return bank;
+    bank = [];
+    var seen = {};
+    function add(line) {
+      line = cleanReply(line);
+      if (!line || line.length < 20 || line.length > 180 || seen[line]) return;
+      if (/ловлю знакомые|назови тему|слышу фразу целиком|не прыгаю|про «/.test(line)) return;
+      seen[line] = 1;
+      bank.push({ line: line, v: mixDense(line) });
+    }
+    var about = (typeof window !== 'undefined' && window.CHAT_TALK && window.CHAT_TALK.about) || {};
+    Object.keys(about).forEach(function (k) { (about[k] || []).forEach(add); });
+    ensureDocs().forEach(function (d) { add(d.reply); });
+    return bank;
+  }
+
+  function bestBank(scene, qv) {
+    var rows = ensureBank();
+    var best = null;
+    for (var i = 0; i < rows.length; i++) {
+      if (!unused(scene, rows[i].line)) continue;
+      var s = cosD(qv, rows[i].v);
+      if (!best || s > best.s) best = { s: s, line: rows[i].line };
+    }
+    return best;
+  }
+
+  function composeReply(scene, n) {
+    var qv = mixDense(n);
+    if (scene.memDense) {
+      var mixed = new Float32Array(DIM);
+      for (var i = 0; i < DIM; i++) mixed[i] = scene.memDense[i] * 0.35 + qv[i] * 0.65;
+      qv = mixed;
+    }
+    scene.memDense = mixDense(n);
+    var named = null;
+    var mq = stemVector(n);
+    var move = null;
+    MOVES.forEach(function (m) {
+      var dot = 0, k;
+      for (k in mq) if (m.v[k]) dot += Math.min(mq[k], m.v[k]);
+      if (!move || dot > move.s) move = { s: dot, row: m };
+    });
+    var line;
+    if (move && move.s >= 1 && FAMILIES[move.row.id]) {
+      line = familyLine(scene, move.row.id, qv);
+      if (move.row.id === 'tell' || move.row.id === 'none') line = line + ' ' + storyLine(scene, qv);
+    } else {
+      var hit = bestBank(scene, qv);
+      var made = storyLine(scene, qv);
+      var share = false;
+      var want = {};
+      normalize(n).split(' ').forEach(function (w) {
+        var s = stem(w);
+        if (s && s.length >= 4) want[s] = 1;
+      });
+      if (hit) {
+        normalize(hit.line).split(' ').forEach(function (w) {
+          var s = stem(w);
+          if (want[s]) share = true;
+        });
+      }
+      if (hit && hit.s >= 0.42 && share) line = hit.line;
+      else line = made;
+    }
+    return rememberLine(scene, line);
+  }
+
   function pickFresh(scene, arr) {
     scene.said = scene.said || {};
     var start = scene.embedN || 0;
@@ -529,7 +804,8 @@
     },
 
     spaceSize: (function () {
-      var n = MOVES.length;
+      var n = HEROES.length * ACTS.length * THINGS.length * PLACES.length * TAILS.length;
+      Object.keys(FAMILIES).forEach(function (k) { n += FAMILIES[k].a.length * FAMILIES[k].b.length; });
       for (var i = 0; i < SYNONYM_GROUPS.length; i++) {
         n *= (SYNONYM_GROUPS[i].syns.length + 1);
         if (n >= 10000000) return n;
@@ -554,48 +830,12 @@
       }
       var words = normalize(n).split(' ').filter(Boolean);
       if (words.indexOf('кто') !== -1 && (words.indexOf('ты') !== -1 || words.indexOf('тебя') !== -1)) {
-        return pickLine(scene, 'who');
+        return rememberLine(scene, familyLine(scene, 'who', mixDense(n)));
       }
       if (words.length && words.every(function (w) { return /^(ха|хи|хе|хех|аха|ахах)+$/.test(w); })) {
-        return pickLine(scene, 'laugh');
+        return rememberLine(scene, familyLine(scene, 'laugh', mixDense(n)));
       }
-      var mq = stemVector(n);
-      var move = null;
-      MOVES.forEach(function (m) {
-        var dot = 0, cnt = 0, k;
-        for (k in mq) { cnt += mq[k]; if (m.v[k]) dot += Math.min(mq[k], m.v[k]); }
-        if (!move || dot > move.s) move = { s: dot, row: m };
-      });
-      if (move && move.s >= 1) return pickLine(scene, move.row.id);
-      var group = bestOf(q, SYNONYM_GROUPS, 'axis');
-      var contentful = false;
-      for (var ck in q) if (ck.indexOf('u:') === 0 || ck.indexOf('g:') === 0) contentful = true;
-      if (group && group.s >= 0.45) {
-        var asked = [];
-        normalize(n).split(' ').forEach(function (w) {
-          var s = stem(w);
-          if (s && s.length >= 4) asked.push(s);
-        });
-        var pool = ensureDocs().filter(function (d) {
-          if (!d.v['g:' + group.i]) return false;
-          var words = normalize(d.reply).split(' ');
-          for (var a = 0; a < asked.length; a++) {
-            for (var w = 0; w < words.length; w++) if (stem(words[w]) === asked[a]) return true;
-          }
-          return false;
-        });
-        var near = null;
-        for (var i = 0; i < pool.length; i++) {
-          var sc = cosine(q, pool[i].v);
-          if (!near || sc > near.s) near = { s: sc, reply: pool[i].reply };
-        }
-        if (near && near.s >= 0.2 && near.reply) {
-          scene.embedMove = 'group';
-          return near.reply;
-        }
-      }
-      if (!contentful && scene.embedMove && MOVE_LINES[scene.embedMove]) return pickLine(scene, scene.embedMove);
-      return pickLine(scene, 'listen');
+      return composeReply(scene, n);
     },
 
     // Найти best match в Index с учётом синонимов

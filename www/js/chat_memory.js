@@ -229,6 +229,7 @@ const CHAT_MEMORY = {
     let best = '';
     let score = 0;
     people.forEach(line => {
+      if (!line || line.role === 'user' || line.n === q) return;
       let s = 0;
       words.forEach(w => {
         line.n.split(' ').forEach(x => { if (x === w || (w.length >= 6 && x.indexOf(w) === 0)) s++; });
