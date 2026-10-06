@@ -157,6 +157,23 @@ class ChatScene {
       if (easy) return easy;
     }
 
+    // 5) Семантический поиск по темам: заменяет regex matchAll по ключам.
+    // Берём тему с лучшим косинусом с учётом синонимов.
+    if (window.CHAT_SEMANTIC) {
+      const semMatch = window.CHAT_SEMANTIC.best(n);
+      if (semMatch) {
+        const topic = this.topicById(semMatch.id);
+        if (topic && topic.replies) {
+          this.lastTopic = topic;
+          this.pending = null;
+          this.thread = semMatch.id;
+          const reply = this.pick(topic.replies);
+          // Если есть focusWord — добавляем контекст
+          return this.withFocus(n, reply);
+        }
+      }
+    }
+
     if (window.CHAT_MEMORY && window.CHAT_MEMORY.reply) {
       const recalled = window.CHAT_MEMORY.reply(this, text);
       if (recalled) return recalled;
@@ -170,10 +187,26 @@ class ChatScene {
     const steered = this.steer(n);
     if (steered) return steered;
 
-    // Фраза не совпала ни с одной целой репликой. Слово из неё не вытаскиваем.
-    this.lastTopic = null;
+    // Фраза не совпала ни с одной целой репликой.
+    // Удерживаем тему: не сбрасываем lastTopic, если уже на чём-то говорили.
     this.pending = null;
-    return 'Я рядом. Мне приятно, что ты пишешь.';
+    return this.pick(window.CHAT_FALLBACK || [
+      'Я рядом.',
+      'Ты пишешь, я слушаю.',
+      'Слышу тебя.',
+      'Я тут.',
+      'Интересно.',
+      'Хм, скажи ещё.',
+      'Я слушаю.',
+      'Мне нравится, что ты написал.',
+      'Продолжай.',
+      'Это любопытно.',
+      'Я запомнил.',
+      'А что ещё?',
+      'Расскажи побольше.',
+      'Теперь про это.',
+      'Мне нравится наш разговор.'
+    ]);
   }
 
   // Ответ только про слово, которое ребёнок реально написал.
@@ -308,11 +341,15 @@ class ChatScene {
       const word = words[0];
       const stem = window.Semantic && window.Semantic.stem;
       if (stem && this.focusWord && stem(word) === stem(this.focusWord)) return this.holdFocus();
-      this.focusWord = '';
       this.thread = 'talk';
       this.pending = null;
       this.lastTopic = { id: 'talk' };
-      return 'Я рядом. Мне приятно, что ты пишешь.';
+      return this.pick([
+        'Мы пока про «' + word + '».',
+        'Это слово «' + word + '» интереснее всего.',
+        'Давай ещё про «' + word + '».',
+        'А «' + word + '» — какая история?'
+      ]);
     }
     return this.holdFocus();
   }

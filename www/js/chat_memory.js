@@ -27,7 +27,69 @@ const CHAT_MEMORY = {
     const lines = this.said();
     if (!lines.length) return '';
     const blob = lines.map(t => t.n).join(' \n ');
-    const people = lines.filter(t => t.role === 'person' || t.role === 'pet');
+
+    // --- TF-IDF поиск по памяти вместо regex ---
+    // Строим TF-IDF индекс из реплик пользователя и ищем по вопросу
+    let bestMatch = null;
+    let bestScore = 0;
+    const stopWords = new Set(['что','как','где','когда','почему','зачем','кто','кто','что','какой','какая','какое','какие','может','мочь','могут','это','тот','та','то','те','это','если','тогда','потому','перед','после','ещё','еще','уже','очень','просто','только','бывает','было','будет','были','был','была','они','мы','вы','они','он','она','нем','неё','ним']);
+
+    function norm(s) {
+      return String(s || '').toLowerCase().replace(/ё/g, 'е')
+        .replace(/[^a-zа-я0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+    function stem(s) {
+      let w = norm(s).replace(/ь/g, '');
+      if (!w || w.indexOf(' ') !== -1) w = w.split(' ')[0] || '';
+      const ends = ['иями','ами','ями','ого','ему','ому','ыми','ими','иях','ах','ях','ами','ов','ев','ам','ям','ою','ею','ая','яя','ое','ее','ые','ие','ой','ей','ий','ый','ом','ем','ую','юю','ия','ья','а','я','ы','и','у','ю','е','о'];
+      if (w.length <= 3) return w;
+      for (let i = 0; i < ends.length; i++) {
+        const e = ends[i];
+        if (w.length - e.length >= 3 && w.slice(w.length - e.length) === e) return w.slice(0, w.length - e.length);
+      }
+      return w;
+    }
+
+    // Ключевые слова вопроса (стемы, без стоп-слов)
+    const qWords = q.split(' ')
+      .filter(w => w.length >= 3 && !stopWords.has(w))
+      .map(w => stem(w))
+      .filter(w => w.length >= 3);
+
+    if (qWords.length === 0) {
+      // Если нет значимых слов в вопросе — fallback на regex для особых случаев
+      // ... (старые regex проверки остаются ниже)
+    } else {
+      // Ищем лучшую реплику по TF-IDF совпадению стемов
+      const people = lines.filter(t => t.role === 'person' || t.role === 'pet');
+      people.forEach((line) => {
+        const lineWords = this.norm(line.text).split(' ')
+          .filter(w => w.length >= 3 && !stopWords.has(w))
+          .map(w => stem(w))
+          .filter(w => w.length >= 3);
+
+        let matchCount = 0;
+        let totalScore = 0;
+        qWords.forEach(qw => {
+          lineWords.forEach(lw => {
+            if (qw === lw) {
+              matchCount++;
+              totalScore += qw.length >= 4 ? 3 : 2;
+            } else if (lw.indexOf(qw) !== -1 || qw.indexOf(lw) !== -1) {
+              matchCount++;
+              totalScore += 1;
+            }
+          });
+        });
+
+        if (matchCount > 0 && totalScore > bestScore) {
+          bestScore = totalScore;
+          bestMatch = line;
+        }
+      });
+    }
+
+    // Если нашли совпадение — используем его
     const pickLine = (re) => {
       for (let i = people.length - 1; i >= 0; i--) {
         if (re.test(people[i].n)) return people[i].text;

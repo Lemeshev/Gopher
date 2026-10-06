@@ -2,6 +2,21 @@
 // Шаблон «про {s}» ломал падеж и цеплялся за кусок слова («пока» внутри «пока что»).
 (function () {
   function has(n, re) { return re.test(n); }
+  // --- Ключевые слова для каждой темы: matchAll вместо regex ---
+  var KEYWORDS = {};
+  function addKeyword(topicId, words) {
+    words.forEach(function(w) {
+      if (!KEYWORDS[w]) KEYWORDS[w] = topicId;
+    });
+  }
+
+  function normN(s) {
+    return (window.Semantic ? window.Semantic.normalize(s) : String(s || '')).replace(/ё/g, 'е').replace(/[^a-zа-я0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  function stemN(s) {
+    return window.Semantic ? window.Semantic.stem(s) : s;
+  }
+
 
   const about = {
     gopher: [
@@ -118,21 +133,6 @@
   ];
 
   const order = ['milka', 'bear', 'bunny', 'robot', 'cat', 'warmth', 'code', 'friends', 'food', 'school', 'sea', 'sky', 'day'];
-  const keys = {
-    milka: /милк/,
-    bear: /мишк|медвед/,
-    bunny: /зайк|заяц|зайц/,
-    robot: /робот/,
-    cat: /котик|кошк|кот($| )|котен/,
-    warmth: /тепл/,
-    code: /программ|код( |$)|компьютер/,
-    friends: /друз/,
-    food: /каш|суп($| )|яблок|еда|кушать|есть хочу/,
-    school: /урок|школ|тетрад|домашк|садик/,
-    sea: /море|рыбк|дельфин|корабл/,
-    sky: /звезд|луна|небо|ракет/,
-    day: /про день|мой день|как день|что сегодня/
-  };
   beasts.forEach(row => {
     const id = 'b_' + row[2].split('|')[0];
     about[id] = [
@@ -141,7 +141,7 @@
       'Если коротко про ' + row[1] + ': ' + row[3] + '.'
     ];
     order.push(id);
-    keys[id] = new RegExp(row[2]);
+    row.forEach((form, idx) => { if (idx === 2) return; form.split("|").forEach(f => addKeyword(id, [f])); });
   });
 
   function linesOf(scene, id) {
@@ -153,12 +153,51 @@
     return scene.pick(list);
   }
 
+
+  // Основные темы — заполняем KEYWORDS
+  addKeyword('gopher', ['суслик', 'игрушка', 'персонаж', 'игровой', 'экран', 'игрок', 'игра', 'питомец']);
+  addKeyword('friends', ['друг', 'подруга', 'друзья', 'товарищ', 'подружка', 'друзюшка', 'дружок', 'семья', 'близкий']);
+  addKeyword('cat', ['котик', 'кот', 'кошка', 'кошк', 'котёнок', 'мурк', 'мурзик', 'пушок', 'барсик', 'рыжик', 'васьк', 'котят']);
+  addKeyword('bear', ['мишка', 'мишк', 'медвед', 'медведь', 'медв', 'косолап', 'топтыг']);
+  addKeyword('bunny', ['зайка', 'зайк', 'заяц', 'зайчен', 'ушаст', 'русак']);
+  addKeyword('robot', ['робот', 'робота', 'роботов', 'роботик']);
+  addKeyword('milka', ['милка', 'милк']);
+  addKeyword('warmth', ['тепл', 'тёпл', 'тепло', 'тёпло', 'тёплый', 'тёплая', 'тёплое']);
+  addKeyword('code', ['программ', 'код', 'компьютер', 'айти', 'алгоритм', 'скрипт', 'програмист', 'разработ']);
+  addKeyword('mood', ['настроен', 'самочувств', 'чувств', 'душе', 'сердц', 'спокойн']);
+  addKeyword('english', ['english']);
+  addKeyword('day', ['день', 'днешн', 'сегодняшн', 'про день', 'мой день', 'как день']);
+  addKeyword('food', ['каш', 'суп', 'яблок', 'еда', 'кушать', 'голод', 'вкусн', 'торт', 'конфет', 'печен', 'йогурт', 'сыр', 'мясо', 'рыба', 'картош', 'макарон', 'сок', 'чай', 'молоко', 'хлеб', 'блин', 'варень', 'морожен']);
+  addKeyword('school', ['урок', 'школ', 'тетрад', 'домашк', 'садик', 'учитель', 'учебн', 'класс', 'парта', 'директор', 'завуч']);
+  addKeyword('sea', ['мор', 'рыбк', 'дельфин', 'корабл', 'аквар', 'песок', 'волн', 'прибреж', 'моряк']);
+  addKeyword('sky', ['звезд', 'луна', 'небо', 'ракет', 'самолёт', 'самолет', 'облак', 'планет', 'космос', 'галактик']);
+  addKeyword('color', ['цвет', 'оранжев', 'красн', 'синий', 'зелён', 'жёлт', 'розов', 'фиолет', 'чёрн', 'бел']);
+  addKeyword('math', ['математ', 'счит', 'числ', 'дву', 'плюс', 'минус', 'умнож', 'раздел', 'дроб', 'задач']);
+
   function matchAbout(n) {
-    for (let i = 0; i < order.length; i++) {
-      const id = order[i];
-      if (keys[id] && keys[id].test(n)) return id;
-    }
-    return '';
+    const words = normN(n).split(' ').filter(w => w && w.length >= 3);
+    words.sort(function(a, b) { return b.length - a.length; });
+    var scores = {};
+    words.forEach(function(word) {
+      var s = stemN(word);
+      Object.keys(KEYWORDS).forEach(function(key) {
+        var keyStem = stemN(key);
+        if (word === key) scores[KEYWORDS[key]] = (scores[KEYWORDS[key]] || 0) + 3;
+        else if (s.length >= 3 && s === keyStem) scores[KEYWORDS[key]] = (scores[KEYWORDS[key]] || 0) + 2;
+        else if (word.indexOf(key) !== -1 || key.indexOf(word) !== -1) {
+          if (word.length >= 4 && key.length >= 4) scores[KEYWORDS[key]] = (scores[KEYWORDS[key]] || 0) + 1;
+        }
+      });
+    });
+    var best = null;
+    var bestScore = 0;
+    Object.keys(scores).forEach(function(topicId) {
+      if (scores[topicId] > bestScore && about[topicId]) {
+        bestScore = scores[topicId];
+        best = topicId;
+      }
+    });
+    return bestScore >= 2 ? best : '';
   }
 
   // Обычные фразы ребёнка: один смысл — одно готовое предложение.
@@ -332,6 +371,26 @@
 
   window.CHAT_TALK = {
     about: about,
+    wordToTopic: KEYWORDS,
+    matchTopic: function (n) {
+      const words = normN(n).split(' ').filter(w => w && w.length >= 3);
+      var best = '';
+      var bestScore = 0;
+      words.forEach(function(word) {
+        var s = stemN(word);
+        Object.keys(KEYWORDS).forEach(function(key) {
+          var keyStem = stemN(key);
+          var sc = 0;
+          if (word === key) sc = 3;
+          else if (s.length >= 3 && s === keyStem) sc = 2;
+          else if (word.indexOf(key) !== -1 || key.indexOf(word) !== -1) {
+            if (word.length >= 4 && key.length >= 4) sc = 1;
+          }
+          if (sc > bestScore) { bestScore = sc; best = KEYWORDS[key]; }
+        });
+      });
+      return bestScore >= 2 ? best : '';
+    },
     count: function () {
       let n = 0;
       Object.keys(about).forEach(k => { n += about[k].length; });
@@ -412,7 +471,7 @@
       if (has(n, /по русски|говоришь по|умеешь говорить|инглиш|english/)) return linesOf(scene, 'english');
 
       const hit = matchAbout(n);
-      if (hit && (has(n, /расскаж|знаешь|про |кто так|а мил|а миш/) || keys[hit].test(n))) {
+      if (hit) {
         if (hit === 'friends' && !has(n, /друз/)) {
           /* не сюда */
         } else if (hit === 'warmth' && !has(n, /тепл/)) {

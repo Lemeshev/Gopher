@@ -110,31 +110,34 @@
     });
   });
 
+  // Используем ChatEmbed для поиска, если он подключён
+  var Embed = window.ChatEmbed || null;
+
   const index = new Semantic.Index(entries);
 
   // Тема — только если целое слово ребёнка совпало со словом подсказки или с его корнем.
   // Косинус по кускам букв («театр» ≈ «темно», «тётя») в выбор темы не входит.
   function bestWord(text) {
-    const words = Semantic.normalize(text).split(' ').filter(w => w.length >= 4);
-    let found = null;
-    for (let i = 0; i < entries.length; i++) {
-      const parts = String(entries[i].text || '').split(' ').filter(p => p.length >= 3);
-      let shared = 0;
-      for (let a = 0; a < words.length; a++) {
-        const sw = Semantic.stem(words[a]);
-        for (let b = 0; b < parts.length; b++) {
+    var words = Semantic.normalize(text).split(' ').filter(w => w.length >= 4);
+    var found = null;
+    for (var i = 0; i < entries.length; i++) {
+      var parts = String(entries[i].text || '').split(' ').filter(p => p.length >= 3);
+      var shared = 0;
+      for (var a = 0; a < words.length; a++) {
+        var sw = Semantic.stem(words[a]);
+        for (var b = 0; b < parts.length; b++) {
           if (words[a] === parts[b] || (sw.length >= 3 && sw === Semantic.stem(parts[b]))) shared++;
         }
       }
-      for (let a = 0; a < words.length; a++) {
-        const w = words[a];
-        const sw = Semantic.stem(w);
-        for (let b = 0; b < parts.length; b++) {
-          const p = parts[b];
-          const exact = w === p;
-          const same = sw.length >= 3 && sw === Semantic.stem(p);
+      for (var a = 0; a < words.length; a++) {
+        var w = words[a];
+        var sw = Semantic.stem(w);
+        for (var b = 0; b < parts.length; b++) {
+          var p = parts[b];
+          var exact = w === p;
+          var same = sw.length >= 3 && sw === Semantic.stem(p);
           if (!exact && !same) continue;
-          const rank = (exact ? 200 : 100) + w.length + shared * 50 - parts.length;
+          var rank = (exact ? 200 : 100) + w.length + shared * 50 - parts.length;
           if (!found || rank > found.rank) {
             found = { id: entries[i].id, text: entries[i].text, score: exact ? 1 : 0.9, rank: rank, word: w };
           }
@@ -144,12 +147,62 @@
     return found;
   }
 
+  // Улучшенный поиск: если ChatEmbed есть — используем синонимы и aliases
+  function bestWordV2(text) {
+    if (!Embed) return bestWord(text);
+    var n = Semantic.normalize(text);
+
+    // 1) Сначала проверяем ALIASES: «как ребёнок скажет»
+    var aliasId = Embed.findAlias(n);
+    if (aliasId) {
+      var aliasEntries = entries.filter(e => e.id === aliasId);
+      if (aliasEntries.length > 0) {
+        var aliasText = aliasEntries.map(e => e.text).join(' ');
+        var vec = Semantic.vectorize(aliasText, index.idf);
+        var best = null, bestScore = 0;
+        for (var i = 0; i < index.vectors.length; i++) {
+          var s = Semantic.cosine(vec, index.vectors[i]);
+          if (s > bestScore) {
+            bestScore = s;
+            best = { id: index.entries[i].id, text: index.entries[i].text, score: s, word: n };
+          }
+        }
+        if (best && bestScore > 0.15) return best;
+      }
+    }
+
+    // 2) Расширяем запрос синонимами и ищем через Index
+    var expanded = Embed.queryWithSynonyms(n);
+    var allScores = [];
+    expanded.forEach(function(q) {
+      var vec = Semantic.vectorize(q, index.idf);
+      for (var i = 0; i < index.vectors.length; i++) {
+        var s = Semantic.cosine(vec, index.vectors[i]);
+        if (s > 0) allScores.push({ id: index.entries[i].id, text: index.entries[i].text, score: s, word: n });
+      }
+    });
+
+    // Агрегируем по id
+    var agg = {};
+    allScores.forEach(function(r) {
+      if (!agg[r.id]) agg[r.id] = { id: r.id, text: r.text, score: 0, word: r.word };
+      agg[r.id].score += r.score;
+    });
+    var result = Object.keys(agg).map(function(id) { return agg[id]; });
+    result.sort(function(a, b) { return b.score - a.score; });
+    if (result.length > 0 && result[0].score > 0.15) return result[0];
+
+    // 3) Fallback на оригинальный поиск
+    return bestWord(text);
+  }
+
   window.CHAT_SEMANTIC = {
     index: index,
-    best: bestWord,
+    best: bestWordV2,  // Используем улучшенный поиск с синонимами
     search: function (text, k) { return index.search(text, k || 5); },
     // Порог: ниже него считаем, что тема не найдена (уходим в существительное/фолбэк).
     THRESHOLD: 0.3,
-    queryCount: entries.length
+    queryCount: entries.length,
+    Embed: Embed  // отдаём ChatEmbed наружу для chat_memory/chat_talk
   };
 })();
