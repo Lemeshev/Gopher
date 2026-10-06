@@ -594,12 +594,24 @@ class ChatScene {
   // Тёплые «подхваты» для коротких ответов и междометий ребёнка.
   acknowledge(n) {
     const A = window.CHAT_ACK || {};
+
+    // 1) Сначала спецкатегории: замешательство, странные реплики, неверная тема
+    if ((A.confusedWords || []).some(k => n.indexOf(k) !== -1)) return this.pick(A.confused);
+    if ((A.strangeWords || []).some(k => n.indexOf(k) !== -1)) return this.pick(A.strange);
+    if ((A.notConversationWords || []).some(k => n.indexOf(k) !== -1)) return this.pick(A.notConversation);
+    if ((A.wrongTopicWords || []).some(k => n.indexOf(k) !== -1)) return this.pick(A.wrongTopic);
+
+    // 2) Основные категории
     if ((A.mildKeys || []).some(k => n.indexOf(k) !== -1)) return this.pick(A.mild);
     if ((A.laughWords || []).indexOf(n) !== -1) return this.pick(A.laugh);
     if ((A.backWords || []).indexOf(n) !== -1) return this.pick(A.back);
     if ((A.yesWords || []).indexOf(n) !== -1) return this.pick(A.yes);
     if ((A.noWords || []).indexOf(n) !== -1) return this.pick(A.no);
     if ((A.fillerWords || []).indexOf(n) !== -1) return this.pick(A.filler);
+
+    // 3) Короткие «ок», «окейк» — без них бот не видел «окей»
+    if (n === 'ок' || n === 'окей' || n === 'окейк' || n === 'оккей') return this.pick(A.yes);
+
     return '';
   }
 
