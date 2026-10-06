@@ -270,7 +270,7 @@
   var MOVES = [
     { id: 'greet', words: 'привет здравствуй приветик' },
     { id: 'bye', words: 'пока свидания спокойной ночи спать ухожу' },
-    { id: 'tell', words: 'расскажи сказку историю нибудь интересное байку' },
+    { id: 'tell', words: 'расскажи рассказывай сказку историю придумай придумаем байку' },
     { id: 'why', words: 'почему зачем пишешь' },
     { id: 'doubt', words: 'вряд получится поболтать выйдет' },
     { id: 'meta', words: 'беседа диалог собеседник' },
@@ -282,7 +282,7 @@
     { id: 'thanks', words: 'спасибо благодарю' },
     { id: 'praise', words: 'молодец умница' },
     { id: 'none', words: 'ничего нечего пусто' },
-    { id: 'complain', words: 'зря ограниченный запас тьфу привязываешься повторяешься' }
+    { id: 'complain', words: 'зря ограниченный запас тьфу привязываешься повторяешься странно бред издеваешься идиот нельзя концы' }
   ];
 
   // Целые детские реплики оси. Повтор одной и той же строки в разговоре не берём.
@@ -578,7 +578,7 @@
     'Это можно нарисовать.',
     'Если хочешь, сыграем в слова про это.',
     'Расскажи, как бы ты поступил.',
-    'Мне интересно, нравится ли тебе такой конец.'
+    'Что бы ты сделал на его месте?'
   ];
   HEROES.forEach(function (x) { x.v = mixDense(x.words); });
   ACTS.forEach(function (x) { x.v = mixDense(x.words); });
@@ -606,7 +606,7 @@
       var actWord = hero.item.g === 'f' ? act.item.f : act.item.m;
       var mid = act.item.thing ? (actWord + ' ' + thing.item.t) : actWord;
       var tail = TAILS[(hashSalt(qv, salt + hop) + hop) % TAILS.length];
-      var line = hero.item.t + ' ' + mid + ' ' + place.item.t + '. ' + tail;
+      var line = 'Вот история. ' + hero.item.t + ' ' + mid + ' ' + place.item.t + '. ' + tail;
       if (unused(scene, line)) return line;
     }
     return HEROES[0].t + ' ' + ACTS[0].m + ' ' + THINGS[0].t + ' ' + PLACES[0].t + '. ' + TAILS[salt % TAILS.length];
@@ -672,6 +672,10 @@
     bye: {
       a: ['Пока.', 'До встречи.', 'Я останусь в игре.'],
       b: ['Заходи ещё.', 'Было приятно болтать.', 'Возвращайся, когда захочешь.']
+    },
+    listen: {
+      a: ['Слушаю.', 'Понял тебя.', 'Я здесь.', 'Говори, я не про зверей, если ты про них не просил.'],
+      b: ['О чём хочешь: про меня, про твой день или про игру?', 'Можно спросить «как ты» или «кто ты».', 'Если нужна история, скажи «расскажи».', 'Повтори, что тебе важно в этой фразе.']
     }
   };
 
@@ -694,7 +698,7 @@
     function add(line) {
       line = cleanReply(line);
       if (!line || line.length < 20 || line.length > 180 || seen[line]) return;
-      if (/ловлю знакомые|назови тему|слышу фразу целиком|не прыгаю|про «/.test(line)) return;
+      if (/ловлю знакомые|назови тему|слышу фразу целиком|не прыгаю|про «|без слёз|проиграл навсегда|фонарик и плед/.test(line)) return;
       seen[line] = 1;
       bank.push({ line: line, v: mixDense(line) });
     }
@@ -732,17 +736,21 @@
       if (!move || dot > move.s) move = { s: dot, row: m };
     });
     var line;
-    if (move && move.s >= 1 && FAMILIES[move.row.id]) {
+    var askedStory = move && move.row.id === 'tell' && move.s >= 1;
+    var aboutSelf = n.indexOf('о себе') !== -1 || n.indexOf('про себя') !== -1 || (' ' + n + ' ').indexOf(' себе ') !== -1;
+    if (aboutSelf) {
+      line = familyLine(scene, 'who', qv);
+    } else if (askedStory) {
+      line = storyLine(scene, qv);
+    } else if (move && move.s >= 1 && FAMILIES[move.row.id]) {
       line = familyLine(scene, move.row.id, qv);
-      if (move.row.id === 'tell' || move.row.id === 'none') line = line + ' ' + storyLine(scene, qv);
     } else {
       var hit = bestBank(scene, qv);
-      var made = storyLine(scene, qv);
       var share = false;
       var want = {};
       normalize(n).split(' ').forEach(function (w) {
         var s = stem(w);
-        if (s && s.length >= 4) want[s] = 1;
+        if (s && s.length >= 5) want[s] = 1;
       });
       if (hit) {
         normalize(hit.line).split(' ').forEach(function (w) {
@@ -750,8 +758,11 @@
           if (want[s]) share = true;
         });
       }
-      if (hit && hit.s >= 0.42 && share) line = hit.line;
-      else line = made;
+      var words = normalize(n).split(' ').filter(Boolean);
+      if ((words.indexOf('как') !== -1 && words.indexOf('ты') !== -1) || words.indexOf('настроен') !== -1) {
+        line = familyLine(scene, 'mood', qv);
+      } else if (hit && hit.s >= 0.55 && share) line = hit.line;
+      else line = familyLine(scene, 'listen', qv);
     }
     return rememberLine(scene, line);
   }
