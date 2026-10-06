@@ -429,6 +429,7 @@ class VisitScene {
     this.hubPage = 0;          // листание сетки музеев в хабе (v1.3.7)
     this.jobLeft = 0;
     this.jobKey = '';
+    this.jobMsg = '';
 
     if (!this.data) {
       this.data = {
@@ -439,7 +440,8 @@ class VisitScene {
 
     // Куда вернёмся по «Назад»: из музея — в хаб, из хаба и прочих — на карту
     const isMuseum = MUSEUM_KEYS.indexOf(locationKey) !== -1;
-    this.backTarget = isMuseum ? 'museums' : 'map';
+    const isTheater = (typeof THEATER_IDS !== 'undefined') && THEATER_IDS.indexOf(locationKey) !== -1;
+    this.backTarget = isMuseum ? 'museums' : (isTheater ? 'theaters' : 'map');
 
     if (this.data.kind === 'hub') {
       this.state = 'hub';
@@ -468,28 +470,29 @@ class VisitScene {
     this.freshCount = picked.filter(it => !System.hasSeen(d.content, it.id)).length;
   }
 
-  // Кнопка только запускает работу. Монеты приходят, когда полоска дойдёт до конца.
-  startWork() {
-    const item = this.items[this.selected];
-    const d = this.data;
-    if (!item || !d || d.kind !== 'work' || !item.coins) return;
-    if (this.jobLeft > 0) return;
+  // Работа начинается при открытии карточки. «Понятно» её закрывает.
+  // Если уйти раньше пяти секунд, монет нет.
+  beginWork(item) {
+    this.jobLeft = 0;
+    this.jobKey = '';
+    this.jobMsg = '';
+    if (!item) return;
     const key = item.id || item.name;
     if (System.workJobDone(key)) {
-      this.setToast('Это задание уже сделано дважды');
+      this.jobMsg = 'Это задание уже сделано дважды';
       return;
     }
     if (System.workDayCount() >= System.WORK_DAY_MAX) {
-      this.setToast('На сегодня хватит заданий');
+      this.jobMsg = 'На сегодня хватит заданий';
       return;
     }
     if ((System.stats.energy || 0) < System.WORK_ENERGY) {
-      this.setToast('Сил мало. Сначала отдохни');
+      this.jobMsg = 'Сил мало. Сначала отдохни';
       return;
     }
     this.jobKey = key;
     this.jobLeft = System.WORK_JOB_MS;
-    this.setToast('Работаю…');
+    this.jobMsg = 'Работаю…';
   }
 
   finishWork() {
@@ -503,14 +506,15 @@ class VisitScene {
     if (pay.paid > 0) {
       System.addXP(3);
       const left = System.WORK_PER_JOB - pay.times;
-      this.setToast('+' + pay.paid + ' монет' + (left > 0 ? '. Можно ещё раз' : ''));
+      this.jobMsg = '+' + pay.paid + ' монет' + (left > 0 ? '. Можно ещё раз' : '');
     } else if (pay.reason === 'rest') {
-      this.setToast('На сегодня хватит заданий');
+      this.jobMsg = 'На сегодня хватит заданий';
     } else if (pay.reason === 'energy') {
-      this.setToast('Сил мало. Сначала отдохни');
+      this.jobMsg = 'Сил мало. Сначала отдохни';
     } else {
-      this.setToast('Это задание уже сделано дважды');
+      this.jobMsg = 'Это задание уже сделано дважды';
     }
+    this.setToast(this.jobMsg);
     System.saveGame();
   }
 
@@ -535,6 +539,8 @@ class VisitScene {
   // уходим на карту (v1.3.6: «Назад» всегда делает один понятный шаг назад).
   handleBack() {
     if (this.state === 'fact' || this.selected !== null) {
+      this.jobLeft = 0;
+      this.jobKey = '';
       this.state = 'browse';
       this.selected = null;
       return true;
@@ -597,7 +603,9 @@ class VisitScene {
 
     ctx.fillStyle = 'rgba(255,255,255,0.65)';
     ctx.font = `${Math.min(W * 0.03, 12.5)}px Arial`;
-    ctx.fillText(`Музеев: ${subs.length} · изучено ${seenTotal} из ${itemsTotal} экспонатов`, W / 2, 78);
+    const hubNoun = this.locationId === 'theaters' ? 'Театров' : 'Музеев';
+    const hubItem = this.locationId === 'theaters' ? 'спектаклей' : 'экспонатов';
+    ctx.fillText(hubNoun + ': ' + subs.length + ' · изучено ' + seenTotal + ' из ' + itemsTotal + ' ' + hubItem, W / 2, 78);
 
     const cols = 2;
     const perPage = 6;                     // три ряда — влезает даже на маленький экран
@@ -649,7 +657,8 @@ class VisitScene {
       ctx.fillStyle = done ? '#C8F7C5' : 'rgba(255,255,255,0.85)';
       ctx.fillText((done ? '✅ ' : '') + seen + '/' + total, x + cardW / 2, y + cardH * 0.82);
 
-      this.buttons.push({ x, y, w: cardW, h: cardH, text: 'museum_' + m.id });
+      const prefix = this.locationId === 'theaters' ? 'theater_' : 'museum_';
+      this.buttons.push({ x, y, w: cardW, h: cardH, text: prefix + m.id });
     });
 
     // Листание: музеев больше, чем помещается на экран
@@ -668,7 +677,8 @@ class VisitScene {
       ctx.fillText('▶', W - 16 - bw / 2, by + bh / 2);
       ctx.font = `bold ${Math.min(W * 0.03, 12.5)}px Arial`;
       ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.fillText(`Музеи ${from + 1}–${from + pageItems.length} из ${subs.length}`, W / 2, by + bh / 2);
+      const pageWord = this.locationId === 'theaters' ? 'Театры' : 'Музеи';
+      ctx.fillText(pageWord + ' ' + (from + 1) + '–' + (from + pageItems.length) + ' из ' + subs.length, W / 2, by + bh / 2);
       this.buttons.push({ x: 16, y: by, w: bw, h: bh, text: 'hub_prev' });
       this.buttons.push({ x: W - 16 - bw, y: by, w: bw, h: bh, text: 'hub_next' });
     }
@@ -892,14 +902,13 @@ class VisitScene {
     const d = this.data;
     if (d.kind === 'work') {
       ctx.fillStyle = '#6BCB77';
-      ctx.font = `bold ${Math.min(panelW * 0.05, 14)}px Arial`;
+      ctx.font = `bold ${Math.min(panelW * 0.045, 13)}px Arial`;
       ctx.textAlign = 'center';
-      const times = System.workJobTimes ? System.workJobTimes(item.id || item.name) : 0;
       const busy = this.jobLeft > 0 && this.jobKey === (item.id || item.name);
       const payLine = busy
         ? ('Работаю ' + Math.max(1, Math.ceil(this.jobLeft / 1000)) + ' с')
-        : ('Оплата: 🪙' + (item.coins || 12) + ' · ' + times + '/' + (System.WORK_PER_JOB || 2));
-      ctx.fillText(payLine, W / 2, py + panelH - 78);
+        : (this.jobMsg || ('Оплата 🪙' + (item.coins || 12)));
+      ctx.fillText(this.truncate(ctx, payLine, panelW - 36), W / 2, py + panelH - 78);
       if (busy) {
         const bw = panelW - 40;
         const bx = px + 20;
@@ -914,18 +923,8 @@ class VisitScene {
       }
     }
 
-    let workLabel = 'Понятно!';
-    if (d.kind === 'work') {
-      const key = item.id || item.name;
-      const busy = this.jobLeft > 0 && this.jobKey === key;
-      const times = System.workJobTimes ? System.workJobTimes(key) : 0;
-      if (busy) workLabel = 'Работаю…';
-      else if (times >= (System.WORK_PER_JOB || 2)) workLabel = 'Уже сделано';
-      else if (times > 0) workLabel = 'Ещё раз';
-      else workLabel = 'Забрать деньги';
-    }
     this.buttons.push(createButton(ctx, px + 20, py + panelH - 48, panelW - 40, 38,
-      workLabel,
+      'Понятно!',
       { bgColor: '#6BCB77', fgColor: '#fff', fontSize: 14, radius: 10 }));
   }
 
@@ -960,18 +959,12 @@ class VisitScene {
     if (this.state === 'fact') {
       for (const b of this.buttons) {
         const bt = b.text || '';
-        const collect = bt.indexOf('Забрать деньги') !== -1 || bt.indexOf('Ещё раз') !== -1 || bt.indexOf('Взять задание') !== -1;
-        const busy = bt.indexOf('Работаю') !== -1;
-        const closed = bt === 'Понятно!' || bt.indexOf('Уже сделано') !== -1 || bt.indexOf('Уже забрано') !== -1 || collect || busy;
-        if (!closed) continue;
+        if (bt !== 'Понятно!' && bt.indexOf('Взять задание') === -1) continue;
         if (!isPointInRect(mx, my, b.x, b.y, b.w, b.h)) continue;
         AudioSys.play('click');
-        if (collect) this.startWork();
-        else if (!busy) {
-          this.jobLeft = 0;
-          this.state = 'browse';
-          this.selected = null;
-        }
+        this.jobLeft = 0;
+        this.state = 'browse';
+        this.selected = null;
         return true;
       }
       return true;
@@ -983,7 +976,7 @@ class VisitScene {
 
       if (t === '← Назад') {
         AudioSys.play('click');
-        if (this.backTarget === 'museums') this.game.transitionTo('visit', 'museums');
+        if (this.backTarget === 'museums' || this.backTarget === 'theaters') this.game.transitionTo('visit', this.backTarget);
         else this.game.transitionTo('map');
         return true;
       }
@@ -1012,9 +1005,9 @@ class VisitScene {
       }
 
       // Выбор музея в хабе
-      if (t.indexOf('museum_') === 0) {
+      if (t.indexOf('museum_') === 0 || t.indexOf('theater_') === 0) {
         AudioSys.play('click');
-        this.game.transitionTo('visit', t.slice(7));
+        this.game.transitionTo('visit', t.slice(t.indexOf('_') + 1));
         return true;
       }
 
@@ -1060,6 +1053,7 @@ class VisitScene {
             if (r) this.setToast(r);
           }
           if (d.content && item.id) System.markSeen(d.content, item.id);
+          if (d.kind === 'work' && item.coins) this.beginWork(item);
           System.saveGame();
         }
         return true;
@@ -1094,3 +1088,27 @@ class VisitScene {
 window.VisitScene = VisitScene;
 window.VISIT_DATA = VISIT_DATA;
 window.MUSEUM_KEYS = MUSEUM_KEYS;
+
+// Хаб театров ставится после загрузки каталога (game_content.js идёт раньше этой сцены).
+(function installTheaters() {
+  if (typeof THEATER_LIST === 'undefined') return;
+  VISIT_DATA.theaters = {
+    name: '🎭 Театры', bg: '#1a1030', kind: 'hub',
+    intro: 'Какой театр посетим?',
+    sub: THEATER_LIST.map(function (t) {
+      return { id: t.id, emoji: t.emoji, name: t.name, desc: t.city, color: t.color };
+    })
+  };
+  THEATER_LIST.forEach(function (t) {
+    VISIT_DATA[t.id] = {
+      name: t.emoji + ' ' + t.name, bg: '#1a1030', kind: 'browse',
+      content: t.id, count: 6, energyCost: 4,
+      perItem: 'спектакль',
+      perItemReward: { stat: 'happiness', amount: 1 },
+      reward: { stat: 'happiness', amount: 4, label: 'Радость +4' }
+    };
+    if (typeof STAGE_DATA !== 'undefined') {
+      STAGE_DATA[t.id] = { sky: ['#1a1030', '#3a2460'], outfit: null, held: '🎭', floor: '#3a2848', kind: 'gallery', tint: t.color };
+    }
+  });
+})();

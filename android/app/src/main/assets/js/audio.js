@@ -541,15 +541,15 @@ const AudioSys = {
     const scene = this.musicScene || 'menu';
     if (scene === 'home') return 'home';
     if (scene === 'shop' || scene === 'minigames' || scene === 'quiet' ||
-        scene === 'aerial' || scene === 'sport' || scene === 'friends' ||
-        scene === 'chat') return 'play';
+        scene === 'aerial' || scene === 'sport' || scene === 'friends') return 'play';
     if (scene === 'clinic') return 'museum';
     if (scene.indexOf('visit:') === 0) {
       // Тихая «музейная» музыка во всех музеях, библиотеке и учёбе. Список музеев
       // общий (MUSEUM_CATEGORIES), поэтому новый музей получает свою мелодию сам.
       const key = scene.slice(6);
       const museums = (typeof MUSEUM_CATEGORIES !== 'undefined') ? MUSEUM_CATEGORIES : [];
-      const quiet = ['museums', 'library', 'school'].concat(museums);
+      const theaters = (typeof THEATER_IDS !== 'undefined') ? THEATER_IDS : [];
+      const quiet = ['museums', 'theaters', 'library', 'school'].concat(museums, theaters);
       return quiet.indexOf(key) !== -1 ? 'museum' : 'play';
     }
     return 'ambient';

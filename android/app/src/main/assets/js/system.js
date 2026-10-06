@@ -112,7 +112,7 @@ const System = {
   // Спит — значит спит: походы (музеи, работа, учёба, спорт, парк, кино, гости,
   // поликлиника) закрыты. Открыто только то, что от питомца не зависит:
   // мини-игры, тихие игры, магазин (просто каталог), инфо/настройки и сам дом.
-  SLEEP_ALLOWED: ['home', 'shop', 'stats', 'minigames', 'tools', 'quiet', 'chat'],
+  SLEEP_ALLOWED: ['home', 'shop', 'stats', 'minigames', 'tools', 'quiet'],
   offlineReport: null,          // что случилось, пока приложение было закрыто
   justWoke: false,              // питомец только что выспался (для облачка дома)
   lastTick: 0,
@@ -533,7 +533,7 @@ const System = {
       case 'museum_space': return this.canAfford(30);
       case 'museum_history': return this.canAfford(30);
       case 'library': return this.canAfford(10);
-      case 'minigames': case 'quiet': case 'home': case 'stats': case 'chat': return true;
+      case 'minigames': case 'quiet': case 'home': case 'stats': return true;
       default: return true;
     }
   },

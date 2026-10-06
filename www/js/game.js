@@ -49,7 +49,6 @@ class Game {
       visit: VisitScene,
       friends: FriendsScene,
       quiet: QuietScene,        // тихие игры: чем заняться, пока гофер спит
-      chat: ChatScene,          // офлайн-чат: только заготовленные фразы
       aerial: AerialScene,      // воздушная гимнастика (кольца) — старое имя сцены
       sport: SportScene         // спортивные тренировки: кольца, полотна, заплыв, барьеры
     };
