@@ -427,6 +427,8 @@ class VisitScene {
     this.toastTimer = 0;
     this.page = 0;
     this.hubPage = 0;          // листание сетки музеев в хабе (v1.3.7)
+    this.jobLeft = 0;
+    this.jobKey = '';
 
     if (!this.data) {
       this.data = {
@@ -466,21 +468,48 @@ class VisitScene {
     this.freshCount = picked.filter(it => !System.hasSeen(d.content, it.id)).length;
   }
 
-  // Оплата задания — один раз за день и только с кнопки «Забрать деньги».
-  collectWorkPay() {
+  // Кнопка только запускает работу. Монеты приходят, когда полоска дойдёт до конца.
+  startWork() {
     const item = this.items[this.selected];
     const d = this.data;
     if (!item || !d || d.kind !== 'work' || !item.coins) return;
-    const pay = System.takeWorkJob(item.id || item.name, item.coins);
+    if (this.jobLeft > 0) return;
+    const key = item.id || item.name;
+    if (System.workJobDone(key)) {
+      this.setToast('Это задание уже сделано дважды');
+      return;
+    }
+    if (System.workDayCount() >= System.WORK_DAY_MAX) {
+      this.setToast('На сегодня хватит заданий');
+      return;
+    }
+    if ((System.stats.energy || 0) < System.WORK_ENERGY) {
+      this.setToast('Сил мало. Сначала отдохни');
+      return;
+    }
+    this.jobKey = key;
+    this.jobLeft = System.WORK_JOB_MS;
+    this.setToast('Работаю…');
+  }
+
+  finishWork() {
+    const item = this.items[this.selected];
+    if (!item || (item.id || item.name) !== this.jobKey) {
+      this.jobLeft = 0;
+      return;
+    }
+    const pay = System.takeWorkJob(this.jobKey, item.coins);
+    this.jobLeft = 0;
     if (pay.paid > 0) {
       System.addXP(3);
-      this.setToast('+' + pay.paid + ' монет за задание');
+      const left = System.WORK_PER_JOB - pay.times;
+      this.setToast('+' + pay.paid + ' монет' + (left > 0 ? '. Можно ещё раз' : ''));
     } else if (pay.reason === 'rest') {
       this.setToast('На сегодня хватит заданий');
     } else if (pay.reason === 'energy') {
       this.setToast('Сил мало. Сначала отдохни');
     } else {
-      this.setToast('Это задание уже сделано');
+      this.setToast('Это задание уже сделано дважды');
     }
     System.saveGame();
   }
@@ -492,6 +521,10 @@ class VisitScene {
 
   update(dt) {
     this.animTime += dt;
+    if (this.jobLeft > 0) {
+      this.jobLeft -= dt;
+      if (this.jobLeft <= 0) this.finishWork();
+    }
     if (this.toastTimer > 0) {
       this.toastTimer -= dt / 1000;
       if (this.toastTimer <= 0) this.toast = '';
@@ -861,13 +894,36 @@ class VisitScene {
       ctx.fillStyle = '#6BCB77';
       ctx.font = `bold ${Math.min(panelW * 0.05, 14)}px Arial`;
       ctx.textAlign = 'center';
-      const done = System.workJobDone && System.workJobDone(item.id || item.name);
-      ctx.fillText((done ? 'Уже забрано: 🪙' : 'Оплата: 🪙') + (item.coins || 12), W / 2, py + panelH - 62);
+      const times = System.workJobTimes ? System.workJobTimes(item.id || item.name) : 0;
+      const busy = this.jobLeft > 0 && this.jobKey === (item.id || item.name);
+      const payLine = busy
+        ? ('Работаю ' + Math.max(1, Math.ceil(this.jobLeft / 1000)) + ' с')
+        : ('Оплата: 🪙' + (item.coins || 12) + ' · ' + times + '/' + (System.WORK_PER_JOB || 2));
+      ctx.fillText(payLine, W / 2, py + panelH - 78);
+      if (busy) {
+        const bw = panelW - 40;
+        const bx = px + 20;
+        const by = py + panelH - 70;
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        roundRect(ctx, bx, by, bw, 8, 4);
+        ctx.fill();
+        const donePart = 1 - (this.jobLeft / System.WORK_JOB_MS);
+        ctx.fillStyle = '#6BCB77';
+        roundRect(ctx, bx, by, Math.max(8, bw * donePart), 8, 4);
+        ctx.fill();
+      }
     }
 
-    const workLabel = (d.kind === 'work')
-      ? ((System.workJobDone && System.workJobDone(item.id || item.name)) ? 'Уже забрано' : 'Забрать деньги')
-      : 'Понятно!';
+    let workLabel = 'Понятно!';
+    if (d.kind === 'work') {
+      const key = item.id || item.name;
+      const busy = this.jobLeft > 0 && this.jobKey === key;
+      const times = System.workJobTimes ? System.workJobTimes(key) : 0;
+      if (busy) workLabel = 'Работаю…';
+      else if (times >= (System.WORK_PER_JOB || 2)) workLabel = 'Уже сделано';
+      else if (times > 0) workLabel = 'Ещё раз';
+      else workLabel = 'Забрать деньги';
+    }
     this.buttons.push(createButton(ctx, px + 20, py + panelH - 48, panelW - 40, 38,
       workLabel,
       { bgColor: '#6BCB77', fgColor: '#fff', fontSize: 14, radius: 10 }));
@@ -904,14 +960,18 @@ class VisitScene {
     if (this.state === 'fact') {
       for (const b of this.buttons) {
         const bt = b.text || '';
-        const collect = bt.indexOf('Забрать деньги') !== -1 || bt.indexOf('Взять задание') !== -1;
-        const closed = bt === 'Понятно!' || bt.indexOf('Уже забрано') !== -1 || collect;
+        const collect = bt.indexOf('Забрать деньги') !== -1 || bt.indexOf('Ещё раз') !== -1 || bt.indexOf('Взять задание') !== -1;
+        const busy = bt.indexOf('Работаю') !== -1;
+        const closed = bt === 'Понятно!' || bt.indexOf('Уже сделано') !== -1 || bt.indexOf('Уже забрано') !== -1 || collect || busy;
         if (!closed) continue;
         if (!isPointInRect(mx, my, b.x, b.y, b.w, b.h)) continue;
         AudioSys.play('click');
-        if (collect) this.collectWorkPay();
-        this.state = 'browse';
-        this.selected = null;
+        if (collect) this.startWork();
+        else if (!busy) {
+          this.jobLeft = 0;
+          this.state = 'browse';
+          this.selected = null;
+        }
         return true;
       }
       return true;

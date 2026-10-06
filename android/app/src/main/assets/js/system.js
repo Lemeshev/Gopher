@@ -954,13 +954,15 @@ const System = {
       };
       this.furnitureColors = data.furnitureColors || {};
       this.outfitsOwned = (data.outfitsOwned || []).slice();
-      this.workShift = (data.workShift && Array.isArray(data.workShift.paid))
+      this.workShift = (data.workShift && (data.workShift.counts || Array.isArray(data.workShift.paid)))
         ? {
           at: data.workShift.at || 0,
-          paid: data.workShift.paid.slice(),
-          day: data.workShift.day || this.dayKey(data.workShift.at || Date.now())
+          day: data.workShift.day || this.dayKey(data.workShift.at || Date.now()),
+          counts: (data.workShift.counts && typeof data.workShift.counts === 'object')
+            ? Object.assign({}, data.workShift.counts)
+            : (data.workShift.paid || []).reduce((m, id) => { m[id] = 1; return m; }, {})
         }
-        : { at: 0, paid: [], day: this.dayKey() };
+        : { at: 0, day: this.dayKey(), counts: {} };
       // Старые сохранения (до v1.2) хранили одну комнату и плоский список мебели.
       // Переносим их в комнаты ТОЛЬКО если комнат в сохранении нет: иначе при
       // каждой загрузке предметы заново «переезжали» в свою основную комнату и
@@ -1148,7 +1150,7 @@ const System = {
     this.paint = { walls: ['warm'], floors: ['wood'] };
     this.furnitureColors = {};
     this.outfitsOwned = [];
-    this.workShift = { at: 0, paid: [], day: this.dayKey() };
+    this.workShift = { at: 0, day: this.dayKey(), counts: {} };
     this.inventory = [];
     // Персонаж — это «кто играет», он сохраняется между сбросами прогресса
     this.look = { hat: null, glasses: null, neck: null, back: null, bowtie: false, fur: 'classic', char: (this.look && this.look.char) || 'gopher' };
@@ -1355,39 +1357,58 @@ const System = {
     return out;
   },
 
-  // Смена на работе: два разных задания за календарный день.
-  // Сон, новый заход и повторный тык по «Бухгалтерии» оплату не обновляют:
-  // раньше пауза в 8 минут кончалась, пока питомец спал, и монеты шли снова.
-  WORK_SHIFT_MS: 8 * 60 * 1000,
-  WORK_SHIFT_JOBS: 2,
+  // Подборка — 6 карточек. Каждую можно сделать дважды за день.
+  // Две подборки = 12 оплат. Третий заход по той же карточке в этот день молчит.
+  // Сама работа длится несколько секунд: монеты не падают с одного тыка.
+  WORK_JOB_MS: 5000,
+  WORK_PER_JOB: 2,
+  WORK_CARDS: 6,
+  WORK_DAY_MAX: 12,
+  WORK_ENERGY: 4,
+
+  ensureWorkShift(now) {
+    const day = this.dayKey(now || Date.now());
+    const w = this.workShift;
+    if (!w || w.day !== day || !w.counts || typeof w.counts !== 'object') {
+      const keep = (w && w.day === day && w.counts && typeof w.counts === 'object') ? w.counts : null;
+      this.workShift = { at: (w && w.at) || Date.now(), day: day, counts: keep || {} };
+    }
+    return this.workShift;
+  },
+
+  workJobTimes(id) {
+    const key = String(id || '');
+    if (!key) return 0;
+    const w = this.ensureWorkShift();
+    return w.counts[key] || 0;
+  },
+
+  workDayCount() {
+    const w = this.ensureWorkShift();
+    let n = 0;
+    Object.keys(w.counts).forEach(k => { n += w.counts[k] || 0; });
+    return n;
+  },
 
   workJobDone(id) {
-    const key = String(id || '');
-    const w = this.workShift;
-    if (!key || !w || !Array.isArray(w.paid)) return false;
-    if (w.day && w.day !== this.dayKey()) return false;
-    return w.paid.indexOf(key) !== -1;
+    return this.workJobTimes(id) >= this.WORK_PER_JOB;
   },
 
   takeWorkJob(id, coins) {
     const now = Date.now();
-    const day = this.dayKey(now);
-    if (!this.workShift || !Array.isArray(this.workShift.paid)) this.workShift = { at: now, paid: [], day: day };
-    // Новый день — новая пара заданий. Пропавшая метка времени список не стирает.
-    if (this.workShift.day !== day) this.workShift = { at: now, paid: [], day: day };
-    if (!this.workShift.at) this.workShift.at = now;
+    const w = this.ensureWorkShift(now);
     const key = String(id || '');
-    if (!key || this.workShift.paid.indexOf(key) !== -1) return { paid: 0, reason: 'same' };
-    if (this.workShift.paid.length >= this.WORK_SHIFT_JOBS) {
-      return { paid: 0, reason: 'rest', left: this.WORK_SHIFT_MS };
-    }
-    if ((this.stats.energy || 0) < 8) return { paid: 0, reason: 'energy' };
-    this.stats.energy = Math.max(0, this.stats.energy - 8);
-    this.workShift.paid.push(key);
-    this.workShift.day = day;
+    if (!key) return { paid: 0, reason: 'same', times: 0 };
+    const times = w.counts[key] || 0;
+    if (times >= this.WORK_PER_JOB) return { paid: 0, reason: 'same', times: times };
+    if (this.workDayCount() >= this.WORK_DAY_MAX) return { paid: 0, reason: 'rest', times: times };
+    if ((this.stats.energy || 0) < this.WORK_ENERGY) return { paid: 0, reason: 'energy', times: times };
+    this.stats.energy = Math.max(0, this.stats.energy - this.WORK_ENERGY);
+    w.counts[key] = times + 1;
+    w.at = now;
     const n = Math.max(0, coins || 0);
     this.earnCoins(n);
-    return { paid: n, reason: 'ok' };
+    return { paid: n, reason: 'ok', times: w.counts[key] };
   },
 
   // Снять всё (кнопка «Без аксессуаров» в магазине)
