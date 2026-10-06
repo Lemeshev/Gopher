@@ -252,6 +252,176 @@
     return Array.from(new Set(result)).filter(function(x) { return x && x.length >= 2; });
   }
 
+  // Оси смысла. Каждая ось — мешок основ, не условие на готовую фразу.
+  // Размер пространства ниже — произведение вариантов по осям, строки не хранятся.
+  var FUNC = { я: 1, ты: 1, не: 1, да: 1, мы: 1, он: 1, она: 1, это: 1, мне: 1, меня: 1 };
+  var SKIP = { что: 1, как: 1, про: 1, для: 1, или: 1, кто: 1, где: 1, там: 1, тут: 1, все: 1, всё: 1, еще: 1, ещё: 1, они: 1, его: 1, был: 1, при: 1, чем: 1, уже: 1, мой: 1, моя: 1, так: 1, то: 1, же: 1, вы: 1, но: 1, под: 1, над: 1, без: 1, от: 1, из: 1, ли: 1, бы: 1, ни: 1, во: 1, со: 1, ко: 1, об: 1, по: 1, за: 1, на: 1, до: 1 };
+  var stemToDim = Object.create(null);
+  SYNONYM_GROUPS.forEach(function (g, gi) {
+    [g.root].concat(g.syns).forEach(function (w) {
+      String(w).split(' ').forEach(function (part) {
+        var s = stem(part);
+        if (!s || s.length < 4 || SKIP[s] || FUNC[s]) return;
+        if (stemToDim[s] === undefined) stemToDim[s] = gi;
+      });
+    });
+  });
+
+  var MOVES = [
+    { id: 'greet', words: 'привет здравствуй приветик' },
+    { id: 'bye', words: 'пока свидания спокойной ночи спать ухожу' },
+    { id: 'tell', words: 'расскажи сказку историю нибудь интересное байку' },
+    { id: 'why', words: 'почему зачем пишешь' },
+    { id: 'doubt', words: 'вряд получится поболтать' },
+    { id: 'meta', words: 'беседа диалог' },
+    { id: 'mood', words: 'скучно грустно весело жалко' },
+    { id: 'who', words: 'живой суслик игрушка' },
+    { id: 'agree', words: 'ладно понял понятно ясно' },
+    { id: 'listen', words: 'слушай слышишь внимательно молчи говори' }
+  ];
+
+  // Реплики оси — целые предложения. Индекс берётся из вектора, не из текста примера.
+  var MOVE_LINES = {
+    greet: [
+      'Привет. Я рядом и слушаю всю фразу.',
+      'Здравствуй. Можно говорить как есть, я отвечу на мысль целиком.',
+      'Привет. Я в игре и готов продолжать разговор.'
+    ],
+    bye: [
+      'Пока. Я останусь в игре, возвращайся когда захочешь.',
+      'До встречи. Хорошо, что мы поговорили.'
+    ],
+    tell: [
+      'Жил-был тихий день. Сначала все делали одно дело, потом отдыхали и рассказывали, что вышло.',
+      'В одной истории герой шёл по двору, встретил знакомого и вернулся домой к ужину.',
+      'Коротко: утро было обычным, днём случилась маленькая радость, вечером все были дома.',
+      'Сказка такая. Зверь нашёл тёплый угол, поделился едой и никого не обидел.'
+    ],
+    why: [
+      'Я отвечаю на всю фразу, а не вытаскиваю из неё одно слово.',
+      'Так выходит, когда цепляешься за кусок. Я держу мысль целиком.',
+      'Пишу про то, о чём речь в предложении, и не подменяю тему соседним словом.'
+    ],
+    doubt: [
+      'Поболтать можно и короткими фразами. Я слушаю и отвечаю по смыслу.',
+      'Получится. Говори как удобно, я не требую специальную тему.',
+      'Разговор уже идёт. Следующая фраза может быть любой.'
+    ],
+    meta: [
+      'Это и есть разговор: ты пишешь мысль, я отвечаю на неё целиком.',
+      'Согласен, так и должна звучать беседа. Продолжаем обычными фразами.',
+      'Я на связи. Скажи, что думаешь, я отвечу на эту мысль.'
+    ],
+    mood: [
+      'Чувство понятное. Я рядом и не увожу разговор в сторону.',
+      'Слышу, как тебе. Можно сказать об этом ещё одной фразой.',
+      'Такое бывает. Я остаюсь в этом разговоре.'
+    ],
+    who: [
+      'Я игрушка на экране, не живой человек. Дышать я не умею, зато могу говорить.',
+      'Я персонаж этой игры. Живым меня считать не нужно.'
+    ],
+    agree: [
+      'Хорошо. Я это учёл и слушаю дальше.',
+      'Принято. Говори следующую мысль.',
+      'Ладно. Остаёмся в том же разговоре.'
+    ],
+    listen: [
+      'Я слышу фразу целиком и отвечаю на неё.',
+      'Слышу. Говори дальше, я не прыгаю в другую тему.',
+      'Я рядом. Можно сказать, что было дальше.',
+      'Отвечаю на то, что написано, без чужой темы.'
+    ]
+  };
+
+  function mixVec(a, b, t) {
+    var o = {};
+    var k;
+    a = a || {};
+    b = b || {};
+    for (k in a) o[k] = (a[k] || 0) * (1 - t);
+    for (k in b) o[k] = (o[k] || 0) + b[k] * t;
+    return o;
+  }
+
+  function cleanReply(s) {
+    return String(s || '')
+      .replace(/\{pet:[^}]*\}/g, '')
+      .replace(/\{Pet\}/g, 'питомец')
+      .replace(/\{s\}/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function bareVector(text) {
+    var v = {};
+    normalize(text).split(' ').forEach(function (w) {
+      if (!w) return;
+      if (FUNC[w]) { v['f:' + w] = (v['f:' + w] || 0) + 1; return; }
+      if (w.length < 3 || SKIP[w]) return;
+      var s = stem(w);
+      if (!s || s.length < 3 || SKIP[s]) return;
+      var dim = stemToDim[s];
+      var key = dim === undefined ? ('u:' + s) : ('g:' + dim);
+      v[key] = (v[key] || 0) + 1;
+    });
+    return v;
+  }
+
+  function cosine(a, b) {
+    var dot = 0, na = 0, nb = 0, k;
+    for (k in a) { na += a[k] * a[k]; if (b[k]) dot += a[k] * b[k]; }
+    for (k in b) nb += b[k] * b[k];
+    if (!na || !nb) return 0;
+    return dot / Math.sqrt(na * nb);
+  }
+
+  MOVES.forEach(function (m) { m.v = bareVector(m.words); });
+  SYNONYM_GROUPS.forEach(function (g, gi) { g.axis = { ['g:' + gi]: 1 }; });
+
+  var docs = null;
+  function ensureDocs() {
+    if (docs) return docs;
+    docs = [];
+    var topics = (typeof window !== 'undefined' && window.CHAT_TOPICS) || [];
+    topics.forEach(function (t) {
+      (t.replies || []).forEach(function (r) {
+        if (!r || r.indexOf('{s}') !== -1) return;
+        var bag = ((t.keys || []).join(' ')) + ' ' + r;
+        docs.push({ reply: cleanReply(r), v: bareVector(bag), id: t.id });
+      });
+    });
+    return docs;
+  }
+
+  function bestOf(q, rows, field) {
+    var best = null;
+    for (var i = 0; i < rows.length; i++) {
+      var s = cosine(q, rows[i][field]);
+      if (!best || s > best.s) best = { s: s, row: rows[i], i: i };
+    }
+    return best;
+  }
+
+  function childName(raw) {
+    var parts = String(raw || '').trim().split(/\s+/);
+    if (parts.length < 2 || parts.length > 4) return '';
+    var prev = parts[parts.length - 2].toLowerCase().replace(/ё/g, 'е');
+    if (prev !== 'я' && prev !== 'зовут') return '';
+    var w = parts[parts.length - 1].replace(/[^A-Za-zА-Яа-яЁё-]/g, '');
+    if (w.length < 2 || w.length > 16) return '';
+    if (/ся$|сь$|ть$|ешь$|ишь$|ете$|лся$|лась$|лся$/.test(w.toLowerCase())) return '';
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  }
+
+  function pickLine(scene, id) {
+    var arr = MOVE_LINES[id] || MOVE_LINES.listen;
+    var i = scene.embedN || 0;
+    scene.embedN = i + 1;
+    scene.embedMove = id;
+    return arr[i % arr.length];
+  }
+
   // ---------- экспорт ----------
   window.ChatEmbed = {
     normalize: normalize,
@@ -273,6 +443,67 @@
         }
       });
       return expanded;
+    },
+
+    spaceSize: (function () {
+      var n = MOVES.length;
+      for (var i = 0; i < SYNONYM_GROUPS.length; i++) {
+        n *= (SYNONYM_GROUPS[i].syns.length + 1);
+        if (n >= 10000000) return n;
+      }
+      return n;
+    })(),
+
+    vector: function (text) { return bareVector(text); },
+
+    cosine: function (a, b) { return cosine(a, b); },
+
+    // Любая фраза: ближайшая ось хода или темы, с памятью прошлого вектора.
+    // Ниже порога остаётся ход «слушать», а не чужая тема и не вырванное слово.
+    answer: function (scene, raw, n) {
+      var q = bareVector(n);
+      var mixed = mixVec(scene.memVec, q, 0.35);
+      scene.memVec = mixVec(scene.memVec, q, 0.55);
+      var named = childName(raw);
+      if (named) {
+        scene.embedMove = 'name';
+        return 'Приятно. Буду знать, что ты ' + named + '.';
+      }
+      var move = bestOf(q, MOVES, 'v');
+      var remembered = bestOf(mixed, MOVES, 'v');
+      if ((!move || move.s < 0.28) && remembered && remembered.s >= 0.28) move = remembered;
+      var group = bestOf(q, SYNONYM_GROUPS, 'axis');
+      var contentful = false;
+      for (var ck in q) if (ck.indexOf('u:') === 0 || ck.indexOf('g:') === 0) contentful = true;
+      if (move && move.s >= 0.28 && (!group || move.s >= group.s)) {
+        return pickLine(scene, move.row.id);
+      }
+      if (group && group.s >= 0.45) {
+        var asked = [];
+        normalize(n).split(' ').forEach(function (w) {
+          var s = stem(w);
+          if (s && s.length >= 4) asked.push(s);
+        });
+        var pool = ensureDocs().filter(function (d) {
+          if (!d.v['g:' + group.i]) return false;
+          var words = normalize(d.reply).split(' ');
+          for (var a = 0; a < asked.length; a++) {
+            for (var w = 0; w < words.length; w++) if (stem(words[w]) === asked[a]) return true;
+          }
+          return false;
+        });
+        var near = null;
+        for (var i = 0; i < pool.length; i++) {
+          var sc = cosine(q, pool[i].v);
+          if (!near || sc > near.s) near = { s: sc, reply: pool[i].reply };
+        }
+        if (near && near.s >= 0.2 && near.reply) {
+          scene.embedMove = 'group';
+          return near.reply;
+        }
+      }
+      if (!contentful && scene.embedMove && MOVE_LINES[scene.embedMove]) return pickLine(scene, scene.embedMove);
+      return pickLine(scene, 'listen');
     },
 
     // Найти best match в Index с учётом синонимов

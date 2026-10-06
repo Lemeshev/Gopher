@@ -10,6 +10,7 @@ class ChatScene {
     this.thread = null;    // о чём сейчас говорим, чтобы не прыгать в погоду и кашу
     this.turns = [];       // последние фразы ребёнка: эмбеддинг видит не только текущую
     this.bankCursor = 0;
+    if (window.CHAT_MEMORY && window.CHAT_MEMORY.reset) window.CHAT_MEMORY.reset();
   }
 
   init() {
@@ -157,23 +158,6 @@ class ChatScene {
       if (easy) return easy;
     }
 
-    // 5) Семантический поиск по темам: заменяет regex matchAll по ключам.
-    // Берём тему с лучшим косинусом с учётом синонимов.
-    if (window.CHAT_SEMANTIC) {
-      const semMatch = window.CHAT_SEMANTIC.best(n);
-      if (semMatch) {
-        const topic = this.topicById(semMatch.id);
-        if (topic && topic.replies) {
-          this.lastTopic = topic;
-          this.pending = null;
-          this.thread = semMatch.id;
-          const reply = this.pick(topic.replies);
-          // Если есть focusWord — добавляем контекст
-          return this.withFocus(n, reply);
-        }
-      }
-    }
-
     if (window.CHAT_MEMORY && window.CHAT_MEMORY.reply) {
       const recalled = window.CHAT_MEMORY.reply(this, text);
       if (recalled) return recalled;
@@ -182,6 +166,11 @@ class ChatScene {
     if (window.CHAT_TALK && window.CHAT_TALK.reply) {
       const talked = window.CHAT_TALK.reply(this, text, n);
       if (talked) return talked;
+    }
+
+    if (window.ChatEmbed && window.ChatEmbed.answer) {
+      const embedded = window.ChatEmbed.answer(this, text, n);
+      if (embedded) return embedded;
     }
 
     const steered = this.steer(n);
@@ -596,10 +585,10 @@ class ChatScene {
     const A = window.CHAT_ACK || {};
 
     // 1) Сначала спецкатегории: замешательство, странные реплики, неверная тема
-    if ((A.confusedWords || []).some(k => n.indexOf(k) !== -1)) return this.pick(A.confused);
-    if ((A.strangeWords || []).some(k => n.indexOf(k) !== -1)) return this.pick(A.strange);
-    if ((A.notConversationWords || []).some(k => n.indexOf(k) !== -1)) return this.pick(A.notConversation);
-    if ((A.wrongTopicWords || []).some(k => n.indexOf(k) !== -1)) return this.pick(A.wrongTopic);
+    if ((A.confusedWords || []).indexOf(n) !== -1) return this.pick(A.confused);
+    if ((A.strangeWords || []).indexOf(n) !== -1) return this.pick(A.strange);
+    if ((A.notConversationWords || []).indexOf(n) !== -1) return this.pick(A.notConversation);
+    if ((A.wrongTopicWords || []).indexOf(n) !== -1) return this.pick(A.wrongTopic);
 
     // 2) Основные категории
     if ((A.mildKeys || []).some(k => n.indexOf(k) !== -1)) return this.pick(A.mild);

@@ -141,7 +141,7 @@
       'Если коротко про ' + row[1] + ': ' + row[3] + '.'
     ];
     order.push(id);
-    row.forEach((form, idx) => { if (idx === 2) return; form.split("|").forEach(f => addKeyword(id, [f])); });
+    row.forEach((form, idx) => { if (idx >= 2) return; form.split('|').forEach(f => addKeyword(id, [f])); });
   });
 
   function linesOf(scene, id) {
@@ -181,6 +181,7 @@
     words.forEach(function(word) {
       var s = stemN(word);
       Object.keys(KEYWORDS).forEach(function(key) {
+        if (key.indexOf(' ') !== -1) return;
         var keyStem = stemN(key);
         if (word === key) scores[KEYWORDS[key]] = (scores[KEYWORDS[key]] || 0) + 3;
         else if (s.length >= 3 && s === keyStem) scores[KEYWORDS[key]] = (scores[KEYWORDS[key]] || 0) + 2;
@@ -379,6 +380,7 @@
       words.forEach(function(word) {
         var s = stemN(word);
         Object.keys(KEYWORDS).forEach(function(key) {
+          if (key.indexOf(' ') !== -1) return;
           var keyStem = stemN(key);
           var sc = 0;
           if (word === key) sc = 3;

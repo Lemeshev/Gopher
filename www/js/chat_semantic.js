@@ -198,7 +198,7 @@
 
   window.CHAT_SEMANTIC = {
     index: index,
-    best: bestWordV2,  // Используем улучшенный поиск с синонимами
+    best: bestWord,
     search: function (text, k) { return index.search(text, k || 5); },
     // Порог: ниже него считаем, что тема не найдена (уходим в существительное/фолбэк).
     THRESHOLD: 0.3,

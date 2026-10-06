@@ -91,6 +91,7 @@ const CHAT_MEMORY = {
 
     // Если нашли совпадение — используем его
     const pickLine = (re) => {
+      var people = this.turns || [];
       for (let i = people.length - 1; i >= 0; i--) {
         if (re.test(people[i].n)) return people[i].text;
       }
@@ -190,7 +191,7 @@ const CHAT_MEMORY = {
     if (/подарок какой|какой подарок/.test(q) && has(/книг/)) return pickLine(/книг/) || 'Подарок — книга.';
 
     if (/кто |что |почему|зачем|какой|какая|какое|какие|где |сколько|помнишь|говорил/.test(q)) {
-      const echoed = this.bestLine(q, people);
+      const echoed = this.bestLine(q, this.turns || []);
       if (echoed) return echoed;
     }
     return '';
@@ -229,7 +230,9 @@ const CHAT_MEMORY = {
     let score = 0;
     people.forEach(line => {
       let s = 0;
-      words.forEach(w => { if (line.n.indexOf(w.slice(0, 4)) !== -1) s++; });
+      words.forEach(w => {
+        line.n.split(' ').forEach(x => { if (x === w || (w.length >= 6 && x.indexOf(w) === 0)) s++; });
+      });
       if (s > score) { score = s; best = line.text; }
     });
     if (score >= 1 && words.length >= 1) return best;
