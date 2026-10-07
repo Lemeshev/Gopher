@@ -443,7 +443,7 @@ class MenuScene {
     ctx.fill();
 
     const panelW = Math.min(W * 0.88, 330);
-    const panelH = 380;
+    const panelH = 420;
     const px = (W - panelW) / 2;
     const py = (H - panelH) / 2;
 
@@ -476,21 +476,18 @@ class MenuScene {
 
     ctx.fillStyle = '#fff';
     ctx.font = `bold ${Math.min(W * 0.036, 14)}px Arial`;
-    ctx.fillText('© Лемешев Виктор', W / 2, py + 242);
+    ctx.fillText('© Лемешев Виктор', W / 2, py + 240);
 
     ctx.fillStyle = '#9fb0d8';
     ctx.font = `${Math.min(W * 0.027, 11)}px Arial`;
-    ctx.fillText('Связаться и посмотреть другие проекты:', W / 2, py + 262);
+    ctx.fillText('Сайт игры', W / 2, py + 262);
 
-    // Ссылка — просто текстом: в детской игре нет кликабельных переходов
-    // во внешние приложения (Google Play для детских приложений этого не
-    // разрешает, да и ребёнок не должен случайно уйти из игры).
+    // Адреса — просто текстом: в детской игре нет кликабельных переходов
+    // наружу, ребёнок не должен случайно уйти из игры.
     ctx.fillStyle = '#8FC7FF';
     ctx.font = `bold ${Math.min(W * 0.034, 14)}px Arial`;
-    ctx.fillText('vk.com/VL', W / 2, py + 288);
-    ctx.fillStyle = 'rgba(255,255,255,0.45)';
-    ctx.font = `${Math.min(W * 0.024, 10)}px Arial`;
-    ctx.fillText('(адрес можно переписать или отсканировать)', W / 2, py + 306);
+    ctx.fillText('gopher.umort.ru', W / 2, py + 284);
+    ctx.fillText('vk.com/VL', W / 2, py + 308);
 
     this.buttons.push(createButton(ctx, px + 30, py + panelH - 54, panelW - 60, 40, '← Назад', {
       bgColor: 'rgba(255,255,255,0.2)', fgColor: '#fff', fontSize: 15, radius: 10
