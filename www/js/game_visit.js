@@ -357,7 +357,7 @@ const VISIT_DATA = {
   // ----- ПАРК -----
   park: {
     name: '🎢 Парк', bg: '#1b3a20', kind: 'browse',
-    content: 'park', count: 12, energyCost: 18,
+    content: 'park', count: 12, energyCost: 8,
     perItem: '+1 счастье за аттракцион',
     perItemReward: { stat: 'happiness', amount: 1 },
     reward: { stat: 'happiness', amount: 15, label: 'Счастье +15' }
@@ -375,7 +375,7 @@ const VISIT_DATA = {
   // ----- БАССЕЙН -----
   pool: {
     name: '🏊 Бассейн', bg: '#0b2a3a', kind: 'browse',
-    content: 'pool', count: 12, energyCost: 15,
+    content: 'pool', count: 12, energyCost: 8,
     perItem: '+2 чистоты за занятие',
     perItemReward: { stat: 'cleanliness', amount: 2 },
     reward: { stat: 'cleanliness', amount: 20, label: 'Чистота +20' }
@@ -384,7 +384,7 @@ const VISIT_DATA = {
   // ----- СПОРТЗАЛ -----
   gym: {
     name: '🏋️ Спортзал', bg: '#22222a', kind: 'browse',
-    content: 'gym', count: 12, energyCost: 20,
+    content: 'gym', count: 12, energyCost: 8,
     perItem: '+1 здоровье за упражнение',
     perItemReward: { stat: 'health', amount: 1 },
     reward: { stat: 'health', amount: 10, label: 'Здоровье +10' }
@@ -451,8 +451,11 @@ class VisitScene {
     this.state = 'browse';
     this.loadItems();
 
-    // Оплата энергией за посещение (один раз при входе)
-    if (this.data.energyCost) {
+    // Оплата за вход. Возврат с тренировки сюда же вход не повторяет:
+    // иначе два упражнения списывают зал ещё дважды, и герой просится спать.
+    if (this.skipEnergyOnce) {
+      this.skipEnergyOnce = false;
+    } else if (this.data.energyCost) {
       System.stats.energy = Math.max(0, System.stats.energy - this.data.energyCost);
       System.saveGame();
     }

@@ -21,7 +21,7 @@ const SPORT_DISCIPLINES = {
     title: '🎪 Воздушная гимнастика: кольца',
     hint: 'Жми «Прыгнуть», когда указатель в зелёной зоне',
     start: '🎪 Начать тренировку', action: '🤸 Прыгнуть!', finish: '✅ Закончить тренировку',
-    energy: 5, attempts: 5, perfectCoins: 12, goodCoins: 6, xp: 10,
+    energy: 2, attempts: 5, perfectCoins: 12, goodCoins: 6, xp: 10,
     sky: ['#2b1d4a', '#463066', '#241a38'], accent: '#9B59B6',
     perfectText: 'Идеальный перелёт! 🎯', goodText: 'Хороший перелёт!', missText: 'Мимо — но {pet} держится крепко 😅',
     elements: [
@@ -35,7 +35,7 @@ const SPORT_DISCIPLINES = {
     title: '🎀 Воздушная гимнастика: полотна',
     hint: 'Жми «Крутить оборот», когда указатель в зелёной зоне',
     start: '🎀 Начать тренировку', action: '🎀 Крутить оборот!', finish: '✅ Закончить тренировку',
-    energy: 5, attempts: 5, perfectCoins: 12, goodCoins: 6, xp: 10,
+    energy: 2, attempts: 5, perfectCoins: 12, goodCoins: 6, xp: 10,
     sky: ['#3a1d3f', '#5d3160', '#2a1430'], accent: '#E91E9C',
     perfectText: 'Чистый оборот! 🎯', goodText: 'Хороший оборот!', missText: 'Полотна качнулись — {pet} удержался(ась) 😅',
     elements: [
@@ -49,7 +49,7 @@ const SPORT_DISCIPLINES = {
     title: '🏊 Заплыв в бассейне',
     hint: 'Жми «Поворот», когда указатель в зелёной зоне',
     start: '🏊 Начать заплыв', action: '🏊 Поворот!', finish: '✅ Закончить заплыв',
-    energy: 5, attempts: 5, perfectCoins: 12, goodCoins: 6, xp: 10,
+    energy: 2, attempts: 5, perfectCoins: 12, goodCoins: 6, xp: 10,
     sky: ['#08263c', '#12556f', '#06202f'], accent: '#00BCD4',
     perfectText: 'Точный поворот! 🎯', goodText: 'Хороший поворот!', missText: 'Волна накрыла — {pet} {pet:выплыл|выплыла} 😅',
     elements: [
@@ -63,7 +63,7 @@ const SPORT_DISCIPLINES = {
     title: '🏃 Спринт с барьерами',
     hint: 'Жми «Прыжок», когда указатель в зелёной зоне',
     start: '🏃 Начать забег', action: '🏃 Прыжок!', finish: '✅ Закончить забег',
-    energy: 5, attempts: 5, perfectCoins: 12, goodCoins: 6, xp: 10,
+    energy: 2, attempts: 5, perfectCoins: 12, goodCoins: 6, xp: 10,
     sky: ['#123a1c', '#2c7038', '#0d2a14'], accent: '#2ECC71',
     perfectText: 'Чистый прыжок! 🎯', goodText: 'Барьер взят!', missText: 'Задел барьер, но {pet} {pet:устоял|устояла} 😅',
     elements: [
@@ -196,12 +196,16 @@ class SportScene {
     System.addXP(this.disc.xp);
     System.saveGame();
     System.showAchievement(this.disc.sceneEmoji, 'Тренировка окончена: +' + this.coinsWon + ' 🪙');
+    const back = this.game.scenes && this.game.scenes.visit;
+    if (back) back.skipEnergyOnce = true;
     this.game.transitionTo('visit', this.disc.place);
     return true;
   }
 
   goBack() {
     System.saveGame();
+    const back = this.game.scenes && this.game.scenes.visit;
+    if (back) back.skipEnergyOnce = true;
     this.game.transitionTo('visit', this.disc.place);
     return true;
   }

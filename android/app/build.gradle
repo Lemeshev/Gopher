@@ -17,8 +17,8 @@ android {
         applicationId "com.gopherlife.app"
         minSdkVersion 21
         targetSdkVersion 34
-        versionCode 69
-        versionName "1.4.25"
+        versionCode 70
+        versionName "1.4.26"
     }
 
     signingConfigs {
