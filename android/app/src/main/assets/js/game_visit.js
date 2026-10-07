@@ -1108,7 +1108,7 @@ window.MUSEUM_KEYS = MUSEUM_KEYS;
       reward: { stat: 'happiness', amount: 4, label: 'Радость +4' }
     };
     if (typeof STAGE_DATA !== 'undefined') {
-      STAGE_DATA[t.id] = { sky: ['#1a1030', '#3a2460'], outfit: null, held: '🎭', floor: '#3a2848', kind: 'gallery', tint: t.color };
+      STAGE_DATA[t.id] = { sky: ['#12081c', '#2a1438'], outfit: null, held: null, floor: '#6b3a22', kind: 'stage', tint: t.color };
     }
   });
 })();

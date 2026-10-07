@@ -94,6 +94,7 @@ const LocationStage = {
       case 'restaurant': this.drawRestaurant(ctx, rect, floorY, time); break;
       case 'park': this.drawPark(ctx, rect, floorY, time); break;
       case 'cinema': this.drawCinema(ctx, rect, floorY); break;
+      case 'stage': this.drawStage(ctx, rect, floorY, cfg.tint || '#FFD93D', time); break;
       case 'space': this.drawSpace(ctx, rect, floorY, time); break;
       case 'rail': this.drawRail(ctx, rect, floorY, time); break;
       case 'navy': this.drawNavy(ctx, rect, floorY, time); break;
@@ -101,8 +102,10 @@ const LocationStage = {
       default: this.drawGallery(ctx, rect, floorY, cfg.tint || '#FFD93D'); break;
     }
 
-    // Пол
-    if (cfg.kind !== 'pool') {
+    // Пол. На сцене — доски, чтобы герой стоял на подмостках.
+    if (cfg.kind === 'stage') {
+      this.drawStageFloor(ctx, rect, floorY, cfg.floor);
+    } else if (cfg.kind !== 'pool') {
       ctx.fillStyle = cfg.floor;
       ctx.fillRect(rect.x, floorY, rect.w, rect.y + rect.h - floorY);
       ctx.fillStyle = 'rgba(255,255,255,0.10)';
@@ -129,6 +132,106 @@ const LocationStage = {
 
     // В бассейне вода накрывает нижнюю половину гофера
     if (cfg.kind === 'pool') this.drawWater(ctx, rect, floorY, cy, scale, time);
+    if (cfg.kind === 'stage') this.drawFootlights(ctx, rect, floorY, time);
+  },
+
+  // Занавес, портал и задник. Герой рисуется позже и стоит перед задником.
+  drawStage(ctx, rect, floorY, tint, time) {
+    const top = rect.y;
+    const mid = floorY;
+    ctx.fillStyle = '#1a0c18';
+    ctx.fillRect(rect.x, top, rect.w, mid - top);
+
+    // Задник: ночь и луна, как декорация сказки
+    const bg = ctx.createLinearGradient(0, top, 0, mid);
+    bg.addColorStop(0, '#1a1448');
+    bg.addColorStop(1, tint);
+    ctx.fillStyle = bg;
+    ctx.fillRect(rect.x + rect.w * 0.16, top + rect.h * 0.08, rect.w * 0.68, mid - top - rect.h * 0.08);
+    ctx.fillStyle = '#F4E7B0';
+    ctx.beginPath();
+    ctx.arc(rect.x + rect.w * 0.72, top + rect.h * 0.22, rect.h * 0.045, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    for (let i = 0; i < 7; i++) {
+      const sx = rect.x + rect.w * (0.22 + (i * 0.08));
+      const sy = top + rect.h * (0.14 + (i % 3) * 0.06);
+      ctx.fillRect(sx, sy, 2, 2);
+    }
+
+    // Кулись: красный бархат по бокам
+    const fold = rect.w * 0.14;
+    ctx.fillStyle = '#8e1b2a';
+    ctx.fillRect(rect.x, top, fold, mid - top);
+    ctx.fillRect(rect.x + rect.w - fold, top, fold, mid - top);
+    ctx.fillStyle = '#c43848';
+    for (let i = 0; i < 4; i++) {
+      ctx.fillRect(rect.x + i * (fold / 4), top, 3, mid - top);
+      ctx.fillRect(rect.x + rect.w - fold + i * (fold / 4), top, 3, mid - top);
+    }
+    // Подвязанные края занавеса
+    ctx.fillStyle = '#6e1220';
+    ctx.beginPath();
+    ctx.moveTo(rect.x + fold, top + rect.h * 0.08);
+    ctx.quadraticCurveTo(rect.x + fold + rect.w * 0.08, top + rect.h * 0.28, rect.x + fold, mid - 4);
+    ctx.lineTo(rect.x + fold - 8, mid - 4);
+    ctx.lineTo(rect.x + fold - 8, top + rect.h * 0.08);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(rect.x + rect.w - fold, top + rect.h * 0.08);
+    ctx.quadraticCurveTo(rect.x + rect.w - fold - rect.w * 0.08, top + rect.h * 0.28, rect.x + rect.w - fold, mid - 4);
+    ctx.lineTo(rect.x + rect.w - fold + 8, mid - 4);
+    ctx.lineTo(rect.x + rect.w - fold + 8, top + rect.h * 0.08);
+    ctx.fill();
+
+    // Золотой портал
+    ctx.strokeStyle = '#E6C15A';
+    ctx.lineWidth = Math.max(3, rect.w * 0.012);
+    ctx.strokeRect(rect.x + fold * 0.72, top + rect.h * 0.05, rect.w - fold * 1.44, mid - top - rect.h * 0.05);
+
+    // Софит сверху
+    const beam = 0.10 + Math.sin(time * 0.002) * 0.03;
+    const spot = ctx.createLinearGradient(rect.x + rect.w * 0.5, top, rect.x + rect.w * 0.5, mid);
+    spot.addColorStop(0, 'rgba(255,244,200,' + beam + ')');
+    spot.addColorStop(1, 'rgba(255,244,200,0)');
+    ctx.fillStyle = spot;
+    ctx.beginPath();
+    ctx.moveTo(rect.x + rect.w * 0.42, top + 4);
+    ctx.lineTo(rect.x + rect.w * 0.58, top + 4);
+    ctx.lineTo(rect.x + rect.w * 0.72, mid);
+    ctx.lineTo(rect.x + rect.w * 0.28, mid);
+    ctx.closePath();
+    ctx.fill();
+  },
+
+  drawStageFloor(ctx, rect, floorY, color) {
+    const bottom = rect.y + rect.h;
+    ctx.fillStyle = color || '#6b3a22';
+    ctx.fillRect(rect.x, floorY, rect.w, bottom - floorY);
+    ctx.strokeStyle = 'rgba(40,18,8,0.45)';
+    ctx.lineWidth = 1;
+    const plank = Math.max(7, (bottom - floorY) / 5);
+    for (let y = floorY; y < bottom; y += plank) {
+      ctx.beginPath();
+      ctx.moveTo(rect.x, y);
+      ctx.lineTo(rect.x + rect.w, y);
+      ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(255,220,160,0.18)';
+    ctx.fillRect(rect.x, floorY, rect.w, 3);
+  },
+
+  drawFootlights(ctx, rect, floorY) {
+    const n = 7;
+    for (let i = 0; i < n; i++) {
+      const x = rect.x + rect.w * (0.18 + i * 0.1);
+      ctx.fillStyle = '#221208';
+      ctx.fillRect(x - 4, floorY - 2, 8, 6);
+      ctx.fillStyle = '#FFE082';
+      ctx.beginPath();
+      ctx.arc(x, floorY - 2, 3.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
   },
   // ---------- Бассейн ----------
   drawPool(ctx, rect, floorY, time) {
