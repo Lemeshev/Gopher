@@ -46,11 +46,32 @@ class MinigamesScene {
     this.mode = 'rps';
   }
 
-  wordBank() {
-    const bank = (typeof CHAT_GUESS_WORDS !== 'undefined' && CHAT_GUESS_WORDS.length)
-      ? CHAT_GUESS_WORDS
-      : [{ word: 'мяч', hints: ['круглый', 'игрушка'] }];
-    return bank[Math.floor(Math.random() * bank.length)];
+  guessBank() {
+    if (typeof WORD_BANK !== 'undefined' && WORD_BANK.length) return WORD_BANK;
+    return [{ word: 'мяч', hints: ['круглый', 'игрушка'] }];
+  }
+
+  // Недавние слова не повторяются. Буквам и перемешке нужны короткие слова,
+  // чтобы клеточки влезли в экран.
+  wordBank(kind) {
+    const bank = this.guessBank();
+    if (!this._seen) this._seen = [];
+    let pool = bank.filter(w => this._seen.indexOf(w.word) === -1);
+    if (!pool.length) {
+      this._seen = [];
+      pool = bank.slice();
+    }
+    if (kind === 'letters') {
+      const fit = pool.filter(w => w.word.length >= 4 && w.word.length <= 8);
+      if (fit.length) pool = fit;
+    } else if (kind === 'mix') {
+      const fit = pool.filter(w => w.word.length >= 4 && w.word.length <= 7);
+      if (fit.length) pool = fit;
+    }
+    const item = pool[Math.floor(Math.random() * pool.length)];
+    this._seen.push(item.word);
+    if (this._seen.length > 40) this._seen.shift();
+    return item;
   }
 
   initSimon() {
@@ -60,10 +81,8 @@ class MinigamesScene {
   }
 
   initWord() {
-    const bank = (typeof CHAT_GUESS_WORDS !== 'undefined' && CHAT_GUESS_WORDS.length)
-      ? CHAT_GUESS_WORDS
-      : [{ word: 'мяч', hints: ['круглый', 'игрушка'] }];
-    const item = this.wordBank();
+    const bank = this.guessBank();
+    const item = this.wordBank('word');
     const pool = bank.map(w => w.word).filter(w => w !== item.word);
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -74,27 +93,44 @@ class MinigamesScene {
       const j = Math.floor(Math.random() * (i + 1));
       const t = options[i]; options[i] = options[j]; options[j] = t;
     }
-    const hint = item.hints[Math.floor(Math.random() * item.hints.length)];
-    this.word = { answer: item.word, hint: hint, options: options, note: 'Это слово про: ' + hint, over: false };
+    const hints = item.hints.slice();
+    const first = hints.splice(Math.floor(Math.random() * hints.length), 1)[0];
+    this.word = {
+      answer: item.word,
+      hints: [first].concat(hints),
+      hintI: 0,
+      hint: first,
+      options: options,
+      note: 'Это слово про: ' + first,
+      over: false,
+      gone: {}
+    };
     this.mode = 'word';
   }
 
   initLetters() {
-    const item = this.wordBank();
+    const item = this.wordBank('letters');
     const hint = item.hints[Math.floor(Math.random() * item.hints.length)];
-    this.letters = { word: item.word, hint: hint, open: {}, miss: {}, wrong: 0, max: 6, over: false, won: false };
+    const open = {};
+    // Длинное слово начинает с первой буквы, чтобы шарик не сдувался сразу.
+    if (item.word.length >= 7) open[item.word.charAt(0)] = true;
+    this.letters = { word: item.word, hint: hint, open: open, miss: {}, wrong: 0, max: 6, over: false, won: false };
     this.mode = 'letters';
   }
 
   initMix() {
-    const item = this.wordBank();
+    const item = this.wordBank('mix');
     const chars = item.word.split('');
     const tiles = chars.map((ch, i) => ({ ch: ch, id: i, used: false }));
-    for (let i = tiles.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      const t = tiles[i]; tiles[i] = tiles[j]; tiles[j] = t;
+    for (let n = 0; n < 6; n++) {
+      for (let i = tiles.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const t = tiles[i]; tiles[i] = tiles[j]; tiles[j] = t;
+      }
+      if (tiles.map(t => t.ch).join('') !== item.word) break;
     }
-    this.mix = { word: item.word, hint: item.hints[0], tiles: tiles, picked: [], over: false, won: false };
+    const hint = item.hints[Math.floor(Math.random() * item.hints.length)];
+    this.mix = { word: item.word, hint: hint, tiles: tiles, picked: [], over: false, won: false };
     this.mode = 'mix';
   }
 
@@ -256,9 +292,9 @@ class MinigamesScene {
       { id: 'coinflip', emoji: '🪙', name: 'Монетка: Да или Нет', desc: 'Случайный ответ на вопрос', color: '#FFD93D' },
       { id: 'rps', emoji: '✊', name: 'Камень, ножницы', desc: 'Матч до двух побед', color: '#E07A3C' },
       { id: 'simon', emoji: '💡', name: 'Огоньки', desc: 'Повтори, как зажигались', color: '#4D96FF' },
-      { id: 'word', emoji: '🔤', name: 'Угадай слово', desc: 'Прочитай подсказку и выбери слово', color: '#2E8B57' },
-      { id: 'letters', emoji: '🎈', name: 'Буквы', desc: 'Открой слово по одной букве', color: '#C06C84' },
-      { id: 'mix', emoji: '🧩', name: 'Перемешка', desc: 'Собери слово из букв', color: '#3D7EA6' }
+      { id: 'word', emoji: '🔤', name: 'Угадай слово', desc: 'Подсказка, и ещё одна, если мимо', color: '#2E8B57' },
+      { id: 'letters', emoji: '🎈', name: 'Буквы', desc: 'Открой слово, пока шарик цел', color: '#C06C84' },
+      { id: 'mix', emoji: '🧩', name: 'Перемешка', desc: 'Буквы перепутаны, собери слово', color: '#3D7EA6' }
     ];
 
     const btnW = Math.min(W * 0.78, 300);
@@ -311,12 +347,14 @@ class MinigamesScene {
     g.options.forEach((word, i) => {
       const y = H * 0.32 + i * (btnH + 10);
       const x = (W - btnW) / 2;
-      let bg = '#3d6b4f';
+      const missed = g.gone && g.gone[word];
+      let bg = missed ? '#2c3140' : '#3d6b4f';
       if (g.over && word === g.answer) bg = '#6BCB77';
       if (g.over && g.picked === word && word !== g.answer) bg = '#E74C3C';
-      this.buttons.push(createButton(ctx, x, y, btnW, btnH, word, {
-        bgColor: bg, fgColor: '#fff', fontSize: 18, radius: 12
-      }));
+      const btn = createButton(ctx, x, y, btnW, btnH, word, {
+        bgColor: bg, fgColor: missed ? '#8d93a3' : '#fff', fontSize: 18, radius: 12
+      });
+      if (!missed) this.buttons.push(btn);
     });
     if (g.over) {
       this.buttons.push(createButton(ctx, (W - btnW) / 2, H * 0.32 + 4 * (btnH + 10), btnW, 42, 'Ещё слово', {
@@ -973,14 +1011,22 @@ class MinigamesScene {
         if (!isPointInRect(mx, my, b.x, b.y, b.w, b.h)) continue;
         if (b.text === 'Ещё слово') { this.initWord(); return true; }
         if (this.word.over) return true;
+        if (this.word.gone && this.word.gone[b.text]) return true;
         this.word.picked = b.text;
-        this.word.over = true;
         if (b.text === this.word.answer) {
+          this.word.over = true;
           this.word.note = 'Да! Это «' + this.word.answer + '».';
           AudioSys.play('success');
           System.countAction('guessWins');
           System.earnCoins(2);
+        } else if (this.word.hints && this.word.hintI + 1 < this.word.hints.length) {
+          this.word.hintI += 1;
+          this.word.gone[b.text] = true;
+          this.word.hint = this.word.hints[this.word.hintI];
+          this.word.note = 'Ещё подсказка: ' + this.word.hint;
+          AudioSys.play('fail');
         } else {
+          this.word.over = true;
           this.word.note = 'Это было «' + this.word.answer + '».';
           AudioSys.play('fail');
         }
