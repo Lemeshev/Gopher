@@ -23,7 +23,12 @@ const SPORT_DISCIPLINES = {
     start: '🎪 Начать тренировку', action: '🤸 Прыгнуть!', finish: '✅ Закончить тренировку',
     energy: 5, attempts: 5, perfectCoins: 12, goodCoins: 6, xp: 10,
     sky: ['#2b1d4a', '#463066', '#241a38'], accent: '#9B59B6',
-    perfectText: 'Идеальный перелёт! 🎯', goodText: 'Хороший перелёт!', missText: 'Мимо — но {pet} держится крепко 😅'
+    perfectText: 'Идеальный перелёт! 🎯', goodText: 'Хороший перелёт!', missText: 'Мимо — но {pet} держится крепко 😅',
+    elements: [
+      { id: 'fly', name: 'Перелёт', perfect: 'Идеальный перелёт! 🎯', good: 'Хороший перелёт!', miss: 'Мимо — но {pet} держится крепко 😅' },
+      { id: 'hang', name: 'Вис', perfect: 'Ровный вис! 🎯', good: 'Вис получился', miss: 'Кольца качнулись сильнее, чем надо 😅' },
+      { id: 'turn', name: 'Выкрут', perfect: 'Чистый выкрут! 🎯', good: 'Выкрут почти ровный', miss: 'Выкрут сорвался, {pet} держится 😅' }
+    ]
   },
   silks: {
     id: 'silks', emoji: '🎀', place: 'gym', sceneEmoji: '🎀',
@@ -32,7 +37,12 @@ const SPORT_DISCIPLINES = {
     start: '🎀 Начать тренировку', action: '🎀 Крутить оборот!', finish: '✅ Закончить тренировку',
     energy: 5, attempts: 5, perfectCoins: 12, goodCoins: 6, xp: 10,
     sky: ['#3a1d3f', '#5d3160', '#2a1430'], accent: '#E91E9C',
-    perfectText: 'Чистый оборот! 🎯', goodText: 'Хороший оборот!', missText: 'Полотна качнулись — {pet} удержался(ась) 😅'
+    perfectText: 'Чистый оборот! 🎯', goodText: 'Хороший оборот!', missText: 'Полотна качнулись — {pet} удержался(ась) 😅',
+    elements: [
+      { id: 'spin', name: 'Оборот', perfect: 'Чистый оборот! 🎯', good: 'Хороший оборот!', miss: 'Полотна качнулись — {pet} удержался(ась) 😅' },
+      { id: 'candle', name: 'Свечка', perfect: 'Ровная свечка! 🎯', good: 'Свечка почти прямая', miss: 'Свечка наклонилась 😅' },
+      { id: 'mill', name: 'Мельница', perfect: 'Быстрая мельница! 🎯', good: 'Мельница крутится', miss: 'Мельница сбилась 😅' }
+    ]
   },
   swim: {
     id: 'swim', emoji: '🏊', place: 'pool', sceneEmoji: '🏊',
@@ -41,7 +51,12 @@ const SPORT_DISCIPLINES = {
     start: '🏊 Начать заплыв', action: '🏊 Поворот!', finish: '✅ Закончить заплыв',
     energy: 5, attempts: 5, perfectCoins: 12, goodCoins: 6, xp: 10,
     sky: ['#08263c', '#12556f', '#06202f'], accent: '#00BCD4',
-    perfectText: 'Точный поворот! 🎯', goodText: 'Хороший поворот!', missText: 'Волна накрыла — {pet} {pet:выплыл|выплыла} 😅'
+    perfectText: 'Точный поворот! 🎯', goodText: 'Хороший поворот!', missText: 'Волна накрыла — {pet} {pet:выплыл|выплыла} 😅',
+    elements: [
+      { id: 'turn', name: 'Поворот', perfect: 'Точный поворот! 🎯', good: 'Хороший поворот!', miss: 'Волна накрыла — {pet} {pet:выплыл|выплыла} 😅' },
+      { id: 'breast', name: 'Брасс', perfect: 'Ровный брасс! 🎯', good: 'Брасс пошёл', miss: 'Гребок смазался 😅' },
+      { id: 'fly', name: 'Дельфин', perfect: 'Волна дельфина! 🎯', good: 'Дельфин почти ровный', miss: 'Волна сбилась 😅' }
+    ]
   },
   hurdles: {
     id: 'hurdles', emoji: '🏃', place: 'park', sceneEmoji: '🏃',
@@ -50,7 +65,12 @@ const SPORT_DISCIPLINES = {
     start: '🏃 Начать забег', action: '🏃 Прыжок!', finish: '✅ Закончить забег',
     energy: 5, attempts: 5, perfectCoins: 12, goodCoins: 6, xp: 10,
     sky: ['#123a1c', '#2c7038', '#0d2a14'], accent: '#2ECC71',
-    perfectText: 'Чистый прыжок! 🎯', goodText: 'Барьер взят!', missText: 'Задел барьер, но {pet} {pet:устоял|устояла} 😅'
+    perfectText: 'Чистый прыжок! 🎯', goodText: 'Барьер взят!', missText: 'Задел барьер, но {pet} {pet:устоял|устояла} 😅',
+    elements: [
+      { id: 'hurdle', name: 'Барьер', perfect: 'Чистый прыжок! 🎯', good: 'Барьер взят!', miss: 'Задел барьер, но {pet} {pet:устоял|устояла} 😅' },
+      { id: 'long', name: 'Длина', perfect: 'Далёкий прыжок! 🎯', good: 'Прыжок в длину удался', miss: 'Приземление короткое 😅' },
+      { id: 'dash', name: 'Рывок', perfect: 'Быстрый рывок! 🎯', good: 'Рывок пошёл', miss: 'Рывок сбился с шага 😅' }
+    ]
   }
 };
 
@@ -88,6 +108,22 @@ class SportScene {
     this.flyT = 0;
     this.lastResult = '';
     this.paid = false;
+    this.element = 0;
+  }
+
+  currentElement() {
+    const list = this.disc.elements || [];
+    return list[this.element] || list[0] || null;
+  }
+
+  pickElement(index) {
+    const list = this.disc.elements || [];
+    if (!list.length) return false;
+    this.element = ((index % list.length) + list.length) % list.length;
+    const el = this.currentElement();
+    this.lastResult = 'Сейчас: ' + el.name;
+    AudioSys.play('click');
+    return true;
   }
 
   // Тренировка тратит немного энергии (это же спорт)
@@ -122,17 +158,18 @@ class SportScene {
   jump() {
     if (this.state !== 'swing') return false;
     const d = this.disc;
+    const el = this.currentElement();
     const p = this.power;
     let coins = 0;
-    let text = d.missText;
+    let text = (el && el.miss) || d.missText;
     if (p >= AERIAL_CFG.perfectFrom && p <= AERIAL_CFG.perfectTo) {
       coins = d.perfectCoins;
       this.perfect++;
-      text = d.perfectText;
+      text = (el && el.perfect) || d.perfectText;
     } else if (p >= AERIAL_CFG.goodFrom && p <= AERIAL_CFG.goodTo) {
       coins = d.goodCoins;
       this.good++;
-      text = d.goodText;
+      text = (el && el.good) || d.goodText;
     } else {
       this.miss++;
     }
@@ -231,13 +268,30 @@ class SportScene {
       ctx.fillText(this.lastResult, W / 2, H * 0.695 + 17);
     }
 
+    const els = this.disc.elements || [];
+    if (els.length && this.state !== 'summary') {
+      const gap = 6;
+      const bw = Math.min((W * 0.9 - gap * (els.length - 1)) / els.length, 110);
+      const rowW = els.length * bw + (els.length - 1) * gap;
+      const x0 = (W - rowW) / 2;
+      els.forEach((el, i) => {
+        this.buttons.push(createButton(ctx, x0 + i * (bw + gap), H * 0.725, bw, 30,
+          (i === this.element ? '● ' : '') + el.name, {
+            bgColor: i === this.element ? '#FFD93D' : 'rgba(255,255,255,0.16)',
+            fgColor: i === this.element ? '#1a1230' : '#fff',
+            fontSize: 11, radius: 8, shadow: false
+          }));
+      });
+    }
+
+    const moveName = (this.currentElement() && this.currentElement().name) || '';
     if (this.state === 'ready') {
-      this.buttons.push(createButton(ctx, W * 0.2, H * 0.78, W * 0.6, 44, this.disc.start, {
+      this.buttons.push(createButton(ctx, W * 0.2, H * 0.80, W * 0.6, 42, this.disc.start, {
         bgColor: this.disc.accent, fgColor: '#fff', fontSize: 15, radius: 12
       }));
     } else if (this.state === 'swing') {
-      this.buttons.push(createButton(ctx, W * 0.22, H * 0.78, W * 0.56, 46, this.disc.action, {
-        bgColor: '#6BCB77', fgColor: '#0d1024', fontSize: 17, radius: 12
+      this.buttons.push(createButton(ctx, W * 0.18, H * 0.80, W * 0.64, 44, moveName ? ('Сделать: ' + moveName) : this.disc.action, {
+        bgColor: '#6BCB77', fgColor: '#0d1024', fontSize: 15, radius: 12
       }));
     } else {
       this.buttons.push(createButton(ctx, W * 0.18, H * 0.78, W * 0.64, 44, this.disc.finish, {
@@ -302,10 +356,19 @@ class SportScene {
     this.drawRig(ctx, rightX, ringY, W * 0.10, '#9be3b0');
 
     const t = this.flyT;
-    const swing = Math.sin(this.time * 0.004) * (t > 0 ? 0 : W * 0.03);
-    const gx = leftX + (rightX - leftX) * (1 - t) + swing * t;
-    const gy = ringY + Math.sin((1 - t) * Math.PI) * -H * 0.10 + H * 0.05;
-    this.drawGopherAt(ctx, gx, gy, W * 0.19, 0);
+    const move = (this.currentElement() && this.currentElement().id) || 'fly';
+    const swing = Math.sin(this.time * 0.004) * (t > 0 ? 0 : W * (move === 'hang' ? 0.08 : 0.03));
+    let gx = leftX + swing;
+    let gy = ringY + H * 0.05;
+    let rot = 0;
+    if (move === 'turn') {
+      gx = leftX;
+      rot = t > 0 ? (1 - t) * Math.PI * 2 : Math.sin(this.time * 0.003) * 0.4;
+    } else if (t > 0 || move === 'fly') {
+      gx = leftX + (rightX - leftX) * (t > 0 ? (1 - t) : 0.15) + (t > 0 ? 0 : swing);
+      gy = ringY + (t > 0 ? Math.sin((1 - t) * Math.PI) * -H * 0.10 : 0) + H * 0.05;
+    }
+    this.drawGopherAt(ctx, gx, gy, W * 0.19, rot);
 
     ctx.strokeStyle = 'rgba(255,255,255,0.75)';
     ctx.lineWidth = 3;
@@ -338,10 +401,13 @@ class SportScene {
 
     // Гофер поднимается по полотнам, а после нажатия крутит оборот
     const spin = this.flyT;
-    const climb = 0.3 + Math.abs(Math.sin(this.time * 0.0011)) * 0.4;
+    const move = (this.currentElement() && this.currentElement().id) || 'spin';
+    const climb = move === 'candle' ? 0.12 : (0.3 + Math.abs(Math.sin(this.time * 0.0011)) * 0.4);
     const gy = topPad + (bottom - topPad) * climb;
     const gx = (x1 + x2) / 2;
-    const rot = spin > 0 ? (1 - spin) * Math.PI * 4 : 0;    // два полных оборота
+    let rot = 0;
+    if (move === 'mill') rot = this.time * 0.004 + (spin > 0 ? (1 - spin) * Math.PI * 2 : 0);
+    else if (move === 'spin') rot = spin > 0 ? (1 - spin) * Math.PI * 4 : 0;
     this.drawGopherAt(ctx, gx, gy, W * 0.17, rot);
   }
 
@@ -377,11 +443,21 @@ class SportScene {
 
     // Гофер плывёт туда-обратно, а после нажатия делает кувырок на повороте
     const turn = this.flyT;
+    const move = (this.currentElement() && this.currentElement().id) || 'turn';
     const back = (this.time * 0.0003) % 2;
     const k = back < 1 ? back : 2 - back;
-    const lineX = W * 0.18 + (wallX - W * 0.18) * (turn > 0 ? 1 - turn : k);
-    const gy = waterY + H * 0.12;
-    this.drawGopherAt(ctx, lineX, gy, W * 0.16, Math.PI / 2 + (turn > 0 ? (1 - turn) * Math.PI * 2 : 0));
+    let lineX = W * 0.18 + (wallX - W * 0.18) * (turn > 0 ? 1 - turn : k);
+    let gy = waterY + H * 0.12;
+    let rot = Math.PI / 2;
+    if (move === 'breast') {
+      lineX = W * 0.42;
+      gy = waterY + H * 0.12 + Math.sin(this.time * 0.006) * H * 0.02;
+    } else if (move === 'fly') {
+      lineX = W * 0.22 + ((this.time * 0.04) % (W * 0.45));
+      gy = waterY + H * 0.12 + Math.sin(this.time * 0.01) * H * 0.045;
+    }
+    if (move === 'turn' && turn > 0) rot += (1 - turn) * Math.PI * 2;
+    this.drawGopherAt(ctx, lineX, gy, W * 0.16, rot);
 
     // Брызги при повороте
     if (turn > 0) {
@@ -422,12 +498,16 @@ class SportScene {
 
     // Гофер бежит вприпрыжку, а после нажатия перелетает барьер
     const t = this.flyT;
-    const runPhase = (this.time * 0.0005) % 1;
+    const move = (this.currentElement() && this.currentElement().id) || 'hurdle';
+    const runPhase = (this.time * (move === 'dash' ? 0.0011 : 0.0005)) % 1;
     const run = runPhase < 0.5 ? runPhase * 2 : 2 - runPhase * 2;
-    const gx = t > 0 ? hx + (W * 0.20) * (1 - t) : W * 0.16 + (hx - W * 0.16) * run;
-    const hop = t > 0 ? -Math.sin((1 - t) * Math.PI) * H * 0.17
+    const reach = move === 'long' ? W * 0.34 : W * 0.20;
+    const gx = t > 0 ? hx + reach * (1 - t) : W * 0.16 + (hx - W * 0.16) * run;
+    const hopH = move === 'long' ? H * 0.22 : (move === 'dash' ? H * 0.06 : H * 0.17);
+    const hop = t > 0 ? -Math.sin((1 - t) * Math.PI) * hopH
                       : Math.abs(Math.sin(this.time * 0.008)) * H * 0.012;
-    this.drawGopherAt(ctx, gx, trackY - H * 0.02 + hop, W * 0.17, 0);
+    const rot = move === 'dash' ? 0.35 : 0;
+    this.drawGopherAt(ctx, gx, trackY - H * 0.02 + hop, W * 0.17, rot);
   }
 
   // Снаряд: две верёвки и кольцо
@@ -465,7 +545,12 @@ class SportScene {
       if (t.indexOf('Назад') !== -1) return this.goBack();
       // Подписи кнопок берём из дисциплины, а старые варианты оставляем
       // рабочими: на них опираются проверки и привычка игрока (v1.3.7)
-      if (t === this.disc.action || t.indexOf('Прыгнуть') !== -1) return this.jump();
+      if (t.indexOf('● ') === 0 || (this.disc.elements || []).some(el => el.name === t || ('● ' + el.name) === t)) {
+        const raw = t.replace('● ', '');
+        const idx = (this.disc.elements || []).findIndex(el => el.name === raw);
+        if (idx >= 0) return this.pickElement(idx);
+      }
+      if (t === this.disc.action || t.indexOf('Сделать:') === 0 || t.indexOf('Прыгнуть') !== -1) return this.jump();
       if (t === this.disc.start || t.indexOf('Начать') !== -1) return this.payEntry();
       if (t === this.disc.finish || t.indexOf('Закончить') !== -1) return this.finish();
       return true;
