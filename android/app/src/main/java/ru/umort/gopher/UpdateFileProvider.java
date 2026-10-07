@@ -1,4 +1,4 @@
-package com.gopherlife.app;
+package ru.umort.gopher;
 
 import android.content.ContentProvider;
 import android.content.ContentValues;

@@ -30,7 +30,7 @@
         </provider>
 
         <activity
-            android:name="com.gopherlife.app.MainActivity"
+            android:name="ru.umort.gopher.MainActivity"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:exported="true"
             android:launchMode="singleTask"

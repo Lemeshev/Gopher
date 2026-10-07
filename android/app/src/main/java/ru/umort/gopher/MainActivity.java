@@ -1,4 +1,4 @@
-package com.gopherlife.app;
+package ru.umort.gopher;
 
 import android.os.Bundle;
 import android.os.Build;

@@ -10,15 +10,15 @@ if (keystorePropsFile.exists()) {
 def hasSigning = keystorePropsFile.exists() && keystoreProps['storeFile']
 
 android {
-    namespace 'com.gopherlife.app'
+    namespace 'ru.umort.gopher'
     compileSdkVersion 34
     
     defaultConfig {
-        applicationId "com.gopherlife.app"
+        applicationId "ru.umort.gopher"
         minSdkVersion 21
         targetSdkVersion 34
-        versionCode 70
-        versionName "1.4.26"
+        versionCode 71
+        versionName "1.4.27"
     }
 
     signingConfigs {
