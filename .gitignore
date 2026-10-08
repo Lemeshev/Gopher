@@ -6,7 +6,19 @@ android/app/build/
 
 # Секреты подписи — НИКОГДА не коммитим
 android/keystore.properties
+android/keystore.properties.example
 *.keystore
+
+# Служебные файлы разработки — не публикуем
+/ТЗ.md
+/instruction.txt
+/tools/
+/preview/
+/store/CONSOLE_PASTE.txt
+/store/RUSTORE.md
+/store/card.txt
+/store/README.txt
+/store/how_to_rustore.txt
 
 # Состояние выпуска в RuStore (id черновика) и любые копии ключей API
 .rustore-state.json
