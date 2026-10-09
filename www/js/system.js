@@ -766,6 +766,25 @@ const System = {
     return back;
   },
 
+  // Улов лежит рядом с домом: localStorage WebView после обновления иногда пустеет.
+  // Берём большее число по каждому виду. Явный сброс (houseShrinkOk) улов не возвращает.
+  mergeFishFromVault() {
+    if (this.houseShrinkOk) return 0;
+    const vault = this.readHouseVault();
+    if (!vault || !vault.fishSeen || typeof vault.fishSeen !== 'object') return 0;
+    if (!this.fishSeen || typeof this.fishSeen !== 'object') this.fishSeen = {};
+    let back = 0;
+    Object.keys(vault.fishSeen).forEach(id => {
+      const v = vault.fishSeen[id] || 0;
+      const cur = this.fishSeen[id] || 0;
+      if (v > cur) {
+        this.fishSeen[id] = v;
+        back++;
+      }
+    });
+    return back;
+  },
+
   writeHouseVault(placed) {
     const payload = JSON.stringify({
       placed: placed,
@@ -776,7 +795,8 @@ const System = {
         lists: (this.kit && this.kit.lists) || [],
         drawings: (this.kit && this.kit.drawings) || [],
         timerEnd: 0
-      }
+      },
+      fishSeen: { ...(this.fishSeen || {}) }
     });
     try { localStorage.setItem(this.houseVaultKey(), payload); } catch (e) {}
     try {
@@ -810,7 +830,11 @@ const System = {
   },
 
   saveGame() {
+    // До «Продолжить» профиль ещё не загружен. Сворачивание на меню
+    // не должно записать пустой улов и пустой дом поверх сохранения ребёнка.
+    if (!this.profileLoaded) return;
     if (!this.houseShrinkOk) this.restoreHouseFromVault();
+    this.mergeFishFromVault();
     const placedNow = this.housePieces();
     const vault = this.readHouseVault();
     if (!this.houseShrinkOk && vault && placedNow.length < vault.placed.length) {
@@ -931,6 +955,7 @@ const System = {
       this.visitedItems = data.visitedItems || {};
       // Улов рыбалки (v1.3.9): старые сохранения просто получат пустой словарь.
       this.fishSeen = (data.fishSeen && typeof data.fishSeen === 'object') ? { ...data.fishSeen } : {};
+      this.mergeFishFromVault();
       this.timeOfDay = data.timeOfDay || 'morning';
       this.visitedLocations = new Set(data.visitedLocations || []);
       // Сохранения до v1.3.6 копили время в ЦЕЛЫХ минутах (счётчик прибавлялся раз

@@ -331,7 +331,11 @@ class QuietScene {
       jumps: [],               // рыбки, которые выпрыгивают из воды
       jumpIn: randFloat(9, 18),
       diver: null,             // редкий гость: персонаж игры в акваланге
-      diverIn: randFloat(22, 40)
+      diverIn: randFloat(22, 40),
+      gulls: [],               // чайки над водой: парят и иногда садятся
+      gullIn: randFloat(10, 18),
+      chase: null,             // редкая погоня: акула, дельфин или нерпа гонит стайку
+      chaseIn: randFloat(40, 70)
     };
     this.fish.swimmers.filter(s => s.kind === 'friend').forEach(s => this.queueFriendHint(s.id));
   }
@@ -544,6 +548,9 @@ class QuietScene {
           color: col[0], belly: col[1], members: members
         };
       }
+
+      this.updateGulls(sec, w);
+      this.updateChase(sec, w);
 
       // Иногда рыбка выпрыгивает дугой над водой и падает обратно.
       f.jumps = (f.jumps || []).filter(j => {
@@ -1443,6 +1450,120 @@ class QuietScene {
   }
 
   // ---------- 3. Тихая рыбалка ----------
+  // Чайки не живут в воде постоянно: прилетают, парят и иногда садятся на поверхность.
+  updateGulls(sec, w) {
+    const f = this.fish;
+    if (!f) return;
+    f.gulls = (f.gulls || []).filter(g => {
+      g.phase += sec * 7;
+      g.x += g.dir * g.speed * sec;
+      if (g.mode === 'fly') {
+        g.y += (g.cruise - g.y) * Math.min(1, sec * 1.4);
+        g.y += Math.sin(g.phase) * 6 * sec;
+        if (g.x > w.x0 + 40 && g.x < w.x1 - 40 && Math.random() < sec * 0.08) g.mode = 'down';
+      } else if (g.mode === 'down') {
+        g.y += 28 * sec;
+        if (g.y >= w.top - 2) { g.y = w.top - 2; g.mode = 'sit'; g.sit = randFloat(2.2, 4.2); }
+      } else if (g.mode === 'sit') {
+        g.sit -= sec;
+        g.y = w.top - 2 + Math.sin(g.phase) * 0.6;
+        if (g.sit <= 0) g.mode = 'up';
+      } else {
+        g.y -= 36 * sec;
+        if (g.y <= g.cruise) g.mode = 'fly';
+      }
+      return g.x > w.x0 - 80 && g.x < w.x1 + 80;
+    });
+    if ((f.gullIn -= sec) > 0 || f.gulls.length >= 2) return;
+    const dir = Math.random() < 0.5 ? -1 : 1;
+    const cruise = w.top - randFloat(36, 78);
+    f.gulls.push({
+      x: dir > 0 ? w.x0 - 20 : w.x1 + 20,
+      y: cruise,
+      cruise: cruise,
+      dir: dir,
+      speed: randFloat(22, 38),
+      phase: randFloat(0, 6),
+      mode: 'fly',
+      sit: 0
+    });
+    f.gullIn = randFloat(14, 26);
+  }
+
+  // Редко: акула, дельфин или нерпа гонит проплывающую стайку. Обычных рыб это не ловит.
+  updateChase(sec, w) {
+    const f = this.fish;
+    if (!f) return;
+    if (f.chase) {
+      const c = f.chase;
+      if (!f.school) { f.chase = null; f.chaseIn = randFloat(50, 80); return; }
+      f.school.speed = Math.max(f.school.speed, 120);
+      c.x = f.school.x - f.school.dir * 78;
+      c.y += (f.school.y - c.y) * Math.min(1, sec * 2);
+      c.dir = f.school.dir;
+      c.phase += sec * 5;
+      const off = f.school.dir > 0 ? c.x > w.x1 + 40 : c.x < w.x0 - 40;
+      if (off) { f.chase = null; f.chaseIn = randFloat(50, 85); }
+      return;
+    }
+    if ((f.chaseIn -= sec) > 0) return;
+    const ids = ['shark', 'dolphin', 'nerpa'];
+    const id = ids[Math.floor(Math.random() * ids.length)];
+    const sp = (typeof SEA_FRIENDS !== 'undefined') ? SEA_FRIENDS.find(s => s.id === id) : null;
+    if (!sp) { f.chaseIn = 30; return; }
+    if (!f.school) {
+      const dir = Math.random() < 0.5 ? -1 : 1;
+      f.school = {
+        x: dir > 0 ? w.x0 - 20 : w.x1 + 20,
+        y: randFloat(w.top + 54, w.bottom - 80),
+        dir: dir, speed: 130, phase: 0,
+        color: '#d7e3ea', belly: '#f4f9fc',
+        members: [0, 1, 2, 3, 4, 5, 6].map(i => ({
+          ox: (i % 4) * 16, oy: (Math.floor(i / 4) - 0.5) * 14, bob: 1
+        }))
+      };
+    }
+    f.school.speed = Math.max(f.school.speed, 120);
+    f.chase = {
+      kind: 'friend', id: sp.id, data: sp,
+      x: f.school.x - f.school.dir * 78,
+      y: f.school.y,
+      dir: f.school.dir,
+      phase: 0,
+      alpha: 1
+    };
+  }
+
+  drawGull(ctx, g) {
+    const flap = g.mode === 'sit' ? 0.15 : Math.sin(g.phase) * 0.7;
+    ctx.save();
+    ctx.translate(g.x, g.y);
+    ctx.scale(g.dir || 1, 1);
+    ctx.strokeStyle = '#f4f7fb';
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-12, 2);
+    ctx.quadraticCurveTo(-6, -8 * flap - 4, 0, 0);
+    ctx.quadraticCurveTo(6, -8 * flap - 4, 12, 2);
+    ctx.stroke();
+    ctx.fillStyle = '#f7f9fc';
+    ctx.beginPath();
+    ctx.ellipse(0, 1, 7, 3.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#f2b544';
+    ctx.beginPath();
+    ctx.moveTo(6, 1);
+    ctx.lineTo(11, 2.2);
+    ctx.lineTo(6, 3);
+    ctx.fill();
+    ctx.fillStyle = '#1c2430';
+    ctx.beginPath();
+    ctx.arc(4.2, 0.2, 0.7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
   drawFish(ctx, W, H) {
     const f = this.fish;
     const waterTop = H * 0.46;
@@ -1450,8 +1571,10 @@ class QuietScene {
 
     this.drawSeaBiome(ctx, W, H, w, (f.biome && f.biome.id) || 'classic');
     this.drawSchool(ctx, f.school);
+    if (f.chase) this.drawSeaFriend(ctx, f.chase);
     this.drawDiver(ctx, f.diver);
     this.drawJumps(ctx, f.jumps || [], w);
+    (f.gulls || []).forEach(g => this.drawGull(ctx, g));
 
     // Жители воды: сначала большие (фон), потом рыбки — их хорошо видно
     const order = (f.swimmers || []).slice().sort((a, b) => (a.kind === 'friend' ? -1 : 1) - (b.kind === 'friend' ? -1 : 1));
