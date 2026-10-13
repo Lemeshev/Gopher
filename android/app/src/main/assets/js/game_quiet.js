@@ -902,12 +902,15 @@ class QuietScene {
     ctx.font = `${Math.min(W * 0.030, 13)}px Arial`;
     ctx.fillText(this.stars.done ? (st.name + ' собрано') : 'Нажимай звёзды по порядку: 1, 2, 3…', W / 2, H * 0.78);
 
+    if (st.info) {
+      this.drawStarInfo(ctx, W, H);
+      return;
+    }
+
     this.buttons.push(createButton(ctx, W * 0.30, H * 0.82, W * 0.40, 38,
       this.stars.done ? '✨ Ещё раз' : '🔄 Заново', {
         bgColor: 'rgba(255,255,255,0.18)', fgColor: '#fff', fontSize: 14, radius: 10
       }));
-
-    if (st.info) this.drawStarInfo(ctx, W, H);
   }
 
   drawStarInfo(ctx, W, H) {
@@ -941,7 +944,12 @@ class QuietScene {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
     const text = st.info === 'legend' ? st.legend : st.science;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x + 12, y + 88, w - 24, h - 148);
+    ctx.clip();
     this.wrap(ctx, text, x + 16, y + 104, w - 32, 20);
+    ctx.restore();
     this.buttons.push(createButton(ctx, W / 2 - 60, y + h - 48, 120, 34, 'Закрыть', {
       bgColor: 'rgba(255,255,255,0.16)', fgColor: '#fff', fontSize: 14, radius: 10, action: 'star-close'
     }));
@@ -3888,6 +3896,10 @@ class QuietScene {
       if (!isPointInRect(mx, my, btn.x, btn.y, btn.w, btn.h)) continue;
       const a = btn.action || '';
       const t = btn.text || '';
+      // Плашка «?» лежит поверх «Заново». Иначе закрытие легенды
+      // попадает в нижнюю кнопку и подменяет созвездие.
+      if (this.mode === 'stars' && this.stars && this.stars.info &&
+          a !== 'star-tab' && a !== 'star-close' && t !== 'Закрыть') continue;
       if (a === 'watch:toggle') {
         const on = this.mode !== 'watch';
         this.mode = on ? 'watch' : 'fish';
