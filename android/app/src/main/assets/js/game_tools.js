@@ -887,12 +887,6 @@ class ToolsScene {
     });
     modeBtn.action = 'sched-mode';
     this.buttons.push(modeBtn);
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.font = '12px Arial';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(edit ? 'Скрытый день остаётся в памяти' : 'Неделя с понедельника', 148, 64);
-    ctx.textBaseline = 'alphabetic';
 
     const top = 88;
     const bottom = H - 12;
@@ -956,7 +950,7 @@ class ToolsScene {
         }
         ctx.textBaseline = 'alphabetic';
       } else if (row.kind === 'slot') {
-        ctx.fillStyle = 'rgba(255,255,255,0.12)';
+        ctx.fillStyle = row.index % 2 ? 'rgba(143,227,255,0.22)' : 'rgba(255,255,255,0.10)';
         roundRect(ctx, 20, yy, W - (edit ? 78 : 40), 40, 8);
         ctx.fill();
         ctx.fillStyle = '#FFD93D';
