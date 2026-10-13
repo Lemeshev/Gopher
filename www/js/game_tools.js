@@ -40,6 +40,49 @@ const KitBar = {
 };
 window.KitBar = KitBar;
 
+const WEEK_DAYS = [
+  { id: 'mon', name: 'Понедельник', short: 'Пн' },
+  { id: 'tue', name: 'Вторник', short: 'Вт' },
+  { id: 'wed', name: 'Среда', short: 'Ср' },
+  { id: 'thu', name: 'Четверг', short: 'Чт' },
+  { id: 'fri', name: 'Пятница', short: 'Пт' },
+  { id: 'sat', name: 'Суббота', short: 'Сб' },
+  { id: 'sun', name: 'Воскресенье', short: 'Вс' }
+];
+
+const SlotBar = {
+  onOk: null,
+  open(from, to, title, onOk) {
+    const bar = document.getElementById('slotBar');
+    if (!bar) return;
+    this.onOk = onOk || null;
+    const a = document.getElementById('slotFrom');
+    const b = document.getElementById('slotTo');
+    const t = document.getElementById('slotTitle');
+    if (a) a.value = from || '08:00';
+    if (b) b.value = to || '08:45';
+    if (t) t.value = title || '';
+    bar.className = 'open';
+    if (!bar._bound) {
+      bar._bound = true;
+      document.getElementById('slotOk').addEventListener('click', () => SlotBar.commit());
+    }
+    try { if (t) t.focus(); } catch (e) {}
+  },
+  commit() {
+    const from = (document.getElementById('slotFrom') || {}).value || '';
+    const to = (document.getElementById('slotTo') || {}).value || '';
+    const title = String((document.getElementById('slotTitle') || {}).value || '').trim().slice(0, 80);
+    if (this.onOk) this.onOk(from, to, title);
+  },
+  close() {
+    const bar = document.getElementById('slotBar');
+    if (bar) bar.className = '';
+    this.onOk = null;
+  }
+};
+window.SlotBar = SlotBar;
+
 class ToolsScene {
   constructor(game) {
     this.game = game;
@@ -61,6 +104,8 @@ class ToolsScene {
     this.boardMode = 'draw';
     this.albumScroll = 0;
     this.watch = { run: false, acc: 0, at: 0, laps: [] };
+    this.schedEdit = false;
+    this.schedScroll = 0;
   }
 
   init() {
@@ -82,6 +127,7 @@ class ToolsScene {
     if (!Array.isArray(System.kit.pages)) System.kit.pages = [];
     if (!Array.isArray(System.kit.lists)) System.kit.lists = [];
     if (!Array.isArray(System.kit.drawings)) System.kit.drawings = [];
+    this.ensureSchedule();
     if (typeof System.kit.notes === 'string' && System.kit.notes.trim() && !System.kit.pages.length) {
       System.kit.pages.push({ id: 'legacy', title: 'Заметка', body: System.kit.notes });
       System.kit.notes = '';
@@ -156,7 +202,8 @@ class ToolsScene {
     ctx.font = 'bold 18px Arial';
     const titles = {
       menu: 'Инструменты', calc: 'Калькулятор', notes: 'Заметки',
-      lists: 'Списки', board: 'Доска', timer: 'Таймер', watch: 'Секундомер'
+      lists: 'Списки', board: 'Доска', timer: 'Таймер', watch: 'Секундомер',
+      schedule: 'Расписание'
     };
     ctx.fillText(titles[this.tool] || 'Инструменты', 16 + backW, 24);
     ctx.textBaseline = 'alphabetic';
@@ -167,6 +214,7 @@ class ToolsScene {
     else if (this.tool === 'board') this.drawBoard(ctx, W, H);
     else if (this.tool === 'timer') this.drawTimer(ctx, W, H);
     else if (this.tool === 'watch') this.drawWatch(ctx, W, H);
+    else if (this.tool === 'schedule') this.drawSchedule(ctx, W, H);
   }
 
   drawMenu(ctx, W, H) {
@@ -176,7 +224,8 @@ class ToolsScene {
       { id: 'lists', emoji: '✅', name: 'Списки', desc: 'Отметить и убрать', color: '#6B5B3D' },
       { id: 'board', emoji: '🎨', name: 'Доска', desc: 'Рисунок пальцем', color: '#8C4A6B' },
       { id: 'timer', emoji: '⏱️', name: 'Таймер', desc: 'Звонок в конце', color: '#8C5A2E' },
-      { id: 'watch', emoji: '⌚', name: 'Секундомер', desc: 'Круги по ходу', color: '#3D5A8C' }
+      { id: 'watch', emoji: '⌚', name: 'Секундомер', desc: 'Круги по ходу', color: '#3D5A8C' },
+      { id: 'schedule', emoji: '📅', name: 'Расписание', desc: 'Уроки и дела', color: '#2E6B8C' }
     ];
     const btnW = Math.min(W * 0.78, 300);
     const gap = 8;
@@ -678,10 +727,11 @@ class ToolsScene {
       this.board.push(this.stroke);
       return true;
     }
-    if (this.tool === 'lists' || (this.tool === 'notes' && !this.noteId) || (this.tool === 'board' && this.boardMode === 'album')) {
-      const at = this.tool === 'notes' ? (this.notesScroll || 0)
-        : (this.tool === 'board' ? (this.albumScroll || 0)
-          : (this.listId ? (this.itemScroll || 0) : (this.listsScroll || 0)));
+    if (this.tool === 'schedule' || this.tool === 'lists' || (this.tool === 'notes' && !this.noteId) || (this.tool === 'board' && this.boardMode === 'album')) {
+      const at = this.tool === 'schedule' ? (this.schedScroll || 0)
+        : (this.tool === 'notes' ? (this.notesScroll || 0)
+          : (this.tool === 'board' ? (this.albumScroll || 0)
+            : (this.listId ? (this.itemScroll || 0) : (this.listsScroll || 0))));
       this._scrollDrag = { x: x, y: y, moved: false, at: at, kind: this.tool + (this.listId ? '-in' : '') };
       return true;
     }
@@ -695,7 +745,8 @@ class ToolsScene {
     if (Math.abs(dy) > 8 || Math.abs(x - this._scrollDrag.x) > 8) this._scrollDrag.moved = true;
     const next = this._scrollDrag.at + dy;
     const kind = this._scrollDrag.kind || '';
-    if (kind.indexOf('notes') === 0) this.notesScroll = next;
+    if (kind.indexOf('schedule') === 0) this.schedScroll = next;
+    else if (kind.indexOf('notes') === 0) this.notesScroll = next;
     else if (kind.indexOf('board') === 0) this.albumScroll = next;
     else if (this.listId) this.itemScroll = next;
     else this.listsScroll = next;
@@ -816,6 +867,169 @@ class ToolsScene {
     if (line) ctx.fillText(line, x, yy);
   }
 
+  ensureSchedule() {
+    if (!System.kit) return null;
+    let s = System.kit.schedule;
+    if (!s || !s.days) {
+      s = { hidden: {}, days: {} };
+      System.kit.schedule = s;
+    }
+    if (!s.hidden || typeof s.hidden !== 'object') s.hidden = {};
+    WEEK_DAYS.forEach(d => { if (!Array.isArray(s.days[d.id])) s.days[d.id] = []; });
+    return s;
+  }
+
+  drawSchedule(ctx, W, H) {
+    const s = this.ensureSchedule();
+    const edit = !!this.schedEdit;
+    const modeBtn = createButton(ctx, 16, 48, 120, 32, edit ? 'Готово' : 'Править', {
+      bgColor: edit ? '#1F6F5B' : 'rgba(255,255,255,0.22)', fgColor: '#fff', fontSize: 14, radius: 10
+    });
+    modeBtn.action = 'sched-mode';
+    this.buttons.push(modeBtn);
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(edit ? 'Скрытый день остаётся в памяти' : 'Неделя с понедельника', 148, 64);
+    ctx.textBaseline = 'alphabetic';
+
+    const top = 88;
+    const bottom = H - 12;
+    let content = 8;
+    const rows = [];
+    WEEK_DAYS.forEach(d => {
+      const hidden = !!s.hidden[d.id];
+      if (hidden && !edit) return;
+      rows.push({ kind: 'day', day: d, hidden: hidden, h: 36 });
+      content += 36;
+      if (!hidden) {
+        const slots = s.days[d.id];
+        slots.forEach((slot, i) => {
+          rows.push({ kind: 'slot', day: d, slot: slot, index: i, h: 44 });
+          content += 44;
+        });
+        if (edit) {
+          rows.push({ kind: 'add', day: d, h: 36 });
+          content += 36;
+        } else if (!slots.length) {
+          rows.push({ kind: 'empty', h: 28 });
+          content += 28;
+        }
+      }
+      content += 8;
+    });
+    const viewH = bottom - top;
+    const maxScroll = Math.max(0, content - viewH);
+    this.schedScroll = Math.max(0, Math.min(this.schedScroll || 0, maxScroll));
+    this.schedMax = maxScroll;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, top, W, viewH);
+    ctx.clip();
+    let y = top + 8 - this.schedScroll;
+    const jsDay = new Date().getDay();
+    const todayId = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][jsDay];
+    rows.forEach(row => {
+      const yy = y;
+      y += row.h;
+      if (yy + row.h < top || yy > bottom) return;
+      if (row.kind === 'day') {
+        ctx.fillStyle = row.day.id === todayId ? 'rgba(255,217,61,0.18)' : 'rgba(255,255,255,0.08)';
+        roundRect(ctx, 12, yy, W - 24, 32, 8);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 15px Arial';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(row.day.name + (row.hidden ? ' · скрыт' : ''), 24, yy + 16);
+        if (edit) {
+          ctx.fillStyle = 'rgba(255,255,255,0.2)';
+          roundRect(ctx, W - 108, yy + 4, 84, 24, 8);
+          ctx.fill();
+          ctx.fillStyle = '#fff';
+          ctx.font = '12px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText(row.hidden ? 'Показать' : 'Скрыть', W - 66, yy + 16);
+          this.buttons.push({ x: W - 108, y: yy + 4, w: 84, h: 24, action: 'sched-hide:' + row.day.id });
+        }
+        ctx.textBaseline = 'alphabetic';
+      } else if (row.kind === 'slot') {
+        ctx.fillStyle = 'rgba(255,255,255,0.12)';
+        roundRect(ctx, 20, yy, W - (edit ? 78 : 40), 40, 8);
+        ctx.fill();
+        ctx.fillStyle = '#FFD93D';
+        ctx.font = 'bold 13px Arial';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        const when = (row.slot.from || '') + '–' + (row.slot.to || '');
+        ctx.fillText(when, 32, yy + 20);
+        ctx.fillStyle = '#fff';
+        ctx.font = '14px Arial';
+        const titleX = 32 + ctx.measureText(when).width + 10;
+        const maxW = W - (edit ? 96 : 52) - titleX;
+        let title = String(row.slot.title || '');
+        while (title.length > 1 && ctx.measureText(title).width > maxW) title = title.slice(0, -1);
+        ctx.fillText(title, titleX, yy + 20);
+        if (edit) {
+          this.buttons.push({ x: 20, y: yy, w: W - 78, h: 40, action: 'sched-edit:' + row.day.id + ':' + row.index });
+          ctx.fillStyle = '#E74C3C';
+          roundRect(ctx, W - 52, yy + 6, 28, 28, 8);
+          ctx.fill();
+          ctx.fillStyle = '#fff';
+          ctx.font = '14px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText('✕', W - 38, yy + 20);
+          this.buttons.push({ x: W - 52, y: yy + 6, w: 28, h: 28, action: 'sched-del:' + row.day.id + ':' + row.index });
+        }
+        ctx.textBaseline = 'alphabetic';
+      } else if (row.kind === 'add') {
+        ctx.fillStyle = 'rgba(143,227,255,0.2)';
+        roundRect(ctx, 20, yy, W - 40, 32, 8);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('+ Время и дело', W / 2, yy + 16);
+        ctx.textBaseline = 'alphabetic';
+        this.buttons.push({ x: 20, y: yy, w: W - 40, h: 32, action: 'sched-add:' + row.day.id });
+      } else if (row.kind === 'empty') {
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.font = '13px Arial';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Пока пусто', 28, yy + 12);
+        ctx.textBaseline = 'alphabetic';
+      }
+    });
+    ctx.restore();
+    if (!edit && content < 80) {
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      ctx.font = '14px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Нажми «Править», чтобы записать день.', W / 2, H * 0.4);
+    }
+  }
+
+  editSlot(dayId, index) {
+    const s = this.ensureSchedule();
+    if (!s) return;
+    const row = index >= 0 ? (s.days[dayId][index] || {}) : { from: '08:00', to: '08:45', title: '' };
+    const self = this;
+    SlotBar.open(row.from, row.to, row.title, (from, to, title) => {
+      if (!title) { SlotBar.close(); return; }
+      const item = { from: from || '08:00', to: to || from || '08:45', title: title };
+      if (index >= 0 && s.days[dayId][index]) s.days[dayId][index] = item;
+      else s.days[dayId].push(item);
+      s.days[dayId].sort((a, b) => String(a.from).localeCompare(String(b.from)));
+      if (System.saveGame) System.saveGame();
+      SlotBar.close();
+      self.schedEdit = true;
+    });
+  }
+
   leaveTool() {
     this.tool = 'menu';
     this.listId = null;
@@ -827,8 +1041,9 @@ class ToolsScene {
     this._listNameOpen = false;
     this._listItemOpen = false;
     this._drawNameOpen = false;
-    if (System.kit && ((System.kit.pages && System.kit.pages.length) || (System.kit.drawings && System.kit.drawings.length))) System.saveGame();
+    if (System.kit && ((System.kit.pages && System.kit.pages.length) || (System.kit.drawings && System.kit.drawings.length) || (System.kit.schedule && System.kit.schedule.days))) System.saveGame();
     KitBar.close();
+    SlotBar.close();
   }
 
   // Системный жест «Назад»: сначала выходим из списка или заметок и прячем поле,
@@ -839,6 +1054,7 @@ class ToolsScene {
       return true;
     }
     KitBar.close();
+    SlotBar.close();
     return false;
   }
 
@@ -878,6 +1094,33 @@ class ToolsScene {
         this._listItemOpen = false;
         this._drawNameOpen = false;
         KitBar.close();
+        SlotBar.close();
+        return true;
+      }
+      if (a === 'sched-mode') {
+        this.schedEdit = !this.schedEdit;
+        SlotBar.close();
+        return true;
+      }
+      if (a.indexOf('sched-hide:') === 0) {
+        const s = this.ensureSchedule();
+        const id = a.slice(11);
+        s.hidden[id] = !s.hidden[id];
+        if (System.saveGame) System.saveGame();
+        return true;
+      }
+      if (a.indexOf('sched-add:') === 0) { this.editSlot(a.slice(10), -1); return true; }
+      if (a.indexOf('sched-edit:') === 0) {
+        const bits = a.slice(11).split(':');
+        this.editSlot(bits[0], parseInt(bits[1], 10));
+        return true;
+      }
+      if (a.indexOf('sched-del:') === 0) {
+        const s = this.ensureSchedule();
+        const bits = a.slice(10).split(':');
+        const list = s.days[bits[0]] || [];
+        list.splice(parseInt(bits[1], 10), 1);
+        if (System.saveGame) System.saveGame();
         return true;
       }
       if (a.indexOf('key:') === 0) { this.pressCalc(a.slice(4)); return true; }

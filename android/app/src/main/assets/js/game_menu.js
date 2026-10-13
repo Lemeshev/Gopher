@@ -395,9 +395,15 @@ class MenuScene {
     const note = (typeof window !== 'undefined' && window.__updateNote) ? window.__updateNote : '';
     ctx.fillText('Сейчас версия ' + GAME_VERSION + (note ? ' · ' + note : ''), W / 2, panelY + panelH - 128);
 
-    this.buttons.push(createButton(ctx, panelX + 20, panelY + panelH - 108, panelW - 40, 42, '⬇️ Обновить игру', {
-      bgColor: '#4D96FF', fgColor: '#fff', fontSize: 15, radius: 12
-    }));
+    if (typeof STORE_CHANNEL !== 'undefined' && STORE_CHANNEL === 'rustore') {
+      ctx.fillStyle = '#d6def2';
+      ctx.font = `bold ${Math.min(W * 0.034, 15)}px Arial`;
+      ctx.fillText('Наш сайт: gopher.umort.ru', W / 2, panelY + panelH - 86);
+    } else {
+      this.buttons.push(createButton(ctx, panelX + 20, panelY + panelH - 108, panelW - 40, 42, '⬇️ Обновить игру', {
+        bgColor: '#4D96FF', fgColor: '#fff', fontSize: 15, radius: 12
+      }));
+    }
 
     this.buttons.push(createButton(ctx, panelX + 20, panelY + panelH - 56, panelW - 40, 42, '← Закрыть', {
       bgColor: 'rgba(255,255,255,0.2)', fgColor: '#fff', fontSize: 15, radius: 10

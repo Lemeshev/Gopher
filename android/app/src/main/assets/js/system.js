@@ -762,6 +762,10 @@ const System = {
         this.kit.drawings = pocket.drawings;
         back++;
       }
+      if ((!this.kit.schedule || !this.kit.schedule.days) && pocket.schedule && pocket.schedule.days) {
+        this.kit.schedule = pocket.schedule;
+        back++;
+      }
     }
     return back;
   },
@@ -794,7 +798,8 @@ const System = {
         pages: (this.kit && this.kit.pages) || [],
         lists: (this.kit && this.kit.lists) || [],
         drawings: (this.kit && this.kit.drawings) || [],
-        timerEnd: 0
+        timerEnd: 0,
+        schedule: (this.kit && this.kit.schedule) || null
       },
       fishSeen: { ...(this.fishSeen || {}) }
     });
@@ -879,7 +884,8 @@ const System = {
         pages: (this.kit && this.kit.pages) || [],
         lists: (this.kit && this.kit.lists) || [],
         drawings: (this.kit && this.kit.drawings) || [],
-        timerEnd: (this.kit && this.kit.timerEnd) || 0
+        timerEnd: (this.kit && this.kit.timerEnd) || 0,
+        schedule: (this.kit && this.kit.schedule) || null
       },
       savedAt: Date.now()
     };
@@ -1030,7 +1036,8 @@ const System = {
         pages: pages,
         lists: (data.kit && Array.isArray(data.kit.lists)) ? data.kit.lists : [],
         drawings: (data.kit && Array.isArray(data.kit.drawings)) ? data.kit.drawings : [],
-        timerEnd: timerEnd
+        timerEnd: timerEnd,
+        schedule: (data.kit && data.kit.schedule && data.kit.schedule.days) ? data.kit.schedule : null
       };
       this.restorePocketFromVault();
       this.look = this.migrateLook(Object.assign({ hat: null, glasses: null, neck: null, back: null, bowtie: false, fur: 'classic', char: 'gopher' }, data.look || {}));

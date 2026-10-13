@@ -124,6 +124,11 @@ html, body {
 #kitBar.multi #kitInput { display: none; }
 #kitBar.multi #kitNote { display: block; }
 #kitOk { font-weight: bold; font-size: 16px; border: 0; border-radius: 10px; padding: 10px 14px; background: #6BCB77; }
+#slotBar { display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 910; gap: 8px; padding: 8px; background: #10221f; flex-wrap: wrap; }
+#slotBar.open { display: flex; align-items: center; }
+#slotBar input[type="time"] { font-size: 18px; padding: 8px; border-radius: 10px; border: 0; }
+#slotTitle { flex: 1; min-width: 140px; font-size: 18px; padding: 10px; border-radius: 10px; border: 0; }
+#slotOk { font-weight: bold; font-size: 16px; border: 0; border-radius: 10px; padding: 10px 14px; background: #6BCB77; }
 </style>
 </head>
 <body>
@@ -148,6 +153,12 @@ html, body {
   <textarea id="kitNote" maxlength="4000" placeholder="Заметка"></textarea>
   <input id="kitInput" type="text" maxlength="400" autocomplete="off" placeholder="Текст">
   <button id="kitOk" type="button">Ок</button>
+</div>
+<div id="slotBar">
+  <input id="slotFrom" type="time" value="08:00">
+  <input id="slotTo" type="time" value="08:45">
+  <input id="slotTitle" type="text" maxlength="80" placeholder="Урок или дело">
+  <button id="slotOk" type="button">Ок</button>
 </div>
 <!-- Базовые утилиты -->
 <script src="js/helpers.js"></script>

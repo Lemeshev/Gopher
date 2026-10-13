@@ -121,6 +121,96 @@ const PAINT_PICTURES = [
     ] }
 ];
 
+// Настоящие фигуры: координаты 0…1 внутри поля, линии — рёбра контура.
+// Между соседними звёздами не меньше ~0.18, чтобы палец попадал отдельно.
+const CONSTELLATIONS = [
+  { id: 'umi', name: 'Малая Медведица',
+    science: 'Семь звёзд складываются в маленький ковш. Крайняя звезда ручки — Полярная. Она почти стоит на месте, и по ней ночью узнают, где север.',
+    legend: 'Это медвежонок, который ходит по небу за большой медведицей. На конце его хвоста горит Полярная звезда: она как фонарик и показывает дорогу на север.',
+    stars: [[0.10,0.82],[0.30,0.68],[0.48,0.54],[0.66,0.42],[0.84,0.22],[0.60,0.14],[0.46,0.36]],
+    lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,3]] },
+  { id: 'uma', name: 'Большая Медведица',
+    science: 'Знакомый большой ковш. Семь ярких звёзд видны круглый год в северной стороне неба. По двум крайним звёздам ковша можно найти Полярную.',
+    legend: 'Большая медведица неспешно обходит небо. Её ковш — это туловище и длинный хвост. Рядом всегда бродит медвежонок.',
+    stars: [[0.16,0.22],[0.38,0.14],[0.58,0.30],[0.36,0.42],[0.52,0.58],[0.70,0.74],[0.88,0.86]],
+    lines: [[0,1],[1,2],[2,3],[3,0],[3,4],[4,5],[5,6]] },
+  { id: 'cas', name: 'Кассиопея',
+    science: 'Пять ярких звёзд рисуют букву W или M, смотря как повёрнуто небо. Легко найти напротив Большой Медведицы, через Полярную.',
+    legend: 'Это кресло королевы. Она сидит на небе и смотрит на своих звёздных соседей. Никаких грустных историй: просто красивое кресло из пяти огней.',
+    stars: [[0.10,0.30],[0.28,0.58],[0.48,0.28],[0.68,0.60],[0.88,0.26]],
+    lines: [[0,1],[1,2],[2,3],[3,4]] },
+  { id: 'ori', name: 'Орион',
+    science: 'Зимнее созвездие. Посередине три звезды в ряд — пояс. Выше два плеча, ниже две ноги. Яркие звёзды пояса помогают найти всё созвездие.',
+    legend: 'Орион — охотник в коротком плаще. Три звезды — его ремень. Рядом по небу бегут его верные собаки. Скорпион стоит на другой стороне неба, чтобы они не спорили.',
+    stars: [[0.22,0.16],[0.78,0.18],[0.30,0.44],[0.50,0.50],[0.70,0.56],[0.28,0.82],[0.76,0.84]],
+    lines: [[0,2],[1,4],[2,3],[3,4],[2,5],[4,6],[0,1]] },
+  { id: 'cyg', name: 'Лебедь',
+    science: 'Летний крест. Яркая звезда Денеб — хвост лебедя, а длинная шея тянется к голове. Крылья раскрыты в стороны.',
+    legend: 'Лебедь летит вдоль светлой полосы Млечного Пути. Крылья широко раскрыты, шея вытянута вперёд, будто он спешит к озеру из звёзд.',
+    stars: [[0.50,0.12],[0.50,0.36],[0.50,0.60],[0.50,0.84],[0.16,0.40],[0.84,0.46]],
+    lines: [[0,1],[1,2],[2,3],[1,4],[1,5]] },
+  { id: 'lyr', name: 'Лира',
+    science: 'Маленькое летнее созвездие. Самая яркая звезда — Вега, одна из самых заметных на летнем небе. Остальные четыре складываются в кривой четырёхугольник.',
+    legend: 'Лира — это небесная арфа. Вега сияет наверху, как первая струна. Говорят, на ней играли тихие песни, от которых даже звёзды слушали.',
+    stars: [[0.50,0.14],[0.28,0.40],[0.72,0.40],[0.34,0.72],[0.66,0.74]],
+    lines: [[0,1],[0,2],[1,3],[2,4],[3,4],[1,2]] },
+  { id: 'leo', name: 'Лев',
+    science: 'Весеннее созвездие. Серп из звёзд — это голова и грива. Самая яркая в серпе — Регул. Дальше звёзды рисуют туловище.',
+    legend: 'Лев отдыхает на весеннем небе. Его грива загнута вопросительным знаком, а хвост смотрит в другую сторону. Он добрый и никого не пугает.',
+    stars: [[0.18,0.22],[0.14,0.46],[0.32,0.66],[0.52,0.50],[0.40,0.26],[0.68,0.58],[0.86,0.48],[0.80,0.74]],
+    lines: [[0,1],[1,2],[2,3],[3,4],[4,0],[3,5],[5,6],[5,7]] },
+  { id: 'cma', name: 'Большой Пёс',
+    science: 'Зимний сосед Ориона. Здесь Сириус — самая яркая звезда всего ночного неба. Остальные звёзды рисуют собаку, которая бежит за охотником.',
+    legend: 'Большой Пёс — верный друг охотника Ориона. Сириус на его груди светит ярче всех звёзд. Пёс никогда не теряет хозяина из виду.',
+    stars: [[0.22,0.74],[0.40,0.52],[0.58,0.36],[0.76,0.18],[0.82,0.46],[0.60,0.70]],
+    lines: [[0,1],[1,2],[2,3],[2,4],[1,5],[4,5]] },
+  { id: 'gem', name: 'Близнецы',
+    science: 'Зимнее созвездие из двух почти ровных столбиков. Яркие головы — Кастор и Поллукс. Их легко увидеть рядом с Орионом.',
+    legend: 'Два друга стоят рядом и держатся за руки. Их так и назвали близнецами. Они вместе выходят на небо зимой и вместе уходят весной.',
+    stars: [[0.28,0.12],[0.30,0.36],[0.26,0.60],[0.32,0.84],[0.70,0.14],[0.72,0.38],[0.68,0.62],[0.74,0.86]],
+    lines: [[0,1],[1,2],[2,3],[4,5],[5,6],[6,7],[0,4]] },
+  { id: 'crb', name: 'Северная Корона',
+    science: 'Маленькая дуга из семи звёзд между пастухом и геркулесом. Середина дуги чуть ярче — это гемма, «камень» в короне.',
+    legend: 'Кто-то оставил на небе золотую корону. Она висит полукругом и тихо блестит. Её можно найти летними ночами.',
+    stars: [[0.10,0.62],[0.24,0.38],[0.42,0.22],[0.60,0.16],[0.78,0.28],[0.90,0.48],[0.74,0.70]],
+    lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6]] },
+  { id: 'peg', name: 'Пегас',
+    science: 'Осенний большой квадрат из четырёх звёзд. От него в сторону тянется шея крылатого коня. Квадрат хорошо виден даже в городе.',
+    legend: 'Пегас — конь с крыльями. Четыре яркие звезды — его тело, а цепочка дальше — шея. Он летит по осеннему небу и не устаёт.',
+    stars: [[0.20,0.20],[0.58,0.16],[0.64,0.52],[0.22,0.56],[0.78,0.70],[0.90,0.40]],
+    lines: [[0,1],[1,2],[2,3],[3,0],[2,5],[2,4]] },
+  { id: 'aql', name: 'Орёл',
+    science: 'Летнее созвездие. Посередине яркая звезда Альтаир. Вместе с Вегой и Денебом она составляет большой летний треугольник.',
+    legend: 'Орёл летит ровно, крылья в стороны, голова впереди. Альтаир — его сердце. Он стережёт летнее небо вместе с лебедем и лирой.',
+    stars: [[0.50,0.16],[0.50,0.42],[0.50,0.74],[0.20,0.40],[0.80,0.44]],
+    lines: [[0,1],[1,2],[1,3],[1,4]] },
+  { id: 'sco', name: 'Скорпион',
+    science: 'Летнее созвездие южной стороны. Яркая звезда Антарес красноватая — это сердце. Хвост загибается крючком.',
+    legend: 'Скорпион живёт на другой стороне неба от охотника Ориона. Они не встречаются. Хвост скорпиона загнут, как крючок, и светится красным сердцем.',
+    stars: [[0.14,0.14],[0.28,0.30],[0.38,0.48],[0.30,0.66],[0.46,0.80],[0.66,0.86],[0.84,0.70],[0.88,0.46],[0.70,0.32]],
+    lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8]] },
+  { id: 'tau', name: 'Телец',
+    science: 'Зимнее созвездие рядом с Орионом. Буква V — голова быка. Яркий оранжевый Альдебаран кажется глазом, хотя на самом деле он ближе к нам, чем остальные звёзды этой кучки.',
+    legend: 'Телец — спокойный бык с ярким глазом. Рога смотрят вверх, а Альдебаран светит тёплым оранжевым светом, как маленький фонарь.',
+    stars: [[0.16,0.18],[0.34,0.40],[0.50,0.56],[0.68,0.38],[0.86,0.16],[0.38,0.76],[0.64,0.78]],
+    lines: [[0,1],[1,2],[2,3],[3,4],[2,5],[2,6]] },
+  { id: 'cru', name: 'Южный Крест',
+    science: 'Четыре яркие звезды крестом. Это созвездие видно из южных стран, у нас в России оно не поднимается над горизонтом. По длинной перекладине моряки находили юг.',
+    legend: 'Маленький крест из четырёх звёзд висит над южными морями. Он маленький, но очень ясный, и путешественники узнавали по нему дорогу.',
+    stars: [[0.50,0.14],[0.50,0.80],[0.22,0.42],[0.80,0.50]],
+    lines: [[0,1],[2,3]] },
+  { id: 'del', name: 'Дельфин',
+    science: 'Крошечное летнее созвездие. Четыре звезды складываются в ромб — тело, пятая отходит хвостиком. Его называют ещё «гробиком», но для нас это просто дельфин.',
+    legend: 'Маленький дельфин выпрыгнул из небесной реки. Тело — ромбик, а одна звезда — хвостик. Он дружит с орлом и лебедем.',
+    stars: [[0.32,0.28],[0.52,0.20],[0.70,0.34],[0.50,0.50],[0.26,0.72]],
+    lines: [[0,1],[1,2],[2,3],[3,0],[0,4]] },
+  { id: 'and', name: 'Андромеда',
+    science: 'Осенняя цепочка звёзд от квадрата Пегаса. В этом созвездии лежит Туманность Андромеды — огромный остров из звёзд, брат нашего Млечного Пути. Глазом она едва видна как туманное пятнышко.',
+    legend: 'Андромеда — девочка, которая любила смотреть на небо. Звёзды выстроились для неё длинной дорожкой. Рядом плывёт крылатый конь Пегас.',
+    stars: [[0.12,0.74],[0.30,0.58],[0.48,0.44],[0.66,0.30],[0.84,0.16]],
+    lines: [[0,1],[1,2],[2,3],[3,4]] }
+];
+
 class QuietScene {
   constructor(game) {
     this.game = game;
@@ -146,51 +236,23 @@ class QuietScene {
   }
 
   // ---------- 1. СОЗВЕЗДИЕ ----------
-  // Рисунок каждый раз новый: раньше созвездие было одно и то же, и игра
-  // быстро надоедала. Строим «путь» из 9 звёзд: каждая следующая на
-  // расстоянии 70–125 px от предыдущей, с плавным поворотом, так что
-  // получается похоже на созвездие, а не на прямую линию. Минимальный
-  // зазор — 56 px: по звёздам легко попадать пальцем (радиус попадания 24).
+  // Каждый заход — другое настоящее созвездие. Контур из пар звёзд виден
+  // сразу, по номерам его собирают. Подряд одно и то же не повторяем.
   initStars() {
-    const W = (this.game && this.game.width) || 540;
-    const H = (this.game && this.game.height) || 960;
-    const area = { x: W * 0.08, y: H * 0.16, w: W * 0.84, h: H * 0.54 };
-    const padX = 26, padY = 34;
-    let minGap = 56;
-
-    const pts = [];
-    let cur = {
-      x: randFloat(area.x + padX, area.x + area.w * 0.35),
-      y: randFloat(area.y + padY, area.y + area.h - padY)
+    const pool = CONSTELLATIONS.filter(c => !this.stars || c.id !== this.stars.id);
+    const src = (pool.length ? pool : CONSTELLATIONS)[Math.floor(Math.random() * (pool.length || CONSTELLATIONS.length))];
+    const pick = src || CONSTELLATIONS[0];
+    this.stars = {
+      id: pick.id,
+      name: pick.name,
+      science: pick.science,
+      legend: pick.legend,
+      points: pick.stars.map(p => [p[0], p[1]]),
+      lines: pick.lines.map(e => [e[0], e[1]]),
+      next: 0,
+      done: false,
+      info: null
     };
-    pts.push(cur);
-    let dir = randFloat(-0.6, 0.6);          // идём в основном вправо
-    let guard = 0;
-    while (pts.length < 9 && guard++ < 500) {
-      const step = randFloat(70, 125);
-      dir += randFloat(-0.9, 0.9);
-      let nx = cur.x + Math.cos(dir) * step;
-      let ny = cur.y + Math.sin(dir) * step;
-      // У края области разворачиваемся, чтобы созвездие осталось внутри
-      if (nx < area.x + padX || nx > area.x + area.w - padX) {
-        dir = Math.PI - dir;
-        nx = clamp(cur.x + Math.cos(dir) * step, area.x + padX, area.x + area.w - padX);
-      }
-      if (ny < area.y + padY || ny > area.y + area.h - padY) {
-        dir = -dir;
-        ny = clamp(cur.y + Math.sin(dir) * step, area.y + padY, area.y + area.h - padY);
-      }
-      const tooClose = pts.some(p => Math.hypot(p.x - nx, p.y - ny) < minGap);
-      if (tooClose) {
-        if (guard > 250) minGap = Math.max(42, minGap - 2);   // страховка от затора
-        continue;
-      }
-      cur = { x: nx, y: ny };
-      pts.push(cur);
-    }
-    // Доли области — в таком виде звёзды рисует и проверяет игра
-    const points = pts.map(p => [(p.x - area.x) / area.w, (p.y - area.y) / area.h]);
-    this.stars = { points: points, next: 0, done: false };
   }
 
   // ---------- 2. РАСКРАСКА ----------
@@ -782,16 +844,38 @@ class QuietScene {
   // ---------- 1. Созвездие ----------
   drawStars(ctx, W, H) {
     const a = { x: W * 0.08, y: H * 0.16, w: W * 0.84, h: H * 0.54 };
-    const pts = this.stars.points.map(p => ({ x: a.x + a.w * p[0], y: a.y + a.h * p[1] }));
+    const st = this.stars;
+    const pts = st.points.map(p => ({ x: a.x + a.w * p[0], y: a.y + a.h * p[1] }));
 
-    ctx.strokeStyle = 'rgba(255,217,61,0.85)';
-    ctx.lineWidth = 2;
-    for (let i = 1; i < this.stars.next; i++) {
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#FFD93D';
+    ctx.font = 'bold ' + Math.min(W * 0.045, 18) + 'px Arial';
+    const name = st.name || 'Созвездие';
+    ctx.fillText(name, W / 2 - 16, H * 0.125);
+    const nw = ctx.measureText(name).width;
+    const qx = Math.min(W - 28, W / 2 - 16 + nw / 2 + 22);
+    ctx.beginPath();
+    ctx.arc(qx, H * 0.125, 13, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 16px Arial';
+    ctx.fillText('?', qx, H * 0.125 + 1);
+    this.buttons.push({ x: qx - 16, y: H * 0.125 - 16, w: 32, h: 32, action: 'star-help' });
+    ctx.textBaseline = 'alphabetic';
+
+    (st.lines || []).forEach(e => {
+      const i = e[0], j = e[1];
+      if (!pts[i] || !pts[j]) return;
+      const lit = i < st.next && j < st.next;
+      ctx.strokeStyle = lit ? 'rgba(255,217,61,0.95)' : 'rgba(255,255,255,0.28)';
+      ctx.lineWidth = lit ? 2.5 : 1.5;
       ctx.beginPath();
-      ctx.moveTo(pts[i - 1].x, pts[i - 1].y);
-      ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.moveTo(pts[i].x, pts[i].y);
+      ctx.lineTo(pts[j].x, pts[j].y);
       ctx.stroke();
-    }
+    });
 
     pts.forEach((p, i) => {
       const done = i < this.stars.next;
@@ -816,12 +900,67 @@ class QuietScene {
     ctx.textAlign = 'center';
     ctx.fillStyle = '#c9cfe0';
     ctx.font = `${Math.min(W * 0.030, 13)}px Arial`;
-    ctx.fillText(this.stars.done ? 'Созвездие готово! ✨' : 'Нажимай звёзды по порядку: 1, 2, 3…', W / 2, H * 0.80);
+    ctx.fillText(this.stars.done ? (st.name + ' собрано') : 'Нажимай звёзды по порядку: 1, 2, 3…', W / 2, H * 0.78);
 
-    this.buttons.push(createButton(ctx, W * 0.30, H * 0.84, W * 0.40, 38,
+    this.buttons.push(createButton(ctx, W * 0.30, H * 0.82, W * 0.40, 38,
       this.stars.done ? '✨ Ещё раз' : '🔄 Заново', {
         bgColor: 'rgba(255,255,255,0.18)', fgColor: '#fff', fontSize: 14, radius: 10
       }));
+
+    if (st.info) this.drawStarInfo(ctx, W, H);
+  }
+
+  drawStarInfo(ctx, W, H) {
+    const st = this.stars;
+    ctx.fillStyle = 'rgba(8,10,24,0.82)';
+    ctx.fillRect(0, 0, W, H);
+    const x = 16, y = H * 0.10, w = W - 32, h = H * 0.76;
+    ctx.fillStyle = '#1b2440';
+    roundRect(ctx, x, y, w, h, 16);
+    ctx.fill();
+    ctx.fillStyle = '#FFD93D';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(st.name, W / 2, y + 26);
+    const tabs = [{ id: 'science', name: 'Наука' }, { id: 'legend', name: 'Легенда' }];
+    tabs.forEach((tab, i) => {
+      const tw = (w - 36) / 2;
+      const tx = x + 12 + i * (tw + 12);
+      const on = (st.info === tab.id);
+      ctx.fillStyle = on ? '#2E6B8C' : 'rgba(255,255,255,0.12)';
+      roundRect(ctx, tx, y + 46, tw, 32, 8);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 14px Arial';
+      ctx.fillText(tab.name, tx + tw / 2, y + 62);
+      this.buttons.push({ x: tx, y: y + 46, w: tw, h: 32, action: 'star-tab', tab: tab.id });
+    });
+    ctx.fillStyle = '#e8eaf2';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    const text = st.info === 'legend' ? st.legend : st.science;
+    this.wrap(ctx, text, x + 16, y + 104, w - 32, 20);
+    this.buttons.push(createButton(ctx, W / 2 - 60, y + h - 48, 120, 34, 'Закрыть', {
+      bgColor: 'rgba(255,255,255,0.16)', fgColor: '#fff', fontSize: 14, radius: 10, action: 'star-close'
+    }));
+  }
+
+  wrap(ctx, text, x, y, maxW, lh) {
+    const words = String(text || '').split(' ');
+    let line = '';
+    let yy = y;
+    ctx.textAlign = 'left';
+    words.forEach(word => {
+      const next = line ? line + ' ' + word : word;
+      if (ctx.measureText(next).width > maxW && line) {
+        ctx.fillText(line, x, yy);
+        line = word;
+        yy += lh;
+      } else line = next;
+    });
+    if (line) ctx.fillText(line, x, yy);
   }
 
   // ---------- 2. Раскраска ----------
@@ -3736,6 +3875,10 @@ class QuietScene {
     if (back && back.text && back.text.indexOf('Назад') !== -1 &&
         isPointInRect(mx, my, back.x, back.y, back.w, back.h)) {
       AudioSys.play('click');
+      if (this.mode === 'stars' && this.stars && this.stars.info) {
+        this.stars.info = null;
+        return true;
+      }
       if (this.mode === 'select') this.game.transitionTo('home');
       else this.init();
       return true;
@@ -3756,6 +3899,21 @@ class QuietScene {
       if (a.indexOf('quiet:') === 0) { this.startGame(a.slice(6)); return true; }
       if (a.indexOf('paint:') === 0) {
         this.paint.picked = parseInt(a.slice(6), 10);
+        AudioSys.play('click');
+        return true;
+      }
+      if (a === 'star-help') {
+        if (this.stars) this.stars.info = this.stars.info || 'science';
+        AudioSys.play('click');
+        return true;
+      }
+      if (a === 'star-tab') {
+        if (this.stars) this.stars.info = btn.tab || 'science';
+        AudioSys.play('click');
+        return true;
+      }
+      if (t === 'Закрыть') {
+        if (this.stars) this.stars.info = null;
         AudioSys.play('click');
         return true;
       }
@@ -3830,6 +3988,7 @@ class QuietScene {
   }
 
   clickStars(mx, my) {
+    if (this.stars && this.stars.info) return true;
     const W = this.game.width, H = this.game.height;
     const a = { x: W * 0.08, y: H * 0.16, w: W * 0.84, h: H * 0.54 };
     const pts = this.stars.points.map(p => ({ x: a.x + a.w * p[0], y: a.y + a.h * p[1] }));
@@ -3842,7 +4001,7 @@ class QuietScene {
           AudioSys.play('click');
           if (this.stars.next >= pts.length) {
             this.stars.done = true;
-            this.reward('stars', 'Созвездие собрано ✨');
+            this.reward('stars', (this.stars.name || 'Созвездие') + ' ✨');
           }
         } else {
           AudioSys.play('fail');
