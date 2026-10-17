@@ -239,10 +239,23 @@ function wrapLines(ctx, text, maxW, maxLines) {
 }
 
 // ============ ВЕРСИЯ И ВНЕШНИЕ ССЫЛКИ ============
-const GAME_VERSION = '1.4.32';
+const GAME_VERSION = '1.4.33';
 // github — кнопка обновления и установка APK. rustore — без этого разрешения,
 // в настройках только текст адреса сайта, без перехода наружу.
 const STORE_CHANNEL = 'github';
+
+// Страница gopher.umort.ru/play открывается по https, без AndroidBridge.
+// Прогресс уже пишется в localStorage этого браузера и на сервер не уходит.
+function isBrowserPlay() {
+  try {
+    if (typeof window === 'undefined' || window.AndroidBridge) return false;
+    if (typeof location === 'undefined' || !location) return false;
+    const p = String(location.protocol || '');
+    return p === 'http:' || p === 'https:';
+  } catch (e) {
+    return false;
+  }
+}
 
 // ============ БУФЕР ОБМЕНА И ВВОД ТЕКСТА ============
 // Проблема: в canvas-игре нельзя выделить текст, а значит нельзя скопировать

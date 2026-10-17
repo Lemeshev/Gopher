@@ -395,7 +395,11 @@ class MenuScene {
     const note = (typeof window !== 'undefined' && window.__updateNote) ? window.__updateNote : '';
     ctx.fillText('Сейчас версия ' + GAME_VERSION + (note ? ' · ' + note : ''), W / 2, panelY + panelH - 128);
 
-    if (typeof STORE_CHANNEL !== 'undefined' && STORE_CHANNEL === 'rustore') {
+    if (typeof isBrowserPlay === 'function' && isBrowserPlay()) {
+      ctx.fillStyle = '#d6def2';
+      ctx.font = `bold ${Math.min(W * 0.032, 14)}px Arial`;
+      ctx.fillText('Прогресс хранится в этом браузере', W / 2, panelY + panelH - 86);
+    } else if (typeof STORE_CHANNEL !== 'undefined' && STORE_CHANNEL === 'rustore') {
       ctx.fillStyle = '#d6def2';
       ctx.font = `bold ${Math.min(W * 0.034, 15)}px Arial`;
       ctx.fillText('Наш сайт: gopher.umort.ru', W / 2, panelY + panelH - 86);
