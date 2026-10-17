@@ -239,7 +239,7 @@ function wrapLines(ctx, text, maxW, maxLines) {
 }
 
 // ============ ВЕРСИЯ И ВНЕШНИЕ ССЫЛКИ ============
-const GAME_VERSION = '1.4.33';
+const GAME_VERSION = '1.4.34';
 // github — кнопка обновления и установка APK. rustore — без этого разрешения,
 // в настройках только текст адреса сайта, без перехода наружу.
 const STORE_CHANNEL = 'github';

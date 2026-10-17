@@ -2767,7 +2767,9 @@ class QuietScene {
           : (id === 'car' || id === 'bus' ? randFloat(0.07, 0.12)
             : (id === 'cat' ? 0.045 : randFloat(0.045, 0.08)))),
       phase: randFloat(0, 6),
-      lane: (id === 'car' || id === 'bus') ? 'road' : (id === 'plane' ? 'sky' : 'walk'),
+      lane: (id === 'car' || id === 'bus') ? 'road'
+        : (id === 'plane' ? 'sky'
+          : ((id === 'cat' || id === 'dog') ? 'near' : 'walk')),
       y: id === 'plane' ? randFloat(0.08, 0.22) : 0,
       color: look.color || '#c9a27a',
       look: look,
@@ -3083,9 +3085,11 @@ class QuietScene {
     const wet = win.weather === 'rain' || win.weather === 'storm';
     if (wet) {
       if (!win.puddles || !win.puddles.length) {
-        win.puddles = [0, 1, 2, 3, 4].map(i => ({
-          x: 0.08 + i * 0.18 + randFloat(0, 0.06),
-          lane: i % 2 ? 'road' : 'walk',
+        const lanes = ['walk', 'road', 'near'];
+        win.puddles = [0, 1, 2, 3, 4, 5].map(i => ({
+          x: 0.08 + (i % 3) * 0.3 + randFloat(0, 0.08),
+          lane: lanes[i % 3],
+          y: randFloat(0.25, 0.8),
           w: randFloat(0.07, 0.13),
           phase: randFloat(0, 6)
         }));
@@ -3111,11 +3115,11 @@ class QuietScene {
     const wing = (alpha, sign) => {
       ctx.save();
       ctx.globalAlpha = alpha;
-      ctx.translate(-s * 0.02, -s * 0.02);
-      ctx.rotate(sign * (glide ? -0.42 : (-0.15 + flap * 1.15)));
+      ctx.translate(s * 0.18, -s * 0.06);
+      ctx.rotate(sign * (glide ? -0.28 : (-0.15 + flap * 1.05)));
       ctx.fillStyle = id === 'tit' ? '#3d6f9a' : b.color;
       ctx.beginPath();
-      ctx.ellipse(-s * 0.22, 0, s * 0.28, s * 0.06, sign * -0.2, 0, Math.PI * 2);
+      ctx.ellipse(-s * 0.2, sign * s * 0.01, s * 0.24, s * 0.055, Math.PI + sign * 0.25, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     };
@@ -3295,24 +3299,30 @@ class QuietScene {
     ctx.restore();
   }
 
-  drawWindowPerson(ctx, step, opt) {
+  drawWindowPerson(ctx, phase, opt) {
     const skin = opt.skin || '#f3c7a8';
     const gait = opt.gait || 'walk';
     const run = gait === 'run';
-    const amp = run ? 1.05 : (gait === 'stroll' ? 0.42 : 0.72);
-    const swing = Math.max(-1, Math.min(1, step)) * amp;
-    const bob = Math.abs(Math.cos(Math.asin(Math.max(-1, Math.min(1, step))))) * (run ? 3.4 : 1.3);
+    const stroll = gait === 'stroll';
+    const sit = gait === 'sit';
+    const amp = run ? 0.95 : (stroll ? 0.36 : (sit ? 0.22 : 0.58));
+    const bob = sit ? 0 : Math.abs(Math.sin(phase * 2)) * (run ? 2.4 : 1.05);
     const girl = !!opt.girl || opt.who === 'grandma';
     ctx.save();
-    ctx.translate(0, run ? -bob : -bob * 0.65);
-    const limb = (side, ang, color, len) => {
-      const knee = Math.max(0, -Math.sin(ang)) * (run ? 1.05 : 0.55);
-      const hx = 3 + side * 3.2;
-      const kx = hx + Math.sin(ang) * len * 0.55;
-      const ky = Math.cos(Math.min(1.1, Math.abs(ang)) * 0.35) * len * 0.5;
-      const fx = kx + Math.sin(ang * 0.35 + knee) * len * 0.5;
-      const fy = ky + len * 0.48;
-      ctx.strokeStyle = color;
+    ctx.translate(0, -bob);
+    const leg = (offset) => {
+      const t = phase + offset;
+      const thighAng = Math.sin(t) * amp;
+      const knee = Math.max(0, Math.sin(t)) * (run ? 1.25 : (sit ? 0.9 : 0.72));
+      const hx = 3;
+      const th = run ? 13 : 12;
+      const sh = run ? 12 : 11;
+      const kx = hx + Math.sin(thighAng) * th;
+      const ky = Math.cos(thighAng) * th;
+      const shinAng = thighAng * 0.2 - knee * (run ? 1.05 : 0.62);
+      const fx = kx + Math.sin(shinAng) * sh;
+      const fy = ky + Math.cos(shinAng) * sh;
+      ctx.strokeStyle = opt.pants || '#34507a';
       ctx.lineWidth = 3.1;
       ctx.lineCap = 'round';
       ctx.beginPath();
@@ -3322,22 +3332,23 @@ class QuietScene {
       ctx.stroke();
       ctx.fillStyle = '#2c2c2c';
       ctx.beginPath();
-      ctx.ellipse(fx, fy + 1, 3.3, 1.5, ang * 0.15, 0, Math.PI * 2);
+      ctx.ellipse(fx, fy + 1, 3.3, 1.5, shinAng * 0.2, 0, Math.PI * 2);
       ctx.fill();
     };
-    limb(-1, swing * 0.95, opt.pants || '#34507a', run ? 16 : 14);
-    limb(1, -swing * 0.95, opt.pants || '#34507a', run ? 16 : 14);
+    leg(0);
+    leg(Math.PI);
     if (opt.bag) {
       ctx.fillStyle = opt.bag;
       ctx.beginPath(); ctx.ellipse(-8, -8, 6, 7, 0.1, 0, Math.PI * 2); ctx.fill();
     }
     if (girl && opt.who !== 'grandpa') {
+      const sway = Math.sin(phase) * (stroll ? 1.2 : 2);
       ctx.fillStyle = opt.skirt || opt.pants;
       ctx.beginPath();
       ctx.moveTo(-2, -2);
       ctx.lineTo(12, -2);
-      ctx.lineTo(14 + swing * 2, 8);
-      ctx.lineTo(-6 + swing * 2, 8);
+      ctx.lineTo(14 + sway, 8);
+      ctx.lineTo(-6 + sway, 8);
       ctx.closePath();
       ctx.fill();
     }
@@ -3346,13 +3357,48 @@ class QuietScene {
     ctx.strokeStyle = skin;
     ctx.lineWidth = 2.6;
     ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(0, -12);
-    ctx.quadraticCurveTo(-6 - swing * (run ? 10 : 6), -4, -4 - swing * (run ? 12 : 7), run ? 2 : 0);
-    ctx.moveTo(8, -12);
-    if (opt.armUp) ctx.quadraticCurveTo(12, -22, 16, -28);
-    else ctx.quadraticCurveTo(12 + swing * (run ? 8 : 5), -6, 8 + swing * (run ? 11 : 7), run ? 1 : -2);
-    ctx.stroke();
+    const reach = (sx, sy, tx, ty) => {
+      const mx = sx + (tx - sx) * 0.45;
+      const my = Math.min(sy, ty) + Math.abs(tx - sx) * 0.15;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.quadraticCurveTo(mx, my, tx, ty);
+      ctx.stroke();
+      ctx.fillStyle = skin;
+      ctx.beginPath();
+      ctx.arc(tx, ty, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    if (opt.hands) {
+      reach(1, -14, opt.hands.x - 3, opt.hands.y);
+      reach(7, -14, opt.hands.x + 3, opt.hands.y);
+    } else if (opt.armUp) {
+      ctx.beginPath();
+      ctx.moveTo(1, -14);
+      ctx.quadraticCurveTo(-2, -6, -1, 0);
+      ctx.moveTo(7, -14);
+      ctx.quadraticCurveTo(12, -22, 16, -28);
+      ctx.stroke();
+    } else {
+      const arm = (offset, sx) => {
+        const t = phase + offset + Math.PI;
+        const shoulder = Math.sin(t) * (run ? 0.72 : (stroll ? 0.28 : 0.42));
+        const ua = run ? 8 : 7;
+        const fa = 7;
+        const ex = sx + Math.sin(shoulder) * ua;
+        const ey = -14 + Math.cos(shoulder) * ua * 0.55;
+        const forearm = shoulder * 0.35 + (run ? 0.15 : 0.45);
+        const hx = ex + Math.sin(forearm) * fa * 0.45;
+        const hy = ey + Math.cos(forearm) * fa;
+        ctx.beginPath();
+        ctx.moveTo(sx, -14);
+        ctx.lineTo(ex, ey);
+        ctx.lineTo(hx, hy);
+        ctx.stroke();
+      };
+      arm(0, 1);
+      arm(Math.PI, 7);
+    }
     ctx.fillStyle = skin;
     ctx.beginPath(); ctx.ellipse(8, -22, 6.2, 6.6, 0.08, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.ellipse(14, -21, 2.2, 1.5, 0, 0, Math.PI * 2); ctx.fill();
@@ -3426,13 +3472,13 @@ class QuietScene {
       }
     } else if (p.id === 'kid') {
       if (look.prop === 'bag') {
-        this.drawWindowPerson(ctx, step, {
+        this.drawWindowPerson(ctx, p.phase, {
         shirt: look.girl ? '#f0a0c0' : '#6db3e8', pants: '#34507a',
         skirt: '#f0a0c0', hair: look.girl ? '#c47a4a' : '#5a3824',
         girl: look.girl, bag: '#e25b5b'
       });
       } else {
-        this.drawWindowPerson(ctx, step, {
+        this.drawWindowPerson(ctx, p.phase, {
           shirt: look.girl ? '#f0a0c0' : '#6db3e8', pants: '#34507a',
           skirt: '#f0a0c0', hair: look.girl ? '#c47a4a' : '#5a3824',
           girl: look.girl, armUp: true
@@ -3456,15 +3502,6 @@ class QuietScene {
       ctx.stroke();
       ctx.fillStyle = '#3a4558';
       ctx.fillRect(-2, -8, 7, 2);
-      const spin = p.phase || 0;
-      ctx.strokeStyle = look.girl ? '#e7b08a' : '#d7a07a';
-      ctx.lineWidth = 2.4;
-      ctx.beginPath();
-      ctx.moveTo(2, -2);
-      ctx.lineTo(2 + Math.cos(spin) * 7, 4 + Math.sin(spin) * 5);
-      ctx.moveTo(2, -2);
-      ctx.lineTo(2 + Math.cos(spin + Math.PI) * 7, 4 + Math.sin(spin + Math.PI) * 5);
-      ctx.stroke();
       if (look.basket) {
         ctx.fillStyle = '#c47a4a';
         ctx.beginPath(); ctx.ellipse(20, -8, 6, 4, 0, 0, Math.PI * 2); ctx.fill();
@@ -3475,7 +3512,9 @@ class QuietScene {
       ctx.save();
       ctx.translate(-2, -16);
       ctx.scale(0.72, 0.72);
-      this.drawWindowPerson(ctx, 0, {
+      this.drawWindowPerson(ctx, p.phase, {
+        gait: 'sit',
+        hands: { x: 22, y: 4 },
         shirt: look.girl ? '#f0a0c0' : '#7dbe6e',
         pants: '#34507a', skirt: '#f0a0c0',
         hair: look.girl ? '#c47a4a' : '#3a2a22', girl: look.girl
@@ -3534,8 +3573,9 @@ class QuietScene {
       ctx.save();
       ctx.translate(-4, -8);
       ctx.scale(0.78, 0.78);
-      this.drawWindowPerson(ctx, step * 0.35, {
-        gait: 'stroll',
+      this.drawWindowPerson(ctx, p.phase * 0.35, {
+        gait: 'sit',
+        hands: { x: 14, y: -10 },
         shirt: look.girl ? '#f0a0c0' : '#f0c14a',
         pants: '#34507a', skirt: '#f0a0c0',
         hair: look.girl ? '#c47a4a' : '#3a2a22', girl: look.girl
@@ -3550,11 +3590,19 @@ class QuietScene {
       ctx.beginPath(); ctx.ellipse(0, -8, 8, 5, 0, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#f3c7a8';
       ctx.beginPath(); ctx.arc(2, -18, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#4a5e86';
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.moveTo(-16, -12);
+      ctx.lineTo(-16, -24);
+      ctx.lineTo(-4, -24);
+      ctx.stroke();
       ctx.save();
-      ctx.translate(-28, -4);
+      ctx.translate(-24, -2);
       const parent = look.who === 'dad' ? 'dad' : 'mom';
-      this.drawWindowPerson(ctx, step * 0.55, {
+      this.drawWindowPerson(ctx, p.phase, {
         gait: 'stroll',
+        hands: { x: 14, y: -22 },
         shirt: parent === 'mom' ? '#e07a9a' : '#4d6ea8',
         pants: '#34507a', skirt: '#e07a9a',
         hair: parent === 'mom' ? '#6a3a28' : '#2a211c',
@@ -3567,7 +3615,7 @@ class QuietScene {
       const old = who === 'grandma' || who === 'grandpa';
       ctx.save();
       ctx.scale(1.18, 1.18);
-      this.drawWindowPerson(ctx, step, {
+      this.drawWindowPerson(ctx, p.phase, {
         gait: 'stroll',
         shirt: female ? '#c47a9a' : '#4d6ea8',
         pants: female ? '#6a4a6a' : '#2c3a55',
@@ -3584,7 +3632,7 @@ class QuietScene {
       }
       ctx.restore();
     } else if (p.id === 'runner') {
-      this.drawWindowPerson(ctx, step, {
+      this.drawWindowPerson(ctx, p.phase, {
         gait: 'run',
         shirt: look.girl ? '#e25b8a' : '#e25b5b',
         pants: look.girl ? '#4a3060' : '#2c3a55',
@@ -3617,6 +3665,9 @@ class QuietScene {
     if (win.weather === 'storm' || win.weather === 'rain') {
       skyTop = day === 'night' ? '#12141c' : '#6d7886';
       skyBot = '#3e4854';
+    } else if ((win.weather === 'cloudy' || win.weather === 'snow') && day !== 'night') {
+      skyTop = '#8b97a6';
+      skyBot = '#c5ced8';
     }
     const g = ctx.createLinearGradient(0, frame.y, 0, frame.y + frame.h * 0.62);
     g.addColorStop(0, skyTop);
@@ -3637,7 +3688,7 @@ class QuietScene {
       ctx.beginPath();
       ctx.arc(frame.x + frame.w * 0.78, frame.y + frame.h * 0.16, 14, 0, Math.PI * 2);
       ctx.fill();
-    } else if (day !== 'night') {
+    } else if (day !== 'night' && win.weather === 'clear') {
       let sx = 0.5, sy = 0.16;
       if (day === 'morning') { sx = 0.18; sy = 0.42; }
       if (day === 'evening') { sx = 0.82; sy = 0.42; }
@@ -3822,9 +3873,26 @@ class QuietScene {
     ctx.lineTo(frame.x + frame.w, groundY + 69);
     ctx.stroke();
     ctx.setLineDash([]);
+    const meadowTop = groundY + 90;
+    ctx.strokeStyle = season === 'winter' ? 'rgba(255,255,255,0.35)' : 'rgba(20,70,30,0.28)';
+    ctx.lineWidth = 1.4;
+    for (let i = 0; i < 14; i++) {
+      const tx = frame.x + ((i * 53) % frame.w);
+      const ty = meadowTop + 8 + ((i * 17) % Math.max(12, frame.y + frame.h - meadowTop - 16));
+      ctx.beginPath();
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(tx - 3, ty - 9);
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(tx + 3, ty - 8);
+      ctx.stroke();
+    }
     if (win.puddles && win.puddles.length) {
       win.puddles.forEach(p => {
-        const py = groundY + (p.lane === 'road' ? 70 : 40);
+        const meadowTop = groundY + 90;
+        const meadowBot = frame.y + frame.h - 10;
+        const yf = p.y == null ? 0.5 : p.y;
+        const py = p.lane === 'road' ? groundY + 70
+          : (p.lane === 'near' ? meadowTop + (meadowBot - meadowTop) * yf : groundY + 40);
         const px = frame.x + frame.w * p.x;
         const pw = frame.w * p.w;
         ctx.fillStyle = 'rgba(170,198,214,0.55)';
@@ -3856,7 +3924,8 @@ class QuietScene {
     win.passers.filter(p => p.id !== 'plane').forEach(p => {
       const px = frame.x + frame.w * p.x;
       const road = p.lane === 'road' || p.id === 'car' || p.id === 'bus';
-      const gy = road ? groundY + 64 : groundY + 36;
+      const meadowMid = groundY + 90 + (frame.y + frame.h - groundY - 100) * 0.45;
+      const gy = road ? groundY + 64 : (p.lane === 'near' ? meadowMid : groundY + 36);
       if (p.id === 'cat') this.drawWindowCat(ctx, px, gy - 10, p);
       else this.drawWindowPasser(ctx, px, gy, p);
       win.hits.push({ x: px - 28, y: gy - 46, w: 64, h: 58, tale: p.tale });
