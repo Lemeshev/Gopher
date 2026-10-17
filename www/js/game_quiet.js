@@ -3341,6 +3341,53 @@ class QuietScene {
       ctx.fillStyle = opt.bag;
       ctx.beginPath(); ctx.ellipse(-8, -8, 6, 7, 0.1, 0, Math.PI * 2); ctx.fill();
     }
+    ctx.strokeStyle = skin;
+    ctx.lineCap = 'round';
+    const armLine = (offset) => {
+      const t = phase + offset + Math.PI;
+      const shoulder = Math.sin(t) * (run ? 0.7 : (stroll ? 0.26 : 0.4));
+      const ua = run ? 8 : 7;
+      const fa = 7;
+      const sx = 4;
+      const ex = sx + Math.sin(shoulder) * ua;
+      const ey = -13 + Math.cos(shoulder) * ua * 0.5;
+      const forearm = shoulder * 0.3 + (run ? 0.12 : 0.4);
+      return {
+        sx: sx, sy: -13, ex: ex, ey: ey,
+        hx: ex + Math.sin(forearm) * fa * 0.4,
+        hy: ey + Math.cos(forearm) * fa
+      };
+    };
+    const strokeArm = (a, width) => {
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      ctx.moveTo(a.sx, a.sy);
+      ctx.lineTo(a.ex, a.ey);
+      ctx.lineTo(a.hx, a.hy);
+      ctx.stroke();
+    };
+    const reach = (tx, ty, width) => {
+      ctx.lineWidth = width;
+      const mx = 4 + (tx - 4) * 0.45;
+      const my = Math.min(-13, ty) + Math.abs(tx - 4) * 0.12;
+      ctx.beginPath();
+      ctx.moveTo(4, -13);
+      ctx.quadraticCurveTo(mx, my, tx, ty);
+      ctx.stroke();
+      ctx.fillStyle = skin;
+      ctx.beginPath();
+      ctx.arc(tx, ty, 2.1, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    if (opt.hands) reach(opt.hands.x - 1, opt.hands.y, 2.1);
+    else if (!opt.armUp) strokeArm(armLine(Math.PI), 2.1);
+    else {
+      ctx.lineWidth = 2.1;
+      ctx.beginPath();
+      ctx.moveTo(4, -13);
+      ctx.quadraticCurveTo(2, -6, 3, 0);
+      ctx.stroke();
+    }
     if (girl && opt.who !== 'grandpa') {
       const sway = Math.sin(phase) * (stroll ? 1.2 : 2);
       ctx.fillStyle = opt.skirt || opt.pants;
@@ -3355,50 +3402,15 @@ class QuietScene {
     ctx.fillStyle = opt.shirt;
     ctx.beginPath(); ctx.ellipse(4, -10, 8, 10, 0.05, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = skin;
-    ctx.lineWidth = 2.6;
     ctx.lineCap = 'round';
-    const reach = (sx, sy, tx, ty) => {
-      const mx = sx + (tx - sx) * 0.45;
-      const my = Math.min(sy, ty) + Math.abs(tx - sx) * 0.15;
+    if (opt.hands) reach(opt.hands.x + 2, opt.hands.y, 2.6);
+    else if (opt.armUp) {
+      ctx.lineWidth = 2.6;
       ctx.beginPath();
-      ctx.moveTo(sx, sy);
-      ctx.quadraticCurveTo(mx, my, tx, ty);
-      ctx.stroke();
-      ctx.fillStyle = skin;
-      ctx.beginPath();
-      ctx.arc(tx, ty, 2.2, 0, Math.PI * 2);
-      ctx.fill();
-    };
-    if (opt.hands) {
-      reach(1, -14, opt.hands.x - 3, opt.hands.y);
-      reach(7, -14, opt.hands.x + 3, opt.hands.y);
-    } else if (opt.armUp) {
-      ctx.beginPath();
-      ctx.moveTo(1, -14);
-      ctx.quadraticCurveTo(-2, -6, -1, 0);
-      ctx.moveTo(7, -14);
+      ctx.moveTo(5, -14);
       ctx.quadraticCurveTo(12, -22, 16, -28);
       ctx.stroke();
-    } else {
-      const arm = (offset, sx) => {
-        const t = phase + offset + Math.PI;
-        const shoulder = Math.sin(t) * (run ? 0.72 : (stroll ? 0.28 : 0.42));
-        const ua = run ? 8 : 7;
-        const fa = 7;
-        const ex = sx + Math.sin(shoulder) * ua;
-        const ey = -14 + Math.cos(shoulder) * ua * 0.55;
-        const forearm = shoulder * 0.35 + (run ? 0.15 : 0.45);
-        const hx = ex + Math.sin(forearm) * fa * 0.45;
-        const hy = ey + Math.cos(forearm) * fa;
-        ctx.beginPath();
-        ctx.moveTo(sx, -14);
-        ctx.lineTo(ex, ey);
-        ctx.lineTo(hx, hy);
-        ctx.stroke();
-      };
-      arm(0, 1);
-      arm(Math.PI, 7);
-    }
+    } else strokeArm(armLine(0), 2.6);
     ctx.fillStyle = skin;
     ctx.beginPath(); ctx.ellipse(8, -22, 6.2, 6.6, 0.08, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.ellipse(14, -21, 2.2, 1.5, 0, 0, Math.PI * 2); ctx.fill();
