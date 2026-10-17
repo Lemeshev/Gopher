@@ -298,6 +298,25 @@ class QuietScene {
 
   // Новый житель воды: kind 'fish' — кого ловим, 'friend' — кого только смотрим.
   // species можно передать явно (нужно для больших обитателей, v1.3.11)
+  // Новый большой обитатель выплывает из-за края, а не вспыхивает на месте ушедшего.
+  arriveFriend(s, w) {
+    const others = (this.fish.swimmers || [])
+      .filter(x => x.kind === 'friend' && x !== s).map(x => x.id);
+    const sp = this.nextFriendSpecies(others);
+    if (!sp) { s.leaving = false; return; }
+    const reach = Math.min((this.game.width || 540) * 0.055, 30) * (sp.size || 1) * 1.7;
+    s.id = sp.id;
+    s.data = sp;
+    s.speed = randFloat(12, 22) * (0.7 + sp.size * 0.5);
+    s.y = randFloat(w.top + 40, w.bottom - 40);
+    s.dir = Math.random() < 0.5 ? 1 : -1;
+    s.x = s.dir > 0 ? w.x0 - reach : w.x1 + reach;
+    s.leaving = false;
+    this.queueFriendHint(sp.id);
+    this.fish.friendSwapWanted = false;
+    this.fish.friendSwap = randFloat(FRIEND_SWAP_MIN, FRIEND_SWAP_MAX);
+  }
+
   makeSwimmer(kind, W, H, species) {
     const w = this.fishWater();
     const friend = (kind === 'friend');
@@ -544,25 +563,21 @@ class QuietScene {
         }
         if (s.y < w.top + 16) s.y = w.top + 16;
         if (s.y > w.bottom - 16) s.y = w.bottom - 16;
-        if (s.x < w.x0) { s.x = w.x0; s.dir = 1; }
-        if (s.x > w.x1) { s.x = w.x1; s.dir = -1; }
-
-        // Состав больших обитателей меняется (v1.3.11): заказчик видел одних медуз,
-        // а хотел черепаху, акулу и осьминога. Меняем вид только у самого края —
-        // получается, будто один уплыл, а другой приплыл, без телепорта посередине.
-        if (s.kind === 'friend' && f.friendSwapWanted &&
-            (s.x <= w.x0 + 3 || s.x >= w.x1 - 3)) {
-          const others = (f.swimmers || [])
-            .filter(x => x.kind === 'friend' && x !== s).map(x => x.id);
-          const sp = this.nextFriendSpecies(others);
-          if (sp) {
-            s.id = sp.id;
-            s.data = sp;
-            s.speed = randFloat(12, 22) * (0.7 + sp.size * 0.5);
-            s.y = randFloat(w.top + 40, w.bottom - 40);
-            this.queueFriendHint(sp.id);
-            f.friendSwapWanted = false;
-            f.friendSwap = randFloat(FRIEND_SWAP_MIN, FRIEND_SWAP_MAX);
+        const reach = s.kind === 'friend'
+          ? Math.min(W * 0.055, 30) * ((s.data && s.data.size) || 1) * 1.7
+          : 0;
+        if (s.kind === 'friend' && s.leaving) {
+          if ((s.dir > 0 && s.x > w.x1 + reach) || (s.dir < 0 && s.x < w.x0 - reach)) {
+            this.arriveFriend(s, w);
+          }
+        } else {
+          if (s.x < w.x0) { s.x = w.x0; s.dir = 1; }
+          if (s.x > w.x1) { s.x = w.x1; s.dir = -1; }
+          // Смена вида — только после того, как тело целиком ушло за край.
+          if (s.kind === 'friend' && f.friendSwapWanted &&
+              (s.x <= w.x0 + 4 || s.x >= w.x1 - 4)) {
+            s.leaving = true;
+            s.dir = s.x >= w.x1 - 4 ? 1 : -1;
           }
         }
       });
@@ -2747,8 +2762,12 @@ class QuietScene {
       id: id,
       x: inside ? randFloat(0.2, 0.75) : (dir > 0 ? -0.2 : 1.2),
       dir: dir,
-      speed: id === 'plane' ? randFloat(0.09, 0.14) : (id === 'cat' ? 0.045 : randFloat(0.05, 0.11)),
+      speed: id === 'plane' ? randFloat(0.09, 0.14)
+        : (id === 'runner' ? randFloat(0.09, 0.13)
+          : (id === 'car' || id === 'bus' ? randFloat(0.07, 0.12)
+            : (id === 'cat' ? 0.045 : randFloat(0.045, 0.08)))),
       phase: randFloat(0, 6),
+      lane: (id === 'car' || id === 'bus') ? 'road' : (id === 'plane' ? 'sky' : 'walk'),
       y: id === 'plane' ? randFloat(0.08, 0.22) : 0,
       color: look.color || '#c9a27a',
       look: look,
@@ -2995,7 +3014,12 @@ class QuietScene {
     }
     win.birds.forEach(b => {
       b.x += b.dir * b.speed * sec;
-      b.phase += sec * (9 + b.speed * 30);
+      const flap = b.id === 'crow' ? 5.5 : (b.id === 'swallow' ? 13 : (b.id === 'pigeon' ? 7 : 11));
+      b.phase += sec * flap;
+      b.glide = (b.glide || 0) - sec;
+      if (b.glide < -0.8 && (b.id === 'swallow' || b.id === 'pigeon' || b.id === 'crow')) {
+        b.glide = randFloat(0.45, 1.3);
+      }
     });
     win.birds = win.birds.filter(b => b.x > -0.25 && b.x < 1.25);
 
@@ -3005,7 +3029,8 @@ class QuietScene {
     }
     win.passers.forEach(p => {
       p.x += p.dir * p.speed * sec;
-      p.phase += sec * (p.id === 'plane' ? 0 : 7);
+      const stride = p.id === 'runner' ? 13 : (p.id === 'walker' ? 5.2 : (p.id === 'plane' || p.id === 'car' || p.id === 'bus' ? 0 : 8));
+      p.phase += sec * (stride || (p.id === 'car' || p.id === 'bus' ? 10 : 0));
     });
     win.passers = win.passers.filter(p => p.x > -0.28 && p.x < 1.28);
 
@@ -3054,31 +3079,47 @@ class QuietScene {
       f.x += f.drift * sec;
     });
     win.flakes = win.flakes.filter(f => f.y < 1.05);
+
+    const wet = win.weather === 'rain' || win.weather === 'storm';
+    if (wet) {
+      if (!win.puddles || !win.puddles.length) {
+        win.puddles = [0, 1, 2, 3, 4].map(i => ({
+          x: 0.08 + i * 0.18 + randFloat(0, 0.06),
+          lane: i % 2 ? 'road' : 'walk',
+          w: randFloat(0.07, 0.13),
+          phase: randFloat(0, 6)
+        }));
+      }
+      win.puddles.forEach(p => { p.phase += sec * 3; });
+    } else if (win.puddles && win.puddles.length) {
+      win.puddles = [];
+    }
   }
 
   drawWindowBird(ctx, x, y, b) {
     const s = 28 * b.scale;
     const id = b.id;
     const slim = id === 'swallow' ? 0.72 : (id === 'pigeon' ? 1.15 : 1);
-    // Оба крыла на одном угле: поднимаются и опускаются вместе.
-    const lift = Math.sin(b.phase);
+    const glide = b.glide > 0;
+    const raw = Math.sin(b.phase);
+    const flap = glide ? 0.12 : (raw > 0 ? raw * 0.65 : raw);
     ctx.save();
     ctx.translate(x, y);
     ctx.scale(b.dir, 1);
-    ctx.rotate(Math.sin(b.x * b.wave) * 0.06);
-    ctx.translate(0, lift * s * 0.06);
+    ctx.rotate((glide ? 0.02 : flap * -0.08) + Math.sin(b.x * b.wave) * 0.04);
+    ctx.translate(0, glide ? 0 : Math.max(0, -raw) * s * 0.05);
     const wing = (alpha, sign) => {
       ctx.save();
       ctx.globalAlpha = alpha;
-      ctx.translate(s * 0.02, 0);
-      ctx.rotate(sign * (-0.15 - lift * 0.9));
+      ctx.translate(-s * 0.02, -s * 0.02);
+      ctx.rotate(sign * (glide ? -0.42 : (-0.15 + flap * 1.15)));
       ctx.fillStyle = id === 'tit' ? '#3d6f9a' : b.color;
       ctx.beginPath();
-      ctx.ellipse(-s * 0.2, -s * 0.02, s * 0.26, s * 0.07, -0.15, 0, Math.PI * 2);
+      ctx.ellipse(-s * 0.22, 0, s * 0.28, s * 0.06, sign * -0.2, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     };
-    wing(0.45, 1);
+    wing(0.4, -1);
     ctx.fillStyle = b.color;
     ctx.beginPath();
     ctx.ellipse(0, s * 0.02, s * 0.42 * slim, s * 0.2, -0.05, 0, Math.PI * 2);
@@ -3256,8 +3297,36 @@ class QuietScene {
 
   drawWindowPerson(ctx, step, opt) {
     const skin = opt.skin || '#f3c7a8';
-    const swing = Math.max(-1, Math.min(1, step));
+    const gait = opt.gait || 'walk';
+    const run = gait === 'run';
+    const amp = run ? 1.05 : (gait === 'stroll' ? 0.42 : 0.72);
+    const swing = Math.max(-1, Math.min(1, step)) * amp;
+    const bob = Math.abs(Math.cos(Math.asin(Math.max(-1, Math.min(1, step))))) * (run ? 3.4 : 1.3);
     const girl = !!opt.girl || opt.who === 'grandma';
+    ctx.save();
+    ctx.translate(0, run ? -bob : -bob * 0.65);
+    const limb = (side, ang, color, len) => {
+      const knee = Math.max(0, -Math.sin(ang)) * (run ? 1.05 : 0.55);
+      const hx = 3 + side * 3.2;
+      const kx = hx + Math.sin(ang) * len * 0.55;
+      const ky = Math.cos(Math.min(1.1, Math.abs(ang)) * 0.35) * len * 0.5;
+      const fx = kx + Math.sin(ang * 0.35 + knee) * len * 0.5;
+      const fy = ky + len * 0.48;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3.1;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(hx, 0);
+      ctx.lineTo(kx, ky);
+      ctx.lineTo(fx, fy);
+      ctx.stroke();
+      ctx.fillStyle = '#2c2c2c';
+      ctx.beginPath();
+      ctx.ellipse(fx, fy + 1, 3.3, 1.5, ang * 0.15, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    limb(-1, swing * 0.95, opt.pants || '#34507a', run ? 16 : 14);
+    limb(1, -swing * 0.95, opt.pants || '#34507a', run ? 16 : 14);
     if (opt.bag) {
       ctx.fillStyle = opt.bag;
       ctx.beginPath(); ctx.ellipse(-8, -8, 6, 7, 0.1, 0, Math.PI * 2); ctx.fill();
@@ -3267,27 +3336,22 @@ class QuietScene {
       ctx.beginPath();
       ctx.moveTo(-2, -2);
       ctx.lineTo(12, -2);
-      ctx.lineTo(14, 10);
-      ctx.lineTo(-6, 10);
+      ctx.lineTo(14 + swing * 2, 8);
+      ctx.lineTo(-6 + swing * 2, 8);
       ctx.closePath();
       ctx.fill();
-    } else {
-      ctx.fillStyle = opt.pants;
-      ctx.beginPath(); ctx.ellipse(-1, 3, 3, 7, 0.2 + swing * 0.55, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(6, 3, 3, 7, -0.2 - swing * 0.55, 0, Math.PI * 2); ctx.fill();
     }
-    ctx.fillStyle = '#2c2c2c';
-    ctx.beginPath(); ctx.ellipse(0 + swing * 4, 11, 4, 1.8, 0.2, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(7 - swing * 4, 11, 4, 1.8, -0.15, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = opt.shirt;
     ctx.beginPath(); ctx.ellipse(4, -10, 8, 10, 0.05, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = skin;
     ctx.lineWidth = 2.6;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(2, -14);
-    if (opt.armUp) ctx.quadraticCurveTo(10, -20, 16, -26);
-    else ctx.quadraticCurveTo(8 + swing * 6, -12, 6 + swing * 10, -7);
+    ctx.moveTo(0, -12);
+    ctx.quadraticCurveTo(-6 - swing * (run ? 10 : 6), -4, -4 - swing * (run ? 12 : 7), run ? 2 : 0);
+    ctx.moveTo(8, -12);
+    if (opt.armUp) ctx.quadraticCurveTo(12, -22, 16, -28);
+    else ctx.quadraticCurveTo(12 + swing * (run ? 8 : 5), -6, 8 + swing * (run ? 11 : 7), run ? 1 : -2);
     ctx.stroke();
     ctx.fillStyle = skin;
     ctx.beginPath(); ctx.ellipse(8, -22, 6.2, 6.6, 0.08, 0, Math.PI * 2); ctx.fill();
@@ -3317,6 +3381,7 @@ class QuietScene {
     }
     ctx.fillStyle = '#2a241f';
     ctx.beginPath(); ctx.arc(11, -23, 1.05, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
   }
 
   drawWindowWheel(ctx, x, y, r) {
@@ -3469,7 +3534,8 @@ class QuietScene {
       ctx.save();
       ctx.translate(-4, -8);
       ctx.scale(0.78, 0.78);
-      this.drawWindowPerson(ctx, step * 0.3, {
+      this.drawWindowPerson(ctx, step * 0.35, {
+        gait: 'stroll',
         shirt: look.girl ? '#f0a0c0' : '#f0c14a',
         pants: '#34507a', skirt: '#f0a0c0',
         hair: look.girl ? '#c47a4a' : '#3a2a22', girl: look.girl
@@ -3487,7 +3553,8 @@ class QuietScene {
       ctx.save();
       ctx.translate(-28, -4);
       const parent = look.who === 'dad' ? 'dad' : 'mom';
-      this.drawWindowPerson(ctx, step * 0.3, {
+      this.drawWindowPerson(ctx, step * 0.55, {
+        gait: 'stroll',
         shirt: parent === 'mom' ? '#e07a9a' : '#4d6ea8',
         pants: '#34507a', skirt: '#e07a9a',
         hair: parent === 'mom' ? '#6a3a28' : '#2a211c',
@@ -3500,7 +3567,8 @@ class QuietScene {
       const old = who === 'grandma' || who === 'grandpa';
       ctx.save();
       ctx.scale(1.18, 1.18);
-      this.drawWindowPerson(ctx, step * 0.6, {
+      this.drawWindowPerson(ctx, step, {
+        gait: 'stroll',
         shirt: female ? '#c47a9a' : '#4d6ea8',
         pants: female ? '#6a4a6a' : '#2c3a55',
         skirt: '#c47a9a',
@@ -3516,7 +3584,8 @@ class QuietScene {
       }
       ctx.restore();
     } else if (p.id === 'runner') {
-      this.drawWindowPerson(ctx, step * 1.4, {
+      this.drawWindowPerson(ctx, step, {
+        gait: 'run',
         shirt: look.girl ? '#e25b8a' : '#e25b5b',
         pants: look.girl ? '#4a3060' : '#2c3a55',
         skirt: '#e25b8a',
@@ -3731,42 +3800,66 @@ class QuietScene {
     ctx.lineWidth = 4;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(frame.x, groundY + 22);
-    ctx.lineTo(frame.x + frame.w, groundY + 22);
+    ctx.moveTo(frame.x, groundY + 18);
+    ctx.lineTo(frame.x + frame.w, groundY + 18);
     ctx.stroke();
     ctx.lineWidth = 3;
     for (let x = frame.x + 8; x < frame.x + frame.w; x += 22) {
       ctx.beginPath();
-      ctx.moveTo(x, groundY + 14);
-      ctx.lineTo(x, groundY + 32);
+      ctx.moveTo(x, groundY + 10);
+      ctx.lineTo(x, groundY + 26);
       ctx.stroke();
     }
-    ctx.fillStyle = season === 'winter' ? '#d5dee6' : '#b7b1a4';
+    ctx.fillStyle = season === 'winter' ? '#d5dee6' : '#cfc6b6';
+    ctx.fillRect(frame.x, groundY + 28, frame.w, 22);
+    ctx.fillStyle = season === 'winter' ? '#9aa4ae' : '#6d737c';
+    ctx.fillRect(frame.x, groundY + 52, frame.w, 34);
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([10, 8]);
     ctx.beginPath();
-    ctx.moveTo(frame.x, groundY + 48);
-    ctx.quadraticCurveTo(frame.x + frame.w * 0.5, groundY + 40, frame.x + frame.w, groundY + 50);
-    ctx.lineTo(frame.x + frame.w, groundY + 64);
-    ctx.quadraticCurveTo(frame.x + frame.w * 0.5, groundY + 56, frame.x, groundY + 62);
-    ctx.fill();
+    ctx.moveTo(frame.x, groundY + 69);
+    ctx.lineTo(frame.x + frame.w, groundY + 69);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (win.puddles && win.puddles.length) {
+      win.puddles.forEach(p => {
+        const py = groundY + (p.lane === 'road' ? 70 : 40);
+        const px = frame.x + frame.w * p.x;
+        const pw = frame.w * p.w;
+        ctx.fillStyle = 'rgba(170,198,214,0.55)';
+        ctx.beginPath();
+        ctx.ellipse(px, py, pw, 5.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+        ctx.lineWidth = 1;
+        const ripple = (p.phase % 1);
+        ctx.beginPath();
+        ctx.ellipse(px, py, pw * (0.35 + ripple * 0.6), 2 + ripple * 2, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      });
+    }
 
     if (win.far && win.far.actor) {
       const fx = frame.x + frame.w * win.far.x;
       ctx.save();
       ctx.globalAlpha = 0.92;
-      win.far.actor.draw(ctx, fx, groundY + 8, 0.55);
+      win.far.actor.draw(ctx, fx, groundY + 30, 0.55);
       ctx.restore();
     }
 
     win.hits = [];
     if (win.far) {
       const fx = frame.x + frame.w * win.far.x;
-      win.hits.push({ x: fx - 28, y: groundY - 48, w: 64, h: 78, tale: win.far.tale });
+      win.hits.push({ x: fx - 28, y: groundY - 26, w: 64, h: 78, tale: win.far.tale });
     }
     win.passers.filter(p => p.id !== 'plane').forEach(p => {
       const px = frame.x + frame.w * p.x;
-      if (p.id === 'cat') this.drawWindowCat(ctx, px, groundY + 12, p);
-      else this.drawWindowPasser(ctx, px, groundY + 44, p);
-      win.hits.push({ x: px - 28, y: groundY - 10, w: 56, h: 58, tale: p.tale });
+      const road = p.lane === 'road' || p.id === 'car' || p.id === 'bus';
+      const gy = road ? groundY + 64 : groundY + 36;
+      if (p.id === 'cat') this.drawWindowCat(ctx, px, gy - 10, p);
+      else this.drawWindowPasser(ctx, px, gy, p);
+      win.hits.push({ x: px - 28, y: gy - 46, w: 64, h: 58, tale: p.tale });
     });
 
     win.bugs.forEach(b => {
@@ -3783,7 +3876,8 @@ class QuietScene {
     });
 
     win.birds.forEach(b => {
-      const by = b.y0 + Math.sin(b.x * b.wave + b.phase * 0.15) * b.amp;
+      const glide = b.glide > 0;
+      const by = b.y0 + Math.sin(b.x * b.wave) * b.amp * (glide ? 1.35 : 0.65) + Math.sin(b.phase * 0.22) * 0.012;
       const bx = frame.x + frame.w * b.x;
       const byPx = frame.y + frame.h * by;
       this.drawWindowBird(ctx, bx, byPx, b);
