@@ -1096,7 +1096,8 @@ class HomeScene {
         g.poke(kinds[n % kinds.length]);
         if (!System.isSleeping && typeof AudioSys !== 'undefined') AudioSys.voice(System.look.char, 'happy');
         if (!System.isSleeping && System.eggBump('king', 27, 60000)) {
-          g.say('Я Гофер — король всех стран!', 5);
+          const mine = System.look && System.look.char === 'gopher';
+          g.say(mine ? 'Я король всех стран!' : 'Гофер — король всех стран!', 5);
           System.addAch('egg_king');
           this._eggsKing = true;
         }
