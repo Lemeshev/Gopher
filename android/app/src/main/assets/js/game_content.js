@@ -2825,7 +2825,19 @@ const ACHIEVEMENTS = [
   { id: 'fishExpert',  tier: 'month', emoji: '🎣', name: 'Знаток рыб', desc: 'Собрать 50 разных видов — половина подводного мира', goal: 50,
     of: (p, S) => Object.keys((S && S.fishSeen) || {}).length },
   { id: 'fishMaster',  tier: 'month', emoji: '🏆', name: 'Весь подводный мир', desc: 'Поймать все 100 видов рыб: от уклейки до ската', goal: 100,
-    of: (p, S) => Object.keys((S && S.fishSeen) || {}).length }
+    of: (p, S) => Object.keys((S && S.fishSeen) || {}).length },
+
+  // Секреты не показываются, пока не найдены, и не открываются по счётчику.
+  { id: 'egg_king', secret: true, tier: 'today', emoji: '👑', name: 'Найдена пасхалка «Гофер — король всех стран»', desc: 'Секрет', goal: 1, of: function () { return 0; } },
+  { id: 'egg_full', secret: true, tier: 'today', emoji: '🍽️', name: 'Найдена пасхалка «Уже не лезет»', desc: 'Секрет', goal: 1, of: function () { return 0; } },
+  { id: 'egg_bubbles', secret: true, tier: 'today', emoji: '🫧', name: 'Найдена пасхалка «Мыльные пузыри»', desc: 'Секрет', goal: 1, of: function () { return 0; } },
+  { id: 'egg_owl', secret: true, tier: 'today', emoji: '🦉', name: 'Найдена пасхалка «Совам не до сна»', desc: 'Секрет', goal: 1, of: function () { return 0; } },
+  { id: 'egg_answer', secret: true, tier: 'today', emoji: '🔢', name: 'Найдена пасхалка «Главный ответ»', desc: 'Секрет', goal: 1, of: function () { return 0; } },
+  { id: 'egg_moon', secret: true, tier: 'today', emoji: '🌙', name: 'Найдена пасхалка «Доброй ночи, луна»', desc: 'Секрет', goal: 1, of: function () { return 0; } },
+  { id: 'egg_cat', secret: true, tier: 'today', emoji: '🐱', name: 'Найдена пасхалка «Мурлыка»', desc: 'Секрет', goal: 1, of: function () { return 0; } },
+  { id: 'egg_yoyo', secret: true, tier: 'today', emoji: '🏠', name: 'Найдена пасхалка «Туда-сюда»', desc: 'Секрет', goal: 1, of: function () { return 0; } },
+  { id: 'egg_hello', secret: true, tier: 'today', emoji: '👋', name: 'Найдена пасхалка «Здравствуй»', desc: 'Секрет', goal: 1, of: function () { return 0; } },
+  { id: 'egg_parade', secret: true, tier: 'today', emoji: '🦸', name: 'Найдена пасхалка «Парадный выход»', desc: 'Секрет', goal: 1, of: function () { return 0; } }
 ];
 
 // Категории музеев: нужны и вкладке «Знания», и достижениям коллекционера.

@@ -246,6 +246,9 @@ class Game {
       this.gopher.heldEmoji = null;
       this.gopher.heldTimer = 0;
       this.gopher.shower = 0;
+      if ((sceneName === 'home' && this.currentScene === 'map') || (sceneName === 'map' && this.currentScene === 'home')) {
+        if (System.eggBump('yoyo', 6, 180000)) System.addAch('egg_yoyo');
+      }
       this.scenes[sceneName].init(initArgs);
       this.currentScene = sceneName;
       // Сцена сообщает музыке, где мы: у каждого экрана свой характер мелодии

@@ -176,7 +176,7 @@ class StatsScene {
   // Видно четыре ступени по времени: что можно взять сегодня, а что — только
   // через месяцы (дни и серия дней). Список длинный, поэтому листается.
   drawAchTab(ctx, W, H) {
-    const list = System.achievementList();
+    const list = System.achievementList().filter(a => !a.secret || System.isAchUnlocked(a.id));
     const tiers = System.achievementTiers();
     const p = System.ensureProgress();
 

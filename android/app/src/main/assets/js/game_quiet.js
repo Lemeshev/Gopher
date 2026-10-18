@@ -3943,7 +3943,7 @@ class QuietScene {
       const gy = road ? roadBot - 16 : (p.lane === 'near' ? meadowMid : sideBot - 30);
       if (p.id === 'cat') this.drawWindowCat(ctx, px, gy - 10, p);
       else this.drawWindowPasser(ctx, px, gy, p);
-      win.hits.push({ x: px - 28, y: gy - 46, w: 64, h: 58, tale: p.tale });
+      win.hits.push({ x: px - 28, y: gy - 46, w: 64, h: 58, tale: p.tale, id: p.id });
     });
 
     win.bugs.forEach(b => {
@@ -4122,12 +4122,24 @@ class QuietScene {
       return true;
     }
 
+    if (this.mode === 'window' && this.win && this.win.day === 'night' && this.win.weather !== 'storm') {
+      const W = this.game.width, H = this.game.height;
+      const frame = { x: W * 0.08, y: H * 0.15, w: W * 0.84, h: H * 0.62 };
+      const mx0 = frame.x + frame.w * 0.78;
+      const my0 = frame.y + frame.h * 0.16;
+      if ((mx - mx0) * (mx - mx0) + (my - my0) * (my - my0) < 28 * 28) {
+        System.addAch('egg_moon');
+        AudioSys.play('click');
+        return true;
+      }
+    }
     if (this.mode === 'window' && this.win && this.win.hits) {
       for (let i = this.win.hits.length - 1; i >= 0; i--) {
         const h = this.win.hits[i];
         if (isPointInRect(mx, my, h.x, h.y, h.w, h.h)) {
           this.win.caption = h.tale || '';
           AudioSys.play('click');
+          if (h.id === 'cat' && System.eggBump('cat', 7, 120000)) System.addAch('egg_cat');
           return true;
         }
       }

@@ -2159,6 +2159,19 @@ const System = {
 
   // Ручное открытие достижения (например, из проверок или будущих наград).
   // Проверяем, что id есть в каталоге, и не открываем дважды.
+  eggBump(key, need, windowMs) {
+    if (!this._eggs) this._eggs = {};
+    const now = Date.now();
+    const prev = this._eggs[key] || [];
+    const fresh = (windowMs ? prev.filter(t => now - t <= windowMs) : prev).concat([now]);
+    if (fresh.length >= need) {
+      this._eggs[key] = [];
+      return true;
+    }
+    this._eggs[key] = fresh;
+    return false;
+  },
+
   addAch(id, opts) {
     const a = this.achievementList().find(x => x.id === id);
     if (!a || this.isAchUnlocked(id)) return false;

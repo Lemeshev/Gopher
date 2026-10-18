@@ -34,7 +34,10 @@ class Gopher {
     this.zzz = [];
     this.sparks = [];
     this.pokeT = 0;
+    this.pokeKind = 'hop';
     this.hearts = [];
+    this.sayText = '';
+    this.sayUntil = 0;
     this.canvas = canvas;
   }
 
@@ -358,10 +361,12 @@ class Gopher {
     const lw = Math.max(1.2, s * 0.011);
 
     const poke = this.pokeT || 0;
-    const hop = Math.sin(poke * Math.PI) * s * 0.2;
-    const squash = 1 + Math.sin(poke * Math.PI * 2) * 0.07;
+    const hop = Math.sin(poke * Math.PI) * s * (this.pokeKind === 'spin' ? 0.08 : 0.2);
+    const squash = 1 + Math.sin(poke * Math.PI * 2) * (this.pokeKind === 'wiggle' ? 0.12 : 0.07);
+    const spin = this.pokeKind === 'spin' ? Math.sin(poke * Math.PI) * 0.55 : 0;
     ctx.save();
     ctx.translate(x, y + this.bobY - hop);
+    ctx.rotate(spin);
     ctx.scale(squash, 2 - squash);
     ctx.lineJoin = 'round';
 
@@ -601,7 +606,7 @@ class Gopher {
         const hy = y + h.y * s - hop;
         const r = s * 0.055;
         ctx.globalAlpha = Math.max(0, h.a);
-        ctx.fillStyle = '#ff5a7a';
+        ctx.fillStyle = this.pokeKind === 'stars' ? '#ffd15a' : '#ff5a7a';
         ctx.beginPath();
         ctx.moveTo(hx, hy + r * 0.35);
         ctx.bezierCurveTo(hx - r * 1.15, hy - r * 0.15, hx - r * 0.25, hy - r * 1.05, hx, hy - r * 0.35);
@@ -612,7 +617,9 @@ class Gopher {
     }
   }
 
-  poke() {
+  poke(kind) {
+    const kinds = ['hop', 'stars', 'spin', 'wiggle'];
+    this.pokeKind = kinds.indexOf(kind) >= 0 ? kind : 'hop';
     this.pokeT = 1;
     this.hearts = [
       { x: -0.22, y: -0.5, vx: -0.01, vy: -0.018, a: 1 },
@@ -620,6 +627,11 @@ class Gopher {
       { x: 0.24, y: -0.46, vx: 0.012, vy: -0.016, a: 1 }
     ];
     this.setExpression('excited', 40);
+  }
+
+  say(text, sec) {
+    this.sayText = text;
+    this.sayUntil = Date.now() + (sec || 5) * 1000;
   }
 
   setExpression(expr, duration) {

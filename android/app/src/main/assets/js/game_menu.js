@@ -792,8 +792,12 @@ class MenuScene {
       const gs = Math.min(W * 0.33, 138);
       const gy = H * 0.345;
       if (Math.abs(mx - W / 2) < gs * 0.4 && my > gy - gs * 0.55 && my < gy + gs * 0.48) {
-        this.game.gopher.poke();
+        const kinds = ['hop', 'stars', 'spin', 'wiggle'];
+        const n = this.pokeN || 0;
+        this.pokeN = n + 1;
+        this.game.gopher.poke(kinds[n % kinds.length]);
         if (typeof AudioSys !== 'undefined') AudioSys.voice(System.look.char, 'happy');
+        if (System.eggBump('hello', 10, 60000)) System.addAch('egg_hello');
         return true;
       }
     }

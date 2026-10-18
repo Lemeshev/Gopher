@@ -57,6 +57,7 @@ class HomeScene {
     this.sparkles = [];
     this.zzz = [];
     System.ensureRooms();
+    if (System.look && System.look.hat === 'crown' && System.look.back === 'cape') System.addAch('egg_parade');
 
     // Что показать в облачке: сначала «пока тебя не было», потом сон/стресс
     if (System.offlineReport) {
@@ -320,6 +321,34 @@ class HomeScene {
     g.shower = this.bath > 0 ? 2 : 0;
 
     g.draw(ctx, L.W * 0.5, L.gopherY, L.gs / g.size);
+    if (g.sayText && Date.now() < g.sayUntil) this.drawSay(ctx, L.W * 0.5, L.gopherY - L.gs * 0.62, g.sayText);
+  }
+
+  drawSay(ctx, x, y, text) {
+    ctx.font = 'bold 13px Arial';
+    const lines = wrapLines(ctx, text, 210, 2);
+    const boxW = Math.min(230, Math.max.apply(null, lines.map(l => ctx.measureText(l).width)) + 22);
+    const boxH = 12 + lines.length * 16;
+    const bx = x - boxW / 2;
+    const by = y - boxH;
+    ctx.fillStyle = '#fffef8';
+    ctx.strokeStyle = '#2a241f';
+    ctx.lineWidth = 2;
+    roundRect(ctx, bx, by, boxW, boxH, 12);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x - 6, by + boxH - 1);
+    ctx.lineTo(x, by + boxH + 8);
+    ctx.lineTo(x + 6, by + boxH - 1);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#2a241f';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    lines.forEach((line, i) => ctx.fillText(line, x, by + 12 + i * 16));
+    ctx.textBaseline = 'alphabetic';
   }
 
   // ---------- Эффекты ----------
@@ -1060,9 +1089,19 @@ class HomeScene {
       const L = this.layout();
       const gx = L.W * 0.5;
       if (Math.abs(mx - gx) < L.gs * 0.4 && my > L.gopherY - L.gs * 0.55 && my < L.gopherY + L.gs * 0.5) {
-        g.poke();
+        const kinds = ['hop', 'stars', 'spin', 'wiggle'];
+        const lines = ['Хи-хи!', 'Прыг!', 'Ещё!', 'Щекотно!'];
+        const n = this.pokeN || 0;
+        this.pokeN = n + 1;
+        g.poke(kinds[n % kinds.length]);
         if (!System.isSleeping && typeof AudioSys !== 'undefined') AudioSys.voice(System.look.char, 'happy');
-        this.setBubble(System.isSleeping ? 'Тсс, питомец спит' : 'Хи-хи!');
+        if (!System.isSleeping && System.eggBump('king', 27, 60000)) {
+          g.say('Я Гофер — король всех стран!', 5);
+          System.addAch('egg_king');
+          this._eggsKing = true;
+        }
+        if (!this._eggsKing) this.setBubble(System.isSleeping ? 'Тсс, питомец спит' : lines[n % lines.length]);
+        this._eggsKing = false;
         return true;
       }
     }
@@ -1288,6 +1327,7 @@ class HomeScene {
         this.feedEmoji = foods[randInt(0, foods.length - 1)];
         this.feed = 2.4;
         this.crumbs = [];
+        const wasFull = System.stats.hunger >= 100;
         System.stats.hunger = Math.min(100, System.stats.hunger + 25);
         System.stats.happiness = Math.min(100, System.stats.happiness + 5);
         System.stats.stress = Math.max(0, System.stats.stress - 3);
@@ -1296,11 +1336,13 @@ class HomeScene {
         AudioSys.voice(System.look.char, 'happy');   // герой чавкает своим голосом (v1.3)
         System.addXP(5);
         System.countAction('feeds');
+        if (wasFull && System.eggBump('full', 5)) System.addAch('egg_full');
         break;
       }
 
-      case 'bathe':
+      case 'bathe': {
         this.bath = 3.0;
+        const wasClean = System.stats.cleanliness >= 100;
         System.stats.cleanliness = Math.min(100, System.stats.cleanliness + 30);
         System.stats.happiness = Math.min(100, System.stats.happiness + 5);
         this.setBubble('Бульк-бульк! Чистый! \ud83e\uddfc');
@@ -1308,7 +1350,9 @@ class HomeScene {
         AudioSys.voice(System.look.char, 'happy');
         System.addXP(5);
         System.countAction('washes');
+        if (wasClean && System.eggBump('bubbles', 3)) System.addAch('egg_bubbles');
         break;
+      }
 
       case 'sleep':
         if (System.isSleeping) {
@@ -1325,6 +1369,7 @@ class HomeScene {
           // Энергия и так полная: спать нечего, и это надо сказать словами
           this.setBubble('{Pet} и так {pet:полон|полна} сил \u26a1 — бегать и играть!');
           AudioSys.play('fail');
+          if (System.eggBump('owl', 3, 60000)) System.addAch('egg_owl');
         }
         break;
 

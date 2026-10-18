@@ -325,6 +325,7 @@ class ToolsScene {
     if (key === '=') {
       this.calc = this.evalCalc(this.expr);
       this.expr = this.calc === 'нельзя' ? '' : this.calc;
+      if (this.calc === '42') System.addAch('egg_answer');
       return;
     }
     const op = { '÷': '/', '×': '*', '−': '-', '+': '+' }[key] || key;
