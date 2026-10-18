@@ -33,6 +33,8 @@ class Gopher {
     this.animationTime = 0;
     this.zzz = [];
     this.sparks = [];
+    this.pokeT = 0;
+    this.hearts = [];
     this.canvas = canvas;
   }
 
@@ -77,6 +79,11 @@ class Gopher {
       if (this.heldTimer <= 0) this.heldEmoji = null;
     }
     if (this.shower > 0) this.shower--;
+    if (this.pokeT > 0) this.pokeT = Math.max(0, this.pokeT - 0.04);
+    if (this.hearts && this.hearts.length) {
+      this.hearts.forEach(h => { h.x += h.vx; h.y += h.vy; h.a -= 0.018; });
+      this.hearts = this.hearts.filter(h => h.a > 0);
+    }
 
     if (this.expression === 'sleeping') {
       this.zzz.push({ x: x + s * 0.4, y: y - s * 0.55 - this.zzz.length * 12, alpha: 1, size: 10 + this.zzz.length * 2 });
@@ -350,8 +357,12 @@ class Gopher {
     const C = this.COLORS;
     const lw = Math.max(1.2, s * 0.011);
 
+    const poke = this.pokeT || 0;
+    const hop = Math.sin(poke * Math.PI) * s * 0.2;
+    const squash = 1 + Math.sin(poke * Math.PI * 2) * 0.07;
     ctx.save();
-    ctx.translate(x, y + this.bobY);
+    ctx.translate(x, y + this.bobY - hop);
+    ctx.scale(squash, 2 - squash);
     ctx.lineJoin = 'round';
 
     this.drawAura(ctx, x, y, s);
@@ -584,6 +595,31 @@ class Gopher {
     this.drawAccessories(ctx, s, C, lw, eyeY, eyeSpacing, eyeR);
 
     ctx.restore();
+    if (this.hearts && this.hearts.length) {
+      this.hearts.forEach(h => {
+        const hx = x + h.x * s;
+        const hy = y + h.y * s - hop;
+        const r = s * 0.055;
+        ctx.globalAlpha = Math.max(0, h.a);
+        ctx.fillStyle = '#ff5a7a';
+        ctx.beginPath();
+        ctx.moveTo(hx, hy + r * 0.35);
+        ctx.bezierCurveTo(hx - r * 1.15, hy - r * 0.15, hx - r * 0.25, hy - r * 1.05, hx, hy - r * 0.35);
+        ctx.bezierCurveTo(hx + r * 0.25, hy - r * 1.05, hx + r * 1.15, hy - r * 0.15, hx, hy + r * 0.35);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  poke() {
+    this.pokeT = 1;
+    this.hearts = [
+      { x: -0.22, y: -0.5, vx: -0.01, vy: -0.018, a: 1 },
+      { x: 0.02, y: -0.62, vx: 0.002, vy: -0.024, a: 1 },
+      { x: 0.24, y: -0.46, vx: 0.012, vy: -0.016, a: 1 }
+    ];
+    this.setExpression('excited', 40);
   }
 
   setExpression(expr, duration) {

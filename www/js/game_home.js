@@ -1055,6 +1055,17 @@ class HomeScene {
       }
       return this.doAction(btn.action);
     }
+    const g = this.game.gopher;
+    if (g && this.feed <= 0 && this.bath <= 0 && this.playTimer <= 0) {
+      const L = this.layout();
+      const gx = L.W * 0.5;
+      if (Math.abs(mx - gx) < L.gs * 0.4 && my > L.gopherY - L.gs * 0.55 && my < L.gopherY + L.gs * 0.5) {
+        g.poke();
+        if (!System.isSleeping && typeof AudioSys !== 'undefined') AudioSys.voice(System.look.char, 'happy');
+        this.setBubble(System.isSleeping ? 'Тсс, питомец спит' : 'Хи-хи!');
+        return true;
+      }
+    }
     return false;
   }
 

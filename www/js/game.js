@@ -215,10 +215,11 @@ class Game {
     const vv = window.visualViewport;
     const w = Math.round((vv && vv.width) || window.innerWidth || 360);
     const h = Math.round((vv && vv.height) || window.innerHeight || 640);
+    const dpr = Math.min(3, Math.max(1, (window.devicePixelRatio || 1)));
     this.width = w;
     this.height = h;
-    this.canvas.width = w;
-    this.canvas.height = h;
+    this.canvas.width = Math.round(w * dpr);
+    this.canvas.height = Math.round(h * dpr);
     this.canvas.style.width = w + 'px';
     this.canvas.style.height = h + 'px';
     if (vv) this.canvas.style.marginTop = Math.round(vv.offsetTop || 0) + 'px';
@@ -227,7 +228,8 @@ class Game {
       const lift = Math.max(0, Math.round(window.innerHeight - vv.height - (vv.offsetTop || 0)));
       bar.style.bottom = lift + 'px';
     }
-    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.ctx.imageSmoothingEnabled = true;
   }
 
   transitionTo(sceneName, initArgs) {

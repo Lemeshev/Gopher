@@ -786,6 +786,17 @@ class MenuScene {
       }
       return true;
     }
+    if (!this.aboutMode && !this.profilesMode && !this.charMode && !this.showSettings && this.game.gopher) {
+      const W = this.game.width;
+      const H = this.game.height;
+      const gs = Math.min(W * 0.33, 138);
+      const gy = H * 0.345;
+      if (Math.abs(mx - W / 2) < gs * 0.4 && my > gy - gs * 0.55 && my < gy + gs * 0.48) {
+        this.game.gopher.poke();
+        if (typeof AudioSys !== 'undefined') AudioSys.voice(System.look.char, 'happy');
+        return true;
+      }
+    }
     return false;
   }
 }
