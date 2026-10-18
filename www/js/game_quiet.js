@@ -3873,19 +3873,23 @@ class QuietScene {
       ctx.lineTo(x, groundY + 26);
       ctx.stroke();
     }
+    const sideTop = groundY + 16;
+    const sideBot = groundY + 58;
+    const roadTop = groundY + 62;
+    const roadBot = groundY + 114;
     ctx.fillStyle = season === 'winter' ? '#d5dee6' : '#cfc6b6';
-    ctx.fillRect(frame.x, groundY + 28, frame.w, 22);
+    ctx.fillRect(frame.x, sideTop, frame.w, sideBot - sideTop);
     ctx.fillStyle = season === 'winter' ? '#9aa4ae' : '#6d737c';
-    ctx.fillRect(frame.x, groundY + 52, frame.w, 34);
+    ctx.fillRect(frame.x, roadTop, frame.w, roadBot - roadTop);
     ctx.strokeStyle = 'rgba(255,255,255,0.55)';
     ctx.lineWidth = 2;
     ctx.setLineDash([10, 8]);
     ctx.beginPath();
-    ctx.moveTo(frame.x, groundY + 69);
-    ctx.lineTo(frame.x + frame.w, groundY + 69);
+    ctx.moveTo(frame.x, (roadTop + roadBot) / 2);
+    ctx.lineTo(frame.x + frame.w, (roadTop + roadBot) / 2);
     ctx.stroke();
     ctx.setLineDash([]);
-    const meadowTop = groundY + 90;
+    const meadowTop = roadBot + 4;
     ctx.strokeStyle = season === 'winter' ? 'rgba(255,255,255,0.35)' : 'rgba(20,70,30,0.28)';
     ctx.lineWidth = 1.4;
     for (let i = 0; i < 14; i++) {
@@ -3900,11 +3904,10 @@ class QuietScene {
     }
     if (win.puddles && win.puddles.length) {
       win.puddles.forEach(p => {
-        const meadowTop = groundY + 90;
         const meadowBot = frame.y + frame.h - 10;
         const yf = p.y == null ? 0.5 : p.y;
-        const py = p.lane === 'road' ? groundY + 70
-          : (p.lane === 'near' ? meadowTop + (meadowBot - meadowTop) * yf : groundY + 40);
+        const py = p.lane === 'road' ? (roadTop + roadBot) / 2
+          : (p.lane === 'near' ? meadowTop + (meadowBot - meadowTop) * yf : (sideTop + sideBot) / 2);
         const px = frame.x + frame.w * p.x;
         const pw = frame.w * p.w;
         ctx.fillStyle = 'rgba(170,198,214,0.55)';
@@ -3936,8 +3939,8 @@ class QuietScene {
     win.passers.filter(p => p.id !== 'plane').forEach(p => {
       const px = frame.x + frame.w * p.x;
       const road = p.lane === 'road' || p.id === 'car' || p.id === 'bus';
-      const meadowMid = groundY + 90 + (frame.y + frame.h - groundY - 100) * 0.45;
-      const gy = road ? groundY + 64 : (p.lane === 'near' ? meadowMid : groundY + 36);
+      const meadowMid = meadowTop + (frame.y + frame.h - meadowTop) * 0.42;
+      const gy = road ? roadBot - 16 : (p.lane === 'near' ? meadowMid : sideBot - 30);
       if (p.id === 'cat') this.drawWindowCat(ctx, px, gy - 10, p);
       else this.drawWindowPasser(ctx, px, gy, p);
       win.hits.push({ x: px - 28, y: gy - 46, w: 64, h: 58, tale: p.tale });
