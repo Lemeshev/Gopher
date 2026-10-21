@@ -1,112 +1,477 @@
-const CLAY_SHAPES = [
-  { id: 'ball', name: 'Шар' },
-  { id: 'roll', name: 'Жгут' },
-  { id: 'cake', name: 'Блин' },
-  { id: 'cone', name: 'Носик' },
-  { id: 'cube', name: 'Куб' }
-];
-const CLAY_MODELS = [
-  { name: 'Снеговик', parts: ['ball', 'ball', 'ball'] },
-  { name: 'Гусеница', parts: ['ball', 'ball', 'ball'] },
-  { name: 'Бусы', parts: ['ball', 'ball', 'ball'] },
-  { name: 'Три ягоды', parts: ['ball', 'ball', 'ball'] },
-  { name: 'Стопка снежков', parts: ['ball', 'ball', 'ball'] },
-  { name: 'Снеговик у дома', parts: ['ball', 'ball', 'ball'] },
-  { name: 'Гусеница на листе', parts: ['ball', 'ball', 'ball'] },
-  { name: 'Бусы для праздника', parts: ['ball', 'ball', 'ball'] },
-  { name: 'Гриб', parts: ['cake', 'roll', 'ball'] },
-  { name: 'Мухомор', parts: ['cake', 'roll', 'ball'] },
-  { name: 'Гриб на пеньке', parts: ['cake', 'roll', 'ball'] },
-  { name: 'Подосиновик', parts: ['cake', 'roll', 'ball'] },
-  { name: 'Сыроежка', parts: ['cake', 'roll', 'ball'] },
-  { name: 'Гриб после дождя', parts: ['cake', 'roll', 'ball'] },
-  { name: 'Опёнок', parts: ['cake', 'roll', 'ball'] },
-  { name: 'Лисичка', parts: ['cake', 'roll', 'ball'] },
-  { name: 'Дом', parts: ['cube', 'cube', 'cone'] },
-  { name: 'Башня', parts: ['cube', 'cube', 'cone'] },
-  { name: 'Сарай', parts: ['cube', 'cube', 'cone'] },
-  { name: 'Маяк', parts: ['cube', 'cube', 'cone'] },
-  { name: 'Крепость', parts: ['cube', 'cube', 'cone'] },
-  { name: 'Теремок', parts: ['cube', 'cube', 'cone'] },
-  { name: 'Изба', parts: ['cube', 'cube', 'cone'] },
-  { name: 'Сторожка', parts: ['cube', 'cube', 'cone'] },
-  { name: 'Ёлка', parts: ['cone', 'cone', 'roll'] },
-  { name: 'Морковка', parts: ['cone', 'cone', 'roll'] },
-  { name: 'Ракета', parts: ['cone', 'cone', 'roll'] },
-  { name: 'Колпак волшебника', parts: ['cone', 'cone', 'roll'] },
-  { name: 'Мороженое в стаканчике', parts: ['cone', 'cone', 'roll'] },
-  { name: 'Гора', parts: ['cone', 'cone', 'roll'] },
-  { name: 'Карандаш', parts: ['cone', 'cone', 'roll'] },
-  { name: 'Пирамидка', parts: ['cone', 'cone', 'roll'] },
-  { name: 'Чашка', parts: ['cube', 'cake', 'ball'] },
-  { name: 'Миска', parts: ['cube', 'cake', 'ball'] },
-  { name: 'Тарелка с булкой', parts: ['cube', 'cake', 'ball'] },
-  { name: 'Горшок', parts: ['cube', 'cake', 'ball'] },
-  { name: 'Ваза', parts: ['cube', 'cake', 'ball'] },
-  { name: 'Кастрюля', parts: ['cube', 'cake', 'ball'] },
-  { name: 'Пиала', parts: ['cube', 'cake', 'ball'] },
-  { name: 'Супница', parts: ['cube', 'cake', 'ball'] },
-  { name: 'Машина', parts: ['cube', 'cube', 'ball', 'ball'] },
-  { name: 'Автобус', parts: ['cube', 'cube', 'ball', 'ball'] },
-  { name: 'Паровоз', parts: ['cube', 'cube', 'ball', 'ball'] },
-  { name: 'Телега', parts: ['cube', 'cube', 'ball', 'ball'] },
-  { name: 'Трактор', parts: ['cube', 'cube', 'ball', 'ball'] },
-  { name: 'Фургон', parts: ['cube', 'cube', 'ball', 'ball'] },
-  { name: 'Самосвал', parts: ['cube', 'cube', 'ball', 'ball'] },
-  { name: 'Повозка', parts: ['cube', 'cube', 'ball', 'ball'] },
-  { name: 'Цветок', parts: ['ball', 'roll', 'cake'] },
-  { name: 'Ромашка', parts: ['ball', 'roll', 'cake'] },
-  { name: 'Тюльпан', parts: ['ball', 'roll', 'cake'] },
-  { name: 'Одуванчик', parts: ['ball', 'roll', 'cake'] },
-  { name: 'Мак', parts: ['ball', 'roll', 'cake'] },
-  { name: 'Колокольчик', parts: ['ball', 'roll', 'cake'] },
-  { name: 'Астра', parts: ['ball', 'roll', 'cake'] },
-  { name: 'Василёк', parts: ['ball', 'roll', 'cake'] },
-  { name: 'Птица', parts: ['cone', 'ball', 'cake'] },
-  { name: 'Утка', parts: ['cone', 'ball', 'cake'] },
-  { name: 'Воробей', parts: ['cone', 'ball', 'cake'] },
-  { name: 'Петух', parts: ['cone', 'ball', 'cake'] },
-  { name: 'Сова', parts: ['cone', 'ball', 'cake'] },
-  { name: 'Синица', parts: ['cone', 'ball', 'cake'] },
-  { name: 'Голубь', parts: ['cone', 'ball', 'cake'] },
-  { name: 'Снегирь', parts: ['cone', 'ball', 'cake'] },
-  { name: 'Рыба', parts: ['cone', 'cake', 'ball'] },
-  { name: 'Кит', parts: ['cone', 'cake', 'ball'] },
-  { name: 'Дельфин', parts: ['cone', 'cake', 'ball'] },
-  { name: 'Карась', parts: ['cone', 'cake', 'ball'] },
-  { name: 'Щука', parts: ['cone', 'cake', 'ball'] },
-  { name: 'Окунь', parts: ['cone', 'cake', 'ball'] },
-  { name: 'Лодочка', parts: ['cone', 'cake', 'ball'] },
-  { name: 'Кораблик', parts: ['cone', 'cake', 'ball'] },
-  { name: 'Робот', parts: ['cube', 'ball', 'ball'] },
-  { name: 'Снеговик в шляпе', parts: ['cube', 'ball', 'ball'] },
-  { name: 'Медведь', parts: ['cube', 'ball', 'ball'] },
-  { name: 'Кот сидя', parts: ['cube', 'ball', 'ball'] },
-  { name: 'Пингвин', parts: ['cube', 'ball', 'ball'] },
-  { name: 'Рыцарь', parts: ['cube', 'ball', 'ball'] },
-  { name: 'Гном', parts: ['cube', 'ball', 'ball'] },
-  { name: 'Матрёшка', parts: ['cube', 'ball', 'ball'] },
-  { name: 'Торт', parts: ['cake', 'cake', 'ball'] },
-  { name: 'Пирог', parts: ['cake', 'cake', 'ball'] },
-  { name: 'Бутерброд', parts: ['cake', 'cake', 'ball'] },
-  { name: 'Стопка блинов', parts: ['cake', 'cake', 'ball'] },
-  { name: 'Пряник', parts: ['cake', 'cake', 'ball'] },
-  { name: 'Кекс', parts: ['cake', 'cake', 'ball'] },
-  { name: 'Ватрушка', parts: ['cake', 'cake', 'ball'] },
-  { name: 'Пирожное', parts: ['cake', 'cake', 'ball'] },
-  { name: 'Дерево', parts: ['ball', 'roll', 'cube'] },
-  { name: 'Пальма', parts: ['ball', 'roll', 'cube'] },
-  { name: 'Яблоня', parts: ['ball', 'roll', 'cube'] },
-  { name: 'Дуб', parts: ['ball', 'roll', 'cube'] },
-  { name: 'Берёза', parts: ['ball', 'roll', 'cube'] },
-  { name: 'Куст', parts: ['ball', 'roll', 'cube'] },
-  { name: 'Цветок в горшке', parts: ['ball', 'roll', 'cube'] },
-  { name: 'Кактус', parts: ['ball', 'roll', 'cube'] },
-  { name: 'Мост', parts: ['cube', 'roll', 'cube'] },
-  { name: 'Качели', parts: ['cube', 'roll', 'cube'] },
-  { name: 'Скамейка', parts: ['cube', 'roll', 'cube'] },
-  { name: 'Забор с калиткой', parts: ['cube', 'roll', 'cube'] }
-];
+// Лепка: ком глины из 12 точек. Палец тянет поверхность, соседи тянутся следом.
+// Образец — тот же контур. Сто фигурок, у каждой свой силуэт.
+
+function clayNorm(pts) {
+  let cx = 0;
+  let cy = 0;
+  pts.forEach(p => { cx += p.x; cy += p.y; });
+  cx /= pts.length;
+  cy /= pts.length;
+  let r = 0;
+  pts.forEach(p => { r = Math.max(r, Math.hypot(p.x - cx, p.y - cy)); });
+  if (r < 0.001) r = 1;
+  return pts.map(p => ({ x: (p.x - cx) / r, y: (p.y - cy) / r }));
+}
+
+function clayResample(pts, n) {
+  const seg = [];
+  let total = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i];
+    const b = pts[(i + 1) % pts.length];
+    const len = Math.hypot(b.x - a.x, b.y - a.y) || 0.0001;
+    seg.push({ a: a, b: b, len: len });
+    total += len;
+  }
+  const out = [];
+  for (let k = 0; k < n; k++) {
+    let d = (total * k) / n;
+    for (let s = 0; s < seg.length; s++) {
+      if (d <= seg[s].len) {
+        const t = d / seg[s].len;
+        out.push({
+          x: seg[s].a.x + (seg[s].b.x - seg[s].a.x) * t,
+          y: seg[s].a.y + (seg[s].b.y - seg[s].a.y) * t
+        });
+        break;
+      }
+      d -= seg[s].len;
+    }
+  }
+  return clayNorm(out);
+}
+
+function clayFish(len, fat, tail) {
+  return [
+    { x: len, y: 0 },
+    { x: len * 0.55, y: -fat * 0.45 },
+    { x: len * 0.1, y: -fat },
+    { x: -len * 0.25, y: -fat * 0.72 },
+    { x: -len * 0.72, y: -tail },
+    { x: -len * 0.42, y: -tail * 0.15 },
+    { x: -len * 0.72, y: tail },
+    { x: -len * 0.25, y: fat * 0.72 },
+    { x: len * 0.08, y: fat },
+    { x: len * 0.58, y: fat * 0.4 }
+  ];
+}
+
+function clayBird(beak, body, tail) {
+  return [
+    { x: 0.95, y: -0.05 },
+    { x: 0.95 + beak, y: 0.12 },
+    { x: 0.72, y: 0.22 },
+    { x: 0.35, y: body },
+    { x: -0.05, y: body * 0.85 },
+    { x: -0.55, y: tail },
+    { x: -0.85, y: tail * 0.2 },
+    { x: -0.4, y: -body * 0.2 },
+    { x: 0.05, y: -body * 0.95 },
+    { x: 0.45, y: -body * 0.7 }
+  ];
+}
+
+function clayHouse(roof, wall, chimney) {
+  return [
+    { x: 0, y: -1 },
+    { x: roof, y: -0.25 },
+    { x: roof * 0.72, y: -0.25 },
+    { x: roof * 0.72, y: -0.25 - chimney },
+    { x: roof * 0.48, y: -0.25 - chimney },
+    { x: roof * 0.48, y: -0.25 },
+    { x: wall, y: -0.15 },
+    { x: wall, y: 0.85 },
+    { x: -wall, y: 0.85 },
+    { x: -wall, y: -0.15 },
+    { x: -roof, y: -0.25 }
+  ];
+}
+
+function clayTree(crown, trunk) {
+  return [
+    { x: 0, y: -1 },
+    { x: crown, y: -0.15 },
+    { x: trunk, y: -0.05 },
+    { x: trunk, y: 0.95 },
+    { x: -trunk, y: 0.95 },
+    { x: -trunk, y: -0.05 },
+    { x: -crown, y: -0.15 }
+  ];
+}
+
+function clayMushroom(cap, stem) {
+  return [
+    { x: 0, y: -0.95 },
+    { x: cap, y: -0.35 },
+    { x: cap * 0.92, y: -0.12 },
+    { x: stem, y: -0.08 },
+    { x: stem * 1.1, y: 0.85 },
+    { x: -stem * 1.1, y: 0.85 },
+    { x: -stem, y: -0.08 },
+    { x: -cap * 0.92, y: -0.12 },
+    { x: -cap, y: -0.35 }
+  ];
+}
+
+function clayCar(cab, nose, wheel) {
+  return [
+    { x: -0.95, y: 0.15 },
+    { x: -0.7, y: -0.35 },
+    { x: -0.15, y: -0.72 },
+    { x: cab, y: -0.68 },
+    { x: nose, y: -0.15 },
+    { x: 1.05, y: 0.15 },
+    { x: 0.85, y: 0.42 },
+    { x: 0.55, y: 0.42 + wheel },
+    { x: 0.28, y: 0.42 },
+    { x: -0.15, y: 0.42 },
+    { x: -0.4, y: 0.42 + wheel },
+    { x: -0.72, y: 0.42 }
+  ];
+}
+
+function clayCat(ear, body, tail) {
+  return [
+    { x: -0.35, y: -0.15 },
+    { x: -0.55, y: -0.95 },
+    { x: -0.15, y: -0.35 },
+    { x: 0.15, y: -0.35 },
+    { x: 0.45, y: -0.95 - ear },
+    { x: 0.62, y: -0.1 },
+    { x: 0.85, y: 0.35 },
+    { x: 0.55, y: 0.85 },
+    { x: -0.2, y: 0.9 },
+    { x: -0.75, y: 0.45 },
+    { x: -1.05, y: tail },
+    { x: -0.7, y: 0.05 }
+  ];
+}
+
+function clayRocket(fin, body) {
+  return [
+    { x: 0, y: -1.05 },
+    { x: body * 0.45, y: -0.45 },
+    { x: body, y: 0.15 },
+    { x: body + fin, y: 0.85 },
+    { x: body * 0.35, y: 0.55 },
+    { x: 0, y: 0.95 },
+    { x: -body * 0.35, y: 0.55 },
+    { x: -body - fin, y: 0.85 },
+    { x: -body, y: 0.15 },
+    { x: -body * 0.45, y: -0.45 }
+  ];
+}
+
+function clayFlower(petals, stem) {
+  const pts = [];
+  const n = petals;
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + (Math.PI * 2 * i) / n;
+    pts.push({ x: Math.cos(a) * 0.72, y: Math.sin(a) * 0.55 - 0.25 });
+    pts.push({ x: Math.cos(a + Math.PI / n) * 0.28, y: Math.sin(a + Math.PI / n) * 0.2 - 0.25 });
+  }
+  pts.push({ x: stem, y: 0.15 });
+  pts.push({ x: stem, y: 1 });
+  pts.push({ x: -stem, y: 1 });
+  pts.push({ x: -stem, y: 0.15 });
+  return pts;
+}
+
+function clayCup(bowl, handle) {
+  return [
+    { x: -bowl, y: -0.55 },
+    { x: bowl, y: -0.55 },
+    { x: bowl * 0.85, y: 0.45 },
+    { x: bowl + handle, y: 0.15 },
+    { x: bowl + handle, y: -0.15 },
+    { x: bowl * 0.95, y: -0.05 },
+    { x: bowl * 0.78, y: 0.62 },
+    { x: -bowl * 0.78, y: 0.62 }
+  ];
+}
+
+function clayBoat(hull, sail) {
+  return [
+    { x: -1, y: 0.25 },
+    { x: -0.55, y: 0.72 },
+    { x: 0.7, y: 0.72 },
+    { x: 1.05, y: 0.2 },
+    { x: 0.15, y: 0.18 },
+    { x: 0.15, y: -sail },
+    { x: 0.72, y: -0.05 },
+    { x: 0.12, y: 0.05 },
+    { x: -0.85, y: 0.12 }
+  ];
+}
+
+function clayStar(inner) {
+  const pts = [];
+  for (let i = 0; i < 5; i++) {
+    const a = -Math.PI / 2 + (Math.PI * 2 * i) / 5;
+    pts.push({ x: Math.cos(a), y: Math.sin(a) });
+    const b = a + Math.PI / 5;
+    pts.push({ x: Math.cos(b) * inner, y: Math.sin(b) * inner });
+  }
+  return pts;
+}
+
+function clayHeart(wide, dent) {
+  return [
+    { x: 0, y: 0.95 },
+    { x: -0.85 * wide, y: 0.15 },
+    { x: -0.7 * wide, y: -0.55 },
+    { x: -0.25, y: -0.72 },
+    { x: 0, y: -0.25 - dent },
+    { x: 0.25, y: -0.72 },
+    { x: 0.7 * wide, y: -0.55 },
+    { x: 0.85 * wide, y: 0.15 }
+  ];
+}
+
+function claySnow(head, mid, base) {
+  return [
+    { x: 0, y: -1.15 },
+    { x: head, y: -0.82 },
+    { x: head * 0.65, y: -0.48 },
+    { x: mid, y: -0.05 },
+    { x: mid * 0.8, y: 0.22 },
+    { x: base, y: 0.72 },
+    { x: 0, y: 1.05 },
+    { x: -base, y: 0.72 },
+    { x: -mid * 0.8, y: 0.22 },
+    { x: -mid, y: -0.05 },
+    { x: -head * 0.65, y: -0.48 },
+    { x: -head, y: -0.82 }
+  ];
+}
+
+function clayHat(brim, crown) {
+  return [
+    { x: -brim, y: 0.35 },
+    { x: -crown, y: 0.22 },
+    { x: -crown, y: -0.85 },
+    { x: crown, y: -0.85 },
+    { x: crown, y: 0.22 },
+    { x: brim, y: 0.35 },
+    { x: brim * 0.7, y: 0.55 },
+    { x: -brim * 0.7, y: 0.55 }
+  ];
+}
+
+function clayApple(stem, fat) {
+  return [
+    { x: 0, y: -0.95 },
+    { x: 0.12, y: -1.15 },
+    { x: 0.28, y: -0.85 },
+    { x: fat, y: -0.2 },
+    { x: fat * 0.85, y: 0.55 },
+    { x: 0.2, y: 0.95 },
+    { x: -0.35, y: 0.9 },
+    { x: -fat, y: 0.35 },
+    { x: -fat * 0.9, y: -0.35 },
+    { x: -0.2, y: -0.75 }
+  ];
+}
+
+function clayDino(neck, tail) {
+  return [
+    { x: 0.95, y: -0.85 },
+    { x: 0.72, y: -0.35 },
+    { x: 0.35, y: 0.05 },
+    { x: 0.45, y: 0.55 },
+    { x: 0.15, y: 0.85 },
+    { x: -0.15, y: 0.5 },
+    { x: -0.85, y: tail },
+    { x: -1.05, y: tail - 0.25 },
+    { x: -0.35, y: 0.15 },
+    { x: -0.05, y: -neck },
+    { x: 0.35, y: -1.05 }
+  ];
+}
+
+function clayBoot(shaft, toe) {
+  return [
+    { x: -0.35, y: -1 },
+    { x: 0.28, y: -1 },
+    { x: 0.32, y: 0.15 },
+    { x: toe, y: 0.35 },
+    { x: toe, y: 0.72 },
+    { x: -0.45, y: 0.72 },
+    { x: -0.45, y: 0.2 },
+    { x: -shaft, y: -0.2 }
+  ];
+}
+
+function clayKey(head, bit) {
+  return [
+    { x: -0.75, y: -0.45 },
+    { x: -0.35, y: -0.55 },
+    { x: -0.15, y: -0.2 },
+    { x: 0.85, y: -0.12 },
+    { x: 0.85, y: 0.12 + bit },
+    { x: 0.62, y: 0.12 + bit },
+    { x: 0.62, y: 0.12 },
+    { x: 0.4, y: 0.12 },
+    { x: 0.4, y: 0.28 + bit },
+    { x: 0.22, y: 0.12 },
+    { x: -0.15, y: 0.15 },
+    { x: -0.55, y: 0.35 },
+    { x: -0.9, y: 0 }
+  ];
+}
+
+function clayTeapot(spout, lid) {
+  return [
+    { x: -0.15, y: -0.95 },
+    { x: 0.18, y: -0.95 },
+    { x: 0.22, y: -0.62 },
+    { x: 0.72, y: -0.35 },
+    { x: 0.95 + spout, y: -0.55 },
+    { x: 0.7, y: -0.05 },
+    { x: 0.78, y: 0.55 },
+    { x: -0.55, y: 0.62 },
+    { x: -0.85, y: 0.05 },
+    { x: -1.05, y: -0.15 },
+    { x: -0.62, y: -0.35 },
+    { x: -0.2, y: -0.62 }
+  ];
+}
+
+function clayButterfly(wing, body) {
+  return [
+    { x: 0, y: -0.85 },
+    { x: wing, y: -0.45 },
+    { x: wing * 0.85, y: 0.05 },
+    { x: body, y: 0.15 },
+    { x: wing * 0.7, y: 0.55 },
+    { x: wing * 0.35, y: 0.9 },
+    { x: 0, y: 0.45 },
+    { x: -wing * 0.35, y: 0.9 },
+    { x: -wing * 0.7, y: 0.55 },
+    { x: -body, y: 0.15 },
+    { x: -wing * 0.85, y: 0.05 },
+    { x: -wing, y: -0.45 }
+  ];
+}
+
+function clayBowl(rim, foot) {
+  return [
+    { x: -rim, y: -0.35 },
+    { x: rim, y: -0.35 },
+    { x: rim * 0.62, y: 0.45 },
+    { x: foot, y: 0.72 },
+    { x: -foot, y: 0.72 },
+    { x: -rim * 0.62, y: 0.45 }
+  ];
+}
+
+const CLAY_FIGURES = [
+  ['Карась', clayFish(0.9, 0.72, 0.38)],
+  ['Щука', clayFish(1.25, 0.28, 0.22)],
+  ['Камбала', clayFish(1.05, 0.95, 0.18)],
+  ['Скалярия', clayFish(0.7, 0.9, 0.85)],
+  ['Уклейка', clayFish(1.15, 0.3, 0.16)],
+  ['Воробей', clayBird(0.18, 0.55, 0.35)],
+  ['Цапля', clayBird(0.45, 0.28, 0.15)],
+  ['Утка', clayBird(0.22, 0.7, 0.2)],
+  ['Ласточка', clayBird(0.12, 0.32, 0.7)],
+  ['Петух', clayBird(0.28, 0.6, 0.85)],
+  ['Изба', clayHouse(0.85, 0.7, 0.35)],
+  ['Башня', clayHouse(0.45, 0.4, 0.7)],
+  ['Сарай', clayHouse(1.05, 0.9, 0.1)],
+  ['Маяк', clayHouse(0.35, 0.32, 0.95)],
+  ['Терем', clayHouse(0.75, 0.62, 0.45)],
+  ['Ёлка', clayTree(0.85, 0.12)],
+  ['Дуб', clayTree(1.05, 0.28)],
+  ['Пальма', clayTree(0.55, 0.1)],
+  ['Тополь', clayTree(0.4, 0.16)],
+  ['Куст', clayTree(0.95, 0.4)],
+  ['Мухомор', clayMushroom(1, 0.22)],
+  ['Белый гриб', clayMushroom(0.72, 0.38)],
+  ['Поганка', clayMushroom(0.48, 0.16)],
+  ['Сыроежка', clayMushroom(0.9, 0.3)],
+  ['Опёнок', clayMushroom(0.4, 0.12)],
+  ['Легковая', clayCar(0.35, 0.85, 0.18)],
+  ['Грузовик', clayCar(0.15, 1.05, 0.28)],
+  ['Автобус', clayCar(0.85, 0.95, 0.16)],
+  ['Гоночная', clayCar(0.05, 1.15, 0.1)],
+  ['Фургон', clayCar(0.55, 0.7, 0.22)],
+  ['Кот сидя', clayCat(0.05, 0.8, 0.55)],
+  ['Котёнок', clayCat(0.2, 0.55, 0.85)],
+  ['Рысь', clayCat(0.35, 0.7, 0.15)],
+  ['Кошка с хвостом', clayCat(0, 0.75, -0.35)],
+  ['Барсик', clayCat(0.12, 0.9, 0.25)],
+  ['Ракета', clayRocket(0.35, 0.38)],
+  ['Ракета-носитель', clayRocket(0.55, 0.55)],
+  ['Салютная', clayRocket(0.15, 0.22)],
+  ['Шаттл', clayRocket(0.7, 0.28)],
+  ['Петарда', clayRocket(0.08, 0.16)],
+  ['Ромашка', clayFlower(8, 0.08)],
+  ['Тюльпан', clayFlower(4, 0.1)],
+  ['Василёк', clayFlower(10, 0.06)],
+  ['Одуванчик', clayFlower(12, 0.05)],
+  ['Мак', clayFlower(6, 0.12)],
+  ['Кружка', clayCup(0.7, 0.28)],
+  ['Пиала', clayCup(0.95, 0.05)],
+  ['Бокал', clayCup(0.45, 0.12)],
+  ['Кувшин', clayCup(0.55, 0.4)],
+  ['Чашка', clayCup(0.8, 0.22)],
+  ['Лодочка', clayBoat(1, 0.7)],
+  ['Яхта', clayBoat(1, 1.15)],
+  ['Плот', clayBoat(1.1, 0.15)],
+  ['Кораблик', clayBoat(0.9, 0.9)],
+  ['Баркас', clayBoat(1.2, 0.4)],
+  ['Звезда', clayStar(0.4)],
+  ['Звёздочка', clayStar(0.22)],
+  ['Снежинка-звезда', clayStar(0.55)],
+  ['Знак', clayStar(0.33)],
+  ['Искра', clayStar(0.15)],
+  ['Сердце', clayHeart(1, 0.15)],
+  ['Сердечко', clayHeart(0.75, 0.05)],
+  ['Валентинка', clayHeart(1.15, 0.28)],
+  ['Пряник-сердце', clayHeart(0.9, 0.2)],
+  ['Сердце толстое', clayHeart(1.3, 0)],
+  ['Снеговик', claySnow(0.38, 0.58, 0.82)],
+  ['Снеговичок', claySnow(0.28, 0.42, 0.6)],
+  ['Толстый снег', claySnow(0.5, 0.72, 0.95)],
+  ['Три кома', claySnow(0.42, 0.5, 0.7)],
+  ['Снежная баба', claySnow(0.33, 0.66, 0.9)],
+  ['Шляпа', clayHat(1, 0.45)],
+  ['Цилиндр', clayHat(0.7, 0.28)],
+  ['Кепка', clayHat(1.15, 0.2)],
+  ['Колпак', clayHat(0.4, 0.55)],
+  ['Панама', clayHat(1.25, 0.35)],
+  ['Яблоко', clayApple(0.2, 0.85)],
+  ['Груша', clayApple(0.15, 0.6)],
+  ['Слива', clayApple(0.05, 0.5)],
+  ['Айва', clayApple(0.1, 1)],
+  ['Вишня', clayApple(0.25, 0.4)],
+  ['Динозавр', clayDino(0.7, 0.35)],
+  ['Диплодок', clayDino(0.35, 0.7)],
+  ['Раптор', clayDino(0.9, 0.5)],
+  ['Бронтозавр', clayDino(0.4, 0.85)],
+  ['Ящер', clayDino(0.6, 0.2)],
+  ['Сапог', clayBoot(0.4, 0.95)],
+  ['Валенок', clayBoot(0.7, 0.55)],
+  ['Ботинок', clayBoot(0.3, 0.8)],
+  ['Кроссовок', clayBoot(0.25, 1.05)],
+  ['Башмак', clayBoot(0.55, 0.7)],
+  ['Ключ', clayKey(0.4, 0.15)],
+  ['Ключик', clayKey(0.25, 0.05)],
+  ['Ключ от сундука', clayKey(0.55, 0.32)],
+  ['Отмычка', clayKey(0.15, 0.22)],
+  ['Амбарный ключ', clayKey(0.48, 0.4)],
+  ['Чайник', clayTeapot(0.15, 0.2)],
+  ['Заварник', clayTeapot(0.05, 0.35)],
+  ['Кофейник', clayTeapot(0.35, 0.1)],
+  ['Чайничек', clayTeapot(0.22, 0.28)],
+  ['Пузатый чайник', clayTeapot(0, 0.4)],
+  ['Бабочка', clayButterfly(0.9, 0.12)],
+  ['Мотылёк', clayButterfly(0.55, 0.08)],
+  ['Махаон', clayButterfly(1.15, 0.1)],
+  ['Ночная бабочка', clayButterfly(0.7, 0.2)],
+  ['Капустница', clayButterfly(0.8, 0.06)]
+].map(row => ({ name: row[0], pts: clayResample(row[1], 12) }));
 
 // ============ СЦЕНА МИНИ-ИГР ============
 class MinigamesScene {
@@ -408,7 +773,7 @@ class MinigamesScene {
       { id: 'word', emoji: '🔤', name: 'Угадай слово', desc: 'Подсказка, и ещё одна, если мимо', color: '#2E8B57' },
       { id: 'letters', emoji: '🎈', name: 'Буквы', desc: 'Открой слово, пока шарик цел', color: '#C06C84' },
       { id: 'mix', emoji: '🧩', name: 'Перемешка', desc: 'Буквы перепутаны, собери слово', color: '#3D7EA6' },
-      { id: 'clay', emoji: '🏺', name: 'Лепка', desc: 'Слепи фигурку по образцу', color: '#C47A4A' }
+      { id: 'clay', emoji: '🏺', name: 'Лепка', desc: 'Потяни ком глины пальцем', color: '#C47A4A' }
     ];
 
     const btnW = Math.min(W * 0.78, 300);
@@ -1332,19 +1697,25 @@ class MinigamesScene {
 
   initClay() {
     if (!this._claySeen) this._claySeen = [];
-    let pool = CLAY_MODELS.filter(m => this._claySeen.indexOf(m.name) === -1);
+    let pool = CLAY_FIGURES.filter(m => this._claySeen.indexOf(m.name) === -1);
     if (!pool.length) {
       this._claySeen = [];
-      pool = CLAY_MODELS.slice();
+      pool = CLAY_FIGURES.slice();
     }
     const model = pool[Math.floor(Math.random() * pool.length)];
     this._claySeen.push(model.name);
     if (this._claySeen.length > 24) this._claySeen.shift();
+    const pts = [];
+    for (let i = 0; i < 12; i++) {
+      const a = -Math.PI / 2 + (Math.PI * 2 * i) / 12;
+      pts.push({ x: Math.cos(a) * 0.62, y: Math.sin(a) * 0.62 });
+    }
     this.clay = {
       model: model,
-      placed: model.parts.map(() => null),
-      tool: null,
-      note: 'Выбери кусочек внизу и поставь его на пустое место',
+      pts: pts,
+      grab: -1,
+      pulls: 0,
+      note: 'Потяни глину пальцем: соседи тянутся следом',
       misses: 0,
       hint: false,
       over: false,
@@ -1353,65 +1724,76 @@ class MinigamesScene {
     this.mode = 'clay';
   }
 
-  clayTone(id) {
-    return { ball: '#c47a4a', roll: '#a86b3c', cake: '#e0b08a', cone: '#8d5a32', cube: '#d9a27a' }[id] || '#c47a4a';
-  }
-
-  drawClayBit(ctx, id, x, y, w, h) {
-    ctx.fillStyle = this.clayTone(id);
-    ctx.strokeStyle = 'rgba(80,40,20,0.35)';
-    ctx.lineWidth = 1.4;
-    const cx = x + w / 2;
-    const cy = y + h / 2;
-    if (id === 'ball') {
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, w * 0.28, h * 0.36, 0, 0, Math.PI * 2);
-      ctx.fill(); ctx.stroke();
-    } else if (id === 'roll') {
-      roundRect(ctx, x + w * 0.12, cy - h * 0.16, w * 0.76, h * 0.32, h * 0.16);
-      ctx.fill(); ctx.stroke();
-    } else if (id === 'cake') {
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, w * 0.38, h * 0.2, 0, 0, Math.PI * 2);
-      ctx.fill(); ctx.stroke();
-    } else if (id === 'cone') {
-      ctx.beginPath();
-      ctx.moveTo(cx, y + h * 0.12);
-      ctx.lineTo(cx + w * 0.22, y + h * 0.78);
-      ctx.lineTo(cx - w * 0.22, y + h * 0.78);
-      ctx.closePath();
-      ctx.fill(); ctx.stroke();
-    } else {
-      roundRect(ctx, cx - w * 0.22, cy - h * 0.28, w * 0.44, h * 0.56, 4);
-      ctx.fill(); ctx.stroke();
-    }
-  }
-
   clayGeom(W, H) {
-    const n = this.clay.model.parts.length;
-    const top = H * 0.16;
-    const boardH = Math.min(H * 0.48, 320);
-    const gap = 10;
-    const boardW = Math.min((W - 28 - gap) / 2, 168);
-    const x0 = (W - boardW * 2 - gap) / 2;
-    const inner = boardH - 28;
-    const slotH = inner / n;
-    const slots = [];
-    for (let i = 0; i < n; i++) {
-      const y = top + 22 + (n - 1 - i) * slotH;
-      slots.push({
-        i: i,
-        sx: x0 + 6, sy: y, sw: boardW - 12, sh: slotH - 4,
-        x: x0 + boardW + gap + 6, y: y, w: boardW - 12, h: slotH - 4
-      });
+    const top = H * 0.2;
+    const bottom = H - 58;
+    const gap = 8;
+    const boardH = Math.max(120, bottom - top);
+    const boardW = (W - 24 - gap) / 2;
+    return {
+      top: top,
+      boardH: boardH,
+      boardW: boardW,
+      sx: 12,
+      bx: 12 + boardW + gap,
+      by: top,
+      bw: boardW,
+      bh: boardH
+    };
+  }
+
+  clayMap(L, side) {
+    const x = side === 'sample' ? L.sx : L.bx;
+    return {
+      cx: x + L.boardW / 2,
+      cy: L.top + L.boardH * 0.48,
+      sc: Math.min(L.boardW, L.boardH) * 0.36
+    };
+  }
+
+  clayLocal(mx, my, L) {
+    const m = this.clayMap(L, 'work');
+    return { x: (mx - m.cx) / m.sc, y: (my - m.cy) / m.sc };
+  }
+
+  traceClay(ctx, pts, map) {
+    const p = pts.map(q => ({ x: map.cx + q.x * map.sc, y: map.cy + q.y * map.sc }));
+    ctx.beginPath();
+    const n0 = p.length;
+    ctx.moveTo((p[0].x + p[1].x) / 2, (p[0].y + p[1].y) / 2);
+    for (let i = 1; i <= n0; i++) {
+      const cur = p[i % n0];
+      const nxt = p[(i + 1) % n0];
+      ctx.quadraticCurveTo(cur.x, cur.y, (cur.x + nxt.x) / 2, (cur.y + nxt.y) / 2);
     }
-    const tools = CLAY_SHAPES.map((sh, i) => {
-      const tw = Math.min(62, (W - 20) / 5 - 6);
-      const total = CLAY_SHAPES.length * tw + (CLAY_SHAPES.length - 1) * 6;
-      return { id: sh.id, name: sh.name, x: (W - total) / 2 + i * (tw + 6), y: top + boardH + 10, w: tw, h: 46 };
+    ctx.closePath();
+  }
+
+  paintClay(ctx, pts, map, soft) {
+    this.traceClay(ctx, pts, map);
+    const g = ctx.createRadialGradient(map.cx - map.sc * 0.2, map.cy - map.sc * 0.25, map.sc * 0.1, map.cx, map.cy, map.sc * 1.1);
+    g.addColorStop(0, soft ? '#e7b48a' : '#d08a55');
+    g.addColorStop(1, soft ? '#b56b3c' : '#8d4e28');
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(70,32,16,0.45)';
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+  }
+
+  clayScore() {
+    const g = this.clay;
+    const target = g.model.pts;
+    let d = 0;
+    g.pts.forEach(p => {
+      let best = 99;
+      target.forEach(t => {
+        const dist = Math.hypot(p.x - t.x, p.y - t.y);
+        if (dist < best) best = dist;
+      });
+      d += best;
     });
-    const cmpY = Math.min(H - 52, tools[0].y + 54);
-    return { top: top, boardH: boardH, boardW: boardW, x0: x0, gap: gap, slots: slots, tools: tools, cmp: { x: W / 2 - 78, y: cmpY, w: 156, h: 38 } };
+    return d / g.pts.length;
   }
 
   drawClay(ctx, W, H) {
@@ -1421,64 +1803,89 @@ class MinigamesScene {
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
     ctx.font = `bold ${Math.min(W * 0.045, 18)}px Arial`;
-    ctx.fillText(g.over ? (g.won ? 'Похоже!' : 'Глина высохла') : 'Слепи: ' + g.model.name, W / 2, H * 0.125);
+    ctx.fillText(g.over ? (g.won ? 'Получилось!' : 'Глина высохла') : g.model.name, W / 2, H * 0.125);
     const noteSize = fitFontSize(ctx, g.note, W - 24, 12, 9, false);
     ctx.font = `${noteSize}px Arial`;
     ctx.fillStyle = '#ffe7c2';
-    ctx.fillText(g.note, W / 2, H * 0.15);
+    ctx.fillText(g.note, W / 2, H * 0.155);
 
-    const drawBoard = (x, title) => {
+    const board = (x, title) => {
       ctx.fillStyle = '#e7d3b0';
       roundRect(ctx, x, L.top, L.boardW, L.boardH, 14);
       ctx.fill();
       ctx.fillStyle = '#6b4423';
-      ctx.font = `bold 12px Arial`;
-      ctx.fillText(title, x + L.boardW / 2, L.top + 14);
+      ctx.font = 'bold 12px Arial';
+      ctx.fillText(title, x + L.boardW / 2, L.top + 16);
     };
-    drawBoard(L.x0, 'Образец');
-    drawBoard(L.x0 + L.boardW + L.gap, 'Твоя глина');
-
-    L.slots.forEach(sl => {
-      this.drawClayBit(ctx, g.model.parts[sl.i], sl.sx, sl.sy, sl.sw, sl.sh);
-      ctx.strokeStyle = 'rgba(90,60,30,0.35)';
-      ctx.setLineDash([4, 3]);
-      roundRect(ctx, sl.x, sl.y, sl.w, sl.h, 8);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      const put = g.placed[sl.i];
-      if (put) this.drawClayBit(ctx, put, sl.x, sl.y, sl.w, sl.h);
-      else if (g.hint && g.misses >= 3) {
-        ctx.globalAlpha = 0.35;
-        this.drawClayBit(ctx, g.model.parts[sl.i], sl.x, sl.y, sl.w, sl.h);
-        ctx.globalAlpha = 1;
-      }
-      this.buttons.push({ x: sl.x, y: sl.y, w: sl.w, h: sl.h, action: 'clay-slot:' + sl.i });
-    });
-
-    L.tools.forEach(t => {
-      const on = g.tool === t.id;
-      ctx.fillStyle = on ? '#fff4d6' : '#f3e6cf';
-      ctx.strokeStyle = on ? '#8d5a32' : 'rgba(90,60,30,0.25)';
-      ctx.lineWidth = on ? 2.5 : 1;
-      roundRect(ctx, t.x, t.y, t.w, t.h, 10);
-      ctx.fill();
-      ctx.stroke();
-      this.drawClayBit(ctx, t.id, t.x, t.y - 2, t.w, t.h * 0.7);
-      ctx.fillStyle = '#4a2e1c';
-      ctx.font = 'bold 10px Arial';
-      ctx.fillText(t.name, t.x + t.w / 2, t.y + t.h - 8);
-      this.buttons.push({ x: t.x, y: t.y, w: t.w, h: t.h, action: 'clay-tool:' + t.id });
-    });
-
-    if (!g.over) {
-      this.buttons.push(createButton(ctx, L.cmp.x, L.cmp.y, L.cmp.w, L.cmp.h, 'Сравнить', {
-        bgColor: '#6BCB77', fgColor: '#1a1a2e', fontSize: 15, radius: 12
-      }));
-    } else {
-      this.buttons.push(createButton(ctx, L.cmp.x, L.cmp.y, L.cmp.w, L.cmp.h, 'Ещё фигуру', {
-        bgColor: '#FFD93D', fgColor: '#1a1a2e', fontSize: 15, radius: 12
-      }));
+    board(L.sx, 'Образец');
+    board(L.bx, 'Твоя глина');
+    this.paintClay(ctx, g.model.pts, this.clayMap(L, 'sample'), false);
+    if (g.hint) {
+      ctx.save();
+      ctx.globalAlpha = 0.33;
+      this.paintClay(ctx, g.model.pts, this.clayMap(L, 'work'), false);
+      ctx.restore();
     }
+    this.paintClay(ctx, g.pts, this.clayMap(L, 'work'), true);
+
+    const y = Math.min(H - 46, L.top + L.boardH + 8);
+    const bw = Math.min(104, (W - 28) / 3);
+    const labels = g.over ? ['', 'Ещё фигуру', ''] : ['Разгладить', 'Готово', 'Заново'];
+    const colors = ['#f3e6cf', '#6BCB77', '#f3e6cf'];
+    labels.forEach((text, i) => {
+      if (!text) return;
+      this.buttons.push(createButton(ctx, 10 + i * (bw + 6), y, bw, 36, text, {
+        bgColor: colors[i], fgColor: '#4a2e1c', fontSize: 13, radius: 12
+      }));
+    });
+  }
+
+  beginDrag(mx, my) {
+    if (this.mode !== 'clay' || !this.clay || this.clay.over) return false;
+    for (let i = 0; i < this.buttons.length; i++) {
+      const b = this.buttons[i];
+      if (isPointInRect(mx, my, b.x, b.y, b.w, b.h)) return false;
+    }
+    const L = this.clayGeom(this.game.width, this.game.height);
+    if (!isPointInRect(mx, my, L.bx, L.by, L.bw, L.bh)) return false;
+    const local = this.clayLocal(mx, my, L);
+    let bi = 0;
+    let bd = 99;
+    this.clay.pts.forEach((p, i) => {
+      const d = Math.hypot(p.x - local.x, p.y - local.y);
+      if (d < bd) { bd = d; bi = i; }
+    });
+    this.clay.grab = bi;
+    this._clayLast = local;
+    return true;
+  }
+
+  dragMove(mx, my) {
+    const g = this.clay;
+    if (!g || g.grab < 0) return;
+    const L = this.clayGeom(this.game.width, this.game.height);
+    const local = this.clayLocal(mx, my, L);
+    const dx = local.x - this._clayLast.x;
+    const dy = local.y - this._clayLast.y;
+    this._clayLast = local;
+    const n = g.pts.length;
+    const fall = [1, 0.55, 0.22];
+    for (let k = 0; k < fall.length; k++) {
+      const a = (g.grab + k) % n;
+      const b = (g.grab - k + n) % n;
+      g.pts[a].x += dx * fall[k];
+      g.pts[a].y += dy * fall[k];
+      if (k > 0) {
+        g.pts[b].x += dx * fall[k];
+        g.pts[b].y += dy * fall[k];
+      }
+    }
+    g.pulls += 1;
+    g.note = 'Тяни дальше по контуру образца';
+  }
+
+  endDrag() {
+    if (this.clay) this.clay.grab = -1;
   }
 
   clickClay(mx, my) {
@@ -1488,45 +1895,47 @@ class MinigamesScene {
       const b = this.buttons[i];
       if (!isPointInRect(mx, my, b.x, b.y, b.w, b.h)) continue;
       if (b.text === 'Ещё фигуру') { this.initClay(); return true; }
-      if (b.text === 'Сравнить') return this.finishClay();
-      if ((b.action || '').indexOf('clay-tool:') === 0) {
-        g.tool = b.action.slice(10);
-        const sh = CLAY_SHAPES.filter(s => s.id === g.tool)[0];
-        g.note = 'Выбран кусочек «' + (sh ? sh.name : '') + '». Поставь его на пустое место';
-        return true;
-      }
-      if ((b.action || '').indexOf('clay-slot:') === 0) {
-        const idx = parseInt(b.action.slice(10), 10);
-        if (g.over) return true;
-        if (g.placed[idx]) {
-          g.placed[idx] = null;
-          g.note = 'Отщипнул лишнее. Можно поставить другой кусочек';
-          AudioSys.play('click');
-          return true;
+      if (b.text === 'Заново') {
+        for (let k = 0; k < 12; k++) {
+          const a = -Math.PI / 2 + (Math.PI * 2 * k) / 12;
+          g.pts[k].x = Math.cos(a) * 0.62;
+          g.pts[k].y = Math.sin(a) * 0.62;
         }
-        if (!g.tool) {
-          g.note = 'Сначала выбери кусочек внизу';
-          AudioSys.play('fail');
-          return true;
-        }
-        g.placed[idx] = g.tool;
-        g.note = 'Кусочек на месте. Заполни все места и нажми «Сравнить»';
+        g.pulls = 0;
+        g.hint = false;
+        g.note = 'Ком снова круглый. Потяни его заново';
         AudioSys.play('click');
         return true;
       }
+      if (b.text === 'Разгладить') return this.smoothClay();
+      if (b.text === 'Готово') return this.finishClay();
     }
     return false;
   }
 
+  smoothClay() {
+    const g = this.clay;
+    if (!g || g.over) return true;
+    const next = g.pts.map((p, i) => {
+      const a = g.pts[(i + 1) % g.pts.length];
+      const b = g.pts[(i - 1 + g.pts.length) % g.pts.length];
+      return { x: p.x * 0.5 + (a.x + b.x) * 0.25, y: p.y * 0.5 + (a.y + b.y) * 0.25 };
+    });
+    g.pts = next;
+    g.note = 'Разгладил. Теперь потяни там, где образец выпирает';
+    AudioSys.play('click');
+    return true;
+  }
+
   finishClay() {
     const g = this.clay;
-    if (g.placed.some(p => !p)) {
-      g.note = 'Ещё есть пустые места';
+    if (g.pulls < 6) {
+      g.note = 'Сначала помни глину пальцем, круг сам не станет фигуркой';
       AudioSys.play('fail');
       return true;
     }
-    const ok = g.model.parts.every((p, i) => g.placed[i] === p);
-    if (ok) {
+    const dist = this.clayScore();
+    if (dist < 0.34) {
       g.over = true;
       g.won = true;
       g.note = 'Это и правда ' + g.model.name;
@@ -1540,13 +1949,11 @@ class MinigamesScene {
       return true;
     }
     g.misses++;
-    const bad = g.model.parts.findIndex((p, i) => g.placed[i] !== p);
-    const need = CLAY_SHAPES.filter(s => s.id === g.model.parts[bad])[0];
     if (g.misses >= 3) {
       g.hint = true;
-      g.note = 'Подсказка: не совпал кусочек, нужен «' + need.name + '». Лишнее отщипни';
+      g.note = 'Подсказка легла на глину. Потяни свой ком к ней';
     } else {
-      g.note = 'Пока не похоже. Отщипни не тот кусочек и попробуй другой';
+      g.note = 'Пока не похоже. Потяни выступы и вдави лишнее';
     }
     AudioSys.play('fail');
     return true;
