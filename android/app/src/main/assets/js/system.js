@@ -888,6 +888,7 @@ const System = {
         timerEnd: (this.kit && this.kit.timerEnd) || 0,
         schedule: (this.kit && this.kit.schedule) || null
       },
+      clayWorks: Array.isArray(this.clayWorks) ? this.clayWorks.slice(0, 18) : [],
       savedAt: Date.now()
     };
     const key = this.saveKeyFor(this.profileId);
@@ -1040,6 +1041,7 @@ const System = {
         timerEnd: timerEnd,
         schedule: (data.kit && data.kit.schedule && data.kit.schedule.days) ? data.kit.schedule : null
       };
+      this.clayWorks = (data.clayWorks && Array.isArray(data.clayWorks)) ? data.clayWorks.slice(0, 18) : [];
       this.restorePocketFromVault();
       this.look = this.migrateLook(Object.assign({ hat: null, glasses: null, neck: null, back: null, bowtie: false, fur: 'classic', char: 'gopher' }, data.look || {}));
       this.isSleeping = !!data.isSleeping;
@@ -1179,6 +1181,7 @@ const System = {
     this.ensureRooms();
     this.houseShrinkOk = true;
     this.kit = { notes: '', pages: [], lists: [], drawings: [], timerEnd: 0 };
+    this.clayWorks = [];
     this.activeRoom = 'living';
     this.paint = { walls: ['warm'], floors: ['wood'] };
     this.furnitureColors = {};

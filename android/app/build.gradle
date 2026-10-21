@@ -17,8 +17,8 @@ android {
         applicationId "ru.umort.gopher"
         minSdkVersion 21
         targetSdkVersion 34
-        versionCode 87
-        versionName "1.5.1"
+        versionCode 88
+        versionName "1.5.2"
     }
 
     signingConfigs {

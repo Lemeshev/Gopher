@@ -1309,6 +1309,10 @@ class MinigamesScene {
 
     // Back button
     if (this.buttons[0] && isPointInRect(mx, my, this.buttons[0].x, this.buttons[0].y, this.buttons[0].w, this.buttons[0].h)) {
+      if (this.mode === 'clay' && this.clay && this.clay.stage && this.clay.stage !== 'menu') {
+        this.clay = { stage: 'menu', note: 'По образцу или своя фигурка', grab: -1 };
+        return true;
+      }
       if (this.mode === 'select') {
         this.game.transitionTo('map');
       } else {
@@ -1696,6 +1700,20 @@ class MinigamesScene {
   }
 
   initClay() {
+    this.mode = 'clay';
+    this.clay = { stage: 'menu', note: 'По образцу или своя фигурка', grab: -1 };
+  }
+
+  clayCircle(n, r) {
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const a = -Math.PI / 2 + (Math.PI * 2 * i) / n;
+      pts.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
+    }
+    return pts;
+  }
+
+  startSampleClay() {
     if (!this._claySeen) this._claySeen = [];
     let pool = CLAY_FIGURES.filter(m => this._claySeen.indexOf(m.name) === -1);
     if (!pool.length) {
@@ -1705,23 +1723,33 @@ class MinigamesScene {
     const model = pool[Math.floor(Math.random() * pool.length)];
     this._claySeen.push(model.name);
     if (this._claySeen.length > 24) this._claySeen.shift();
-    const pts = [];
-    for (let i = 0; i < 12; i++) {
-      const a = -Math.PI / 2 + (Math.PI * 2 * i) / 12;
-      pts.push({ x: Math.cos(a) * 0.62, y: Math.sin(a) * 0.62 });
-    }
     this.clay = {
+      stage: 'sample',
       model: model,
-      pts: pts,
+      pts: this.clayCircle(12, 0.62),
       grab: -1,
       pulls: 0,
-      note: 'Потяни глину пальцем: соседи тянутся следом',
+      note: 'Потяни глину пальцем: рядом гнётся слабее',
       misses: 0,
       hint: false,
       over: false,
       won: false
     };
-    this.mode = 'clay';
+  }
+
+  startFreeClay() {
+    this.clay = {
+      stage: 'free',
+      pts: this.clayCircle(16, 0.62),
+      colors: [],
+      grab: -1,
+      pulls: 0,
+      dry: 0,
+      paint: '#c0392b',
+      note: 'Слепи что хочешь. Рядом глина поддаётся чуть-чуть',
+      over: false
+    };
+    for (let i = 0; i < 16; i++) this.clay.colors.push('');
   }
 
   clayGeom(W, H) {
@@ -1752,7 +1780,11 @@ class MinigamesScene {
   }
 
   clayLocal(mx, my, L) {
-    const m = this.clayMap(L, 'work');
+    const g = this.clay;
+    const wide = g && g.stage !== 'sample';
+    const m = wide
+      ? { cx: 12 + (this.game.width - 24) / 2, cy: L.top + L.boardH * 0.48, sc: Math.min(this.game.width - 24, L.boardH) * 0.36 }
+      : this.clayMap(L, 'work');
     return { x: (mx - m.cx) / m.sc, y: (my - m.cy) / m.sc };
   }
 
@@ -1769,13 +1801,32 @@ class MinigamesScene {
     ctx.closePath();
   }
 
-  paintClay(ctx, pts, map, soft) {
+  paintClay(ctx, pts, map, soft, colors) {
     this.traceClay(ctx, pts, map);
     const g = ctx.createRadialGradient(map.cx - map.sc * 0.2, map.cy - map.sc * 0.25, map.sc * 0.1, map.cx, map.cy, map.sc * 1.1);
-    g.addColorStop(0, soft ? '#e7b48a' : '#d08a55');
+    g.addColorStop(0, soft ? '#e7b48a' : '#c4a574');
     g.addColorStop(1, soft ? '#b56b3c' : '#8d4e28');
     ctx.fillStyle = g;
     ctx.fill();
+    if (colors && colors.some(c => c)) {
+      const p = pts.map(q => ({ x: map.cx + q.x * map.sc, y: map.cy + q.y * map.sc }));
+      const cx = map.cx;
+      const cy = map.cy;
+      for (let i = 0; i < p.length; i++) {
+        if (!colors[i]) continue;
+        const a = p[i];
+        const b = p[(i + 1) % p.length];
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.closePath();
+        ctx.fillStyle = colors[i];
+        ctx.globalAlpha = 0.85;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
     ctx.strokeStyle = 'rgba(70,32,16,0.45)';
     ctx.lineWidth = 1.6;
     ctx.stroke();
@@ -1799,38 +1850,82 @@ class MinigamesScene {
   drawClay(ctx, W, H) {
     const g = this.clay;
     if (!g) return;
+    if (g.stage === 'menu' || g.stage === 'gallery') return this.drawClayMenu(ctx, W, H);
     const L = this.clayGeom(W, H);
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
     ctx.font = `bold ${Math.min(W * 0.045, 18)}px Arial`;
-    ctx.fillText(g.over ? (g.won ? 'Получилось!' : 'Глина высохла') : g.model.name, W / 2, H * 0.125);
+    const title = g.stage === 'sample'
+      ? (g.over ? (g.won ? 'Получилось!' : 'Глина высохла') : g.model.name)
+      : (g.stage === 'dry' ? 'Сушка' : (g.stage === 'paint' ? 'Роспись' : 'Своя фигурка'));
+    ctx.fillText(title, W / 2, H * 0.125);
     const noteSize = fitFontSize(ctx, g.note, W - 24, 12, 9, false);
     ctx.font = `${noteSize}px Arial`;
     ctx.fillStyle = '#ffe7c2';
     ctx.fillText(g.note, W / 2, H * 0.155);
 
-    const board = (x, title) => {
+    const board = (x, w, title2) => {
       ctx.fillStyle = '#e7d3b0';
-      roundRect(ctx, x, L.top, L.boardW, L.boardH, 14);
+      roundRect(ctx, x, L.top, w, L.boardH, 14);
       ctx.fill();
       ctx.fillStyle = '#6b4423';
       ctx.font = 'bold 12px Arial';
-      ctx.fillText(title, x + L.boardW / 2, L.top + 16);
+      ctx.fillText(title2, x + w / 2, L.top + 16);
     };
-    board(L.sx, 'Образец');
-    board(L.bx, 'Твоя глина');
-    this.paintClay(ctx, g.model.pts, this.clayMap(L, 'sample'), false);
-    if (g.hint) {
-      ctx.save();
-      ctx.globalAlpha = 0.33;
-      this.paintClay(ctx, g.model.pts, this.clayMap(L, 'work'), false);
-      ctx.restore();
+    if (g.stage === 'sample') {
+      board(L.sx, L.boardW, 'Образец');
+      board(L.bx, L.boardW, 'Твоя глина');
+      this.paintClay(ctx, g.model.pts, this.clayMap(L, 'sample'), false);
+      if (g.hint) {
+        ctx.save();
+        ctx.globalAlpha = 0.33;
+        this.paintClay(ctx, g.model.pts, this.clayMap(L, 'work'), false);
+        ctx.restore();
+      }
+      this.paintClay(ctx, g.pts, this.clayMap(L, 'work'), true);
+    } else {
+      const wide = { top: L.top, boardH: L.boardH, boardW: W - 24, sx: 12, bx: 12, by: L.top, bw: W - 24, bh: L.boardH };
+      board(12, W - 24, g.stage === 'dry' ? 'Веди фен по глине' : 'Твоя глина');
+      const map = this.clayMap(wide, 'work');
+      this.paintClay(ctx, g.pts, map, g.stage === 'free', g.colors);
+      if (g.stage === 'dry') {
+        const px = 24;
+        const bw = W - 48;
+        const by = L.top + L.boardH - 22;
+        ctx.fillStyle = 'rgba(74,46,28,0.25)';
+        roundRect(ctx, px, by, bw, 10, 5);
+        ctx.fill();
+        ctx.fillStyle = '#e07a3c';
+        roundRect(ctx, px, by, bw * Math.min(1, (g.dry || 0) / 100), 10, 5);
+        ctx.fill();
+        if (g.dryer) this.drawDryer(ctx, g.dryer.x, g.dryer.y);
+      }
+      if (g.stage === 'paint') {
+        const palette = ['#c0392b', '#e67e22', '#f1c40f', '#27ae60', '#2980b9', '#8e44ad', '#f4f1ea', '#2c3e50'];
+        palette.forEach((col, i) => {
+          const x = 16 + i * 34;
+          const y = L.top + 24;
+          ctx.fillStyle = col;
+          ctx.beginPath();
+          ctx.arc(x, y, 12, 0, Math.PI * 2);
+          ctx.fill();
+          if (g.paint === col) {
+            ctx.strokeStyle = '#4a2e1c';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          }
+          this.buttons.push({ x: x - 14, y: y - 14, w: 28, h: 28, text: 'paint:' + col });
+        });
+      }
     }
-    this.paintClay(ctx, g.pts, this.clayMap(L, 'work'), true);
 
     const y = Math.min(H - 46, L.top + L.boardH + 8);
     const bw = Math.min(104, (W - 28) / 3);
-    const labels = g.over ? ['', 'Ещё фигуру', ''] : ['Разгладить', 'Готово', 'Заново'];
+    let labels = ['Разгладить', 'Готово', 'Заново'];
+    if (g.stage === 'sample' && g.over) labels = ['', 'Ещё фигуру', ''];
+    if (g.stage === 'free') labels = ['Разгладить', 'Сушить', 'Заново'];
+    if (g.stage === 'dry') labels = ['', 'Ещё погреть', ''];
+    if (g.stage === 'paint') labels = ['', 'В галерею', 'Заново'];
     const colors = ['#f3e6cf', '#6BCB77', '#f3e6cf'];
     labels.forEach((text, i) => {
       if (!text) return;
@@ -1840,14 +1935,87 @@ class MinigamesScene {
     });
   }
 
+  drawDryer(ctx, x, y) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = '#5d4037';
+    roundRect(ctx, -8, -16, 22, 16, 4);
+    ctx.fill();
+    ctx.fillStyle = '#8d6e63';
+    ctx.beginPath();
+    ctx.moveTo(14, -14);
+    ctx.lineTo(28, -20);
+    ctx.lineTo(28, 2);
+    ctx.lineTo(14, -2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  drawClayMenu(ctx, W, H) {
+    const g = this.clay;
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.font = `bold ${Math.min(W * 0.05, 20)}px Arial`;
+    ctx.fillText(g.stage === 'gallery' ? 'Галерея' : 'Лепка', W / 2, H * 0.16);
+    ctx.font = '13px Arial';
+    ctx.fillStyle = '#ffe7c2';
+    ctx.fillText(g.note || '', W / 2, H * 0.2);
+    if (g.stage === 'gallery') {
+      const works = (System.clayWorks || []).slice(0, 12);
+      if (!works.length) {
+        ctx.fillStyle = '#fff';
+        ctx.fillText('Пока пусто. Слепи свою и нажми «В галерею»', W / 2, H * 0.4);
+      }
+      works.forEach((work, i) => {
+        const col = i % 3;
+        const row = Math.floor(i / 3);
+        const cw = Math.min(100, (W - 36) / 3);
+        const x = 12 + col * (cw + 8);
+        const y = H * 0.26 + row * (cw + 8);
+        ctx.fillStyle = '#e7d3b0';
+        roundRect(ctx, x, y, cw, cw, 12);
+        ctx.fill();
+        const map = { cx: x + cw / 2, cy: y + cw / 2, sc: cw * 0.34 };
+        this.paintClay(ctx, work.pts, map, false, work.colors);
+      });
+      return;
+    }
+    const bw = Math.min(260, W - 40);
+    const x = (W - bw) / 2;
+    this.buttons.push(createButton(ctx, x, H * 0.3, bw, 48, 'По образцу', {
+      bgColor: '#C47A4A', fgColor: '#fff', fontSize: 16, radius: 14
+    }));
+    this.buttons.push(createButton(ctx, x, H * 0.3 + 60, bw, 48, 'Своя фигурка', {
+      bgColor: '#8d4e28', fgColor: '#fff', fontSize: 16, radius: 14
+    }));
+    this.buttons.push(createButton(ctx, x, H * 0.3 + 120, bw, 48, 'Галерея', {
+      bgColor: '#f3e6cf', fgColor: '#4a2e1c', fontSize: 16, radius: 14
+    }));
+  }
+
   beginDrag(mx, my) {
-    if (this.mode !== 'clay' || !this.clay || this.clay.over) return false;
+    const g0 = this.clay;
+    if (this.mode !== 'clay' || !g0 || g0.over) return false;
+    if (g0.stage === 'menu' || g0.stage === 'gallery') return false;
     for (let i = 0; i < this.buttons.length; i++) {
       const b = this.buttons[i];
       if (isPointInRect(mx, my, b.x, b.y, b.w, b.h)) return false;
     }
     const L = this.clayGeom(this.game.width, this.game.height);
-    if (!isPointInRect(mx, my, L.bx, L.by, L.bw, L.bh)) return false;
+    const onBoard = g0.stage === 'sample'
+      ? isPointInRect(mx, my, L.bx, L.by, L.bw, L.bh)
+      : isPointInRect(mx, my, 12, L.top, this.game.width - 24, L.boardH);
+    if (!onBoard) return false;
+    if (g0.stage === 'dry') {
+      g0.grab = -2;
+      g0.dryer = { x: mx, y: my };
+      return true;
+    }
+    if (g0.stage === 'paint') {
+      g0.grab = -3;
+      this.paintClayAt(mx, my);
+      return true;
+    }
     const local = this.clayLocal(mx, my, L);
     let bi = 0;
     let bd = 99;
@@ -1862,14 +2030,30 @@ class MinigamesScene {
 
   dragMove(mx, my) {
     const g = this.clay;
-    if (!g || g.grab < 0) return;
+    if (!g || g.grab < 0 && g.grab !== -2 && g.grab !== -3) return;
+    if (g.grab === -2) {
+      g.dryer = { x: mx, y: my };
+      g.dry = Math.min(100, (g.dry || 0) + 1.8);
+      if (g.dry >= 100) {
+        g.stage = 'paint';
+        g.grab = -1;
+        g.note = 'Высохло. Выбери краску и проведи по фигурке';
+      } else {
+        g.note = 'Фен греет. Осталось ещё поводить';
+      }
+      return;
+    }
+    if (g.grab === -3) {
+      this.paintClayAt(mx, my);
+      return;
+    }
     const L = this.clayGeom(this.game.width, this.game.height);
     const local = this.clayLocal(mx, my, L);
     const dx = local.x - this._clayLast.x;
     const dy = local.y - this._clayLast.y;
     this._clayLast = local;
     const n = g.pts.length;
-    const fall = [1, 0.55, 0.22];
+    const fall = g.stage === 'free' ? [1, 0.38, 0.14, 0.05] : [1, 0.4, 0.14];
     for (let k = 0; k < fall.length; k++) {
       const a = (g.grab + k) % n;
       const b = (g.grab - k + n) % n;
@@ -1894,7 +2078,38 @@ class MinigamesScene {
     for (let i = 1; i < this.buttons.length; i++) {
       const b = this.buttons[i];
       if (!isPointInRect(mx, my, b.x, b.y, b.w, b.h)) continue;
-      if (b.text === 'Ещё фигуру') { this.initClay(); return true; }
+      if (b.text === 'По образцу') { this.startSampleClay(); return true; }
+      if (b.text === 'Своя фигурка') { this.startFreeClay(); return true; }
+      if (b.text === 'Галерея') {
+        g.stage = 'gallery';
+        g.note = 'То, что уже высохло и расписано';
+        return true;
+      }
+      if (b.text.indexOf('paint:') === 0) { g.paint = b.text.slice(6); return true; }
+      if (b.text === 'Сушить') {
+        if (g.pulls < 6) {
+          g.note = 'Сначала помни глину пальцем';
+          AudioSys.play('fail');
+          return true;
+        }
+        g.stage = 'dry';
+        g.dry = 0;
+        g.note = 'Веди фен по фигурке, пока полоска не заполнится';
+        AudioSys.play('click');
+        return true;
+      }
+      if (b.text === 'Ещё погреть') {
+        g.dry = Math.min(100, (g.dry || 0) + 22);
+        if (g.dry >= 100) {
+          g.stage = 'paint';
+          g.note = 'Высохло. Выбери краску и проведи по фигурке';
+        }
+        AudioSys.play('click');
+        return true;
+      }
+      if (b.text === 'В галерею') return this.saveClayWork();
+      if (b.text === 'Ещё фигуру') { this.startSampleClay(); return true; }
+      if (b.text === 'Заново' && g.stage !== 'sample') { this.startFreeClay(); return true; }
       if (b.text === 'Заново') {
         for (let k = 0; k < 12; k++) {
           const a = -Math.PI / 2 + (Math.PI * 2 * k) / 12;
@@ -1924,6 +2139,37 @@ class MinigamesScene {
     g.pts = next;
     g.note = 'Разгладил. Теперь потяни там, где образец выпирает';
     AudioSys.play('click');
+    return true;
+  }
+
+  paintClayAt(mx, my) {
+    const g = this.clay;
+    const L = this.clayGeom(this.game.width, this.game.height);
+    const local = this.clayLocal(mx, my, L);
+    let bi = 0;
+    let bd = 99;
+    g.pts.forEach((p, i) => {
+      const d = Math.hypot(p.x - local.x, p.y - local.y);
+      if (d < bd) { bd = d; bi = i; }
+    });
+    g.colors[bi] = g.paint;
+    const n = g.pts.length;
+    g.colors[(bi + 1) % n] = g.colors[(bi + 1) % n] || g.paint;
+    g.note = 'Краска легла. Можно сменить цвет и красить дальше';
+  }
+
+  saveClayWork() {
+    const g = this.clay;
+    const piece = {
+      pts: g.pts.map(p => ({ x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100 })),
+      colors: g.colors.slice()
+    };
+    if (!System.clayWorks) System.clayWorks = [];
+    System.clayWorks.unshift(piece);
+    if (System.clayWorks.length > 18) System.clayWorks.length = 18;
+    System.saveGame();
+    this.clay = { stage: 'gallery', note: 'Фигурка сохранена', grab: -1 };
+    AudioSys.play('success');
     return true;
   }
 
