@@ -41,6 +41,7 @@ const System = {
     guessWins: 0,     // верных слов в «Угадай слово»
     letterWins: 0,    // слов, открытых по буквам
     mixWins: 0,       // собранных слов в «Перемешке»
+    clayWins: 0,      // фигурок, слепленных по образцу
     feeds: 0,         // покормлено
     washes: 0,        // искупано
     plays: 0,         // поиграно дома
@@ -294,7 +295,7 @@ const System = {
   ensureProgress() {
     const def = () => ({
       days: 0, streak: 0, bestStreak: 0, lastDay: null,
-      trips: 0, minigames: 0, quiet: 0, tttWins: 0, rpsWins: 0, simonBest: 0, guessWins: 0, letterWins: 0, mixWins: 0,
+      trips: 0, minigames: 0, quiet: 0, tttWins: 0, rpsWins: 0, simonBest: 0, guessWins: 0, letterWins: 0, mixWins: 0, clayWins: 0,
       feeds: 0, washes: 0, plays: 0, sleeps: 0,
       coinsEarned: 0, furniture: 0
     });

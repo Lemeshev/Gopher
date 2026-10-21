@@ -1,3 +1,113 @@
+const CLAY_SHAPES = [
+  { id: 'ball', name: 'Шар' },
+  { id: 'roll', name: 'Жгут' },
+  { id: 'cake', name: 'Блин' },
+  { id: 'cone', name: 'Носик' },
+  { id: 'cube', name: 'Куб' }
+];
+const CLAY_MODELS = [
+  { name: 'Снеговик', parts: ['ball', 'ball', 'ball'] },
+  { name: 'Гусеница', parts: ['ball', 'ball', 'ball'] },
+  { name: 'Бусы', parts: ['ball', 'ball', 'ball'] },
+  { name: 'Три ягоды', parts: ['ball', 'ball', 'ball'] },
+  { name: 'Стопка снежков', parts: ['ball', 'ball', 'ball'] },
+  { name: 'Снеговик у дома', parts: ['ball', 'ball', 'ball'] },
+  { name: 'Гусеница на листе', parts: ['ball', 'ball', 'ball'] },
+  { name: 'Бусы для праздника', parts: ['ball', 'ball', 'ball'] },
+  { name: 'Гриб', parts: ['cake', 'roll', 'ball'] },
+  { name: 'Мухомор', parts: ['cake', 'roll', 'ball'] },
+  { name: 'Гриб на пеньке', parts: ['cake', 'roll', 'ball'] },
+  { name: 'Подосиновик', parts: ['cake', 'roll', 'ball'] },
+  { name: 'Сыроежка', parts: ['cake', 'roll', 'ball'] },
+  { name: 'Гриб после дождя', parts: ['cake', 'roll', 'ball'] },
+  { name: 'Опёнок', parts: ['cake', 'roll', 'ball'] },
+  { name: 'Лисичка', parts: ['cake', 'roll', 'ball'] },
+  { name: 'Дом', parts: ['cube', 'cube', 'cone'] },
+  { name: 'Башня', parts: ['cube', 'cube', 'cone'] },
+  { name: 'Сарай', parts: ['cube', 'cube', 'cone'] },
+  { name: 'Маяк', parts: ['cube', 'cube', 'cone'] },
+  { name: 'Крепость', parts: ['cube', 'cube', 'cone'] },
+  { name: 'Теремок', parts: ['cube', 'cube', 'cone'] },
+  { name: 'Изба', parts: ['cube', 'cube', 'cone'] },
+  { name: 'Сторожка', parts: ['cube', 'cube', 'cone'] },
+  { name: 'Ёлка', parts: ['cone', 'cone', 'roll'] },
+  { name: 'Морковка', parts: ['cone', 'cone', 'roll'] },
+  { name: 'Ракета', parts: ['cone', 'cone', 'roll'] },
+  { name: 'Колпак волшебника', parts: ['cone', 'cone', 'roll'] },
+  { name: 'Мороженое в стаканчике', parts: ['cone', 'cone', 'roll'] },
+  { name: 'Гора', parts: ['cone', 'cone', 'roll'] },
+  { name: 'Карандаш', parts: ['cone', 'cone', 'roll'] },
+  { name: 'Пирамидка', parts: ['cone', 'cone', 'roll'] },
+  { name: 'Чашка', parts: ['cube', 'cake', 'ball'] },
+  { name: 'Миска', parts: ['cube', 'cake', 'ball'] },
+  { name: 'Тарелка с булкой', parts: ['cube', 'cake', 'ball'] },
+  { name: 'Горшок', parts: ['cube', 'cake', 'ball'] },
+  { name: 'Ваза', parts: ['cube', 'cake', 'ball'] },
+  { name: 'Кастрюля', parts: ['cube', 'cake', 'ball'] },
+  { name: 'Пиала', parts: ['cube', 'cake', 'ball'] },
+  { name: 'Супница', parts: ['cube', 'cake', 'ball'] },
+  { name: 'Машина', parts: ['cube', 'cube', 'ball', 'ball'] },
+  { name: 'Автобус', parts: ['cube', 'cube', 'ball', 'ball'] },
+  { name: 'Паровоз', parts: ['cube', 'cube', 'ball', 'ball'] },
+  { name: 'Телега', parts: ['cube', 'cube', 'ball', 'ball'] },
+  { name: 'Трактор', parts: ['cube', 'cube', 'ball', 'ball'] },
+  { name: 'Фургон', parts: ['cube', 'cube', 'ball', 'ball'] },
+  { name: 'Самосвал', parts: ['cube', 'cube', 'ball', 'ball'] },
+  { name: 'Повозка', parts: ['cube', 'cube', 'ball', 'ball'] },
+  { name: 'Цветок', parts: ['ball', 'roll', 'cake'] },
+  { name: 'Ромашка', parts: ['ball', 'roll', 'cake'] },
+  { name: 'Тюльпан', parts: ['ball', 'roll', 'cake'] },
+  { name: 'Одуванчик', parts: ['ball', 'roll', 'cake'] },
+  { name: 'Мак', parts: ['ball', 'roll', 'cake'] },
+  { name: 'Колокольчик', parts: ['ball', 'roll', 'cake'] },
+  { name: 'Астра', parts: ['ball', 'roll', 'cake'] },
+  { name: 'Василёк', parts: ['ball', 'roll', 'cake'] },
+  { name: 'Птица', parts: ['cone', 'ball', 'cake'] },
+  { name: 'Утка', parts: ['cone', 'ball', 'cake'] },
+  { name: 'Воробей', parts: ['cone', 'ball', 'cake'] },
+  { name: 'Петух', parts: ['cone', 'ball', 'cake'] },
+  { name: 'Сова', parts: ['cone', 'ball', 'cake'] },
+  { name: 'Синица', parts: ['cone', 'ball', 'cake'] },
+  { name: 'Голубь', parts: ['cone', 'ball', 'cake'] },
+  { name: 'Снегирь', parts: ['cone', 'ball', 'cake'] },
+  { name: 'Рыба', parts: ['cone', 'cake', 'ball'] },
+  { name: 'Кит', parts: ['cone', 'cake', 'ball'] },
+  { name: 'Дельфин', parts: ['cone', 'cake', 'ball'] },
+  { name: 'Карась', parts: ['cone', 'cake', 'ball'] },
+  { name: 'Щука', parts: ['cone', 'cake', 'ball'] },
+  { name: 'Окунь', parts: ['cone', 'cake', 'ball'] },
+  { name: 'Лодочка', parts: ['cone', 'cake', 'ball'] },
+  { name: 'Кораблик', parts: ['cone', 'cake', 'ball'] },
+  { name: 'Робот', parts: ['cube', 'ball', 'ball'] },
+  { name: 'Снеговик в шляпе', parts: ['cube', 'ball', 'ball'] },
+  { name: 'Медведь', parts: ['cube', 'ball', 'ball'] },
+  { name: 'Кот сидя', parts: ['cube', 'ball', 'ball'] },
+  { name: 'Пингвин', parts: ['cube', 'ball', 'ball'] },
+  { name: 'Рыцарь', parts: ['cube', 'ball', 'ball'] },
+  { name: 'Гном', parts: ['cube', 'ball', 'ball'] },
+  { name: 'Матрёшка', parts: ['cube', 'ball', 'ball'] },
+  { name: 'Торт', parts: ['cake', 'cake', 'ball'] },
+  { name: 'Пирог', parts: ['cake', 'cake', 'ball'] },
+  { name: 'Бутерброд', parts: ['cake', 'cake', 'ball'] },
+  { name: 'Стопка блинов', parts: ['cake', 'cake', 'ball'] },
+  { name: 'Пряник', parts: ['cake', 'cake', 'ball'] },
+  { name: 'Кекс', parts: ['cake', 'cake', 'ball'] },
+  { name: 'Ватрушка', parts: ['cake', 'cake', 'ball'] },
+  { name: 'Пирожное', parts: ['cake', 'cake', 'ball'] },
+  { name: 'Дерево', parts: ['ball', 'roll', 'cube'] },
+  { name: 'Пальма', parts: ['ball', 'roll', 'cube'] },
+  { name: 'Яблоня', parts: ['ball', 'roll', 'cube'] },
+  { name: 'Дуб', parts: ['ball', 'roll', 'cube'] },
+  { name: 'Берёза', parts: ['ball', 'roll', 'cube'] },
+  { name: 'Куст', parts: ['ball', 'roll', 'cube'] },
+  { name: 'Цветок в горшке', parts: ['ball', 'roll', 'cube'] },
+  { name: 'Кактус', parts: ['ball', 'roll', 'cube'] },
+  { name: 'Мост', parts: ['cube', 'roll', 'cube'] },
+  { name: 'Качели', parts: ['cube', 'roll', 'cube'] },
+  { name: 'Скамейка', parts: ['cube', 'roll', 'cube'] },
+  { name: 'Забор с калиткой', parts: ['cube', 'roll', 'cube'] }
+];
+
 // ============ СЦЕНА МИНИ-ИГР ============
 class MinigamesScene {
   constructor(game) {
@@ -11,6 +121,7 @@ class MinigamesScene {
     this.rps = { you: 0, pet: 0, round: 1, phase: 'pick', pick: null, petHand: null, last: null, msg: '', timer: 0 };
     this.letters = null;
     this.mix = null;
+    this.clay = null;
     this.simon = { seq: [], phase: 'idle', timer: 0, lit: -1, input: 0, note: '' };
     this.word = null;
   }
@@ -282,6 +393,8 @@ class MinigamesScene {
       this.drawLetters(ctx, W, H);
     } else if (this.mode === 'mix') {
       this.drawMix(ctx, W, H);
+    } else if (this.mode === 'clay') {
+      this.drawClay(ctx, W, H);
     }
   }
 
@@ -294,16 +407,17 @@ class MinigamesScene {
       { id: 'simon', emoji: '💡', name: 'Огоньки', desc: 'Повтори, как зажигались', color: '#4D96FF' },
       { id: 'word', emoji: '🔤', name: 'Угадай слово', desc: 'Подсказка, и ещё одна, если мимо', color: '#2E8B57' },
       { id: 'letters', emoji: '🎈', name: 'Буквы', desc: 'Открой слово, пока шарик цел', color: '#C06C84' },
-      { id: 'mix', emoji: '🧩', name: 'Перемешка', desc: 'Буквы перепутаны, собери слово', color: '#3D7EA6' }
+      { id: 'mix', emoji: '🧩', name: 'Перемешка', desc: 'Буквы перепутаны, собери слово', color: '#3D7EA6' },
+      { id: 'clay', emoji: '🏺', name: 'Лепка', desc: 'Слепи фигурку по образцу', color: '#C47A4A' }
     ];
 
     const btnW = Math.min(W * 0.78, 300);
-    const gap = 6;
-    const btnH = Math.max(38, Math.min(58, (H * 0.80 - H * 0.14) / games.length - gap));
+    const gap = 4;
+    const btnH = Math.max(32, Math.min(52, (H * 0.84 - H * 0.13) / games.length - gap));
     const startX = (W - btnW) / 2;
 
     games.forEach((g, i) => {
-      const y = H * 0.14 + i * (btnH + gap);
+      const y = H * 0.13 + i * (btnH + gap);
 
       ctx.fillStyle = g.color;
       roundRect(ctx, startX, y, btnW, btnH, 15);
@@ -319,14 +433,16 @@ class MinigamesScene {
       const emojiW = ctx.measureText(g.emoji).width;
       ctx.fillText(g.emoji, startX + 14, y + btnH / 2 - 10);
 
-      ctx.font = `bold ${Math.min(W * 0.045, 18)}px Arial`;
+      const nameX = Math.max(startX + btnW * 0.28, startX + 14 + emojiW + 8);
+      const nameSize = fitFontSize(ctx, g.name, startX + btnW - nameX - 8, Math.min(15, btnH * 0.34), 10, true);
+      ctx.font = `bold ${nameSize}px Arial`;
       ctx.textAlign = 'left';
-      const nameX = Math.max(startX + btnW * 0.3, startX + 14 + emojiW + 8);
-      ctx.fillText(g.name, nameX, y + btnH / 2 - 10);
+      ctx.fillText(g.name, nameX, y + btnH / 2 - btnH * 0.16);
 
-      ctx.font = `${Math.min(W * 0.03, 13)}px Arial`;
+      const descSize = fitFontSize(ctx, g.desc, startX + btnW - nameX - 8, Math.min(12, btnH * 0.28), 8, false);
+      ctx.font = `${descSize}px Arial`;
       ctx.fillStyle = 'rgba(255,255,255,0.8)';
-      ctx.fillText(g.desc, nameX, y + btnH / 2 + 12);
+      ctx.fillText(g.desc, nameX, y + btnH / 2 + btnH * 0.22);
 
       this.buttons.push({ x: startX, y, w: btnW, h: btnH, action: g.id });
     });
@@ -861,6 +977,7 @@ class MinigamesScene {
             case 'word': this.initWord(); System.countAction('minigames'); break;
             case 'letters': this.initLetters(); System.countAction('minigames'); break;
             case 'mix': this.initMix(); System.countAction('minigames'); break;
+            case 'clay': this.initClay(); System.countAction('minigames'); break;
           }
           return true;
         }
@@ -1080,6 +1197,8 @@ class MinigamesScene {
       return true;
     }
 
+    if (this.mode === 'clay') return this.clickClay(mx, my);
+
     if (this.mode === 'coinFlip') {
       const cf = this.coinFlip;
       if (cf.state === 'ready' || cf.state === 'done') {
@@ -1209,6 +1328,228 @@ class MinigamesScene {
     // Random
     const empty = b.map((v, i) => v ? -1 : i).filter(i => i >= 0);
     if (empty.length > 0) b[empty[Math.floor(Math.random() * empty.length)]] = 'O';
+  }
+
+  initClay() {
+    if (!this._claySeen) this._claySeen = [];
+    let pool = CLAY_MODELS.filter(m => this._claySeen.indexOf(m.name) === -1);
+    if (!pool.length) {
+      this._claySeen = [];
+      pool = CLAY_MODELS.slice();
+    }
+    const model = pool[Math.floor(Math.random() * pool.length)];
+    this._claySeen.push(model.name);
+    if (this._claySeen.length > 24) this._claySeen.shift();
+    this.clay = {
+      model: model,
+      placed: model.parts.map(() => null),
+      tool: null,
+      note: 'Выбери кусочек внизу и поставь его на пустое место',
+      misses: 0,
+      hint: false,
+      over: false,
+      won: false
+    };
+    this.mode = 'clay';
+  }
+
+  clayTone(id) {
+    return { ball: '#c47a4a', roll: '#a86b3c', cake: '#e0b08a', cone: '#8d5a32', cube: '#d9a27a' }[id] || '#c47a4a';
+  }
+
+  drawClayBit(ctx, id, x, y, w, h) {
+    ctx.fillStyle = this.clayTone(id);
+    ctx.strokeStyle = 'rgba(80,40,20,0.35)';
+    ctx.lineWidth = 1.4;
+    const cx = x + w / 2;
+    const cy = y + h / 2;
+    if (id === 'ball') {
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, w * 0.28, h * 0.36, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+    } else if (id === 'roll') {
+      roundRect(ctx, x + w * 0.12, cy - h * 0.16, w * 0.76, h * 0.32, h * 0.16);
+      ctx.fill(); ctx.stroke();
+    } else if (id === 'cake') {
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, w * 0.38, h * 0.2, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+    } else if (id === 'cone') {
+      ctx.beginPath();
+      ctx.moveTo(cx, y + h * 0.12);
+      ctx.lineTo(cx + w * 0.22, y + h * 0.78);
+      ctx.lineTo(cx - w * 0.22, y + h * 0.78);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+    } else {
+      roundRect(ctx, cx - w * 0.22, cy - h * 0.28, w * 0.44, h * 0.56, 4);
+      ctx.fill(); ctx.stroke();
+    }
+  }
+
+  clayGeom(W, H) {
+    const n = this.clay.model.parts.length;
+    const top = H * 0.16;
+    const boardH = Math.min(H * 0.48, 320);
+    const gap = 10;
+    const boardW = Math.min((W - 28 - gap) / 2, 168);
+    const x0 = (W - boardW * 2 - gap) / 2;
+    const inner = boardH - 28;
+    const slotH = inner / n;
+    const slots = [];
+    for (let i = 0; i < n; i++) {
+      const y = top + 22 + (n - 1 - i) * slotH;
+      slots.push({
+        i: i,
+        sx: x0 + 6, sy: y, sw: boardW - 12, sh: slotH - 4,
+        x: x0 + boardW + gap + 6, y: y, w: boardW - 12, h: slotH - 4
+      });
+    }
+    const tools = CLAY_SHAPES.map((sh, i) => {
+      const tw = Math.min(62, (W - 20) / 5 - 6);
+      const total = CLAY_SHAPES.length * tw + (CLAY_SHAPES.length - 1) * 6;
+      return { id: sh.id, name: sh.name, x: (W - total) / 2 + i * (tw + 6), y: top + boardH + 10, w: tw, h: 46 };
+    });
+    const cmpY = Math.min(H - 52, tools[0].y + 54);
+    return { top: top, boardH: boardH, boardW: boardW, x0: x0, gap: gap, slots: slots, tools: tools, cmp: { x: W / 2 - 78, y: cmpY, w: 156, h: 38 } };
+  }
+
+  drawClay(ctx, W, H) {
+    const g = this.clay;
+    if (!g) return;
+    const L = this.clayGeom(W, H);
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.font = `bold ${Math.min(W * 0.045, 18)}px Arial`;
+    ctx.fillText(g.over ? (g.won ? 'Похоже!' : 'Глина высохла') : 'Слепи: ' + g.model.name, W / 2, H * 0.125);
+    const noteSize = fitFontSize(ctx, g.note, W - 24, 12, 9, false);
+    ctx.font = `${noteSize}px Arial`;
+    ctx.fillStyle = '#ffe7c2';
+    ctx.fillText(g.note, W / 2, H * 0.15);
+
+    const drawBoard = (x, title) => {
+      ctx.fillStyle = '#e7d3b0';
+      roundRect(ctx, x, L.top, L.boardW, L.boardH, 14);
+      ctx.fill();
+      ctx.fillStyle = '#6b4423';
+      ctx.font = `bold 12px Arial`;
+      ctx.fillText(title, x + L.boardW / 2, L.top + 14);
+    };
+    drawBoard(L.x0, 'Образец');
+    drawBoard(L.x0 + L.boardW + L.gap, 'Твоя глина');
+
+    L.slots.forEach(sl => {
+      this.drawClayBit(ctx, g.model.parts[sl.i], sl.sx, sl.sy, sl.sw, sl.sh);
+      ctx.strokeStyle = 'rgba(90,60,30,0.35)';
+      ctx.setLineDash([4, 3]);
+      roundRect(ctx, sl.x, sl.y, sl.w, sl.h, 8);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const put = g.placed[sl.i];
+      if (put) this.drawClayBit(ctx, put, sl.x, sl.y, sl.w, sl.h);
+      else if (g.hint && g.misses >= 3) {
+        ctx.globalAlpha = 0.35;
+        this.drawClayBit(ctx, g.model.parts[sl.i], sl.x, sl.y, sl.w, sl.h);
+        ctx.globalAlpha = 1;
+      }
+      this.buttons.push({ x: sl.x, y: sl.y, w: sl.w, h: sl.h, action: 'clay-slot:' + sl.i });
+    });
+
+    L.tools.forEach(t => {
+      const on = g.tool === t.id;
+      ctx.fillStyle = on ? '#fff4d6' : '#f3e6cf';
+      ctx.strokeStyle = on ? '#8d5a32' : 'rgba(90,60,30,0.25)';
+      ctx.lineWidth = on ? 2.5 : 1;
+      roundRect(ctx, t.x, t.y, t.w, t.h, 10);
+      ctx.fill();
+      ctx.stroke();
+      this.drawClayBit(ctx, t.id, t.x, t.y - 2, t.w, t.h * 0.7);
+      ctx.fillStyle = '#4a2e1c';
+      ctx.font = 'bold 10px Arial';
+      ctx.fillText(t.name, t.x + t.w / 2, t.y + t.h - 8);
+      this.buttons.push({ x: t.x, y: t.y, w: t.w, h: t.h, action: 'clay-tool:' + t.id });
+    });
+
+    if (!g.over) {
+      this.buttons.push(createButton(ctx, L.cmp.x, L.cmp.y, L.cmp.w, L.cmp.h, 'Сравнить', {
+        bgColor: '#6BCB77', fgColor: '#1a1a2e', fontSize: 15, radius: 12
+      }));
+    } else {
+      this.buttons.push(createButton(ctx, L.cmp.x, L.cmp.y, L.cmp.w, L.cmp.h, 'Ещё фигуру', {
+        bgColor: '#FFD93D', fgColor: '#1a1a2e', fontSize: 15, radius: 12
+      }));
+    }
+  }
+
+  clickClay(mx, my) {
+    const g = this.clay;
+    if (!g) return false;
+    for (let i = 1; i < this.buttons.length; i++) {
+      const b = this.buttons[i];
+      if (!isPointInRect(mx, my, b.x, b.y, b.w, b.h)) continue;
+      if (b.text === 'Ещё фигуру') { this.initClay(); return true; }
+      if (b.text === 'Сравнить') return this.finishClay();
+      if ((b.action || '').indexOf('clay-tool:') === 0) {
+        g.tool = b.action.slice(10);
+        const sh = CLAY_SHAPES.filter(s => s.id === g.tool)[0];
+        g.note = 'Выбран кусочек «' + (sh ? sh.name : '') + '». Поставь его на пустое место';
+        return true;
+      }
+      if ((b.action || '').indexOf('clay-slot:') === 0) {
+        const idx = parseInt(b.action.slice(10), 10);
+        if (g.over) return true;
+        if (g.placed[idx]) {
+          g.placed[idx] = null;
+          g.note = 'Отщипнул лишнее. Можно поставить другой кусочек';
+          AudioSys.play('click');
+          return true;
+        }
+        if (!g.tool) {
+          g.note = 'Сначала выбери кусочек внизу';
+          AudioSys.play('fail');
+          return true;
+        }
+        g.placed[idx] = g.tool;
+        g.note = 'Кусочек на месте. Заполни все места и нажми «Сравнить»';
+        AudioSys.play('click');
+        return true;
+      }
+    }
+    return false;
+  }
+
+  finishClay() {
+    const g = this.clay;
+    if (g.placed.some(p => !p)) {
+      g.note = 'Ещё есть пустые места';
+      AudioSys.play('fail');
+      return true;
+    }
+    const ok = g.model.parts.every((p, i) => g.placed[i] === p);
+    if (ok) {
+      g.over = true;
+      g.won = true;
+      g.note = 'Это и правда ' + g.model.name;
+      AudioSys.play('success');
+      System.countAction('clayWins');
+      System.earnCoins(8);
+      System.addXP(6);
+      System.stats.happiness = Math.min(100, System.stats.happiness + 4);
+      System.stats.intelligence = Math.min(100, System.stats.intelligence + 1);
+      System.saveGame();
+      return true;
+    }
+    g.misses++;
+    const bad = g.model.parts.findIndex((p, i) => g.placed[i] !== p);
+    const need = CLAY_SHAPES.filter(s => s.id === g.model.parts[bad])[0];
+    if (g.misses >= 3) {
+      g.hint = true;
+      g.note = 'Подсказка: не совпал кусочек, нужен «' + need.name + '». Лишнее отщипни';
+    } else {
+      g.note = 'Пока не похоже. Отщипни не тот кусочек и попробуй другой';
+    }
+    AudioSys.play('fail');
+    return true;
   }
 
   checkTTTWin(p) {
