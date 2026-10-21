@@ -653,6 +653,13 @@ class MinigamesScene {
       this.rps.timer += dt;
       if (this.rps.timer >= 900) this.finishRpsRound();
     }
+    if (this.mode === 'salon' && this.salon && this.salon.bubbles) {
+      this.salon.bubbles.forEach(b => {
+        b.y -= dt * 0.03;
+        b.a -= dt * 0.0008;
+      });
+      this.salon.bubbles = this.salon.bubbles.filter(b => b.a > 0);
+    }
     if (this.mode === 'simon' && this.simon.phase === 'show') {
       const s = this.simon;
       s.timer += dt;
@@ -760,6 +767,8 @@ class MinigamesScene {
       this.drawMix(ctx, W, H);
     } else if (this.mode === 'clay') {
       this.drawClay(ctx, W, H);
+    } else if (this.mode === 'salon') {
+      this.drawSalon(ctx, W, H);
     }
   }
 
@@ -773,7 +782,8 @@ class MinigamesScene {
       { id: 'word', emoji: '🔤', name: 'Угадай слово', desc: 'Подсказка, и ещё одна, если мимо', color: '#2E8B57' },
       { id: 'letters', emoji: '🎈', name: 'Буквы', desc: 'Открой слово, пока шарик цел', color: '#C06C84' },
       { id: 'mix', emoji: '🧩', name: 'Перемешка', desc: 'Буквы перепутаны, собери слово', color: '#3D7EA6' },
-      { id: 'clay', emoji: '🏺', name: 'Лепка', desc: 'Потяни ком глины пальцем', color: '#C47A4A' }
+      { id: 'clay', emoji: '🏺', name: 'Лепка', desc: 'Потяни ком глины пальцем', color: '#C47A4A' },
+      { id: 'salon', emoji: '💇', name: 'Парикмахерская', desc: 'Стрижка, кудри и цвет', color: '#D4567A' }
     ];
 
     const btnW = Math.min(W * 0.78, 300);
@@ -1347,6 +1357,7 @@ class MinigamesScene {
             case 'letters': this.initLetters(); System.countAction('minigames'); break;
             case 'mix': this.initMix(); System.countAction('minigames'); break;
             case 'clay': this.initClay(); System.countAction('minigames'); break;
+            case 'salon': this.initSalon(); System.countAction('minigames'); break;
           }
           return true;
         }
@@ -1567,6 +1578,7 @@ class MinigamesScene {
     }
 
     if (this.mode === 'clay') return this.clickClay(mx, my);
+    if (this.mode === 'salon') return this.clickSalon(mx, my);
 
     if (this.mode === 'coinFlip') {
       const cf = this.coinFlip;
@@ -2203,6 +2215,443 @@ class MinigamesScene {
     }
     AudioSys.play('fail');
     return true;
+  }
+
+  salonColor(id) {
+    const all = [
+      { id: 'black', hex: '#2b2118', name: 'чёрный' },
+      { id: 'brown', hex: '#6b3e26', name: 'каштановый' },
+      { id: 'blonde', hex: '#e6c36a', name: 'русый' },
+      { id: 'red', hex: '#c4522a', name: 'рыжий' },
+      { id: 'pink', hex: '#e56aa8', name: 'розовый' },
+      { id: 'blue', hex: '#3d6fd8', name: 'синий' },
+      { id: 'green', hex: '#3e9a62', name: 'зелёный' },
+      { id: 'violet', hex: '#7a4ea3', name: 'фиолетовый' }
+    ];
+    for (let i = 0; i < all.length; i++) if (all[i].id === id) return all[i];
+    return all[1];
+  }
+
+  salonPeople() {
+    return [
+      { name: 'Маша', who: 'girl', shirt: '#f48fb1' },
+      { name: 'Петя', who: 'boy', shirt: '#64b5f6' },
+      { name: 'Аня', who: 'girl', shirt: '#ce93d8' },
+      { name: 'Миша', who: 'boy', shirt: '#81c784' },
+      { name: 'Лена', who: 'woman', shirt: '#ffb74d' },
+      { name: 'Олег', who: 'man', shirt: '#4db6ac' },
+      { name: 'Нина', who: 'grandma', shirt: '#bcaaa4' },
+      { name: 'Павел', who: 'grandpa', shirt: '#90a4ae' },
+      { name: 'Кира', who: 'girl', shirt: '#f06292' },
+      { name: 'Тим', who: 'boy', shirt: '#4fc3f7' },
+      { name: 'Соня', who: 'woman', shirt: '#ba68c8' },
+      { name: 'Глеб', who: 'man', shirt: '#7986cb' },
+      { name: 'Рая', who: 'grandma', shirt: '#aed581' },
+      { name: 'Боря', who: 'grandpa', shirt: '#a1887f' },
+      { name: 'Злата', who: 'girl', shirt: '#ffd54f' },
+      { name: 'Егор', who: 'boy', shirt: '#4dd0e1' },
+      { name: 'Вера', who: 'woman', shirt: '#e57373' },
+      { name: 'Илья', who: 'man', shirt: '#66bb6a' }
+    ];
+  }
+
+  salonCopyHair(h) {
+    return { len: h.len, curl: h.curl, color: h.color, streak: h.streak, bangs: h.bangs, gel: h.gel, clean: h.clean };
+  }
+
+  salonRandomHair() {
+    const cols = ['black', 'brown', 'blonde', 'red', 'pink', 'blue', 'green', 'violet'];
+    const streak = Math.random() < 0.35 ? cols[Math.floor(Math.random() * cols.length)] : null;
+    return {
+      len: 0.34 + Math.random() * 0.62,
+      curl: Math.floor(Math.random() * 3),
+      color: cols[Math.floor(Math.random() * 4)],
+      streak: streak,
+      bangs: Math.random() < 0.4,
+      gel: Math.random() < 0.25,
+      clean: 0
+    };
+  }
+
+  salonWishLine(w) {
+    const len = w.len < 0.48 ? 'короткие' : (w.len < 0.78 ? 'средние' : 'длинные');
+    const curl = w.curl === 0 ? 'прямые' : (w.curl === 1 ? 'волны' : 'кудри');
+    let s = len + ' ' + curl + ', цвет ' + this.salonColor(w.color).name;
+    if (w.streak) s += ', прядь ' + this.salonColor(w.streak).name;
+    if (w.bangs) s += ', чёлка';
+    if (w.gel) s += ', с гелем';
+    return s;
+  }
+
+  initSalon() {
+    this.mode = 'salon';
+    if (!this._salonSeen) this._salonSeen = [];
+    const people = this.salonPeople().filter(p => this._salonSeen.indexOf(p.name) === -1);
+    const pool = people.length ? people : this.salonPeople();
+    if (!people.length) this._salonSeen = [];
+    const who = pool[Math.floor(Math.random() * pool.length)];
+    this._salonSeen.push(who.name);
+    if (this._salonSeen.length > 8) this._salonSeen.shift();
+    const skins = ['#f6d3b4', '#e8b892', '#c68642', '#8d5524', '#f3c6a5'];
+    const hair = this.salonRandomHair();
+    const wish = this.salonCopyHair(hair);
+    wish.clean = 2;
+    const keys = ['len', 'curl', 'color', 'streak', 'bangs', 'gel'];
+    const cols = ['black', 'brown', 'blonde', 'red', 'pink', 'blue', 'green', 'violet'];
+    const used = {};
+    const nch = 2 + Math.floor(Math.random() * 2);
+    for (let k = 0; k < nch; k++) {
+      let key = keys[Math.floor(Math.random() * keys.length)];
+      let guard = 0;
+      while (used[key] && guard < 8) {
+        key = keys[Math.floor(Math.random() * keys.length)];
+        guard++;
+      }
+      used[key] = true;
+      if (key === 'len') wish.len = wish.len < 0.6 ? 0.92 : 0.36;
+      if (key === 'curl') wish.curl = (wish.curl + 1 + Math.floor(Math.random() * 2)) % 3;
+      if (key === 'color') {
+        let c = cols[Math.floor(Math.random() * cols.length)];
+        if (c === wish.color) c = cols[(cols.indexOf(c) + 3) % cols.length];
+        wish.color = c;
+      }
+      if (key === 'streak') {
+        wish.streak = wish.streak ? null : cols[Math.floor(Math.random() * cols.length)];
+        if (wish.streak === wish.color) wish.streak = 'pink';
+      }
+      if (key === 'bangs') wish.bangs = !wish.bangs;
+      if (key === 'gel') wish.gel = !wish.gel;
+    }
+    this.salon = {
+      person: { name: who.name, who: who.who, shirt: who.shirt, skin: skins[Math.floor(Math.random() * skins.length)] },
+      hair: hair,
+      wish: wish,
+      tool: 'shampoo',
+      dye: 'pink',
+      note: who.name + ' хочет: ' + this.salonWishLine(wish),
+      bubbles: [],
+      over: false,
+      head: null
+    };
+  }
+
+  salonBurst(x, y) {
+    const g = this.salon;
+    for (let i = 0; i < 8; i++) {
+      g.bubbles.push({
+        x: x + (Math.random() - 0.5) * 40,
+        y: y + (Math.random() - 0.5) * 20,
+        r: 3 + Math.random() * 5,
+        a: 1
+      });
+    }
+  }
+
+  drawSalonHair(ctx, hair) {
+    const col = this.salonColor(hair.color).hex;
+    const len = 20 + hair.len * 86;
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(-30, 0);
+    ctx.quadraticCurveTo(-34, -40, 0, -42);
+    ctx.quadraticCurveTo(34, -40, 30, 0);
+    if (hair.curl === 0) {
+      ctx.lineTo(24, len);
+      ctx.quadraticCurveTo(0, len + 8, -24, len);
+    } else {
+      const bumps = hair.curl === 2 ? 7 : 4;
+      for (let i = 0; i <= bumps; i++) {
+        const yy = (len * i) / bumps;
+        const side = i % 2 === 0 ? 28 : 14;
+        ctx.quadraticCurveTo(side, yy - len / bumps * 0.45, (i === bumps ? 8 : 18), yy);
+      }
+      ctx.lineTo(-8, len);
+      for (let i = bumps; i >= 0; i--) {
+        const yy = (len * i) / bumps;
+        const side = i % 2 === 0 ? -28 : -14;
+        ctx.quadraticCurveTo(side, yy + 6, (i === 0 ? -30 : -18), yy);
+      }
+    }
+    ctx.closePath();
+    ctx.fill();
+    if (hair.streak) {
+      ctx.fillStyle = this.salonColor(hair.streak).hex;
+      ctx.beginPath();
+      ctx.moveTo(8, -30);
+      ctx.quadraticCurveTo(18, len * 0.4, 12, len * 0.85);
+      ctx.lineTo(2, len * 0.85);
+      ctx.quadraticCurveTo(8, len * 0.3, 0, -28);
+      ctx.fill();
+    }
+    if (hair.bangs) {
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.ellipse(0, -16, 22, 12, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (hair.gel) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-8, -30);
+      ctx.quadraticCurveTo(-2, -18, -10, -6);
+      ctx.stroke();
+    }
+    if (hair.clean < 1) {
+      ctx.fillStyle = 'rgba(90,70,40,0.45)';
+      ctx.fillRect(-6, -8, 3, 3);
+      ctx.fillRect(8, 4, 3, 3);
+      ctx.fillRect(-12, 10, 3, 3);
+    }
+  }
+
+  drawSalonPerson(ctx, x, y, sc, person, hair) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(sc, sc);
+    this.drawSalonHair(ctx, hair);
+    ctx.fillStyle = person.skin;
+    ctx.beginPath();
+    ctx.arc(0, 4, 26, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(-27, 6, 5, 0, Math.PI * 2);
+    ctx.arc(27, 6, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#2a2118';
+    ctx.beginPath();
+    ctx.arc(-9, 2, 2.1, 0, Math.PI * 2);
+    ctx.arc(9, 2, 2.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#a15a4a';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(0, 8, 7, 0.25, Math.PI - 0.25);
+    ctx.stroke();
+    if (person.who === 'man' || person.who === 'grandpa') {
+      ctx.strokeStyle = this.salonColor(hair.color).hex;
+      ctx.beginPath();
+      ctx.moveTo(-8, 14);
+      ctx.quadraticCurveTo(0, 18, 8, 14);
+      ctx.stroke();
+    }
+    if (person.who === 'grandma' || person.who === 'grandpa') {
+      ctx.strokeStyle = 'rgba(80,60,40,0.35)';
+      ctx.beginPath();
+      ctx.moveTo(-14, -2);
+      ctx.lineTo(-6, 0);
+      ctx.moveTo(14, -2);
+      ctx.lineTo(6, 0);
+      ctx.stroke();
+    }
+    ctx.fillStyle = person.skin;
+    roundRect(ctx, -8, 28, 16, 12, 4);
+    ctx.fill();
+    ctx.fillStyle = person.shirt;
+    ctx.beginPath();
+    ctx.moveTo(-36, 42);
+    ctx.lineTo(36, 42);
+    ctx.lineTo(28, 92);
+    ctx.lineTo(-28, 92);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  drawSalon(ctx, W, H) {
+    const g = this.salon;
+    if (!g) return;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${Math.min(W * 0.045, 16)}px Arial`;
+    ctx.fillText(g.over ? 'Готово, красота!' : g.person.name, W / 2, 58);
+    const noteSize = fitFontSize(ctx, g.note, W - 20, 12, 9, false);
+    ctx.font = `${noteSize}px Arial`;
+    ctx.fillStyle = '#ffe0ea';
+    ctx.fillText(g.note, W / 2, 76);
+
+    const sampleY = 118;
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    roundRect(ctx, W - 92, sampleY - 28, 78, 96, 10);
+    ctx.fill();
+    ctx.font = '10px Arial';
+    ctx.fillStyle = '#fff';
+    ctx.fillText('Образец', W - 53, sampleY - 14);
+    this.drawSalonPerson(ctx, W - 53, sampleY + 8, 0.42, g.person, g.wish);
+
+    const hx = W * 0.38;
+    const hy = H * 0.36;
+    this.drawSalonPerson(ctx, hx, hy, 1.15, g.person, g.hair);
+    g.head = { x: hx - 50, y: hy - 70, w: 100, h: 170 };
+    (g.bubbles || []).forEach(b => {
+      ctx.globalAlpha = Math.max(0, b.a);
+      ctx.strokeStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    });
+
+    const tools = [
+      ['shampoo', 'Шампунь'],
+      ['balm', 'Бальзам'],
+      ['comb', 'Расчёска'],
+      ['cut', 'Ножницы'],
+      ['grow', 'Ленты'],
+      ['curl', 'Плойка'],
+      ['straight', 'Утюжок'],
+      ['dye', 'Краска'],
+      ['streak', 'Прядь'],
+      ['bangs', 'Чёлка'],
+      ['gel', 'Гель'],
+      ['done', 'Готово']
+    ];
+    const cols = 4;
+    const tw = Math.min(78, (W - 16 - (cols - 1) * 4) / cols);
+    const th = 28;
+    const top = H - (Math.ceil(tools.length / cols) * (th + 4)) - 8;
+    if (g.tool === 'dye' || g.tool === 'streak') {
+      const ids = ['black', 'brown', 'blonde', 'red', 'pink', 'blue', 'green', 'violet'];
+      ids.forEach((id, i) => {
+        const x = 14 + i * 28;
+        const y = top - 26;
+        ctx.fillStyle = this.salonColor(id).hex;
+        ctx.beginPath();
+        ctx.arc(x, y, 10, 0, Math.PI * 2);
+        ctx.fill();
+        if (g.dye === id) {
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+        this.buttons.push({ x: x - 12, y: y - 12, w: 24, h: 24, text: 'dye:' + id });
+      });
+    }
+    tools.forEach((t, i) => {
+      const c = i % cols;
+      const r = Math.floor(i / cols);
+      const x = 8 + c * (tw + 4);
+      const y = top + r * (th + 4);
+      const on = g.tool === t[0];
+      this.buttons.push(createButton(ctx, x, y, tw, th, t[1], {
+        bgColor: t[0] === 'done' ? '#6BCB77' : (on ? '#D4567A' : '#f7e7ee'),
+        fgColor: (t[0] === 'done' || on) ? '#fff' : '#4a2e1c',
+        fontSize: 10,
+        radius: 8
+      }));
+    });
+    if (g.over) {
+      this.buttons.push(createButton(ctx, W / 2 - 70, hy + 120, 140, 32, 'Следующий', {
+        bgColor: '#FFD93D', fgColor: '#1a1a2e', fontSize: 14, radius: 10
+      }));
+    }
+  }
+
+  salonApply() {
+    const g = this.salon;
+    const h = g.hair;
+    const tool = g.tool;
+    if (tool === 'shampoo') {
+      h.clean = Math.max(h.clean, 1);
+      g.note = 'Пена! Теперь бальзам';
+      this.salonBurst(g.head.x + 50, g.head.y + 40);
+      return;
+    }
+    if (tool === 'balm') {
+      if (h.clean < 1) { g.note = 'Сначала шампунь'; AudioSys.play('fail'); return; }
+      h.clean = 2;
+      g.note = 'Волосы мягкие. Можно стричь и красить';
+      return;
+    }
+    if (h.clean < 2 && tool !== 'done') {
+      g.note = 'Сухие волосы путаются. Помой и нанеси бальзам';
+      AudioSys.play('fail');
+      return;
+    }
+    if (tool === 'comb') { g.note = 'Расчёска прошла от макушки вниз'; return; }
+    if (tool === 'cut') { h.len = Math.max(0.32, Math.round((h.len - 0.2) * 100) / 100); g.note = 'Стал короче'; return; }
+    if (tool === 'grow') { h.len = Math.min(1, Math.round((h.len + 0.2) * 100) / 100); g.note = 'Ленты удлинили'; return; }
+    if (tool === 'curl') { h.curl = Math.min(2, h.curl + 1); g.note = h.curl === 2 ? 'Кудри' : 'Появились волны'; return; }
+    if (tool === 'straight') { h.curl = Math.max(0, h.curl - 1); g.note = h.curl === 0 ? 'Совсем прямые' : 'Кудри ослабли'; return; }
+    if (tool === 'dye') { h.color = g.dye; g.note = 'Цвет: ' + this.salonColor(g.dye).name; return; }
+    if (tool === 'streak') {
+      h.streak = h.streak === g.dye ? null : g.dye;
+      g.note = h.streak ? 'Прядь ' + this.salonColor(g.dye).name : 'Прядь убрана';
+      return;
+    }
+    if (tool === 'bangs') { h.bangs = !h.bangs; g.note = h.bangs ? 'Чёлка на месте' : 'Чёлку убрал'; return; }
+    if (tool === 'gel') { h.gel = !h.gel; g.note = h.gel ? 'Гель блестит' : 'Гель смыт'; return; }
+  }
+
+  salonFinish() {
+    const g = this.salon;
+    if (g.over) return;
+    const h = g.hair;
+    const w = g.wish;
+    const lenOk = Math.abs(h.len - w.len) < 0.22;
+    const curlOk = h.curl === w.curl;
+    const colorOk = h.color === w.color;
+    const streakOk = h.streak === w.streak;
+    const bangsOk = !!h.bangs === !!w.bangs;
+    const gelOk = !w.gel || h.gel;
+    const cleanOk = h.clean >= 2;
+    if (lenOk && curlOk && colorOk && streakOk && bangsOk && gelOk && cleanOk) {
+      g.over = true;
+      const fem = g.person.who === 'girl' || g.person.who === 'woman' || g.person.who === 'grandma';
+      g.note = g.person.name + (fem ? ' довольна. Зови следующего' : ' доволен. Зови следующего');
+      AudioSys.play('success');
+      System.countAction('salonWins');
+      System.earnCoins(8);
+      System.addXP(6);
+      System.stats.happiness = Math.min(100, System.stats.happiness + 4);
+      System.saveGame();
+      return;
+    }
+    let miss = 'Ещё не как на образце';
+    if (!cleanOk) miss = 'Сначала шампунь и бальзам';
+    else if (!lenOk) miss = h.len < w.len ? 'Нужно длиннее: ленты' : 'Нужно короче: ножницы';
+    else if (!curlOk) miss = h.curl < w.curl ? 'Нужны кудри: плойка' : 'Нужно прямее: утюжок';
+    else if (!colorOk) miss = 'Другой цвет краски';
+    else if (!streakOk) miss = w.streak ? 'Нужна цветная прядь' : 'Лишнюю прядь убери тем же инструментом';
+    else if (!bangsOk) miss = w.bangs ? 'Нужна чёлка' : 'Чёлку лучше убрать';
+    else if (!gelOk) miss = 'Капни гель';
+    g.note = miss;
+    AudioSys.play('fail');
+  }
+
+  clickSalon(mx, my) {
+    const g = this.salon;
+    if (!g) return false;
+    for (let i = 1; i < this.buttons.length; i++) {
+      const b = this.buttons[i];
+      if (!isPointInRect(mx, my, b.x, b.y, b.w, b.h)) continue;
+      if (b.text === 'Следующий') { this.initSalon(); return true; }
+      if (b.text && b.text.indexOf('dye:') === 0) {
+        g.dye = b.text.slice(4);
+        g.note = 'Краска: ' + this.salonColor(g.dye).name;
+        AudioSys.play('click');
+        return true;
+      }
+      const names = {
+        'Шампунь': 'shampoo', 'Бальзам': 'balm', 'Расчёска': 'comb', 'Ножницы': 'cut',
+        'Ленты': 'grow', 'Плойка': 'curl', 'Утюжок': 'straight', 'Краска': 'dye',
+        'Прядь': 'streak', 'Чёлка': 'bangs', 'Гель': 'gel', 'Готово': 'done'
+      };
+      if (names[b.text]) {
+        g.tool = names[b.text];
+        if (g.tool === 'done') this.salonFinish();
+        else this.salonApply();
+        AudioSys.play('click');
+        return true;
+      }
+    }
+    if (!g.over && g.head && isPointInRect(mx, my, g.head.x, g.head.y, g.head.w, g.head.h)) {
+      if (g.tool === 'done') this.salonFinish();
+      else this.salonApply();
+      AudioSys.play('click');
+      return true;
+    }
+    return false;
   }
 
   checkTTTWin(p) {
