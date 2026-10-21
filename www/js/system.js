@@ -545,7 +545,7 @@ const System = {
     const hunger = this.stats.hunger;
     if (this.isLocationAvailable(loc)) return 'Сюда можно идти 🙂';
     if (this.sleepBlocks(loc)) {
-      return '{Pet} спит 💤 — походы подождут. Сейчас можно: поболтать, тихие игры, мини-игры, магазин и инфо';
+      return '{Pet} спит 💤 — походы подождут. Сейчас можно: тихие игры, мини-игры, магазин и инфо';
     }
 
     const price = {
@@ -582,7 +582,7 @@ const System = {
 
   // Что открыто, пока гофер спит — одной строкой для подсказок на экране
   sleepAllowedHint() {
-    return 'поболтать · тихие игры · мини-игры · магазин · инфо';
+    return 'тихие игры · мини-игры · магазин · инфо';
   },
 
   spendEnergy(amount) {
