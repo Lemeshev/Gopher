@@ -2753,7 +2753,10 @@ class QuietScene {
   }
 
   spawnWindowPasser(inside) {
-    const kinds = ['cat', 'dog', 'kid', 'bike', 'car', 'bus', 'plane', 'scooter', 'stroller', 'walker', 'runner'];
+    const winter = this.win && this.win.season === 'winter';
+    const kinds = winter
+      ? ['cat', 'dog', 'kid', 'car', 'bus', 'plane', 'sled', 'walker', 'runner', 'ski']
+      : ['cat', 'dog', 'kid', 'bike', 'car', 'bus', 'plane', 'scooter', 'stroller', 'walker', 'runner'];
     const id = kinds[Math.floor(Math.random() * kinds.length)];
     if (id === 'plane' && this.win.day === 'night') return;
     const dir = Math.random() < 0.5 ? -1 : 1;
@@ -2809,8 +2812,12 @@ class QuietScene {
     }
     if (id === 'dog') return { prop: Math.random() < 0.5 ? 'stick' : 'none', color: '#c68642', name: this.pickWindowName('dog'), line: line };
     if (id === 'cat') return { color: ['#e07a3d', '#6d6a66', '#c9a27a', '#3d3a38'][Math.floor(Math.random() * 4)], name: this.pickWindowName('boy'), line: line };
-    if (id === 'bike' || id === 'scooter' || id === 'runner') {
+    if (id === 'bike' || id === 'scooter' || id === 'runner' || id === 'ski') {
       return { basket: Math.random() < 0.5, girl: girl, name: this.pickWindowName(girl ? 'girl' : 'boy'), line: line };
+    }
+    if (id === 'sled') {
+      const who = girl ? 'mom' : 'dad';
+      return { who: who, role: who, girl: who === 'mom', name: this.pickWindowName(who === 'mom' ? 'girl' : 'boy'), line: line };
     }
     if (id === 'walker') {
       const roles = ['mom', 'dad', 'grandma', 'grandpa'];
@@ -2912,6 +2919,21 @@ class QuietScene {
         ' держит руль самоката крепко.', ' объезжает трещину на асфальте.'
       ], L);
     }
+    if (id === 'ski') {
+      return (L.girl ? 'Лыжница ' : 'Лыжник ') + who + this.taleAt([
+        ' скользит по снегу и держит палки.', ' едет ровно, лыжи параллельно.',
+        ' отталкивается палками и катится дальше.', ' объезжает сугроб.'
+      ], L);
+    }
+    if (id === 'sled') {
+      const parent = L.who === 'dad' ? 'Папа' : 'Мама';
+      return this.taleAt([
+        parent + ' ' + who + ' везёт ребёнка на санках.',
+        parent + ' ' + who + ' тянет санки за верёвку. Ребёнок сидит и смотрит по сторонам.',
+        'На санках едет ребёнок, а ' + parent.toLowerCase() + ' ' + who + ' идёт впереди.',
+        parent + ' ' + who + ' тащит санки по снегу.'
+      ], L);
+    }
     if (id === 'stroller') {
       const parent = L.who === 'dad' ? 'Папа' : 'Мама';
       return this.taleAt([
@@ -2992,6 +3014,12 @@ class QuietScene {
     const clock = this.windowClock();
     win.day = clock.day;
     win.season = clock.season;
+    if (win.season === 'winter') {
+      win.bugs = [];
+      win.passers = win.passers.filter(p => p.id !== 'bike' && p.id !== 'scooter' && p.id !== 'stroller');
+    } else {
+      win.passers = win.passers.filter(p => p.id !== 'ski' && p.id !== 'sled');
+    }
     win.hour = clock.hour;
     win.watch += sec;
     if (!win.rewarded && win.watch > 40) {
@@ -3059,7 +3087,7 @@ class QuietScene {
 
     if ((win.season === 'spring' || win.season === 'summer') && win.bugs.length < 3 && Math.random() < sec * 0.8) {
       win.bugs.push({
-        x: randFloat(0.15, 0.85), y: randFloat(0.55, 0.78),
+        x: randFloat(0.15, 0.85), y: randFloat(0.18, 0.42),
         phase: randFloat(0, 6), hue: Math.random() < 0.5 ? '#f48fb1' : '#ffd54f'
       });
     }
@@ -3437,6 +3465,26 @@ class QuietScene {
       ctx.fillStyle = '#3a2a22';
       ctx.fillRect(6, -29, 8, 2);
     }
+    if (opt.warm) {
+      ctx.fillStyle = opt.coat || '#c44536';
+      ctx.beginPath();
+      ctx.moveTo(-2, -20);
+      ctx.lineTo(12, -20);
+      ctx.lineTo(14, 2);
+      ctx.lineTo(-4, 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = opt.scarf || '#f0c14a';
+      ctx.beginPath();
+      ctx.ellipse(8, -18, 5, 2.2, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = opt.hat || '#234e78';
+      ctx.fillRect(2, -32, 12, 5);
+      ctx.fillRect(4, -38, 8, 7);
+      ctx.beginPath();
+      ctx.arc(8, -39, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.fillStyle = '#2a241f';
     ctx.beginPath(); ctx.arc(11, -23, 1.05, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
@@ -3452,6 +3500,13 @@ class QuietScene {
   drawWindowPasser(ctx, x, y, p) {
     const step = Math.sin(p.phase);
     const look = p.look || {};
+    const warm = !!(this.win && this.win.season === 'winter');
+    const wear = (opt) => Object.assign({
+      warm: warm,
+      coat: opt.girl ? '#c44536' : '#234e78',
+      hat: '#8d3a32',
+      scarf: '#f0c14a'
+    }, opt);
     ctx.save();
     ctx.translate(x, y);
     ctx.scale(p.dir, 1);
@@ -3484,17 +3539,17 @@ class QuietScene {
       }
     } else if (p.id === 'kid') {
       if (look.prop === 'bag') {
-        this.drawWindowPerson(ctx, p.phase, {
+        this.drawWindowPerson(ctx, p.phase, wear({
         shirt: look.girl ? '#f0a0c0' : '#6db3e8', pants: '#34507a',
         skirt: '#f0a0c0', hair: look.girl ? '#c47a4a' : '#5a3824',
         girl: look.girl, bag: '#e25b5b'
-      });
+      }));
       } else {
-        this.drawWindowPerson(ctx, p.phase, {
+        this.drawWindowPerson(ctx, p.phase, wear({
           shirt: look.girl ? '#f0a0c0' : '#6db3e8', pants: '#34507a',
           skirt: '#f0a0c0', hair: look.girl ? '#c47a4a' : '#5a3824',
-          girl: look.girl, armUp: true
-        });
+          girl: look.girl, armUp: !warm
+        }));
         ctx.strokeStyle = '#8a8a8a';
         ctx.lineWidth = 1.2;
         ctx.beginPath(); ctx.moveTo(16, -22); ctx.lineTo(24, -40); ctx.stroke();
@@ -3524,13 +3579,13 @@ class QuietScene {
       ctx.save();
       ctx.translate(-2, -16);
       ctx.scale(0.72, 0.72);
-      this.drawWindowPerson(ctx, p.phase, {
+      this.drawWindowPerson(ctx, p.phase, wear({
         gait: 'sit',
         hands: { x: 22, y: 4 },
         shirt: look.girl ? '#f0a0c0' : '#7dbe6e',
         pants: '#34507a', skirt: '#f0a0c0',
         hair: look.girl ? '#c47a4a' : '#3a2a22', girl: look.girl
-      });
+      }));
       ctx.restore();
     } else if (p.id === 'bus') {
       ctx.fillStyle = '#f0c14a';
@@ -3585,13 +3640,13 @@ class QuietScene {
       ctx.save();
       ctx.translate(-4, -8);
       ctx.scale(0.78, 0.78);
-      this.drawWindowPerson(ctx, p.phase * 0.35, {
+      this.drawWindowPerson(ctx, p.phase * 0.35, wear({
         gait: 'sit',
         hands: { x: 14, y: -10 },
         shirt: look.girl ? '#f0a0c0' : '#f0c14a',
         pants: '#34507a', skirt: '#f0a0c0',
         hair: look.girl ? '#c47a4a' : '#3a2a22', girl: look.girl
-      });
+      }));
       ctx.restore();
     } else if (p.id === 'stroller') {
       this.drawWindowWheel(ctx, -12, 8, 5);
@@ -3612,14 +3667,14 @@ class QuietScene {
       ctx.save();
       ctx.translate(-24, -2);
       const parent = look.who === 'dad' ? 'dad' : 'mom';
-      this.drawWindowPerson(ctx, p.phase, {
+      this.drawWindowPerson(ctx, p.phase, wear({
         gait: 'stroll',
         hands: { x: 14, y: -22 },
         shirt: parent === 'mom' ? '#e07a9a' : '#4d6ea8',
         pants: '#34507a', skirt: '#e07a9a',
         hair: parent === 'mom' ? '#6a3a28' : '#2a211c',
         girl: parent === 'mom', who: parent
-      });
+      }));
       ctx.restore();
     } else if (p.id === 'walker') {
       const who = look.who || 'dad';
@@ -3627,7 +3682,7 @@ class QuietScene {
       const old = who === 'grandma' || who === 'grandpa';
       ctx.save();
       ctx.scale(1.18, 1.18);
-      this.drawWindowPerson(ctx, p.phase, {
+      this.drawWindowPerson(ctx, p.phase, wear({
         gait: 'stroll',
         shirt: female ? '#c47a9a' : '#4d6ea8',
         pants: female ? '#6a4a6a' : '#2c3a55',
@@ -3635,8 +3690,8 @@ class QuietScene {
         hair: old ? (female ? '#d9d3ea' : '#cfcfcf') : (female ? '#6a3a28' : '#2a211c'),
         who: who,
         girl: female,
-        bag: female ? '#8a5a32' : null
-      });
+        bag: female && !warm ? '#8a5a32' : null
+      }));
       if (who === 'grandpa') {
         ctx.strokeStyle = '#8a5a32';
         ctx.lineWidth = 2.4;
@@ -3644,14 +3699,78 @@ class QuietScene {
       }
       ctx.restore();
     } else if (p.id === 'runner') {
-      this.drawWindowPerson(ctx, p.phase, {
+      this.drawWindowPerson(ctx, p.phase, wear({
         gait: 'run',
         shirt: look.girl ? '#e25b8a' : '#e25b5b',
         pants: look.girl ? '#4a3060' : '#2c3a55',
         skirt: '#e25b8a',
         hair: look.girl ? '#c47a4a' : '#3a2a22',
         girl: look.girl
-      });
+      }));
+    } else if (p.id === 'ski') {
+      ctx.strokeStyle = '#d7e4ee';
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.moveTo(-16, 12); ctx.lineTo(28, 12);
+      ctx.moveTo(-12, 16); ctx.lineTo(32, 16);
+      ctx.stroke();
+      ctx.strokeStyle = '#6b4a32';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-6, -4); ctx.lineTo(-18, 10);
+      ctx.moveTo(10, -4); ctx.lineTo(22, 10);
+      ctx.stroke();
+      this.drawWindowPerson(ctx, p.phase * 0.45, wear({
+        gait: 'stroll',
+        shirt: look.girl ? '#e07a9a' : '#3d7ec4',
+        pants: '#2c3a55',
+        skirt: '#e07a9a',
+        hair: look.girl ? '#c47a4a' : '#3a2a22',
+        girl: look.girl
+      }));
+    } else if (p.id === 'sled') {
+      ctx.strokeStyle = '#8a5a32';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(6, 10);
+      ctx.quadraticCurveTo(18, 16, 34, 10);
+      ctx.moveTo(10, 14);
+      ctx.quadraticCurveTo(20, 20, 36, 14);
+      ctx.stroke();
+      ctx.fillStyle = '#c44536';
+      roundRect(ctx, 8, -2, 22, 10, 3);
+      ctx.fill();
+      ctx.save();
+      ctx.translate(16, -6);
+      ctx.scale(0.62, 0.62);
+      this.drawWindowPerson(ctx, 1.2, wear({
+        gait: 'sit',
+        shirt: '#f0c14a',
+        pants: '#34507a',
+        hair: '#5a3824',
+        girl: false
+      }));
+      ctx.restore();
+      ctx.strokeStyle = '#6b4a32';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(8, 2);
+      ctx.lineTo(-10, -8);
+      ctx.stroke();
+      ctx.save();
+      ctx.translate(-22, -2);
+      const parent = look.who === 'dad' ? 'dad' : 'mom';
+      this.drawWindowPerson(ctx, p.phase, wear({
+        gait: 'stroll',
+        hands: { x: 16, y: -4 },
+        shirt: parent === 'mom' ? '#e07a9a' : '#4d6ea8',
+        pants: '#34507a',
+        skirt: '#e07a9a',
+        hair: parent === 'mom' ? '#6a3a28' : '#2a211c',
+        girl: parent === 'mom',
+        who: parent
+      }));
+      ctx.restore();
     }
     ctx.restore();
   }
@@ -3931,10 +4050,42 @@ class QuietScene {
       ctx.restore();
     }
 
+    win.snowman = null;
+    if (season === 'winter') {
+      const sx = frame.x + frame.w * 0.7;
+      const sy = meadowTop + 22;
+      ctx.fillStyle = '#f4f8fc';
+      ctx.beginPath(); ctx.arc(sx, sy + 16, 13, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(sx, sy + 1, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(sx, sy - 12, 6.5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#6b4423';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(sx - 8, sy + 2); ctx.lineTo(sx - 22, sy - 4);
+      ctx.moveTo(sx + 8, sy + 2); ctx.lineTo(sx + 22, sy - 2);
+      ctx.stroke();
+      ctx.fillStyle = '#e07a32';
+      ctx.beginPath();
+      ctx.moveTo(sx + 5, sy - 12);
+      ctx.lineTo(sx + 16, sy - 10);
+      ctx.lineTo(sx + 5, sy - 9);
+      ctx.fill();
+      ctx.fillStyle = '#222';
+      ctx.beginPath(); ctx.arc(sx - 2, sy - 14, 1, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(sx + 2.5, sy - 14, 1, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#c44536';
+      ctx.fillRect(sx - 5, sy - 22, 10, 3);
+      ctx.fillRect(sx - 3.5, sy - 30, 7, 8);
+      win.snowman = { x: sx - 24, y: sy - 34, w: 48, h: 66 };
+    }
+
     win.hits = [];
     if (win.far) {
       const fx = frame.x + frame.w * win.far.x;
       win.hits.push({ x: fx - 28, y: groundY - 26, w: 64, h: 78, tale: win.far.tale });
+    }
+    if (win.snowman) {
+      win.hits.push(Object.assign({ tale: 'На полянке стоит снеговик. Шляпа красная, нос морковка.' }, win.snowman));
     }
     win.passers.filter(p => p.id !== 'plane').forEach(p => {
       const px = frame.x + frame.w * p.x;
@@ -3948,15 +4099,35 @@ class QuietScene {
 
     win.bugs.forEach(b => {
       const bx = frame.x + frame.w * b.x;
-      const by = frame.y + frame.h * b.y + Math.sin(b.phase) * 6;
-      const wing = Math.abs(Math.sin(b.phase * 3)) * 7;
+      const by = frame.y + frame.h * b.y + Math.sin(b.phase) * 4;
+      const flap = 0.35 + Math.abs(Math.sin(b.phase * 3)) * 0.75;
+      ctx.save();
+      ctx.translate(bx, by);
       ctx.fillStyle = b.hue;
       ctx.beginPath();
-      ctx.ellipse(bx - 3, by - wing, 4, 6, -0.4, 0, Math.PI * 2);
-      ctx.ellipse(bx + 3, by - wing, 4, 6, 0.4, 0, Math.PI * 2);
+      ctx.ellipse(-7 * flap, -1, 8 * flap, 5, -0.4, 0, Math.PI * 2);
+      ctx.ellipse(7 * flap, -1, 8 * flap, 5, 0.4, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#333';
-      ctx.fillRect(bx - 1, by, 2, 7);
+      ctx.globalAlpha = 0.75;
+      ctx.beginPath();
+      ctx.ellipse(-5 * flap, 5, 5 * flap, 4, 0.3, 0, Math.PI * 2);
+      ctx.ellipse(5 * flap, 5, 5 * flap, 4, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#3a2a22';
+      ctx.beginPath();
+      ctx.ellipse(0, 2, 1.4, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0, -6, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#3a2a22';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-1, -8); ctx.quadraticCurveTo(-4, -14, -3, -16);
+      ctx.moveTo(1, -8); ctx.quadraticCurveTo(4, -14, 3, -16);
+      ctx.stroke();
+      ctx.restore();
     });
 
     win.birds.forEach(b => {
