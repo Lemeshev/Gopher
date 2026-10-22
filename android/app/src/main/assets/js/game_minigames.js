@@ -653,12 +653,41 @@ class MinigamesScene {
       this.rps.timer += dt;
       if (this.rps.timer >= 900) this.finishRpsRound();
     }
-    if (this.mode === 'salon' && this.salon && this.salon.bubbles) {
-      this.salon.bubbles.forEach(b => {
-        b.y -= dt * 0.03;
-        b.a -= dt * 0.0008;
+    if (this.mode === 'salon' && this.salon) {
+      const g = this.salon;
+      g.t = (g.t || 0) + dt;
+      (g.bubbles || []).forEach(b => {
+        b.y -= dt * 0.045;
+        b.x += Math.sin((g.t + b.y) / 180) * dt * 0.01;
+        b.a -= dt * 0.0007;
       });
-      this.salon.bubbles = this.salon.bubbles.filter(b => b.a > 0);
+      g.bubbles = (g.bubbles || []).filter(b => b.a > 0);
+      if (g.snip > 0) g.snip -= dt;
+      if (g.comb > 0) g.comb -= dt;
+      if (g.iron > 0) g.iron -= dt;
+      if (g.drip > 0) g.drip -= dt;
+      if (g.foam > 0) g.foam -= dt;
+      if (g.spark > 0) g.spark -= dt;
+    }
+    if (this.mode === 'clay' && this.clay && this.clay.stage === 'dry') {
+      const c = this.clay;
+      c.puff = c.puff || [];
+      if (c.grab === -2 && c.dryer) {
+        c.puff.push({
+          x: c.dryer.x - 36,
+          y: c.dryer.y + (Math.random() - 0.5) * 18,
+          vx: -0.08 - Math.random() * 0.06,
+          a: 0.7,
+          r: 3 + Math.random() * 4
+        });
+      }
+      c.puff.forEach(p => {
+        p.x += p.vx * dt;
+        p.a -= dt * 0.0011;
+        p.r += dt * 0.004;
+      });
+      if (c.puff.length > 40) c.puff.splice(0, c.puff.length - 40);
+      c.puff = c.puff.filter(p => p.a > 0);
     }
     if (this.mode === 'simon' && this.simon.phase === 'show') {
       const s = this.simon;
@@ -1758,6 +1787,7 @@ class MinigamesScene {
       pulls: 0,
       dry: 0,
       paint: '#c0392b',
+      strokes: [],
       note: 'Слепи что хочешь. Рядом глина поддаётся чуть-чуть',
       over: false
     };
@@ -1813,34 +1843,58 @@ class MinigamesScene {
     ctx.closePath();
   }
 
-  paintClay(ctx, pts, map, soft, colors) {
+  paintClay(ctx, pts, map, soft, colors, strokes, dryAmt) {
     this.traceClay(ctx, pts, map);
-    const g = ctx.createRadialGradient(map.cx - map.sc * 0.2, map.cy - map.sc * 0.25, map.sc * 0.1, map.cx, map.cy, map.sc * 1.1);
-    g.addColorStop(0, soft ? '#e7b48a' : '#c4a574');
-    g.addColorStop(1, soft ? '#b56b3c' : '#8d4e28');
-    ctx.fillStyle = g;
-    ctx.fill();
+    ctx.save();
+    ctx.clip();
+    const wet = ctx.createRadialGradient(map.cx - map.sc * 0.15, map.cy - map.sc * 0.2, map.sc * 0.08, map.cx, map.cy, map.sc * 1.15);
+    wet.addColorStop(0, soft ? '#f0c49a' : '#d7b48a');
+    wet.addColorStop(1, soft ? '#a85a32' : '#7a4024');
+    ctx.fillStyle = wet;
+    ctx.fillRect(map.cx - map.sc * 2, map.cy - map.sc * 2, map.sc * 4, map.sc * 4);
+    const dry = dryAmt == null ? (soft ? 0 : 100) : dryAmt;
+    const t = Math.max(0, Math.min(1, dry / 100));
+    if (t > 0) {
+      const matte = ctx.createRadialGradient(map.cx, map.cy - map.sc * 0.1, map.sc * 0.05, map.cx, map.cy, map.sc * 1.1);
+      matte.addColorStop(0, '#f6e2c4');
+      matte.addColorStop(1, '#c4895a');
+      ctx.globalAlpha = t;
+      ctx.fillStyle = matte;
+      ctx.fillRect(map.cx - map.sc * 2, map.cy - map.sc * 2, map.sc * 4, map.sc * 4);
+      ctx.globalAlpha = 1;
+    }
+    const blob = (x, y, col, rad) => {
+      ctx.fillStyle = col;
+      for (let k = 4; k >= 1; k--) {
+        ctx.globalAlpha = 0.28;
+        ctx.beginPath();
+        ctx.arc(x, y, rad * (k / 4), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    };
     if (colors && colors.some(c => c)) {
       const p = pts.map(q => ({ x: map.cx + q.x * map.sc, y: map.cy + q.y * map.sc }));
-      const cx = map.cx;
-      const cy = map.cy;
       for (let i = 0; i < p.length; i++) {
         if (!colors[i]) continue;
-        const a = p[i];
-        const b = p[(i + 1) % p.length];
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
-        ctx.closePath();
-        ctx.fillStyle = colors[i];
-        ctx.globalAlpha = 0.85;
-        ctx.fill();
-        ctx.globalAlpha = 1;
+        blob(p[i].x, p[i].y, colors[i], map.sc * 0.3);
       }
     }
-    ctx.strokeStyle = 'rgba(70,32,16,0.45)';
-    ctx.lineWidth = 1.6;
+    (strokes || []).forEach(s => {
+      blob(map.cx + s.x * map.sc, map.cy + s.y * map.sc, s.c, (s.r || 0.14) * map.sc);
+    });
+    if (t < 0.9) {
+      ctx.globalAlpha = 0.28 * (1 - t);
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.ellipse(map.cx - map.sc * 0.16, map.cy - map.sc * 0.22, map.sc * 0.2, map.sc * 0.1, -0.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+    this.traceClay(ctx, pts, map);
+    ctx.strokeStyle = 'rgba(70,32,16,0.5)';
+    ctx.lineWidth = 2;
     ctx.stroke();
   }
 
@@ -1899,7 +1953,7 @@ class MinigamesScene {
       const wide = { top: L.top, boardH: L.boardH, boardW: W - 24, sx: 12, bx: 12, by: L.top, bw: W - 24, bh: L.boardH };
       board(12, W - 24, g.stage === 'dry' ? 'Веди фен по глине' : 'Твоя глина');
       const map = this.clayMap(wide, 'work');
-      this.paintClay(ctx, g.pts, map, g.stage === 'free', g.colors);
+      this.paintClay(ctx, g.pts, map, g.stage === 'free', g.colors, g.strokes, g.stage === 'dry' ? (g.dry || 0) : (g.stage === 'paint' ? 100 : 0));
       if (g.stage === 'dry') {
         const px = 24;
         const bw = W - 48;
@@ -1910,7 +1964,16 @@ class MinigamesScene {
         ctx.fillStyle = '#e07a3c';
         roundRect(ctx, px, by, bw * Math.min(1, (g.dry || 0) / 100), 10, 5);
         ctx.fill();
-        if (g.dryer) this.drawDryer(ctx, g.dryer.x, g.dryer.y);
+        if (!g.dryer) g.dryer = { x: W - 78, y: L.top + L.boardH * 0.55 };
+        (g.puff || []).forEach(p => {
+          ctx.globalAlpha = Math.max(0, p.a);
+          ctx.fillStyle = 'rgba(255,220,170,0.9)';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        });
+        this.drawDryer(ctx, g.dryer.x, g.dryer.y, g.grab === -2);
       }
       if (g.stage === 'paint') {
         const palette = ['#c0392b', '#e67e22', '#f1c40f', '#27ae60', '#2980b9', '#8e44ad', '#f4f1ea', '#2c3e50'];
@@ -1947,18 +2010,41 @@ class MinigamesScene {
     });
   }
 
-  drawDryer(ctx, x, y) {
+  drawDryer(ctx, x, y, blowing) {
     ctx.save();
-    ctx.translate(x, y);
-    ctx.fillStyle = '#5d4037';
-    roundRect(ctx, -8, -16, 22, 16, 4);
+    ctx.translate(x, y + Math.sin(this.time / 140) * (blowing ? 2.5 : 1));
+    if (blowing) {
+      ctx.strokeStyle = 'rgba(255,190,120,0.85)';
+      ctx.lineWidth = 3;
+      for (let i = 0; i < 3; i++) {
+        const yy = -16 + i * 16;
+        const wave = Math.sin(this.time / 90 + i) * 4;
+        ctx.beginPath();
+        ctx.moveTo(-8, yy);
+        ctx.quadraticCurveTo(-28, yy + wave, -52, yy - wave);
+        ctx.stroke();
+      }
+    }
+    ctx.fillStyle = '#eceff1';
+    roundRect(ctx, -6, -22, 46, 36, 10);
     ctx.fill();
-    ctx.fillStyle = '#8d6e63';
+    ctx.fillStyle = '#e07a3c';
+    roundRect(ctx, 8, -16, 22, 12, 4);
+    ctx.fill();
+    ctx.fillStyle = '#b0bec5';
     ctx.beginPath();
-    ctx.moveTo(14, -14);
-    ctx.lineTo(28, -20);
-    ctx.lineTo(28, 2);
-    ctx.lineTo(14, -2);
+    ctx.moveTo(-6, -16);
+    ctx.lineTo(-28, -26);
+    ctx.lineTo(-28, 16);
+    ctx.lineTo(-6, 10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#78909c';
+    ctx.beginPath();
+    ctx.arc(-28, -5, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#cfd8dc';
+    roundRect(ctx, 16, 12, 12, 26, 5);
     ctx.fill();
     ctx.restore();
   }
@@ -1988,7 +2074,7 @@ class MinigamesScene {
         roundRect(ctx, x, y, cw, cw, 12);
         ctx.fill();
         const map = { cx: x + cw / 2, cy: y + cw / 2, sc: cw * 0.34 };
-        this.paintClay(ctx, work.pts, map, false, work.colors);
+        this.paintClay(ctx, work.pts, map, false, work.colors, work.strokes, 100);
       });
       return;
     }
@@ -2165,16 +2251,26 @@ class MinigamesScene {
       if (d < bd) { bd = d; bi = i; }
     });
     g.colors[bi] = g.paint;
-    const n = g.pts.length;
-    g.colors[(bi + 1) % n] = g.colors[(bi + 1) % n] || g.paint;
-    g.note = 'Краска легла. Можно сменить цвет и красить дальше';
+    if (!g.strokes) g.strokes = [];
+    const last = g.strokes[g.strokes.length - 1];
+    if (!last || Math.hypot(last.x - local.x, last.y - local.y) > 0.045) {
+      g.strokes.push({
+        x: Math.round(local.x * 100) / 100,
+        y: Math.round(local.y * 100) / 100,
+        r: 0.16,
+        c: g.paint
+      });
+      if (g.strokes.length > 90) g.strokes.shift();
+    }
+    g.note = 'Веди пальцем. Цвет можно сменить сверху';
   }
 
   saveClayWork() {
     const g = this.clay;
     const piece = {
       pts: g.pts.map(p => ({ x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100 })),
-      colors: g.colors.slice()
+      colors: g.colors.slice(),
+      strokes: (g.strokes || []).slice()
     };
     if (!System.clayWorks) System.clayWorks = [];
     System.clayWorks.unshift(piece);
@@ -2328,10 +2424,18 @@ class MinigamesScene {
       wish: wish,
       tool: 'shampoo',
       dye: 'pink',
-      note: who.name + ' хочет: ' + this.salonWishLine(wish),
+      note: '',
       bubbles: [],
       over: false,
-      head: null
+      head: null,
+      t: 0,
+      snip: 0,
+      comb: 0,
+      iron: 0,
+      drip: 0,
+      foam: 0,
+      spark: 0,
+      smile: 0
     };
   }
 
@@ -2349,65 +2453,199 @@ class MinigamesScene {
 
   drawSalonHair(ctx, hair) {
     const col = this.salonColor(hair.color).hex;
-    const len = 20 + hair.len * 86;
+    const len = 22 + hair.len * 78;
+    const sway = Math.sin((this.time || 0) / 280) * (hair.curl === 0 ? 1.5 : 3);
     ctx.fillStyle = col;
     ctx.beginPath();
-    ctx.moveTo(-30, 0);
-    ctx.quadraticCurveTo(-34, -40, 0, -42);
-    ctx.quadraticCurveTo(34, -40, 30, 0);
+    ctx.moveTo(-32, -2);
+    ctx.quadraticCurveTo(-38, -46, 0, -48);
+    ctx.quadraticCurveTo(38, -46, 32, -2);
     if (hair.curl === 0) {
-      ctx.lineTo(24, len);
-      ctx.quadraticCurveTo(0, len + 8, -24, len);
+      ctx.lineTo(26 + sway, len);
+      ctx.quadraticCurveTo(0, len + 10, -26 + sway, len);
     } else {
-      const bumps = hair.curl === 2 ? 7 : 4;
+      const bumps = hair.curl === 2 ? 6 : 3;
       for (let i = 0; i <= bumps; i++) {
         const yy = (len * i) / bumps;
-        const side = i % 2 === 0 ? 28 : 14;
-        ctx.quadraticCurveTo(side, yy - len / bumps * 0.45, (i === bumps ? 8 : 18), yy);
+        const side = (i % 2 === 0 ? 34 : 12) + sway;
+        ctx.quadraticCurveTo(side, yy - len / bumps * 0.5, (i === bumps ? 6 : 20), yy);
       }
-      ctx.lineTo(-8, len);
+      ctx.lineTo(-6, len);
       for (let i = bumps; i >= 0; i--) {
         const yy = (len * i) / bumps;
-        const side = i % 2 === 0 ? -28 : -14;
-        ctx.quadraticCurveTo(side, yy + 6, (i === 0 ? -30 : -18), yy);
+        const side = (i % 2 === 0 ? -34 : -12) + sway;
+        ctx.quadraticCurveTo(side, yy + 8, (i === 0 ? -32 : -20), yy);
       }
     }
     ctx.closePath();
     ctx.fill();
+    ctx.globalAlpha = 0.35;
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-12, -36);
+    ctx.quadraticCurveTo(-6, -10, -8, len * 0.45);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
     if (hair.streak) {
       ctx.fillStyle = this.salonColor(hair.streak).hex;
       ctx.beginPath();
-      ctx.moveTo(8, -30);
-      ctx.quadraticCurveTo(18, len * 0.4, 12, len * 0.85);
-      ctx.lineTo(2, len * 0.85);
-      ctx.quadraticCurveTo(8, len * 0.3, 0, -28);
+      ctx.moveTo(6, -34);
+      ctx.quadraticCurveTo(20 + sway, len * 0.35, 14, len * 0.82);
+      ctx.lineTo(2, len * 0.8);
+      ctx.quadraticCurveTo(8, len * 0.3, -2, -30);
       ctx.fill();
     }
     if (hair.bangs) {
       ctx.fillStyle = col;
       ctx.beginPath();
-      ctx.ellipse(0, -16, 22, 12, 0, 0, Math.PI * 2);
+      ctx.ellipse(0, -18, 24, 13, 0, 0, Math.PI * 2);
       ctx.fill();
     }
     if (hair.gel) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.75)';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.lineWidth = 2.4;
       ctx.beginPath();
-      ctx.moveTo(-8, -30);
-      ctx.quadraticCurveTo(-2, -18, -10, -6);
+      ctx.moveTo(-14, -34);
+      ctx.quadraticCurveTo(0, -16, -12, -2);
+      ctx.moveTo(10, -32);
+      ctx.quadraticCurveTo(4, -14, 12, 0);
       ctx.stroke();
     }
     if (hair.clean < 1) {
-      ctx.fillStyle = 'rgba(90,70,40,0.45)';
-      ctx.fillRect(-6, -8, 3, 3);
-      ctx.fillRect(8, 4, 3, 3);
-      ctx.fillRect(-12, 10, 3, 3);
+      ctx.fillStyle = 'rgba(90,70,40,0.5)';
+      ctx.beginPath();
+      ctx.arc(-8, -6, 2.2, 0, Math.PI * 2);
+      ctx.arc(10, 6, 2.4, 0, Math.PI * 2);
+      ctx.arc(-14, 14, 2, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 
-  drawSalonPerson(ctx, x, y, sc, person, hair) {
+  salonIcon(ctx, id, x, y) {
     ctx.save();
     ctx.translate(x, y);
+    if (id === 'shampoo') {
+      ctx.fillStyle = '#7ad0f0';
+      roundRect(ctx, -8, -12, 16, 22, 4);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      roundRect(ctx, -3, -16, 6, 6, 2);
+      ctx.fill();
+    } else if (id === 'balm') {
+      ctx.fillStyle = '#f7a8c8';
+      ctx.beginPath();
+      ctx.arc(0, 2, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(-8, -2, 16, 3);
+    } else if (id === 'comb') {
+      ctx.fillStyle = '#ffd36b';
+      roundRect(ctx, -14, -4, 28, 8, 3);
+      ctx.fill();
+      ctx.strokeStyle = '#c48a20';
+      ctx.lineWidth = 1.5;
+      for (let i = -10; i <= 10; i += 4) {
+        ctx.beginPath();
+        ctx.moveTo(i, 4);
+        ctx.lineTo(i, 12);
+        ctx.stroke();
+      }
+    } else if (id === 'cut') {
+      ctx.strokeStyle = '#546e7a';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(-12, -12);
+      ctx.lineTo(8, 8);
+      ctx.moveTo(12, -12);
+      ctx.lineTo(-8, 8);
+      ctx.stroke();
+      ctx.fillStyle = '#90a4ae';
+      ctx.beginPath();
+      ctx.arc(-6, 8, 4, 0, Math.PI * 2);
+      ctx.arc(6, 8, 4, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (id === 'grow') {
+      ctx.fillStyle = '#e040fb';
+      ctx.beginPath();
+      ctx.moveTo(0, -14);
+      ctx.lineTo(8, 12);
+      ctx.lineTo(-8, 12);
+      ctx.fill();
+      ctx.fillStyle = '#ffeb3b';
+      ctx.fillRect(-12, 8, 24, 5);
+    } else if (id === 'curl') {
+      ctx.strokeStyle = '#ef6c00';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(0, 0, 9, 0.4, Math.PI * 1.7);
+      ctx.stroke();
+      ctx.fillStyle = '#ffcc80';
+      ctx.beginPath();
+      ctx.arc(8, -6, 4, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (id === 'straight') {
+      ctx.fillStyle = '#5c6bc0';
+      roundRect(ctx, -14, -5, 28, 10, 3);
+      ctx.fill();
+      ctx.fillStyle = '#9fa8da';
+      ctx.fillRect(-14, -2, 28, 3);
+    } else if (id === 'dye') {
+      ctx.fillStyle = '#e53935';
+      ctx.beginPath();
+      ctx.moveTo(-8, -10);
+      ctx.lineTo(8, -10);
+      ctx.lineTo(5, 12);
+      ctx.lineTo(-5, 12);
+      ctx.fill();
+      ctx.fillStyle = '#ff8a80';
+      ctx.beginPath();
+      ctx.arc(0, 6, 3, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (id === 'streak') {
+      ctx.strokeStyle = '#7a4ea3';
+      ctx.lineWidth = 5;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(0, -14);
+      ctx.quadraticCurveTo(8, 0, 0, 14);
+      ctx.stroke();
+    } else if (id === 'bangs') {
+      ctx.fillStyle = '#6b3e26';
+      ctx.beginPath();
+      ctx.arc(0, 2, 12, Math.PI, 0);
+      ctx.fill();
+      ctx.fillStyle = '#f6d3b4';
+      ctx.beginPath();
+      ctx.arc(0, 8, 8, 0, Math.PI);
+      ctx.fill();
+    } else if (id === 'gel') {
+      ctx.fillStyle = '#26c6da';
+      roundRect(ctx, -6, -14, 12, 22, 4);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(0, 2, 3, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (id === 'done') {
+      ctx.fillStyle = '#43a047';
+      ctx.beginPath();
+      ctx.arc(0, 0, 13, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(-6, 1);
+      ctx.lineTo(-1, 6);
+      ctx.lineTo(7, -5);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  drawSalonPerson(ctx, x, y, sc, person, hair, smile) {
+    ctx.save();
+    ctx.translate(x, y + Math.sin((this.time || 0) / 420) * 2 * sc);
     ctx.scale(sc, sc);
     this.drawSalonHair(ctx, hair);
     ctx.fillStyle = person.skin;
@@ -2418,21 +2656,29 @@ class MinigamesScene {
     ctx.arc(-27, 6, 5, 0, Math.PI * 2);
     ctx.arc(27, 6, 5, 0, Math.PI * 2);
     ctx.fill();
+    const blink = Math.sin((this.time || 0) / 900) > 0.97;
     ctx.fillStyle = '#2a2118';
-    ctx.beginPath();
-    ctx.arc(-9, 2, 2.1, 0, Math.PI * 2);
-    ctx.arc(9, 2, 2.1, 0, Math.PI * 2);
-    ctx.fill();
+    if (blink) {
+      ctx.fillRect(-11, 1, 5, 2);
+      ctx.fillRect(6, 1, 5, 2);
+    } else {
+      ctx.beginPath();
+      ctx.arc(-9, 2, 2.2, 0, Math.PI * 2);
+      ctx.arc(9, 2, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.strokeStyle = '#a15a4a';
-    ctx.lineWidth = 1.4;
+    ctx.lineWidth = 1.6;
     ctx.beginPath();
-    ctx.arc(0, 8, 7, 0.25, Math.PI - 0.25);
+    if (smile) ctx.arc(0, 6, 8, 0.15, Math.PI - 0.15);
+    else ctx.arc(0, 8, 7, 0.35, Math.PI - 0.35);
     ctx.stroke();
     if (person.who === 'man' || person.who === 'grandpa') {
       ctx.strokeStyle = this.salonColor(hair.color).hex;
+      ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(-8, 14);
-      ctx.quadraticCurveTo(0, 18, 8, 14);
+      ctx.quadraticCurveTo(0, 20, 8, 14);
       ctx.stroke();
     }
     if (person.who === 'grandma' || person.who === 'grandpa') {
@@ -2447,50 +2693,133 @@ class MinigamesScene {
     ctx.fillStyle = person.skin;
     roundRect(ctx, -8, 28, 16, 12, 4);
     ctx.fill();
+    ctx.fillStyle = '#f4f7fb';
+    ctx.beginPath();
+    ctx.moveTo(-40, 48);
+    ctx.lineTo(40, 48);
+    ctx.lineTo(30, 96);
+    ctx.lineTo(-30, 96);
+    ctx.closePath();
+    ctx.fill();
     ctx.fillStyle = person.shirt;
     ctx.beginPath();
-    ctx.moveTo(-36, 42);
-    ctx.lineTo(36, 42);
-    ctx.lineTo(28, 92);
-    ctx.lineTo(-28, 92);
+    ctx.moveTo(-22, 50);
+    ctx.lineTo(22, 50);
+    ctx.lineTo(16, 78);
+    ctx.lineTo(-16, 78);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
   }
 
+  drawSalonToolFx(ctx, g, hx, hy) {
+    const phase = (this.time || 0) / 160;
+    if (g.snip > 0) {
+      ctx.save();
+      ctx.translate(hx + 36, hy + 10 + Math.sin(phase) * 8);
+      ctx.rotate(Math.sin(phase * 2) * 0.4);
+      this.salonIcon(ctx, 'cut', 0, 0);
+      ctx.restore();
+    }
+    if (g.comb > 0) {
+      const k = 1 - g.comb / 700;
+      ctx.save();
+      ctx.translate(hx + 8, hy - 30 + k * 90);
+      this.salonIcon(ctx, 'comb', 0, 0);
+      ctx.restore();
+    }
+    if (g.iron > 0) {
+      const k = 1 - g.iron / 800;
+      ctx.save();
+      ctx.translate(hx + 24, hy - 20 + k * 70);
+      this.salonIcon(ctx, g.tool === 'straight' ? 'straight' : 'curl', 0, 0);
+      ctx.restore();
+    }
+    if (g.drip > 0) {
+      const k = 1 - g.drip / 700;
+      ctx.fillStyle = this.salonColor(g.dye).hex;
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.arc(hx + 6, hy - 40 + k * 80, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    if (g.spark > 0) {
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2 + phase;
+        const rr = 40 + (1 - g.spark / 900) * 30;
+        ctx.fillStyle = i % 2 ? '#ffd54f' : '#fff';
+        ctx.beginPath();
+        ctx.arc(hx + Math.cos(a) * rr, hy + Math.sin(a) * rr * 0.7, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
   drawSalon(ctx, W, H) {
     const g = this.salon;
     if (!g) return;
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#fff';
-    ctx.font = `bold ${Math.min(W * 0.045, 16)}px Arial`;
-    ctx.fillText(g.over ? 'Готово, красота!' : g.person.name, W / 2, 58);
-    const noteSize = fitFontSize(ctx, g.note, W - 20, 12, 9, false);
-    ctx.font = `${noteSize}px Arial`;
-    ctx.fillStyle = '#ffe0ea';
-    ctx.fillText(g.note, W / 2, 76);
-
-    const sampleY = 118;
-    ctx.fillStyle = 'rgba(255,255,255,0.12)';
-    roundRect(ctx, W - 92, sampleY - 28, 78, 96, 10);
+    ctx.fillStyle = '#f8d5e4';
+    ctx.fillRect(0, 48, W, H - 48);
+    ctx.fillStyle = '#f3b7cf';
+    ctx.fillRect(0, H * 0.62, W, H);
+    ctx.fillStyle = '#c98b6a';
+    ctx.fillRect(0, H * 0.72, W, H);
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    roundRect(ctx, W * 0.08, 56, W * 0.62, H * 0.5, 18);
     ctx.fill();
-    ctx.font = '10px Arial';
-    ctx.fillStyle = '#fff';
-    ctx.fillText('Образец', W - 53, sampleY - 14);
-    this.drawSalonPerson(ctx, W - 53, sampleY + 8, 0.42, g.person, g.wish);
+    ctx.strokeStyle = '#e7b7a0';
+    ctx.lineWidth = 6;
+    ctx.stroke();
 
-    const hx = W * 0.38;
-    const hy = H * 0.36;
-    this.drawSalonPerson(ctx, hx, hy, 1.15, g.person, g.hair);
-    g.head = { x: hx - 50, y: hy - 70, w: 100, h: 170 };
+    const cardX = W - 104;
+    const cardY = 56;
+    ctx.fillStyle = '#fff';
+    roundRect(ctx, cardX, cardY, 92, 118, 12);
+    ctx.fill();
+    ctx.strokeStyle = '#f48fb1';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    this.drawSalonPerson(ctx, cardX + 46, cardY + 46, 0.48, g.person, g.wish, false);
+    ctx.fillStyle = '#f48fb1';
+    ctx.beginPath();
+    ctx.arc(cardX + 78, cardY + 14, 8, 0, Math.PI * 2);
+    ctx.fill();
+
+    const hx = Math.min(W * 0.38, cardX - 70);
+    const hy = Math.min(H * 0.34, H - 250);
+    ctx.fillStyle = '#8d6e63';
+    roundRect(ctx, hx - 46, hy + 78, 92, 16, 6);
+    ctx.fill();
+    ctx.fillStyle = '#efebe9';
+    roundRect(ctx, hx - 28, hy + 92, 56, 36, 8);
+    ctx.fill();
+    this.drawSalonPerson(ctx, hx, hy, 1.2, g.person, g.hair, g.over || g.smile > 0);
+    g.head = { x: hx - 55, y: hy - 78, w: 110, h: 190 };
+    this.drawSalonToolFx(ctx, g, hx, hy);
     (g.bubbles || []).forEach(b => {
       ctx.globalAlpha = Math.max(0, b.a);
-      ctx.strokeStyle = '#fff';
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
       ctx.beginPath();
       ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.fill();
       ctx.globalAlpha = 1;
     });
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#6a3048';
+    ctx.font = 'bold 16px Arial';
+    ctx.fillText(g.person.name, hx, 68);
+    if (g.note) {
+      ctx.font = 'bold 13px Arial';
+      const nw = Math.min(W - 130, ctx.measureText(g.note).width + 16);
+      ctx.fillStyle = '#fff';
+      roundRect(ctx, hx - nw / 2, 80, nw, 22, 11);
+      ctx.fill();
+      ctx.fillStyle = '#6a3048';
+      ctx.fillText(g.note, hx, 91);
+    }
 
     const tools = [
       ['shampoo', 'Шампунь'],
@@ -2506,81 +2835,117 @@ class MinigamesScene {
       ['gel', 'Гель'],
       ['done', 'Готово']
     ];
-    const cols = 4;
-    const tw = Math.min(78, (W - 16 - (cols - 1) * 4) / cols);
-    const th = 28;
-    const top = H - (Math.ceil(tools.length / cols) * (th + 4)) - 8;
+    const cols = 6;
+    const cell = Math.min(52, (W - 16) / cols);
+    const top = H - cell * 2 - 14;
+    if (g.over) {
+      this.buttons.push(createButton(ctx, W / 2 - 78, H * 0.58, 156, 44, 'Дальше', {
+        bgColor: '#FFD93D', fgColor: '#1a1a2e', fontSize: 18, radius: 14
+      }));
+      ctx.textBaseline = 'alphabetic';
+      return;
+    }
     if (g.tool === 'dye' || g.tool === 'streak') {
       const ids = ['black', 'brown', 'blonde', 'red', 'pink', 'blue', 'green', 'violet'];
+      const pot = Math.min(28, (W - 20) / ids.length);
       ids.forEach((id, i) => {
-        const x = 14 + i * 28;
-        const y = top - 26;
+        const x = 12 + i * pot + pot / 2;
+        const y = top - 22;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(x, y, 11, 0, Math.PI * 2);
+        ctx.fill();
         ctx.fillStyle = this.salonColor(id).hex;
         ctx.beginPath();
-        ctx.arc(x, y, 10, 0, Math.PI * 2);
+        ctx.arc(x, y, 8, 0, Math.PI * 2);
         ctx.fill();
         if (g.dye === id) {
-          ctx.strokeStyle = '#fff';
+          ctx.strokeStyle = '#6a3048';
           ctx.lineWidth = 2;
           ctx.stroke();
         }
         this.buttons.push({ x: x - 12, y: y - 12, w: 24, h: 24, text: 'dye:' + id });
       });
     }
+    const pulse = g.hair.clean < 1 ? 'shampoo' : (g.hair.clean < 2 ? 'balm' : '');
     tools.forEach((t, i) => {
       const c = i % cols;
       const r = Math.floor(i / cols);
-      const x = 8 + c * (tw + 4);
-      const y = top + r * (th + 4);
+      const x = 8 + c * cell;
+      const y = top + r * cell;
       const on = g.tool === t[0];
-      this.buttons.push(createButton(ctx, x, y, tw, th, t[1], {
-        bgColor: t[0] === 'done' ? '#6BCB77' : (on ? '#D4567A' : '#f7e7ee'),
-        fgColor: (t[0] === 'done' || on) ? '#fff' : '#4a2e1c',
-        fontSize: 10,
-        radius: 8
-      }));
+      ctx.fillStyle = t[0] === 'done' ? '#6BCB77' : (on ? '#D4567A' : '#fff');
+      roundRect(ctx, x + 3, y + 3, cell - 6, cell - 8, 12);
+      ctx.fill();
+      if (pulse === t[0]) {
+        ctx.strokeStyle = 'rgba(212,86,122,' + (0.45 + 0.4 * Math.sin(this.time / 160)) + ')';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+      this.salonIcon(ctx, t[0], x + cell / 2, y + cell / 2 - 1);
+      this.buttons.push({ x: x + 3, y: y + 3, w: cell - 6, h: cell - 8, text: t[1] });
     });
-    if (g.over) {
-      this.buttons.push(createButton(ctx, W / 2 - 70, hy + 120, 140, 32, 'Следующий', {
-        bgColor: '#FFD93D', fgColor: '#1a1a2e', fontSize: 14, radius: 10
-      }));
-    }
+    ctx.textBaseline = 'alphabetic';
   }
 
   salonApply() {
     const g = this.salon;
     const h = g.hair;
     const tool = g.tool;
+    const at = g.head ? { x: g.head.x + g.head.w / 2, y: g.head.y + 50 } : { x: 120, y: 180 };
     if (tool === 'shampoo') {
       h.clean = Math.max(h.clean, 1);
-      g.note = 'Пена! Теперь бальзам';
-      this.salonBurst(g.head.x + 50, g.head.y + 40);
+      g.note = '';
+      g.foam = 900;
+      this.salonBurst(at.x, at.y);
       return;
     }
     if (tool === 'balm') {
-      if (h.clean < 1) { g.note = 'Сначала шампунь'; AudioSys.play('fail'); return; }
+      if (h.clean < 1) { g.note = 'Сначала пена'; AudioSys.play('fail'); return; }
       h.clean = 2;
-      g.note = 'Волосы мягкие. Можно стричь и красить';
+      g.note = '';
+      g.spark = 500;
       return;
     }
     if (h.clean < 2 && tool !== 'done') {
-      g.note = 'Сухие волосы путаются. Помой и нанеси бальзам';
+      g.note = 'Сначала помой';
       AudioSys.play('fail');
       return;
     }
-    if (tool === 'comb') { g.note = 'Расчёска прошла от макушки вниз'; return; }
-    if (tool === 'cut') { h.len = Math.max(0.32, Math.round((h.len - 0.2) * 100) / 100); g.note = 'Стал короче'; return; }
-    if (tool === 'grow') { h.len = Math.min(1, Math.round((h.len + 0.2) * 100) / 100); g.note = 'Ленты удлинили'; return; }
-    if (tool === 'curl') { h.curl = Math.min(2, h.curl + 1); g.note = h.curl === 2 ? 'Кудри' : 'Появились волны'; return; }
-    if (tool === 'straight') { h.curl = Math.max(0, h.curl - 1); g.note = h.curl === 0 ? 'Совсем прямые' : 'Кудри ослабли'; return; }
-    if (tool === 'dye') { h.color = g.dye; g.note = 'Цвет: ' + this.salonColor(g.dye).name; return; }
-    if (tool === 'streak') {
-      h.streak = h.streak === g.dye ? null : g.dye;
-      g.note = h.streak ? 'Прядь ' + this.salonColor(g.dye).name : 'Прядь убрана';
+    if (tool === 'comb') { g.note = ''; g.comb = 700; return; }
+    if (tool === 'cut') {
+      h.len = Math.max(0.32, Math.round((h.len - 0.2) * 100) / 100);
+      g.note = '';
+      g.snip = 500;
       return;
     }
-    if (tool === 'bangs') { h.bangs = !h.bangs; g.note = h.bangs ? 'Чёлка на месте' : 'Чёлку убрал'; return; }
-    if (tool === 'gel') { h.gel = !h.gel; g.note = h.gel ? 'Гель блестит' : 'Гель смыт'; return; }
+    if (tool === 'grow') {
+      h.len = Math.min(1, Math.round((h.len + 0.2) * 100) / 100);
+      g.note = '';
+      g.spark = 500;
+      return;
+    }
+    if (tool === 'curl') {
+      h.curl = Math.min(2, h.curl + 1);
+      g.note = '';
+      g.iron = 800;
+      return;
+    }
+    if (tool === 'straight') {
+      h.curl = Math.max(0, h.curl - 1);
+      g.note = '';
+      g.iron = 800;
+      return;
+    }
+    if (tool === 'dye') { h.color = g.dye; g.note = ''; g.drip = 700; return; }
+    if (tool === 'streak') {
+      h.streak = h.streak === g.dye ? null : g.dye;
+      g.note = '';
+      g.drip = 700;
+      return;
+    }
+    if (tool === 'bangs') { h.bangs = !h.bangs; g.note = ''; g.snip = 400; return; }
+    if (tool === 'gel') { h.gel = !h.gel; g.note = ''; g.spark = 500; return; }
   }
 
   salonFinish() {
@@ -2598,7 +2963,9 @@ class MinigamesScene {
     if (lenOk && curlOk && colorOk && streakOk && bangsOk && gelOk && cleanOk) {
       g.over = true;
       const fem = g.person.who === 'girl' || g.person.who === 'woman' || g.person.who === 'grandma';
-      g.note = g.person.name + (fem ? ' довольна. Зови следующего' : ' доволен. Зови следующего');
+      g.note = fem ? 'Довольна!' : 'Доволен!';
+      g.spark = 1200;
+      g.smile = 1;
       AudioSys.play('success');
       System.countAction('salonWins');
       System.earnCoins(8);
@@ -2607,14 +2974,14 @@ class MinigamesScene {
       System.saveGame();
       return;
     }
-    let miss = 'Ещё не как на образце';
-    if (!cleanOk) miss = 'Сначала шампунь и бальзам';
-    else if (!lenOk) miss = h.len < w.len ? 'Нужно длиннее: ленты' : 'Нужно короче: ножницы';
-    else if (!curlOk) miss = h.curl < w.curl ? 'Нужны кудри: плойка' : 'Нужно прямее: утюжок';
-    else if (!colorOk) miss = 'Другой цвет краски';
-    else if (!streakOk) miss = w.streak ? 'Нужна цветная прядь' : 'Лишнюю прядь убери тем же инструментом';
-    else if (!bangsOk) miss = w.bangs ? 'Нужна чёлка' : 'Чёлку лучше убрать';
-    else if (!gelOk) miss = 'Капни гель';
+    let miss = 'Сверь с карточкой';
+    if (!cleanOk) miss = 'Сначала помой';
+    else if (!lenOk) miss = h.len < w.len ? 'Длиннее' : 'Короче';
+    else if (!curlOk) miss = h.curl < w.curl ? 'Больше кудрей' : 'Прямее';
+    else if (!colorOk) miss = 'Другой цвет';
+    else if (!streakOk) miss = w.streak ? 'Нужна прядь' : 'Убери прядь';
+    else if (!bangsOk) miss = w.bangs ? 'Нужна чёлка' : 'Без чёлки';
+    else if (!gelOk) miss = 'Нужен гель';
     g.note = miss;
     AudioSys.play('fail');
   }
@@ -2625,10 +2992,10 @@ class MinigamesScene {
     for (let i = 1; i < this.buttons.length; i++) {
       const b = this.buttons[i];
       if (!isPointInRect(mx, my, b.x, b.y, b.w, b.h)) continue;
-      if (b.text === 'Следующий') { this.initSalon(); return true; }
+      if (b.text === 'Следующий' || b.text === 'Дальше') { this.initSalon(); return true; }
       if (b.text && b.text.indexOf('dye:') === 0) {
         g.dye = b.text.slice(4);
-        g.note = 'Краска: ' + this.salonColor(g.dye).name;
+        g.note = '';
         AudioSys.play('click');
         return true;
       }
