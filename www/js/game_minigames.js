@@ -1788,6 +1788,7 @@ class MinigamesScene {
       dry: 0,
       paint: '#c0392b',
       strokes: [],
+      cells: {},
       note: 'Слепи что хочешь. Рядом глина поддаётся чуть-чуть',
       over: false
     };
@@ -1796,7 +1797,8 @@ class MinigamesScene {
 
   clayGeom(W, H) {
     const top = H * 0.2;
-    const bottom = H - 58;
+    const paint = this.clay && this.clay.stage === 'paint';
+    const bottom = H - 58 - (paint ? 44 : 0);
     const gap = 8;
     const boardH = Math.max(120, bottom - top);
     const boardW = (W - 24 - gap) / 2;
@@ -1843,7 +1845,7 @@ class MinigamesScene {
     ctx.closePath();
   }
 
-  paintClay(ctx, pts, map, soft, colors, strokes, dryAmt) {
+  paintClay(ctx, pts, map, soft, colors, strokes, dryAmt, cells) {
     this.traceClay(ctx, pts, map);
     ctx.save();
     ctx.clip();
@@ -1873,16 +1875,29 @@ class MinigamesScene {
       }
       ctx.globalAlpha = 1;
     };
-    if (colors && colors.some(c => c)) {
+    const cellKeys = cells ? Object.keys(cells) : [];
+    if (cellKeys.length) {
+      const s = map.sc * 0.07;
+      cellKeys.forEach(k => {
+        const bits = k.split(',');
+        const x = map.cx + parseFloat(bits[0]) * map.sc;
+        const y = map.cy + parseFloat(bits[1]) * map.sc;
+        ctx.globalAlpha = 0.95;
+        ctx.fillStyle = cells[k];
+        ctx.fillRect(x - s / 2, y - s / 2, s + 0.8, s + 0.8);
+      });
+      ctx.globalAlpha = 1;
+    } else if (strokes && strokes.length) {
+      strokes.forEach(s => {
+        blob(map.cx + s.x * map.sc, map.cy + s.y * map.sc, s.c, (s.r || 0.14) * map.sc);
+      });
+    } else if (colors && colors.some(c => c)) {
       const p = pts.map(q => ({ x: map.cx + q.x * map.sc, y: map.cy + q.y * map.sc }));
       for (let i = 0; i < p.length; i++) {
         if (!colors[i]) continue;
-        blob(p[i].x, p[i].y, colors[i], map.sc * 0.3);
+        blob(p[i].x, p[i].y, colors[i], map.sc * 0.22);
       }
     }
-    (strokes || []).forEach(s => {
-      blob(map.cx + s.x * map.sc, map.cy + s.y * map.sc, s.c, (s.r || 0.14) * map.sc);
-    });
     if (t < 0.9) {
       ctx.globalAlpha = 0.28 * (1 - t);
       ctx.fillStyle = '#fff';
@@ -1953,7 +1968,7 @@ class MinigamesScene {
       const wide = { top: L.top, boardH: L.boardH, boardW: W - 24, sx: 12, bx: 12, by: L.top, bw: W - 24, bh: L.boardH };
       board(12, W - 24, g.stage === 'dry' ? 'Веди фен по глине' : 'Твоя глина');
       const map = this.clayMap(wide, 'work');
-      this.paintClay(ctx, g.pts, map, g.stage === 'free', g.colors, g.strokes, g.stage === 'dry' ? (g.dry || 0) : (g.stage === 'paint' ? 100 : 0));
+      this.paintClay(ctx, g.pts, map, g.stage === 'free', g.colors, g.strokes, g.stage === 'dry' ? (g.dry || 0) : (g.stage === 'paint' ? 100 : 0), g.cells);
       if (g.stage === 'dry') {
         const px = 24;
         const bw = W - 48;
@@ -1977,19 +1992,25 @@ class MinigamesScene {
       }
       if (g.stage === 'paint') {
         const palette = ['#c0392b', '#e67e22', '#f1c40f', '#27ae60', '#2980b9', '#8e44ad', '#f4f1ea', '#2c3e50'];
+        const gap = Math.min(36, (W - 28) / palette.length);
+        const x0 = (W - gap * palette.length) / 2 + gap / 2;
+        const py = L.top + L.boardH + 20;
         palette.forEach((col, i) => {
-          const x = 16 + i * 34;
-          const y = L.top + 24;
+          const x = x0 + i * gap;
+          ctx.fillStyle = '#fff';
+          ctx.beginPath();
+          ctx.arc(x, py, 13, 0, Math.PI * 2);
+          ctx.fill();
           ctx.fillStyle = col;
           ctx.beginPath();
-          ctx.arc(x, y, 12, 0, Math.PI * 2);
+          ctx.arc(x, py, 10, 0, Math.PI * 2);
           ctx.fill();
           if (g.paint === col) {
             ctx.strokeStyle = '#4a2e1c';
             ctx.lineWidth = 2;
             ctx.stroke();
           }
-          this.buttons.push({ x: x - 14, y: y - 14, w: 28, h: 28, text: 'paint:' + col });
+          this.buttons.push({ x: x - 14, y: py - 14, w: 28, h: 28, text: 'paint:' + col });
         });
       }
     }
@@ -2074,7 +2095,7 @@ class MinigamesScene {
         roundRect(ctx, x, y, cw, cw, 12);
         ctx.fill();
         const map = { cx: x + cw / 2, cy: y + cw / 2, sc: cw * 0.34 };
-        this.paintClay(ctx, work.pts, map, false, work.colors, work.strokes, 100);
+        this.paintClay(ctx, work.pts, map, false, work.colors, work.strokes, 100, work.cells);
       });
       return;
     }
@@ -2131,7 +2152,7 @@ class MinigamesScene {
     if (!g || g.grab < 0 && g.grab !== -2 && g.grab !== -3) return;
     if (g.grab === -2) {
       g.dryer = { x: mx, y: my };
-      g.dry = Math.min(100, (g.dry || 0) + 1.8);
+      g.dry = Math.min(100, (g.dry || 0) + 0.22);
       if (g.dry >= 100) {
         g.stage = 'paint';
         g.grab = -1;
@@ -2197,7 +2218,7 @@ class MinigamesScene {
         return true;
       }
       if (b.text === 'Ещё погреть') {
-        g.dry = Math.min(100, (g.dry || 0) + 22);
+        g.dry = Math.min(100, (g.dry || 0) + 8);
         if (g.dry >= 100) {
           g.stage = 'paint';
           g.note = 'Высохло. Выбери краску и проведи по фигурке';
@@ -2250,19 +2271,18 @@ class MinigamesScene {
       const d = Math.hypot(p.x - local.x, p.y - local.y);
       if (d < bd) { bd = d; bi = i; }
     });
-    g.colors[bi] = g.paint;
-    if (!g.strokes) g.strokes = [];
-    const last = g.strokes[g.strokes.length - 1];
-    if (!last || Math.hypot(last.x - local.x, last.y - local.y) > 0.045) {
-      g.strokes.push({
-        x: Math.round(local.x * 100) / 100,
-        y: Math.round(local.y * 100) / 100,
-        r: 0.16,
-        c: g.paint
-      });
-      if (g.strokes.length > 90) g.strokes.shift();
+    if (!g.cells) g.cells = {};
+    const step = 0.06;
+    const rad = 0.15;
+    for (let iy = -3; iy <= 3; iy++) {
+      for (let ix = -3; ix <= 3; ix++) {
+        const x = Math.round((local.x + ix * step) / step) * step;
+        const y = Math.round((local.y + iy * step) / step) * step;
+        if (Math.hypot(x - local.x, y - local.y) > rad) continue;
+        g.cells[x.toFixed(2) + ',' + y.toFixed(2)] = g.paint;
+      }
     }
-    g.note = 'Веди пальцем. Цвет можно сменить сверху';
+    g.note = 'Крась по фигурке. Цвет в ряду под ней';
   }
 
   saveClayWork() {
@@ -2270,7 +2290,8 @@ class MinigamesScene {
     const piece = {
       pts: g.pts.map(p => ({ x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100 })),
       colors: g.colors.slice(),
-      strokes: (g.strokes || []).slice()
+      strokes: (g.strokes || []).slice(),
+      cells: g.cells || {}
     };
     if (!System.clayWorks) System.clayWorks = [];
     System.clayWorks.unshift(piece);
@@ -2359,7 +2380,9 @@ class MinigamesScene {
     return {
       len: h.len, curl: h.curl, color: h.color, streak: h.streak,
       bangs: h.bangs, gel: h.gel, clean: h.clean,
-      bow: !!h.bow, clip: !!h.clip, part: !!h.part, spray: !!h.spray
+      bow: !!h.bow, clip: false, part: !!h.part, spray: false,
+      mustache: !!h.mustache, beard: !!h.beard,
+      combed: false, brushed: false, pinned: false
     };
   }
 
@@ -2410,8 +2433,8 @@ class MinigamesScene {
     wish.clean = 2;
     const male = this.salonMale(who.who);
     const keys = male
-      ? ['len', 'curl', 'color', 'bangs', 'gel', 'part']
-      : ['len', 'curl', 'color', 'streak', 'bangs', 'gel', 'bow', 'clip', 'part'];
+      ? ['curl', 'color', 'bangs', 'gel', 'part']
+      : ['len', 'curl', 'color', 'streak', 'bangs', 'gel', 'bow', 'part'];
     const cols = ['black', 'brown', 'blonde', 'red', 'pink', 'blue', 'green', 'violet'];
     const used = {};
     const nch = 2 + Math.floor(Math.random() * 2);
@@ -2437,8 +2460,25 @@ class MinigamesScene {
       if (key === 'bangs') wish.bangs = !wish.bangs;
       if (key === 'gel') wish.gel = !wish.gel;
       if (key === 'bow') wish.bow = !wish.bow;
-      if (key === 'clip') wish.clip = !wish.clip;
       if (key === 'part') wish.part = !wish.part;
+    }
+    wish.spray = Math.random() < 0.6;
+    const adult = who.who === 'man' || who.who === 'grandpa';
+    if (adult) {
+      hair.len = 0.52;
+      wish.len = 0.26;
+      hair.mustache = Math.random() < 0.75;
+      hair.beard = Math.random() < 0.6;
+      if (!hair.mustache && !hair.beard) hair.mustache = true;
+      wish.mustache = hair.mustache;
+      wish.beard = hair.beard;
+      if (Math.random() < 0.7) {
+        wish.mustache = false;
+        wish.beard = false;
+      }
+    } else if (who.who === 'boy') {
+      hair.len = 0.5 + Math.random() * 0.08;
+      wish.len = Math.random() < 0.5 ? hair.len : 0.48;
     }
     this.salon = {
       person: { name: who.name, who: who.who, shirt: who.shirt, skin: skins[Math.floor(Math.random() * skins.length)] },
@@ -2473,81 +2513,135 @@ class MinigamesScene {
     }
   }
 
+  salonDrop(hair) {
+    if (hair.pinned) return 2;
+    if (hair.len < 0.38) return 2;
+    if (hair.len < 0.62) return 18 + hair.len * 16;
+    return 34 + hair.len * 62;
+  }
+
   drawSalonHair(ctx, hair) {
     const col = this.salonColor(hair.color).hex;
-    const len = 22 + hair.len * 78;
-    const sway = Math.sin((this.time || 0) / 280) * (hair.curl === 0 ? 1.5 : 3);
+    const drop = this.salonDrop(hair);
+    const sway = Math.sin((this.time || 0) / 280) * (hair.curl === 0 || hair.len < 0.38 ? 1 : 3);
+    const tidy = hair.combed || hair.brushed ? 0.65 : 1;
     ctx.fillStyle = col;
     ctx.beginPath();
-    ctx.moveTo(-32, -2);
-    ctx.quadraticCurveTo(-38, -46, 0, -48);
-    ctx.quadraticCurveTo(38, -46, 32, -2);
-    if (hair.curl === 0) {
-      ctx.lineTo(26 + sway, len);
-      ctx.quadraticCurveTo(0, len + 10, -26 + sway, len);
+    ctx.moveTo(-28, -18);
+    ctx.quadraticCurveTo(-34, -50, 0, -54);
+    ctx.quadraticCurveTo(34, -50, 28, -18);
+    if (hair.pinned || hair.len < 0.38) {
+      ctx.quadraticCurveTo(16, -8, 0, -10);
+      ctx.quadraticCurveTo(-16, -8, -28, -18);
+    } else if (hair.curl === 0 || hair.brushed) {
+      ctx.lineTo(18 * tidy + sway, drop);
+      ctx.quadraticCurveTo(0, drop + 8, -18 * tidy + sway, drop);
     } else {
-      const bumps = hair.curl === 2 ? 6 : 3;
+      const bumps = hair.curl === 2 ? 5 : 3;
       for (let i = 0; i <= bumps; i++) {
-        const yy = (len * i) / bumps;
-        const side = (i % 2 === 0 ? 34 : 12) + sway;
-        ctx.quadraticCurveTo(side, yy - len / bumps * 0.5, (i === bumps ? 6 : 20), yy);
+        const yy = (drop * i) / bumps;
+        const side = (i % 2 === 0 ? 30 : 14) * tidy + sway;
+        ctx.quadraticCurveTo(side, yy - drop / bumps * 0.4, (i === bumps ? 4 : 16), yy);
       }
-      ctx.lineTo(-6, len);
+      ctx.lineTo(-4, drop);
       for (let i = bumps; i >= 0; i--) {
-        const yy = (len * i) / bumps;
-        const side = (i % 2 === 0 ? -34 : -12) + sway;
-        ctx.quadraticCurveTo(side, yy + 8, (i === 0 ? -32 : -20), yy);
+        const yy = (drop * i) / bumps;
+        const side = (i % 2 === 0 ? -30 : -14) * tidy + sway;
+        ctx.quadraticCurveTo(side, yy + 6, (i === 0 ? -28 : -16), yy);
       }
     }
     ctx.closePath();
     ctx.fill();
-    ctx.globalAlpha = 0.35;
+    if (hair.len < 0.38 && !hair.pinned) {
+      ctx.fillRect(-30, -18, 7, 16);
+      ctx.fillRect(23, -18, 7, 16);
+    }
+    if (hair.pinned) {
+      ctx.beginPath();
+      ctx.arc(18, -40, 11, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = hair.brushed ? 0.55 : 0.28;
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(-12, -36);
-    ctx.quadraticCurveTo(-6, -10, -8, len * 0.45);
+    ctx.moveTo(-10, -40);
+    ctx.quadraticCurveTo(-4, -24, -6, -16);
     ctx.stroke();
     ctx.globalAlpha = 1;
-    if (hair.streak) {
+    if (hair.streak && !hair.pinned && hair.len >= 0.38) {
       ctx.fillStyle = this.salonColor(hair.streak).hex;
       ctx.beginPath();
-      ctx.moveTo(6, -34);
-      ctx.quadraticCurveTo(20 + sway, len * 0.35, 14, len * 0.82);
-      ctx.lineTo(2, len * 0.8);
-      ctx.quadraticCurveTo(8, len * 0.3, -2, -30);
+      ctx.moveTo(4, -30);
+      ctx.quadraticCurveTo(16 + sway, drop * 0.4, 10, drop * 0.85);
+      ctx.lineTo(0, drop * 0.82);
+      ctx.quadraticCurveTo(6, drop * 0.35, -2, -28);
       ctx.fill();
     }
-    if (hair.bangs) {
-      ctx.fillStyle = col;
-      ctx.beginPath();
-      ctx.ellipse(0, -18, 24, 13, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    if (hair.gel || hair.spray) {
+    if (hair.gel) {
       ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-      ctx.lineWidth = 2.4;
-      ctx.beginPath();
-      ctx.moveTo(-14, -34);
-      ctx.quadraticCurveTo(0, -16, -12, -2);
-      ctx.moveTo(10, -32);
-      ctx.quadraticCurveTo(4, -14, 12, 0);
-      ctx.stroke();
-    }
-    if (hair.part) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.65)';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(-6, -44);
-      ctx.quadraticCurveTo(-2, -20, 4, -4);
+      ctx.moveTo(-12, -36);
+      ctx.quadraticCurveTo(-2, -24, -8, -16);
+      ctx.moveTo(8, -38);
+      ctx.quadraticCurveTo(2, -26, 10, -18);
+      ctx.stroke();
+    }
+    if (hair.part && !hair.bangs) {
+      ctx.strokeStyle = 'rgba(255,248,240,0.8)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-4, -48);
+      ctx.quadraticCurveTo(2, -32, 6, -18);
       ctx.stroke();
     }
     if (hair.clean < 1) {
-      ctx.fillStyle = 'rgba(90,70,40,0.5)';
+      ctx.fillStyle = 'rgba(90,70,40,0.45)';
       ctx.beginPath();
-      ctx.arc(-8, -6, 2.2, 0, Math.PI * 2);
-      ctx.arc(10, 6, 2.4, 0, Math.PI * 2);
-      ctx.arc(-14, 14, 2, 0, Math.PI * 2);
+      ctx.arc(-10, -28, 2, 0, Math.PI * 2);
+      ctx.arc(8, -24, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  drawSalonBangs(ctx, hair) {
+    if (!hair.bangs || hair.pinned) return;
+    ctx.fillStyle = this.salonColor(hair.color).hex;
+    ctx.beginPath();
+    ctx.moveTo(-24, -22);
+    ctx.quadraticCurveTo(-16, -4, -8, -2);
+    ctx.quadraticCurveTo(0, 0, 8, -2);
+    ctx.quadraticCurveTo(16, -4, 24, -22);
+    ctx.quadraticCurveTo(0, -30, -24, -22);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  drawSalonFaceHair(ctx, hair) {
+    const col = this.salonColor(hair.color).hex;
+    ctx.fillStyle = col;
+    if (hair.mustache) {
+      ctx.beginPath();
+      ctx.ellipse(-7, 15, 7, 3.2, 0.15, 0, Math.PI * 2);
+      ctx.ellipse(7, 15, 7, 3.2, -0.15, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (hair.beard) {
+      ctx.beginPath();
+      ctx.moveTo(-14, 18);
+      ctx.quadraticCurveTo(-16, 34, 0, 40);
+      ctx.quadraticCurveTo(16, 34, 14, 18);
+      ctx.quadraticCurveTo(0, 24, -14, 18);
+      ctx.fill();
+    }
+    if (hair.pinned) this.salonIcon(ctx, 'clip', 18, -34);
+    if (hair.spray) {
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.beginPath();
+      ctx.arc(-16, -30, 1.6, 0, Math.PI * 2);
+      ctx.arc(12, -26, 1.4, 0, Math.PI * 2);
+      ctx.arc(0, -42, 1.5, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -2757,16 +2851,35 @@ class MinigamesScene {
     ctx.arc(27, 6, 5, 0, Math.PI * 2);
     ctx.fill();
     const blink = Math.sin((this.time || 0) / 900) > 0.97;
+    ctx.fillStyle = 'rgba(255,170,160,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(-14, 10, 5, 3, 0, 0, Math.PI * 2);
+    ctx.ellipse(14, 10, 5, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(90,60,40,0.45)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(-14, -4);
+    ctx.quadraticCurveTo(-9, -7, -4, -4);
+    ctx.moveTo(4, -4);
+    ctx.quadraticCurveTo(9, -7, 14, -4);
+    ctx.stroke();
     ctx.fillStyle = '#2a2118';
     if (blink) {
-      ctx.fillRect(-11, 1, 5, 2);
-      ctx.fillRect(6, 1, 5, 2);
+      ctx.fillRect(-12, 1, 6, 2);
+      ctx.fillRect(6, 1, 6, 2);
     } else {
       ctx.beginPath();
-      ctx.arc(-9, 2, 2.2, 0, Math.PI * 2);
-      ctx.arc(9, 2, 2.2, 0, Math.PI * 2);
+      ctx.ellipse(-9, 2, 2.4, 2.8, 0, 0, Math.PI * 2);
+      ctx.ellipse(9, 2, 2.4, 2.8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(-8.2, 1.2, 0.8, 0, Math.PI * 2);
+      ctx.arc(9.8, 1.2, 0.8, 0, Math.PI * 2);
       ctx.fill();
     }
+    this.drawSalonBangs(ctx, hair);
     ctx.strokeStyle = '#a15a4a';
     ctx.lineWidth = 1.6;
     ctx.beginPath();
@@ -2809,8 +2922,8 @@ class MinigamesScene {
     ctx.lineTo(-16, 78);
     ctx.closePath();
     ctx.fill();
-    if (hair.bow) this.salonIcon(ctx, 'bow', 22, -18);
-    if (hair.clip) this.salonIcon(ctx, 'clip', -20, -22);
+    this.drawSalonFaceHair(ctx, hair);
+    if (hair.bow) this.salonIcon(ctx, 'bow', 24, -8);
     ctx.restore();
   }
 
@@ -3013,15 +3126,18 @@ class MinigamesScene {
       AudioSys.play('fail');
       return;
     }
-    if (tool === 'comb' || tool === 'brush') { g.note = ''; g.comb = 700; return; }
+    if (tool === 'comb') { h.combed = true; g.note = ''; g.comb = 700; return; }
+    if (tool === 'brush') { h.brushed = true; h.combed = true; g.note = ''; g.comb = 700; return; }
     if (tool === 'cut') {
-      h.len = Math.max(0.32, Math.round((h.len - 0.12) * 100) / 100);
+      h.len = Math.max(0.5, Math.round((h.len - 0.12) * 100) / 100);
       g.note = '';
       g.snip = 500;
       return;
     }
     if (tool === 'clipper') {
-      h.len = Math.max(0.32, Math.round((h.len - 0.28) * 100) / 100);
+      if (h.len > 0.36) h.len = 0.26;
+      else if (h.beard) h.beard = false;
+      else if (h.mustache) h.mustache = false;
       g.note = '';
       g.snip = 500;
       return;
@@ -3044,7 +3160,7 @@ class MinigamesScene {
       g.iron = 800;
       return;
     }
-    if (tool === 'spray') { h.spray = !h.spray; g.note = ''; g.spark = 500; this.salonBurst(at.x, at.y - 20); return; }
+    if (tool === 'spray') { h.spray = true; g.note = ''; g.spark = 500; this.salonBurst(at.x, at.y - 20); return; }
     if (tool === 'dye') { h.color = g.dye; g.note = ''; g.drip = 700; return; }
     if (tool === 'streak') {
       h.streak = h.streak === g.dye ? null : g.dye;
@@ -3055,7 +3171,7 @@ class MinigamesScene {
     if (tool === 'bangs') { h.bangs = !h.bangs; g.note = ''; g.snip = 400; return; }
     if (tool === 'gel') { h.gel = !h.gel; g.note = ''; g.spark = 500; return; }
     if (tool === 'bow') { h.bow = !h.bow; g.note = ''; g.spark = 400; return; }
-    if (tool === 'clip') { h.clip = !h.clip; g.note = ''; g.spark = 400; return; }
+    if (tool === 'clip') { h.pinned = !h.pinned; g.note = h.pinned ? 'Зажато' : ''; g.spark = 300; return; }
     if (tool === 'part') { h.part = !h.part; g.note = ''; g.comb = 500; return; }
   }
 
@@ -3071,10 +3187,14 @@ class MinigamesScene {
     const bangsOk = !!h.bangs === !!w.bangs;
     const gelOk = !w.gel || h.gel;
     const bowOk = !w.bow || h.bow;
-    const clipOk = !w.clip || h.clip;
     const partOk = !w.part || h.part;
     const cleanOk = h.clean >= 2;
-    if (lenOk && curlOk && colorOk && streakOk && bangsOk && gelOk && bowOk && clipOk && partOk && cleanOk) {
+    const faceOk = !!h.mustache === !!w.mustache && !!h.beard === !!w.beard;
+    const combOk = !!h.combed;
+    const brushOk = w.len < 0.6 || !!h.brushed;
+    const sprayOk = !w.spray || !!h.spray;
+    const pinOk = !h.pinned;
+    if (lenOk && curlOk && colorOk && streakOk && bangsOk && gelOk && bowOk && partOk && cleanOk && faceOk && combOk && brushOk && sprayOk && pinOk) {
       g.over = true;
       const fem = g.person.who === 'girl' || g.person.who === 'woman' || g.person.who === 'grandma';
       g.note = fem ? 'Довольна!' : 'Доволен!';
@@ -3090,14 +3210,18 @@ class MinigamesScene {
     }
     let miss = 'Сверь с карточкой';
     if (!cleanOk) miss = 'Сначала помой';
-    else if (!lenOk) miss = h.len < w.len ? 'Длиннее' : 'Короче';
+    else if (!pinOk) miss = 'Сними зажим';
+    else if (!combOk) miss = 'Нужен гребень';
+    else if (!brushOk) miss = 'Нужна щётка';
+    else if (!lenOk) miss = (w.len < 0.38 && h.len > 0.36) ? 'Короче машинкой' : (h.len < w.len ? 'Длиннее' : 'Короче');
+    else if (!faceOk) miss = 'Усы и борода';
     else if (!curlOk) miss = h.curl < w.curl ? 'Больше кудрей' : 'Прямее';
     else if (!colorOk) miss = 'Другой цвет';
     else if (!streakOk) miss = w.streak ? 'Нужна прядь' : 'Убери прядь';
     else if (!bangsOk) miss = w.bangs ? 'Нужна чёлка' : 'Без чёлки';
+    else if (!sprayOk) miss = 'Нужен спрей';
     else if (!gelOk) miss = 'Нужен гель';
     else if (!bowOk) miss = 'Нужен бант';
-    else if (!clipOk) miss = 'Нужен зажим';
     else if (!partOk) miss = 'Нужен пробор';
     g.note = miss;
     AudioSys.play('fail');
