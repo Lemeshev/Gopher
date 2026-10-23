@@ -1849,7 +1849,27 @@ class MinigamesScene {
     ctx.closePath();
   }
 
+  clayViewMap(pts, cx, cy, size) {
+    if (!pts || pts.length < 3) return null;
+    let minX = pts[0].x;
+    let maxX = pts[0].x;
+    let minY = pts[0].y;
+    let maxY = pts[0].y;
+    for (let i = 1; i < pts.length; i++) {
+      const p = pts[i];
+      if (!p) continue;
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    }
+    const span = Math.max(0.3, maxX - minX, maxY - minY);
+    const sc = size / span;
+    return { cx: cx - ((minX + maxX) / 2) * sc, cy: cy - ((minY + maxY) / 2) * sc, sc: sc };
+  }
+
   paintClay(ctx, pts, map, soft, colors, strokes, dryAmt, cells) {
+    if (!pts || pts.length < 3 || !map) return;
     this.traceClay(ctx, pts, map);
     ctx.save();
     ctx.clip();
@@ -2079,7 +2099,7 @@ class MinigamesScene {
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
     ctx.font = `bold ${Math.min(W * 0.05, 20)}px Arial`;
-    ctx.fillText(g.stage === 'gallery' ? 'Галерея' : 'Лепка', W / 2, H * 0.16);
+    ctx.fillText(g.stage === 'look' ? 'Фигурка' : (g.stage === 'gallery' ? 'Галерея' : 'Лепка'), W / 2, H * 0.16);
     ctx.font = '13px Arial';
     ctx.fillStyle = '#ffe7c2';
     ctx.fillText(g.note || '', W / 2, H * 0.2);
@@ -2089,14 +2109,15 @@ class MinigamesScene {
         g.stage = 'gallery';
         return this.drawClayMenu(ctx, W, H);
       }
+      const boardTop = H * 0.24;
+      const boardH = H * 0.48;
       ctx.fillStyle = '#e7d3b0';
-      roundRect(ctx, 16, H * 0.24, W - 32, H * 0.52, 16);
+      roundRect(ctx, 16, boardTop, W - 32, boardH, 16);
       ctx.fill();
-      const side = Math.min(W - 64, H * 0.46);
-      const map = { cx: W / 2, cy: H * 0.24 + H * 0.26, sc: side * 0.38 };
+      const map = this.clayViewMap(work.pts, W / 2, boardTop + boardH / 2, Math.min(W - 80, boardH - 24));
       this.paintClay(ctx, work.pts, map, false, work.colors, work.strokes, 100, work.cells);
-      this.buttons.push(createButton(ctx, W / 2 - 80, H - 56, 160, 40, 'Удалить', {
-        bgColor: '#e07a3c', fgColor: '#fff', fontSize: 16, radius: 12
+      this.buttons.push(createButton(ctx, W / 2 - 100, boardTop + boardH + 16, 200, 48, 'Удалить', {
+        bgColor: '#e07a3c', fgColor: '#fff', fontSize: 18, radius: 14
       }));
       return;
     }
@@ -2118,8 +2139,19 @@ class MinigamesScene {
         ctx.fillStyle = '#e7d3b0';
         roundRect(ctx, x, y, cw, cw, 12);
         ctx.fill();
-        const map = { cx: x + cw / 2, cy: y + cw / 2, sc: cw * 0.34 };
+        const map = this.clayViewMap(work.pts, x + cw / 2, y + cw / 2 + 4, cw * 0.72);
         this.paintClay(ctx, work.pts, map, false, work.colors, work.strokes, 100, work.cells);
+        ctx.fillStyle = '#e07a3c';
+        ctx.beginPath();
+        ctx.arc(x + cw - 14, y + 14, 11, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('×', x + cw - 14, y + 15);
+        ctx.textBaseline = 'alphabetic';
+        this.buttons.push({ x: x + cw - 26, y: y + 2, w: 24, h: 24, text: 'del:' + i });
         this.buttons.push({ x: x, y: y, w: cw, h: cw, text: 'look:' + i });
       });
       return;
@@ -2246,6 +2278,15 @@ class MinigamesScene {
       if (b.text === 'Галерея') {
         g.stage = 'gallery';
         g.note = 'Нажми фигурку, чтобы открыть';
+        return true;
+      }
+      if (b.text && b.text.indexOf('del:') === 0) {
+        const list = System.clayWorks || [];
+        const idx = parseInt(b.text.slice(4), 10);
+        if (list[idx]) list.splice(idx, 1);
+        System.saveGame();
+        g.note = 'Убрано из галереи';
+        AudioSys.play('click');
         return true;
       }
       if (b.text && b.text.indexOf('look:') === 0) {
