@@ -1349,6 +1349,10 @@ class MinigamesScene {
     // Back button
     if (this.buttons[0] && isPointInRect(mx, my, this.buttons[0].x, this.buttons[0].y, this.buttons[0].w, this.buttons[0].h)) {
       if (this.mode === 'clay' && this.clay && this.clay.stage && this.clay.stage !== 'menu') {
+        if (this.clay.stage === 'look') {
+          this.clay = { stage: 'gallery', note: 'То, что уже высохло и расписано', grab: -1 };
+          return true;
+        }
         this.clay = { stage: 'menu', note: 'По образцу или своя фигурка', grab: -1 };
         return true;
       }
@@ -2079,23 +2083,44 @@ class MinigamesScene {
     ctx.font = '13px Arial';
     ctx.fillStyle = '#ffe7c2';
     ctx.fillText(g.note || '', W / 2, H * 0.2);
+    if (g.stage === 'look') {
+      const work = (System.clayWorks || [])[g.look];
+      if (!work) {
+        g.stage = 'gallery';
+        return this.drawClayMenu(ctx, W, H);
+      }
+      ctx.fillStyle = '#e7d3b0';
+      roundRect(ctx, 16, H * 0.24, W - 32, H * 0.52, 16);
+      ctx.fill();
+      const side = Math.min(W - 64, H * 0.46);
+      const map = { cx: W / 2, cy: H * 0.24 + H * 0.26, sc: side * 0.38 };
+      this.paintClay(ctx, work.pts, map, false, work.colors, work.strokes, 100, work.cells);
+      this.buttons.push(createButton(ctx, W / 2 - 80, H - 56, 160, 40, 'Удалить', {
+        bgColor: '#e07a3c', fgColor: '#fff', fontSize: 16, radius: 12
+      }));
+      return;
+    }
     if (g.stage === 'gallery') {
-      const works = (System.clayWorks || []).slice(0, 12);
+      const works = System.clayWorks || [];
       if (!works.length) {
         ctx.fillStyle = '#fff';
+        ctx.font = '13px Arial';
         ctx.fillText('Пока пусто. Слепи свою и нажми «В галерею»', W / 2, H * 0.4);
       }
+      const cols = 3;
+      const rows = Math.max(1, Math.ceil(works.length / cols));
+      const cw = Math.min(100, (W - 36) / cols, (H * 0.68) / rows - 8);
       works.forEach((work, i) => {
-        const col = i % 3;
-        const row = Math.floor(i / 3);
-        const cw = Math.min(100, (W - 36) / 3);
-        const x = 12 + col * (cw + 8);
-        const y = H * 0.26 + row * (cw + 8);
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const x = (W - cols * cw - (cols - 1) * 8) / 2 + col * (cw + 8);
+        const y = H * 0.24 + row * (cw + 8);
         ctx.fillStyle = '#e7d3b0';
         roundRect(ctx, x, y, cw, cw, 12);
         ctx.fill();
         const map = { cx: x + cw / 2, cy: y + cw / 2, sc: cw * 0.34 };
         this.paintClay(ctx, work.pts, map, false, work.colors, work.strokes, 100, work.cells);
+        this.buttons.push({ x: x, y: y, w: cw, h: cw, text: 'look:' + i });
       });
       return;
     }
@@ -2115,7 +2140,7 @@ class MinigamesScene {
   beginDrag(mx, my) {
     const g0 = this.clay;
     if (this.mode !== 'clay' || !g0 || g0.over) return false;
-    if (g0.stage === 'menu' || g0.stage === 'gallery') return false;
+    if (g0.stage === 'menu' || g0.stage === 'gallery' || g0.stage === 'look') return false;
     for (let i = 0; i < this.buttons.length; i++) {
       const b = this.buttons[i];
       if (isPointInRect(mx, my, b.x, b.y, b.w, b.h)) return false;
@@ -2220,7 +2245,21 @@ class MinigamesScene {
       if (b.text === 'Своя фигурка') { this.startFreeClay(); return true; }
       if (b.text === 'Галерея') {
         g.stage = 'gallery';
-        g.note = 'То, что уже высохло и расписано';
+        g.note = 'Нажми фигурку, чтобы открыть';
+        return true;
+      }
+      if (b.text && b.text.indexOf('look:') === 0) {
+        g.stage = 'look';
+        g.look = parseInt(b.text.slice(5), 10) || 0;
+        g.note = 'Большая фигурка';
+        return true;
+      }
+      if (b.text === 'Удалить') {
+        const list = System.clayWorks || [];
+        if (list[g.look]) list.splice(g.look, 1);
+        System.saveGame();
+        this.clay = { stage: 'gallery', note: 'Убрано из галереи', grab: -1 };
+        AudioSys.play('click');
         return true;
       }
       if (b.text.indexOf('paint:') === 0) { g.paint = b.text.slice(6); return true; }
@@ -2316,7 +2355,7 @@ class MinigamesScene {
     System.clayWorks.unshift(piece);
     if (System.clayWorks.length > 18) System.clayWorks.length = 18;
     System.saveGame();
-    this.clay = { stage: 'gallery', note: 'Фигурка сохранена', grab: -1 };
+    this.clay = { stage: 'gallery', note: 'Нажми фигурку, чтобы открыть', grab: -1 };
     AudioSys.play('success');
     return true;
   }
