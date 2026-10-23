@@ -1798,7 +1798,7 @@ class MinigamesScene {
   clayGeom(W, H) {
     const top = H * 0.2;
     const paint = this.clay && this.clay.stage === 'paint';
-    const bottom = H - 58 - (paint ? 44 : 0);
+    const bottom = H - 58 - (paint ? 56 : 0);
     const gap = 8;
     const boardH = Math.max(120, bottom - top);
     const boardW = (W - 24 - gap) / 2;
@@ -1994,7 +1994,7 @@ class MinigamesScene {
         const palette = ['#c0392b', '#e67e22', '#f1c40f', '#27ae60', '#2980b9', '#8e44ad', '#f4f1ea', '#2c3e50'];
         const gap = Math.min(36, (W - 28) / palette.length);
         const x0 = (W - gap * palette.length) / 2 + gap / 2;
-        const py = L.top + L.boardH + 20;
+        const py = H - 84;
         palette.forEach((col, i) => {
           const x = x0 + i * gap;
           ctx.fillStyle = '#fff';
@@ -2015,7 +2015,7 @@ class MinigamesScene {
       }
     }
 
-    const y = Math.min(H - 46, L.top + L.boardH + 8);
+    const y = H - 46;
     const bw = Math.min(104, (W - 28) / 3);
     let labels = ['Разгладить', 'Готово', 'Заново'];
     if (g.stage === 'sample' && g.over) labels = ['', 'Ещё фигуру', ''];
@@ -2185,6 +2185,25 @@ class MinigamesScene {
     }
     g.pulls += 1;
     g.note = 'Тяни дальше по контуру образца';
+    this.clampClay(g, L);
+  }
+
+  clampClay(g, L) {
+    const W = this.game.width;
+    const wide = g.stage !== 'sample';
+    const map = wide
+      ? { cx: 12 + (W - 24) / 2, cy: L.top + L.boardH * 0.48, sc: Math.min(W - 24, L.boardH) * 0.36, left: 20, right: W - 20, top: L.top + 28, bottom: L.top + L.boardH - 16 }
+      : { cx: L.bx + L.boardW / 2, cy: L.top + L.boardH * 0.48, sc: Math.min(L.boardW, L.boardH) * 0.36, left: L.bx + 8, right: L.bx + L.boardW - 8, top: L.top + 28, bottom: L.top + L.boardH - 12 };
+    const minX = (map.left - map.cx) / map.sc;
+    const maxX = (map.right - map.cx) / map.sc;
+    const minY = (map.top - map.cy) / map.sc;
+    const maxY = (map.bottom - map.cy) / map.sc;
+    g.pts.forEach(p => {
+      if (p.x < minX) p.x = minX;
+      if (p.x > maxX) p.x = maxX;
+      if (p.y < minY) p.y = minY;
+      if (p.y > maxY) p.y = maxY;
+    });
   }
 
   endDrag() {
