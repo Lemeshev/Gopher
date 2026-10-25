@@ -1863,8 +1863,10 @@ class MinigamesScene {
       if (p.y < minY) minY = p.y;
       if (p.y > maxY) maxY = p.y;
     }
+    if (![minX, maxX, minY, maxY].every(v => Number.isFinite(v))) return null;
     const span = Math.max(0.3, maxX - minX, maxY - minY);
     const sc = size / span;
+    if (!Number.isFinite(sc) || sc <= 0) return null;
     return { cx: cx - ((minX + maxX) / 2) * sc, cy: cy - ((minY + maxY) / 2) * sc, sc: sc };
   }
 
@@ -1955,7 +1957,7 @@ class MinigamesScene {
   drawClay(ctx, W, H) {
     const g = this.clay;
     if (!g) return;
-    if (g.stage === 'menu' || g.stage === 'gallery') return this.drawClayMenu(ctx, W, H);
+    if (g.stage === 'menu' || g.stage === 'gallery' || g.stage === 'look') return this.drawClayMenu(ctx, W, H);
     const L = this.clayGeom(W, H);
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
@@ -2039,20 +2041,36 @@ class MinigamesScene {
       }
     }
 
-    const y = H - 46;
-    const bw = Math.min(104, (W - 28) / 3);
+    const y = H - 52;
     let labels = ['Разгладить', 'Готово', 'Заново'];
     if (g.stage === 'sample' && g.over) labels = ['', 'Ещё фигуру', ''];
     if (g.stage === 'free') labels = ['Разгладить', 'Сушить', 'Заново'];
     if (g.stage === 'dry') labels = ['', 'Ещё погреть', ''];
     if (g.stage === 'paint') labels = ['', 'В галерею', 'Заново'];
-    const colors = ['#f3e6cf', '#6BCB77', '#f3e6cf'];
-    labels.forEach((text, i) => {
-      if (!text) return;
-      this.buttons.push(createButton(ctx, 10 + i * (bw + 6), y, bw, 36, text, {
-        bgColor: colors[i], fgColor: '#4a2e1c', fontSize: 13, radius: 12
+    const restart = labels[2];
+    const smooth = labels[0];
+    const primary = labels[1];
+    if (restart) {
+      const rx = g.stage === 'sample' ? (L.bx + L.boardW - 104) : (W - 116);
+      this.buttons.push(createButton(ctx, rx, L.top + 6, 96, 28, restart, {
+        bgColor: '#c4b49a', fgColor: '#5c4632', fontSize: 13, radius: 10
       }));
-    });
+    }
+    if (smooth && primary) {
+      const sw = Math.min(118, W * 0.32);
+      const pw = Math.min(200, W * 0.5);
+      this.buttons.push(createButton(ctx, 12, y, sw, 44, smooth, {
+        bgColor: '#f3e6cf', fgColor: '#4a2e1c', fontSize: 14, radius: 12
+      }));
+      this.buttons.push(createButton(ctx, W - 12 - pw, y, pw, 48, primary, {
+        bgColor: '#6BCB77', fgColor: '#14331a', fontSize: 18, radius: 14
+      }));
+    } else if (primary) {
+      const pw = Math.min(240, W - 48);
+      this.buttons.push(createButton(ctx, (W - pw) / 2, y, pw, 48, primary, {
+        bgColor: '#6BCB77', fgColor: '#14331a', fontSize: 18, radius: 14
+      }));
+    }
   }
 
   drawDryer(ctx, x, y, blowing) {
@@ -2110,15 +2128,18 @@ class MinigamesScene {
         return this.drawClayMenu(ctx, W, H);
       }
       const boardTop = H * 0.24;
-      const boardH = H * 0.48;
+      const boardH = Math.max(140, H * 0.46);
       ctx.fillStyle = '#e7d3b0';
       roundRect(ctx, 16, boardTop, W - 32, boardH, 16);
       ctx.fill();
-      const map = this.clayViewMap(work.pts, W / 2, boardTop + boardH / 2, Math.min(W - 80, boardH - 24));
-      this.paintClay(ctx, work.pts, map, false, work.colors, work.strokes, 100, work.cells);
-      this.buttons.push(createButton(ctx, W / 2 - 100, boardTop + boardH + 16, 200, 48, 'Удалить', {
+      const delW = Math.min(220, W - 48);
+      this.buttons.push(createButton(ctx, (W - delW) / 2, H - 64, delW, 48, 'Удалить', {
         bgColor: '#e07a3c', fgColor: '#fff', fontSize: 18, radius: 14
       }));
+      try {
+        const map = this.clayViewMap(work.pts, W / 2, boardTop + boardH / 2, Math.min(W - 80, boardH - 28));
+        this.paintClay(ctx, work.pts, map, false, work.colors, work.strokes, 100, work.cells);
+      } catch (e) {}
       return;
     }
     if (g.stage === 'gallery') {
@@ -2139,19 +2160,10 @@ class MinigamesScene {
         ctx.fillStyle = '#e7d3b0';
         roundRect(ctx, x, y, cw, cw, 12);
         ctx.fill();
-        const map = this.clayViewMap(work.pts, x + cw / 2, y + cw / 2 + 4, cw * 0.72);
-        this.paintClay(ctx, work.pts, map, false, work.colors, work.strokes, 100, work.cells);
-        ctx.fillStyle = '#e07a3c';
-        ctx.beginPath();
-        ctx.arc(x + cw - 14, y + 14, 11, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 14px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('×', x + cw - 14, y + 15);
-        ctx.textBaseline = 'alphabetic';
-        this.buttons.push({ x: x + cw - 26, y: y + 2, w: 24, h: 24, text: 'del:' + i });
+        try {
+          const map = this.clayViewMap(work.pts, x + cw / 2, y + cw / 2 + 4, cw * 0.72);
+          this.paintClay(ctx, work.pts, map, false, work.colors, work.strokes, 100, work.cells);
+        } catch (e) {}
         this.buttons.push({ x: x, y: y, w: cw, h: cw, text: 'look:' + i });
       });
       return;
