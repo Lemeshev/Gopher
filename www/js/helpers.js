@@ -239,7 +239,7 @@ function wrapLines(ctx, text, maxW, maxLines) {
 }
 
 // ============ ВЕРСИЯ И ВНЕШНИЕ ССЫЛКИ ============
-const GAME_VERSION = '1.5.10';
+const GAME_VERSION = '1.5.11';
 // github — кнопка обновления и установка APK. rustore — без этого разрешения,
 // в настройках только текст адреса сайта, без перехода наружу.
 const STORE_CHANNEL = 'github';
@@ -494,7 +494,7 @@ window.ClipBridge = ClipBridge;
 // WebViewClient.shouldOverrideUrlLoading, а игра такие ссылки не открывает.
 // Сборка с GitHub. Кнопка в настройках зовёт Android, чтобы ссылка открылась
 // снаружи WebView и началась загрузка APK.
-const GAME_UPDATE_URL = 'https://github.com/Lemeshev/Gopher/releases/latest/download/Gopher.apk';
+const GAME_UPDATE_URL = 'https://gopher.umort.ru/dl/Gopher.apk';
 
 function openGameUpdate() {
   window.__updateNote = 'скачиваем…';
@@ -514,8 +514,7 @@ function openGameUpdate() {
   return openExternalLink(GAME_UPDATE_URL);
 }
 
-// Подсказка «есть новее». Скачивание всегда идёт по GAME_UPDATE_URL:
-// прямая ссылка на релиз всё равно отвечает 302 на CDN, это разбирает Android.
+// Подсказка «есть новее». Скачивание идёт с официального сайта gopher.umort.ru/dl/.
 function versionIsNewer(tag, ver) {
   const a = String(tag || '').split('.');
   const b = String(ver || '').split('.');
