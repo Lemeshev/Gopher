@@ -666,7 +666,6 @@ class MinigamesScene {
       if (g.comb > 0) g.comb -= dt;
       if (g.iron > 0) g.iron -= dt;
       if (g.drip > 0) g.drip -= dt;
-      if (g.foam > 0) g.foam -= dt;
       if (g.spark > 0) g.spark -= dt;
     }
     if (this.mode === 'clay' && this.clay && this.clay.stage === 'dry') {
@@ -681,7 +680,7 @@ class MinigamesScene {
           r: 3 + Math.random() * 4
         });
       }
-      c.puff.forEach(p => {
+      (c.puff || []).forEach(p => {
         p.x += p.vx * dt;
         p.a -= dt * 0.0011;
         p.r += dt * 0.004;
@@ -1350,7 +1349,7 @@ class MinigamesScene {
     if (this.buttons[0] && isPointInRect(mx, my, this.buttons[0].x, this.buttons[0].y, this.buttons[0].w, this.buttons[0].h)) {
       if (this.mode === 'clay' && this.clay && this.clay.stage && this.clay.stage !== 'menu') {
         if (this.clay.stage === 'look') {
-          this.clay = { stage: 'gallery', note: 'То, что уже высохло и расписано', grab: -1 };
+          this.clay = { stage: 'gallery', note: 'Нажми фигурку, чтобы открыть', grab: -1 };
           return true;
         }
         this.clay = { stage: 'menu', note: 'По образцу или своя фигурка', grab: -1 };
@@ -1391,6 +1390,7 @@ class MinigamesScene {
             case 'mix': this.initMix(); System.countAction('minigames'); break;
             case 'clay': this.initClay(); System.countAction('minigames'); break;
             case 'salon': this.initSalon(); System.countAction('minigames'); break;
+            case 'salonFree': this.initSalon(true); System.countAction('minigames'); break;
           }
           return true;
         }
@@ -1863,10 +1863,8 @@ class MinigamesScene {
       if (p.y < minY) minY = p.y;
       if (p.y > maxY) maxY = p.y;
     }
-    if (![minX, maxX, minY, maxY].every(v => Number.isFinite(v))) return null;
     const span = Math.max(0.3, maxX - minX, maxY - minY);
     const sc = size / span;
-    if (!Number.isFinite(sc) || sc <= 0) return null;
     return { cx: cx - ((minX + maxX) / 2) * sc, cy: cy - ((minY + maxY) / 2) * sc, sc: sc };
   }
 
@@ -2041,36 +2039,20 @@ class MinigamesScene {
       }
     }
 
-    const y = H - 52;
+    const y = H - 46;
+    const bw = Math.min(104, (W - 28) / 3);
     let labels = ['Разгладить', 'Готово', 'Заново'];
     if (g.stage === 'sample' && g.over) labels = ['', 'Ещё фигуру', ''];
     if (g.stage === 'free') labels = ['Разгладить', 'Сушить', 'Заново'];
     if (g.stage === 'dry') labels = ['', 'Ещё погреть', ''];
-    if (g.stage === 'paint') labels = ['', 'В галерею', 'Заново'];
-    const restart = labels[2];
-    const smooth = labels[0];
-    const primary = labels[1];
-    if (restart) {
-      const rx = g.stage === 'sample' ? (L.bx + L.boardW - 104) : (W - 116);
-      this.buttons.push(createButton(ctx, rx, L.top + 6, 96, 28, restart, {
-        bgColor: '#c4b49a', fgColor: '#5c4632', fontSize: 13, radius: 10
+    if (g.stage === 'paint') labels = ['', 'Сохранить', 'Заново'];
+    const colors = ['#f3e6cf', '#6BCB77', '#f3e6cf'];
+    labels.forEach((text, i) => {
+      if (!text) return;
+      this.buttons.push(createButton(ctx, 10 + i * (bw + 6), y, bw, 36, text, {
+        bgColor: colors[i], fgColor: '#4a2e1c', fontSize: 13, radius: 12
       }));
-    }
-    if (smooth && primary) {
-      const sw = Math.min(118, W * 0.32);
-      const pw = Math.min(200, W * 0.5);
-      this.buttons.push(createButton(ctx, 12, y, sw, 44, smooth, {
-        bgColor: '#f3e6cf', fgColor: '#4a2e1c', fontSize: 14, radius: 12
-      }));
-      this.buttons.push(createButton(ctx, W - 12 - pw, y, pw, 48, primary, {
-        bgColor: '#6BCB77', fgColor: '#14331a', fontSize: 18, radius: 14
-      }));
-    } else if (primary) {
-      const pw = Math.min(240, W - 48);
-      this.buttons.push(createButton(ctx, (W - pw) / 2, y, pw, 48, primary, {
-        bgColor: '#6BCB77', fgColor: '#14331a', fontSize: 18, radius: 14
-      }));
-    }
+    });
   }
 
   drawDryer(ctx, x, y, blowing) {
@@ -2127,19 +2109,21 @@ class MinigamesScene {
         g.stage = 'gallery';
         return this.drawClayMenu(ctx, W, H);
       }
-      const boardTop = H * 0.24;
-      const boardH = Math.max(140, H * 0.46);
+      const boardTop = H * 0.18;
+      const boardH = H * 0.55;
       ctx.fillStyle = '#e7d3b0';
       roundRect(ctx, 16, boardTop, W - 32, boardH, 16);
       ctx.fill();
-      const delW = Math.min(220, W - 48);
-      this.buttons.push(createButton(ctx, (W - delW) / 2, H - 64, delW, 48, 'Удалить', {
-        bgColor: '#e07a3c', fgColor: '#fff', fontSize: 18, radius: 14
-      }));
       try {
-        const map = this.clayViewMap(work.pts, W / 2, boardTop + boardH / 2, Math.min(W - 80, boardH - 28));
+        const map = this.clayViewMap(work.pts, W / 2, boardTop + boardH / 2, Math.min(W - 80, boardH - 40));
         this.paintClay(ctx, work.pts, map, false, work.colors, work.strokes, 100, work.cells);
       } catch (e) {}
+      this.buttons.push(createButton(ctx, W / 2 - 110, boardTop + boardH + 12, 100, 44, 'Закрыть', {
+        bgColor: '#6BCB77', fgColor: '#fff', fontSize: 17, radius: 14
+      }));
+      this.buttons.push(createButton(ctx, W / 2 + 20, boardTop + boardH + 12, 100, 44, 'Удалить', {
+        bgColor: '#e07a3c', fgColor: '#fff', fontSize: 17, radius: 14
+      }));
       return;
     }
     if (g.stage === 'gallery') {
@@ -2147,7 +2131,7 @@ class MinigamesScene {
       if (!works.length) {
         ctx.fillStyle = '#fff';
         ctx.font = '13px Arial';
-        ctx.fillText('Пока пусто. Слепи свою и нажми «В галерею»', W / 2, H * 0.4);
+        ctx.fillText('Пока пусто. Слепи свою и нажми «Сохранить»', W / 2, H * 0.4);
       }
       const cols = 3;
       const rows = Math.max(1, Math.ceil(works.length / cols));
@@ -2292,26 +2276,26 @@ class MinigamesScene {
         g.note = 'Нажми фигурку, чтобы открыть';
         return true;
       }
-      if (b.text && b.text.indexOf('del:') === 0) {
-        const list = System.clayWorks || [];
-        const idx = parseInt(b.text.slice(4), 10);
-        if (list[idx]) list.splice(idx, 1);
-        System.saveGame();
-        g.note = 'Убрано из галереи';
-        AudioSys.play('click');
-        return true;
-      }
       if (b.text && b.text.indexOf('look:') === 0) {
         g.stage = 'look';
         g.look = parseInt(b.text.slice(5), 10) || 0;
-        g.note = 'Большая фигурка';
+        g.note = '';
+        return true;
+      }
+      if (b.text === 'Закрыть') {
+        this.clay = { stage: 'gallery', note: 'Нажми фигурку, чтобы открыть', grab: -1 };
         return true;
       }
       if (b.text === 'Удалить') {
+        if (!g.deleteConfirm) {
+          g.deleteConfirm = true;
+          g.note = 'Ещё раз — и фигурка пропадёт';
+          return true;
+        }
         const list = System.clayWorks || [];
         if (list[g.look]) list.splice(g.look, 1);
         System.saveGame();
-        this.clay = { stage: 'gallery', note: 'Убрано из галереи', grab: -1 };
+        this.clay = { stage: 'gallery', note: 'Фигурка удалена', grab: -1 };
         AudioSys.play('click');
         return true;
       }
@@ -2337,7 +2321,7 @@ class MinigamesScene {
         AudioSys.play('click');
         return true;
       }
-      if (b.text === 'В галерею') return this.saveClayWork();
+      if (b.text === 'В галерею' || b.text === 'Сохранить') return this.saveClayWork();
       if (b.text === 'Ещё фигуру') { this.startSampleClay(); return true; }
       if (b.text === 'Заново' && g.stage !== 'sample') { this.startFreeClay(); return true; }
       if (b.text === 'Заново') {
@@ -2400,7 +2384,7 @@ class MinigamesScene {
     const g = this.clay;
     const piece = {
       pts: g.pts.map(p => ({ x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100 })),
-      colors: g.colors.slice(),
+      colors: (g.colors || []).slice(),
       strokes: (g.strokes || []).slice(),
       cells: g.cells || {}
     };
@@ -2487,11 +2471,15 @@ class MinigamesScene {
     return who === 'boy' || who === 'man' || who === 'grandpa';
   }
 
+  salonAdult(who) {
+    return who === 'man' || who === 'grandpa';
+  }
+
   salonCopyHair(h) {
     return {
       len: h.len, curl: h.curl, color: h.color, streak: h.streak,
       bangs: h.bangs, gel: h.gel, clean: h.clean,
-      bow: !!h.bow, clip: false, part: !!h.part, spray: false,
+      bow: !!h.bow, part: !!h.part, spray: !!h.spray,
       mustache: !!h.mustache, beard: !!h.beard,
       combed: false, brushed: false, pinned: false
     };
@@ -2500,21 +2488,27 @@ class MinigamesScene {
   salonRandomHair(who) {
     const cols = ['black', 'brown', 'blonde', 'red', 'pink', 'blue', 'green', 'violet'];
     const male = this.salonMale(who);
+    const adult = this.salonAdult(who);
     const streak = !male && Math.random() < 0.35 ? cols[Math.floor(Math.random() * cols.length)] : null;
-    const len = male
-      ? (Math.random() < 0.84 ? 0.32 + Math.random() * 0.1 : 0.5 + Math.random() * 0.1)
-      : (Math.random() < 0.84 ? 0.84 + Math.random() * 0.16 : 0.62 + Math.random() * 0.12);
+    let len;
+    if (adult) len = 0.5 + Math.random() * 0.06;
+    else if (male) len = 0.48 + Math.random() * 0.1;
+    else len = 0.82 + Math.random() * 0.16;
     return {
       len: len,
       curl: male ? (Math.random() < 0.7 ? 0 : 1) : Math.floor(Math.random() * 3),
       color: cols[Math.floor(Math.random() * 4)],
       streak: streak,
-      bangs: Math.random() < (male ? 0.22 : 0.45),
+      bangs: Math.random() < (male ? 0.2 : 0.45),
       gel: Math.random() < 0.2,
       bow: false,
-      clip: false,
       part: false,
       spray: false,
+      mustache: adult && Math.random() < 0.75,
+      beard: adult && Math.random() < 0.55,
+      combed: false,
+      brushed: false,
+      pinned: false,
       clean: 0
     };
   }
@@ -2529,7 +2523,7 @@ class MinigamesScene {
     return s;
   }
 
-  initSalon() {
+  initSalon(freeMode) {
     this.mode = 'salon';
     if (!this._salonSeen) this._salonSeen = [];
     const people = this.salonPeople().filter(p => this._salonSeen.indexOf(p.name) === -1);
@@ -2540,56 +2534,53 @@ class MinigamesScene {
     if (this._salonSeen.length > 8) this._salonSeen.shift();
     const skins = ['#f6d3b4', '#e8b892', '#c68642', '#8d5524', '#f3c6a5'];
     const hair = this.salonRandomHair(who.who);
+    if (this.salonAdult(who.who) && !hair.mustache && !hair.beard) hair.mustache = true;
     const wish = this.salonCopyHair(hair);
     wish.clean = 2;
     const male = this.salonMale(who.who);
-    const keys = male
-      ? ['curl', 'color', 'bangs', 'gel', 'part']
-      : ['len', 'curl', 'color', 'streak', 'bangs', 'gel', 'bow', 'part'];
+    const adult = this.salonAdult(who.who);
     const cols = ['black', 'brown', 'blonde', 'red', 'pink', 'blue', 'green', 'violet'];
-    const used = {};
-    const nch = 2 + Math.floor(Math.random() * 2);
-    for (let k = 0; k < nch; k++) {
-      let key = keys[Math.floor(Math.random() * keys.length)];
-      let guard = 0;
-      while (used[key] && guard < 8) {
-        key = keys[Math.floor(Math.random() * keys.length)];
-        guard++;
+    if (!freeMode) {
+      const keys = male
+        ? ['curl', 'color', 'bangs', 'gel', 'part']
+        : ['len', 'curl', 'color', 'streak', 'bangs', 'gel', 'bow', 'part'];
+      const used = {};
+      const nch = 2 + Math.floor(Math.random() * 2);
+      for (let k = 0; k < nch; k++) {
+        let key = keys[Math.floor(Math.random() * keys.length)];
+        let guard = 0;
+        while (used[key] && guard < 8) {
+          key = keys[Math.floor(Math.random() * keys.length)];
+          guard++;
+        }
+        used[key] = true;
+        if (key === 'len') wish.len = male ? 0.34 : 0.96;
+        if (key === 'curl') wish.curl = (wish.curl + 1 + Math.floor(Math.random() * 2)) % 3;
+        if (key === 'color') {
+          let c = cols[Math.floor(Math.random() * cols.length)];
+          if (c === wish.color) c = cols[(cols.indexOf(c) + 3) % cols.length];
+          wish.color = c;
+        }
+        if (key === 'streak') {
+          wish.streak = wish.streak ? null : cols[Math.floor(Math.random() * cols.length)];
+          if (wish.streak === wish.color) wish.streak = 'pink';
+        }
+        if (key === 'bangs') wish.bangs = !wish.bangs;
+        if (key === 'gel') wish.gel = !wish.gel;
+        if (key === 'bow') wish.bow = !wish.bow;
+        if (key === 'part') wish.part = !wish.part;
       }
-      used[key] = true;
-      if (key === 'len') wish.len = male ? (Math.random() < 0.85 ? 0.34 : 0.56) : (Math.random() < 0.85 ? 0.96 : 0.66);
-      if (key === 'curl') wish.curl = (wish.curl + 1 + Math.floor(Math.random() * 2)) % 3;
-      if (key === 'color') {
-        let c = cols[Math.floor(Math.random() * cols.length)];
-        if (c === wish.color) c = cols[(cols.indexOf(c) + 3) % cols.length];
-        wish.color = c;
+      wish.spray = Math.random() < 0.55;
+      if (adult) {
+        hair.len = 0.52;
+        wish.len = 0.26;
+        wish.mustache = hair.mustache;
+        wish.beard = hair.beard;
+        if (Math.random() < 0.55) {
+          wish.mustache = false;
+          wish.beard = false;
+        }
       }
-      if (key === 'streak') {
-        wish.streak = wish.streak ? null : cols[Math.floor(Math.random() * cols.length)];
-        if (wish.streak === wish.color) wish.streak = 'pink';
-      }
-      if (key === 'bangs') wish.bangs = !wish.bangs;
-      if (key === 'gel') wish.gel = !wish.gel;
-      if (key === 'bow') wish.bow = !wish.bow;
-      if (key === 'part') wish.part = !wish.part;
-    }
-    wish.spray = Math.random() < 0.6;
-    const adult = who.who === 'man' || who.who === 'grandpa';
-    if (adult) {
-      hair.len = 0.52;
-      wish.len = 0.26;
-      hair.mustache = Math.random() < 0.75;
-      hair.beard = Math.random() < 0.6;
-      if (!hair.mustache && !hair.beard) hair.mustache = true;
-      wish.mustache = hair.mustache;
-      wish.beard = hair.beard;
-      if (Math.random() < 0.7) {
-        wish.mustache = false;
-        wish.beard = false;
-      }
-    } else if (who.who === 'boy') {
-      hair.len = 0.5 + Math.random() * 0.08;
-      wish.len = Math.random() < 0.5 ? hair.len : 0.48;
     }
     this.salon = {
       person: { name: who.name, who: who.who, shirt: who.shirt, skin: skins[Math.floor(Math.random() * skins.length)] },
@@ -2606,9 +2597,9 @@ class MinigamesScene {
       comb: 0,
       iron: 0,
       drip: 0,
-      foam: 0,
       spark: 0,
-      smile: 0
+      smile: 0,
+      freeMode: !!freeMode
     };
   }
 
@@ -2635,7 +2626,7 @@ class MinigamesScene {
     const col = this.salonColor(hair.color).hex;
     const drop = this.salonDrop(hair);
     const sway = Math.sin((this.time || 0) / 280) * (hair.curl === 0 || hair.len < 0.38 ? 1 : 3);
-    const tidy = hair.combed || hair.brushed ? 0.65 : 1;
+    const tidy = hair.combed || hair.brushed ? 0.65 : 1.15;
     ctx.fillStyle = col;
     ctx.beginPath();
     ctx.moveTo(-28, -18);
@@ -2786,6 +2777,18 @@ class MinigamesScene {
         ctx.lineTo(i, 12);
         ctx.stroke();
       }
+    } else if (id === 'brush') {
+      ctx.fillStyle = '#8d6e63';
+      roundRect(ctx, -4, -14, 8, 22, 3);
+      ctx.fill();
+      ctx.strokeStyle = '#5d4037';
+      ctx.lineWidth = 1.4;
+      for (let i = -6; i <= 6; i += 3) {
+        ctx.beginPath();
+        ctx.moveTo(i, 6);
+        ctx.lineTo(i, 14);
+        ctx.stroke();
+      }
     } else if (id === 'cut') {
       ctx.strokeStyle = '#546e7a';
       ctx.lineWidth = 3;
@@ -2800,6 +2803,14 @@ class MinigamesScene {
       ctx.arc(-6, 8, 4, 0, Math.PI * 2);
       ctx.arc(6, 8, 4, 0, Math.PI * 2);
       ctx.fill();
+    } else if (id === 'clipper') {
+      ctx.fillStyle = '#546e7a';
+      roundRect(ctx, -12, -8, 24, 14, 3);
+      ctx.fill();
+      ctx.fillStyle = '#cfd8dc';
+      ctx.fillRect(-10, 4, 20, 4);
+      ctx.fillStyle = '#ffb300';
+      ctx.fillRect(6, -4, 4, 6);
     } else if (id === 'grow') {
       ctx.fillStyle = '#e040fb';
       ctx.beginPath();
@@ -2825,6 +2836,17 @@ class MinigamesScene {
       ctx.fill();
       ctx.fillStyle = '#9fa8da';
       ctx.fillRect(-14, -2, 28, 3);
+    } else if (id === 'dryer') {
+      ctx.fillStyle = '#eceff1';
+      roundRect(ctx, -4, -10, 18, 16, 4);
+      ctx.fill();
+      ctx.fillStyle = '#90a4ae';
+      ctx.beginPath();
+      ctx.moveTo(-4, -6);
+      ctx.lineTo(-14, -10);
+      ctx.lineTo(-14, 6);
+      ctx.lineTo(-4, 4);
+      ctx.fill();
     } else if (id === 'dye') {
       ctx.fillStyle = '#e53935';
       ctx.beginPath();
@@ -2832,10 +2854,6 @@ class MinigamesScene {
       ctx.lineTo(8, -10);
       ctx.lineTo(5, 12);
       ctx.lineTo(-5, 12);
-      ctx.fill();
-      ctx.fillStyle = '#ff8a80';
-      ctx.beginPath();
-      ctx.arc(0, 6, 3, 0, Math.PI * 2);
       ctx.fill();
     } else if (id === 'streak') {
       ctx.strokeStyle = '#7a4ea3';
@@ -2870,38 +2888,6 @@ class MinigamesScene {
       ctx.beginPath();
       ctx.arc(-10, -8, 2, 0, Math.PI * 2);
       ctx.arc(-14, -2, 1.6, 0, Math.PI * 2);
-      ctx.arc(-8, -14, 1.4, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (id === 'brush') {
-      ctx.fillStyle = '#8d6e63';
-      roundRect(ctx, -4, -14, 8, 22, 3);
-      ctx.fill();
-      ctx.strokeStyle = '#5d4037';
-      ctx.lineWidth = 1.4;
-      for (let i = -6; i <= 6; i += 3) {
-        ctx.beginPath();
-        ctx.moveTo(i, 6);
-        ctx.lineTo(i, 14);
-        ctx.stroke();
-      }
-    } else if (id === 'clipper') {
-      ctx.fillStyle = '#546e7a';
-      roundRect(ctx, -12, -8, 24, 14, 3);
-      ctx.fill();
-      ctx.fillStyle = '#cfd8dc';
-      ctx.fillRect(-10, 4, 20, 4);
-      ctx.fillStyle = '#ffb300';
-      ctx.fillRect(6, -4, 4, 6);
-    } else if (id === 'dryer') {
-      ctx.fillStyle = '#eceff1';
-      roundRect(ctx, -4, -10, 18, 16, 4);
-      ctx.fill();
-      ctx.fillStyle = '#90a4ae';
-      ctx.beginPath();
-      ctx.moveTo(-4, -6);
-      ctx.lineTo(-14, -10);
-      ctx.lineTo(-14, 6);
-      ctx.lineTo(-4, 4);
       ctx.fill();
     } else if (id === 'bow') {
       ctx.fillStyle = '#ec407a';
@@ -2961,20 +2947,12 @@ class MinigamesScene {
     ctx.arc(-27, 6, 5, 0, Math.PI * 2);
     ctx.arc(27, 6, 5, 0, Math.PI * 2);
     ctx.fill();
-    const blink = Math.sin((this.time || 0) / 900) > 0.97;
     ctx.fillStyle = 'rgba(255,170,160,0.35)';
     ctx.beginPath();
     ctx.ellipse(-14, 10, 5, 3, 0, 0, Math.PI * 2);
     ctx.ellipse(14, 10, 5, 3, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(90,60,40,0.45)';
-    ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    ctx.moveTo(-14, -4);
-    ctx.quadraticCurveTo(-9, -7, -4, -4);
-    ctx.moveTo(4, -4);
-    ctx.quadraticCurveTo(9, -7, 14, -4);
-    ctx.stroke();
+    const blink = Math.sin((this.time || 0) / 900) > 0.97;
     ctx.fillStyle = '#2a2118';
     if (blink) {
       ctx.fillRect(-12, 1, 6, 2);
@@ -2997,14 +2975,6 @@ class MinigamesScene {
     if (smile) ctx.arc(0, 6, 8, 0.15, Math.PI - 0.15);
     else ctx.arc(0, 8, 7, 0.35, Math.PI - 0.35);
     ctx.stroke();
-    if (person.who === 'man' || person.who === 'grandpa') {
-      ctx.strokeStyle = this.salonColor(hair.color).hex;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(-8, 14);
-      ctx.quadraticCurveTo(0, 20, 8, 14);
-      ctx.stroke();
-    }
     if (person.who === 'grandma' || person.who === 'grandpa') {
       ctx.strokeStyle = 'rgba(80,60,40,0.35)';
       ctx.beginPath();
@@ -3088,32 +3058,30 @@ class MinigamesScene {
     ctx.fillStyle = '#f8d5e4';
     ctx.fillRect(0, 48, W, H - 48);
     ctx.fillStyle = '#f3b7cf';
-    ctx.fillRect(0, H * 0.62, W, H);
+    ctx.fillRect(0, H * 0.58, W, H);
     ctx.fillStyle = '#c98b6a';
-    ctx.fillRect(0, H * 0.72, W, H);
+    ctx.fillRect(0, H * 0.68, W, H);
     ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    roundRect(ctx, W * 0.08, 56, W * 0.62, H * 0.5, 18);
+    roundRect(ctx, W * 0.08, 56, W * 0.58, H * 0.42, 18);
     ctx.fill();
     ctx.strokeStyle = '#e7b7a0';
     ctx.lineWidth = 6;
     ctx.stroke();
 
-    const cardX = W - 104;
-    const cardY = 56;
-    ctx.fillStyle = '#fff';
-    roundRect(ctx, cardX, cardY, 92, 118, 12);
-    ctx.fill();
-    ctx.strokeStyle = '#f48fb1';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    this.drawSalonPerson(ctx, cardX + 46, cardY + 46, 0.48, g.person, g.wish, false);
-    ctx.fillStyle = '#f48fb1';
-    ctx.beginPath();
-    ctx.arc(cardX + 78, cardY + 14, 8, 0, Math.PI * 2);
-    ctx.fill();
+    const cardX = W - 108;
+    const cardY = 52;
+    if (!g.freeMode) {
+      ctx.fillStyle = '#fff';
+      roundRect(ctx, cardX, cardY, 96, 124, 12);
+      ctx.fill();
+      ctx.strokeStyle = '#f48fb1';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      this.drawSalonPerson(ctx, cardX + 48, cardY + 50, 0.5, g.person, g.wish, false);
+    }
 
-    const hx = Math.min(W * 0.38, cardX - 70);
-    const hy = Math.min(H * 0.28, H - 310);
+    const hx = Math.min(W * 0.36, cardX - 70);
+    const hy = Math.min(H * 0.28, H - 280);
     ctx.fillStyle = '#8d6e63';
     roundRect(ctx, hx - 46, hy + 78, 92, 16, 6);
     ctx.fill();
@@ -3136,16 +3104,20 @@ class MinigamesScene {
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#6a3048';
     ctx.font = 'bold 16px Arial';
-    ctx.fillText(g.person.name, hx, 68);
+    ctx.fillText(g.person.name, hx, 66);
     if (g.note) {
       ctx.font = 'bold 13px Arial';
       const nw = Math.min(W - 130, ctx.measureText(g.note).width + 16);
       ctx.fillStyle = '#fff';
-      roundRect(ctx, hx - nw / 2, 80, nw, 22, 11);
+      roundRect(ctx, hx - nw / 2, 78, nw, 22, 11);
       ctx.fill();
       ctx.fillStyle = '#6a3048';
-      ctx.fillText(g.note, hx, 91);
+      ctx.fillText(g.note, hx, 89);
     }
+
+    this.buttons.push(createButton(ctx, 8, 52, 92, 28, g.freeMode ? 'По образцу' : 'Как хочешь', {
+      bgColor: g.freeMode ? '#FFD93D' : '#fff', fgColor: '#6a3048', fontSize: 11, radius: 10
+    }));
 
     const shelves = [
       [['shampoo', 'Шампунь'], ['balm', 'Бальзам'], ['spray', 'Спрей'], ['comb', 'Гребень'], ['brush', 'Щётка']],
@@ -3153,7 +3125,7 @@ class MinigamesScene {
       [['dryer', 'Фен'], ['dye', 'Краска'], ['streak', 'Прядь'], ['bangs', 'Чёлка'], ['gel', 'Гель']],
       [['bow', 'Бант'], ['clip', 'Зажим'], ['part', 'Пробор'], ['done', 'Готово']]
     ];
-    const shelfH = 48;
+    const shelfH = 46;
     const base = H - 4 - shelves.length * shelfH;
     if (g.over) {
       this.buttons.push(createButton(ctx, W / 2 - 78, base - 52, 156, 44, 'Дальше', {
@@ -3181,7 +3153,7 @@ class MinigamesScene {
         this.buttons.push({ x: x - 12, y: y - 12, w: 24, h: 24, text: 'dye:' + id });
       });
     }
-    const pulse = g.hair.clean < 1 ? 'shampoo' : (g.hair.clean < 2 ? 'balm' : '');
+    const pulse = g.hair.clean < 1 ? 'shampoo' : (g.hair.clean < 2 ? 'balm' : (!g.hair.combed ? 'comb' : ''));
     shelves.forEach((row, r) => {
       const y = base + r * shelfH;
       const slot = (W - 8) / row.length;
@@ -3221,7 +3193,6 @@ class MinigamesScene {
     if (tool === 'shampoo') {
       h.clean = Math.max(h.clean, 1);
       g.note = '';
-      g.foam = 900;
       this.salonBurst(at.x, at.y);
       return;
     }
@@ -3240,7 +3211,7 @@ class MinigamesScene {
     if (tool === 'comb') { h.combed = true; g.note = ''; g.comb = 700; return; }
     if (tool === 'brush') { h.brushed = true; h.combed = true; g.note = ''; g.comb = 700; return; }
     if (tool === 'cut') {
-      h.len = Math.max(0.5, Math.round((h.len - 0.12) * 100) / 100);
+      h.len = Math.max(0.32, Math.round((h.len - 0.12) * 100) / 100);
       g.note = '';
       g.snip = 500;
       return;
@@ -3260,7 +3231,7 @@ class MinigamesScene {
       return;
     }
     if (tool === 'curl') {
-      h.curl = Math.min(2, h.curl + 1);
+      h.curl = h.curl >= 2 ? 1 : h.curl + 1;
       g.note = '';
       g.iron = 800;
       return;
@@ -3271,7 +3242,6 @@ class MinigamesScene {
       g.iron = 800;
       return;
     }
-    if (tool === 'spray') { h.spray = true; g.note = ''; g.spark = 500; this.salonBurst(at.x, at.y - 20); return; }
     if (tool === 'dye') { h.color = g.dye; g.note = ''; g.drip = 700; return; }
     if (tool === 'streak') {
       h.streak = h.streak === g.dye ? null : g.dye;
@@ -3281,6 +3251,7 @@ class MinigamesScene {
     }
     if (tool === 'bangs') { h.bangs = !h.bangs; g.note = ''; g.snip = 400; return; }
     if (tool === 'gel') { h.gel = !h.gel; g.note = ''; g.spark = 500; return; }
+    if (tool === 'spray') { h.spray = true; g.note = ''; g.spark = 500; this.salonBurst(at.x, at.y - 20); return; }
     if (tool === 'bow') { h.bow = !h.bow; g.note = ''; g.spark = 400; return; }
     if (tool === 'clip') { h.pinned = !h.pinned; g.note = h.pinned ? 'Зажато' : ''; g.spark = 300; return; }
     if (tool === 'part') { h.part = !h.part; g.note = ''; g.comb = 500; return; }
@@ -3291,23 +3262,9 @@ class MinigamesScene {
     if (g.over) return;
     const h = g.hair;
     const w = g.wish;
-    const lenOk = Math.abs(h.len - w.len) < 0.22;
-    const curlOk = h.curl === w.curl;
-    const colorOk = h.color === w.color;
-    const streakOk = h.streak === w.streak;
-    const bangsOk = !!h.bangs === !!w.bangs;
-    const gelOk = !w.gel || h.gel;
-    const bowOk = !w.bow || h.bow;
-    const partOk = !w.part || h.part;
-    const cleanOk = h.clean >= 2;
-    const faceOk = !!h.mustache === !!w.mustache && !!h.beard === !!w.beard;
-    const combOk = !!h.combed;
-    const brushOk = w.len < 0.6 || !!h.brushed;
-    const sprayOk = !w.spray || !!h.spray;
-    const pinOk = !h.pinned;
-    if (lenOk && curlOk && colorOk && streakOk && bangsOk && gelOk && bowOk && partOk && cleanOk && faceOk && combOk && brushOk && sprayOk && pinOk) {
+    const fem = g.person.who === 'girl' || g.person.who === 'woman' || g.person.who === 'grandma';
+    const pay = () => {
       g.over = true;
-      const fem = g.person.who === 'girl' || g.person.who === 'woman' || g.person.who === 'grandma';
       g.note = fem ? 'Довольна!' : 'Доволен!';
       g.spark = 1200;
       g.smile = 1;
@@ -3317,14 +3274,29 @@ class MinigamesScene {
       System.addXP(6);
       System.stats.happiness = Math.min(100, System.stats.happiness + 4);
       System.saveGame();
+    };
+    if (h.pinned) { g.note = 'Сними зажим'; AudioSys.play('fail'); return; }
+    if (h.clean < 2) { g.note = 'Сначала помой'; AudioSys.play('fail'); return; }
+    if (!h.combed) { g.note = 'Нужен гребень'; AudioSys.play('fail'); return; }
+    if (g.freeMode) { pay(); return; }
+    const lenOk = Math.abs(h.len - w.len) < 0.22;
+    const curlOk = h.curl === w.curl;
+    const colorOk = h.color === w.color;
+    const streakOk = h.streak === w.streak;
+    const bangsOk = !!h.bangs === !!w.bangs;
+    const gelOk = !w.gel || h.gel;
+    const bowOk = !w.bow || h.bow;
+    const partOk = !w.part || h.part;
+    const faceOk = !!h.mustache === !!w.mustache && !!h.beard === !!w.beard;
+    const brushOk = w.len < 0.6 || !!h.brushed;
+    const sprayOk = !w.spray || !!h.spray;
+    if (lenOk && curlOk && colorOk && streakOk && bangsOk && gelOk && bowOk && partOk && faceOk && brushOk && sprayOk) {
+      pay();
       return;
     }
     let miss = 'Сверь с карточкой';
-    if (!cleanOk) miss = 'Сначала помой';
-    else if (!pinOk) miss = 'Сними зажим';
-    else if (!combOk) miss = 'Нужен гребень';
-    else if (!brushOk) miss = 'Нужна щётка';
-    else if (!lenOk) miss = (w.len < 0.38 && h.len > 0.36) ? 'Короче машинкой' : (h.len < w.len ? 'Длиннее' : 'Короче');
+    if (!brushOk) miss = 'Нужна щётка';
+    else if (!lenOk) miss = (w.len < 0.38 && h.len > 0.36) ? 'Короче машинкой' : (h.len < w.len ? 'Длиннее: ленты' : 'Короче');
     else if (!faceOk) miss = 'Усы и борода';
     else if (!curlOk) miss = h.curl < w.curl ? 'Больше кудрей' : 'Прямее';
     else if (!colorOk) miss = 'Другой цвет';
@@ -3344,7 +3316,9 @@ class MinigamesScene {
     for (let i = 1; i < this.buttons.length; i++) {
       const b = this.buttons[i];
       if (!isPointInRect(mx, my, b.x, b.y, b.w, b.h)) continue;
-      if (b.text === 'Следующий' || b.text === 'Дальше') { this.initSalon(); return true; }
+      if (b.text === 'Следующий' || b.text === 'Дальше') { this.initSalon(g.freeMode); return true; }
+      if (b.text === 'Как хочешь') { this.initSalon(true); return true; }
+      if (b.text === 'По образцу') { this.initSalon(false); return true; }
       if (b.text && b.text.indexOf('dye:') === 0) {
         g.dye = b.text.slice(4);
         g.note = '';

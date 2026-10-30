@@ -239,7 +239,7 @@ function wrapLines(ctx, text, maxW, maxLines) {
 }
 
 // ============ ВЕРСИЯ И ВНЕШНИЕ ССЫЛКИ ============
-const GAME_VERSION = '1.5.11';
+const GAME_VERSION = '1.5.12';
 // github — кнопка обновления и установка APK. rustore — без этого разрешения,
 // в настройках только текст адреса сайта, без перехода наружу.
 const STORE_CHANNEL = 'github';
@@ -514,7 +514,7 @@ function openGameUpdate() {
   return openExternalLink(GAME_UPDATE_URL);
 }
 
-// Подсказка «есть новее». Скачивание идёт с официального сайта gopher.umort.ru/dl/.
+// Подсказка «есть новее». Скачивание идёт с сайта gopher.umort.ru/dl/.
 function versionIsNewer(tag, ver) {
   const a = String(tag || '').split('.');
   const b = String(ver || '').split('.');
