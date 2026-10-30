@@ -2118,6 +2118,31 @@ class MinigamesScene {
         const map = this.clayViewMap(work.pts, W / 2, boardTop + boardH / 2, Math.min(W - 80, boardH - 40));
         this.paintClay(ctx, work.pts, map, false, work.colors, work.strokes, 100, work.cells);
       } catch (e) {}
+      if (g.deleteConfirm) {
+        ctx.fillStyle = 'rgba(26, 26, 46, 0.55)';
+        ctx.fillRect(0, 48, W, H - 48);
+        const boxW = Math.min(280, W - 40);
+        const boxH = 150;
+        const bx = (W - boxW) / 2;
+        const by = H * 0.42;
+        ctx.fillStyle = '#fff8ef';
+        roundRect(ctx, bx, by, boxW, boxH, 16);
+        ctx.fill();
+        ctx.fillStyle = '#4a2e1c';
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Удалить эту фигурку?', W / 2, by + 42);
+        ctx.font = '13px Arial';
+        ctx.fillStyle = '#7a5a40';
+        ctx.fillText('Её нельзя будет вернуть', W / 2, by + 66);
+        this.buttons.push(createButton(ctx, bx + 16, by + 90, (boxW - 40) / 2, 40, 'Нет', {
+          bgColor: '#6BCB77', fgColor: '#fff', fontSize: 16, radius: 12
+        }));
+        this.buttons.push(createButton(ctx, bx + boxW / 2 + 4, by + 90, (boxW - 40) / 2, 40, 'Да', {
+          bgColor: '#e07a3c', fgColor: '#fff', fontSize: 16, radius: 12
+        }));
+        return;
+      }
       this.buttons.push(createButton(ctx, W / 2 - 110, boardTop + boardH + 12, 100, 44, 'Закрыть', {
         bgColor: '#6BCB77', fgColor: '#fff', fontSize: 17, radius: 14
       }));
@@ -2282,16 +2307,22 @@ class MinigamesScene {
         g.note = '';
         return true;
       }
-      if (b.text === 'Закрыть') {
-        this.clay = { stage: 'gallery', note: 'Нажми фигурку, чтобы открыть', grab: -1 };
+      if (b.text === 'Закрыть' || b.text === 'Нет') {
+        g.deleteConfirm = false;
+        if (b.text === 'Закрыть') {
+          this.clay = { stage: 'gallery', note: 'Нажми фигурку, чтобы открыть', grab: -1 };
+        } else {
+          g.note = '';
+        }
         return true;
       }
       if (b.text === 'Удалить') {
-        if (!g.deleteConfirm) {
-          g.deleteConfirm = true;
-          g.note = 'Ещё раз — и фигурка пропадёт';
-          return true;
-        }
+        g.deleteConfirm = true;
+        g.note = '';
+        AudioSys.play('click');
+        return true;
+      }
+      if (b.text === 'Да') {
         const list = System.clayWorks || [];
         if (list[g.look]) list.splice(g.look, 1);
         System.saveGame();
@@ -2599,7 +2630,8 @@ class MinigamesScene {
       drip: 0,
       spark: 0,
       smile: 0,
-      freeMode: !!freeMode
+      freeMode: !!freeMode,
+      startHair: this.salonCopyHair(hair)
     };
   }
 
@@ -2941,39 +2973,69 @@ class MinigamesScene {
     this.drawSalonHair(ctx, hair);
     ctx.fillStyle = person.skin;
     ctx.beginPath();
-    ctx.arc(0, 4, 26, 0, Math.PI * 2);
+    ctx.ellipse(0, 6, 23, 27, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(-27, 6, 5, 0, Math.PI * 2);
-    ctx.arc(27, 6, 5, 0, Math.PI * 2);
+    ctx.ellipse(-24, 8, 5.5, 7.5, -0.15, 0, Math.PI * 2);
+    ctx.ellipse(24, 8, 5.5, 7.5, 0.15, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = 'rgba(255,170,160,0.35)';
+    ctx.fillStyle = 'rgba(255,150,150,0.28)';
     ctx.beginPath();
-    ctx.ellipse(-14, 10, 5, 3, 0, 0, Math.PI * 2);
-    ctx.ellipse(14, 10, 5, 3, 0, 0, Math.PI * 2);
+    ctx.ellipse(-13, 14, 6, 4, 0, 0, Math.PI * 2);
+    ctx.ellipse(13, 14, 6, 4, 0, 0, Math.PI * 2);
     ctx.fill();
     const blink = Math.sin((this.time || 0) / 900) > 0.97;
-    ctx.fillStyle = '#2a2118';
+    ctx.strokeStyle = 'rgba(90,60,40,0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(-14, -2);
+    ctx.quadraticCurveTo(-9, -6, -4, -3);
+    ctx.moveTo(4, -3);
+    ctx.quadraticCurveTo(9, -6, 14, -2);
+    ctx.stroke();
     if (blink) {
-      ctx.fillRect(-12, 1, 6, 2);
-      ctx.fillRect(6, 1, 6, 2);
-    } else {
+      ctx.strokeStyle = '#2a2118';
+      ctx.lineWidth = 1.6;
       ctx.beginPath();
-      ctx.ellipse(-9, 2, 2.4, 2.8, 0, 0, Math.PI * 2);
-      ctx.ellipse(9, 2, 2.4, 2.8, 0, 0, Math.PI * 2);
+      ctx.moveTo(-12, 3);
+      ctx.quadraticCurveTo(-8, 5, -5, 3);
+      ctx.moveTo(5, 3);
+      ctx.quadraticCurveTo(8, 5, 12, 3);
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.ellipse(-8, 3, 4.2, 5, -0.08, 0, Math.PI * 2);
+      ctx.ellipse(8, 3, 4.2, 5, 0.08, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#3d6b8a';
+      ctx.beginPath();
+      ctx.ellipse(-8, 3.4, 2.4, 3.2, 0, 0, Math.PI * 2);
+      ctx.ellipse(8, 3.4, 2.4, 3.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#1a1a2e';
+      ctx.beginPath();
+      ctx.arc(-8, 3.6, 1.4, 0, Math.PI * 2);
+      ctx.arc(8, 3.6, 1.4, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = '#fff';
       ctx.beginPath();
-      ctx.arc(-8.2, 1.2, 0.8, 0, Math.PI * 2);
-      ctx.arc(9.8, 1.2, 0.8, 0, Math.PI * 2);
+      ctx.arc(-7.2, 2.2, 0.9, 0, Math.PI * 2);
+      ctx.arc(8.8, 2.2, 0.9, 0, Math.PI * 2);
       ctx.fill();
     }
     this.drawSalonBangs(ctx, hair);
-    ctx.strokeStyle = '#a15a4a';
-    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = 'rgba(160,90,80,0.55)';
+    ctx.lineWidth = 1.3;
     ctx.beginPath();
-    if (smile) ctx.arc(0, 6, 8, 0.15, Math.PI - 0.15);
-    else ctx.arc(0, 8, 7, 0.35, Math.PI - 0.35);
+    ctx.moveTo(0, 8);
+    ctx.quadraticCurveTo(-2, 14, 0, 16);
+    ctx.stroke();
+    ctx.strokeStyle = '#c45a5a';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    if (smile) ctx.arc(0, 12, 8, 0.2, Math.PI - 0.2);
+    else ctx.arc(0, 14, 6.5, 0.35, Math.PI - 0.35);
     ctx.stroke();
     if (person.who === 'grandma' || person.who === 'grandpa') {
       ctx.strokeStyle = 'rgba(80,60,40,0.35)';
@@ -3062,22 +3124,26 @@ class MinigamesScene {
     ctx.fillStyle = '#c98b6a';
     ctx.fillRect(0, H * 0.68, W, H);
     ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    roundRect(ctx, W * 0.08, 56, W * 0.58, H * 0.42, 18);
+    roundRect(ctx, W * 0.06, 88, W * 0.52, H * 0.38, 18);
     ctx.fill();
     ctx.strokeStyle = '#e7b7a0';
     ctx.lineWidth = 6;
     ctx.stroke();
 
     const cardX = W - 108;
-    const cardY = 52;
+    const cardY = 88;
     if (!g.freeMode) {
       ctx.fillStyle = '#fff';
-      roundRect(ctx, cardX, cardY, 96, 124, 12);
+      roundRect(ctx, cardX, cardY, 96, 128, 12);
       ctx.fill();
       ctx.strokeStyle = '#f48fb1';
       ctx.lineWidth = 3;
       ctx.stroke();
-      this.drawSalonPerson(ctx, cardX + 48, cardY + 50, 0.5, g.person, g.wish, false);
+      ctx.fillStyle = '#f48fb1';
+      ctx.font = 'bold 10px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Хочет', cardX + 48, cardY + 16);
+      this.drawSalonPerson(ctx, cardX + 48, cardY + 58, 0.48, g.person, g.wish, false);
     }
 
     const hx = Math.min(W * 0.36, cardX - 70);
@@ -3115,9 +3181,14 @@ class MinigamesScene {
       ctx.fillText(g.note, hx, 89);
     }
 
-    this.buttons.push(createButton(ctx, 8, 52, 92, 28, g.freeMode ? 'По образцу' : 'Как хочешь', {
+    this.buttons.push(createButton(ctx, cardX, 52, 96, 28, g.freeMode ? 'По образцу' : 'Как хочешь', {
       bgColor: g.freeMode ? '#FFD93D' : '#fff', fgColor: '#6a3048', fontSize: 11, radius: 10
     }));
+    if (!g.over) {
+      this.buttons.push(createButton(ctx, 10, 52, 88, 28, 'Заново', {
+        bgColor: '#fff', fgColor: '#6a3048', fontSize: 12, radius: 10
+      }));
+    }
 
     const shelves = [
       [['shampoo', 'Шампунь'], ['balm', 'Бальзам'], ['spray', 'Спрей'], ['comb', 'Гребень'], ['brush', 'Щётка']],
@@ -3319,6 +3390,18 @@ class MinigamesScene {
       if (b.text === 'Следующий' || b.text === 'Дальше') { this.initSalon(g.freeMode); return true; }
       if (b.text === 'Как хочешь') { this.initSalon(true); return true; }
       if (b.text === 'По образцу') { this.initSalon(false); return true; }
+      if (b.text === 'Заново') {
+        if (g.startHair) {
+          g.hair = this.salonCopyHair(g.startHair);
+          g.hair.clean = g.startHair.clean;
+          g.hair.mustache = g.startHair.mustache;
+          g.hair.beard = g.startHair.beard;
+        }
+        g.note = '';
+        g.spark = 400;
+        AudioSys.play('click');
+        return true;
+      }
       if (b.text && b.text.indexOf('dye:') === 0) {
         g.dye = b.text.slice(4);
         g.note = '';
