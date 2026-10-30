@@ -453,7 +453,7 @@ class MenuScene {
     ctx.fill();
 
     const panelW = Math.min(W * 0.88, 330);
-    const panelH = 420;
+    const panelH = 452;
     const px = (W - panelW) / 2;
     const py = (H - panelH) / 2;
 
@@ -498,6 +498,11 @@ class MenuScene {
     ctx.font = `bold ${Math.min(W * 0.034, 14)}px Arial`;
     ctx.fillText('gopher.umort.ru', W / 2, py + 284);
     ctx.fillText('vk.com/VL', W / 2, py + 308);
+
+    ctx.fillStyle = '#9fb0d8';
+    ctx.font = `${Math.min(W * 0.025, 10)}px Arial`;
+    ctx.fillText('Маскот Go нарисовала Renee French, CC BY 4.0.', W / 2, py + 332);
+    ctx.fillText('Игра неофициальная.', W / 2, py + 348);
 
     this.buttons.push(createButton(ctx, px + 30, py + panelH - 54, panelW - 60, 40, '← Назад', {
       bgColor: 'rgba(255,255,255,0.2)', fgColor: '#fff', fontSize: 15, radius: 10

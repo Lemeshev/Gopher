@@ -1,6 +1,6 @@
 {
   "name": "gopher-life",
-  "version": "1.5.12",
+  "version": "1.6.0",
   "description": "Interactive pet game with Go gopher mascot",
   "main": "index.js",
   "scripts": {
